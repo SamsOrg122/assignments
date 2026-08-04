@@ -18,6 +18,7 @@ import { fuzzyMatch, segments } from "@/lib/fuzzy";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { KINDS, KIND_ORDER } from "@/lib/kinds";
+import { exportProject, EXPORT_LABELS, type ExportFormat } from "@/lib/export";
 import type { BlockType, ProjectKind } from "@/lib/types";
 
 /**
@@ -48,6 +49,12 @@ const WORKSPACE_PROMPTS: Array<[string, string, string, string]> = [
     "Where does my argument drift?",
     "My conclusion doesn't line up with my research question — where does it drift?",
     "Scores each section against your research question",
+  ],
+  [
+    "number",
+    "Number all headings",
+    "Number all the headings",
+    "Renumbers every heading in order",
   ],
   [
     "deck",
@@ -129,6 +136,12 @@ export const BLOCK_META: Record<
     icon: "code",
     hint: "Multi-file editor with preview",
     keywords: "editor javascript html css program run preview",
+  },
+  bibliography: {
+    label: "Bibliography",
+    icon: "quote",
+    hint: "Auto-formatted from your sources",
+    keywords: "references works cited sources citations apa mla chicago harvard",
   },
 };
 
@@ -232,15 +245,32 @@ function PaletteDialog({ seed }: { seed: string }) {
         });
       }
 
-      list.push({
-        id: "project:export",
-        title: "Export to PDF",
-        subtitle: "Opens the print dialog",
-        group: "Project",
-        icon: "download",
-        keywords: "print save download share pdf",
-        run: () => setTimeout(() => window.print(), 120),
-      });
+      for (const format of ["pdf", "doc", "html", "markdown"] as ExportFormat[]) {
+        list.push({
+          id: `export:${format}`,
+          title: `Export to ${EXPORT_LABELS[format]}`,
+          subtitle:
+            format === "doc"
+              ? "Word-compatible HTML — opens in Word, keeps formatting"
+              : format === "pdf"
+                ? "Prints the document, not the app"
+                : undefined,
+          group: "Export",
+          icon: "download",
+          // Per-format keywords only: putting "word" on every entry made
+          // "export to word" match "Export to Web page" just as well.
+          keywords:
+            `export save download share ${format} ` +
+            (format === "doc"
+              ? "word docx microsoft supervisor"
+              : format === "pdf"
+                ? "print paper submit"
+                : format === "html"
+                  ? "web page site"
+                  : "md plain text"),
+          run: () => exportProject(project, format),
+        });
+      }
 
       list.push({
         id: "project:duplicate",

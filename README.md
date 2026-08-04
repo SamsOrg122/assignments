@@ -38,6 +38,8 @@ src/
     formula.ts            hand-written spreadsheet expression parser
     fuzzy.ts              ranking for ⌘K and the / menu
     summary.ts            word counts, outlines, one-line descriptions
+    sources/              resolveSource seam, parsers, four citation styles
+    export.ts             PDF · Word · web · Markdown, from the model
     ai/                   askAI seam, stub provider, document analyses
     speech/               transcribe seam — Web Speech + simulated fallback
     realtime/             RealtimeProvider seam + simulated presence
@@ -75,6 +77,13 @@ outward so the opening and conclusion always survive. That's what lets
 interchangeably?" be answerable at all. The analyses in `lib/ai/analysis.ts`
 are real computations over your text, not canned prose.
 
+**Citations that maintain themselves.** Paste a link, DOI, arXiv id, BibTeX
+record or a reference copied out of a paper; `lib/sources` parses what it can
+and *flags what it guessed* rather than presenting inference as fact. Markers
+in the prose are Tiptap nodes holding a source id, so switching APA → MLA
+rewrites every marker and every reference in one move, and the bibliography —
+which stores nothing of its own — can never drift from the source list.
+
 **AI is a seam, not a feature.** Everything the UI knows is
 `askAI(prompt, context)` returning a stream of chunks, plus an optional
 structured `AIChange` the user accepts or rejects — the model never writes to
@@ -96,6 +105,7 @@ simulates peers.
 | `⌘J` | ask AI about the selection (whole project as context) |
 | `⌘B` | toggle sidebar |
 | `/` | insert a block, from inside any text block |
+| `⌘⇧C` | cite a source at the caret (paste a link to add and cite in one) |
 | `P` | promote the board selection into a Library project |
 | `⌘0` | fit the board to its content |
 | shift-drag | marquee-select on a board |

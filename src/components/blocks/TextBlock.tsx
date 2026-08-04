@@ -10,6 +10,8 @@ import { useUI } from "@/lib/ui-store";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { SlashMenu } from "@/components/canvas/SlashMenu";
+import { CitePicker } from "@/components/sources/CitePicker";
+import { Citation } from "./citation-extension";
 
 interface Props {
   projectId: string;
@@ -30,8 +32,12 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
   const updateBlock = useProjects((s) => s.updateBlock);
   const addBlock = useProjects((s) => s.addBlock);
   const openAI = useUI((s) => s.openAI);
+  const setVoiceSample = useUI((s) => s.setVoiceSample);
+  const voiceSample = useUI((s) => s.voiceSample);
+  const notify = useUI((s) => s.notify);
 
   const [slash, setSlash] = useState<SlashState | null>(null);
+  const [cite, setCite] = useState<{ x: number; y: number } | null>(null);
   const [toolbar, setToolbar] = useState<{ x: number; y: number } | null>(null);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,6 +56,7 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
       Placeholder.configure({
         placeholder: "Write something, or press / for a block",
       }),
+      Citation,
     ],
     content: block.html,
     editorProps: {
@@ -163,6 +170,31 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     [editor, slash, addBlock, projectId, block.id],
   );
 
+  /** Mark the selection as the voice to match, or match it to the mark. */
+  const useAsVoice = useCallback(() => {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    const text = editor.state.doc.textBetween(from, to, " ");
+    setVoiceSample({ text, projectId });
+    notify("Voice sample set — now select the passage to bring into line");
+    setToolbar(null);
+  }, [editor, setVoiceSample, projectId, notify]);
+
+  const matchVoice = useCallback(() => {
+    if (!editor || !voiceSample) return;
+    const { from, to } = editor.state.selection;
+    const text = editor.state.doc.textBetween(from, to, " ");
+    openAI({
+      projectId,
+      blockId: block.id,
+      blockType: "text",
+      selectionText: text,
+      anchor: { x: toolbar?.x ?? 400, y: (toolbar?.y ?? 200) + 28 },
+      seedPrompt: `__tone__ ${voiceSample.text} __endtone__`,
+    });
+    setToolbar(null);
+  }, [editor, voiceSample, openAI, projectId, block.id, toolbar]);
+
   const askAboutSelection = useCallback(() => {
     if (!editor) return;
     const { from, to } = editor.state.selection;
@@ -201,6 +233,13 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
             }
             return;
           }
+          // ⌘⇧C — cite at the caret.
+          if (e.key.toLowerCase() === "c" && e.shiftKey && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            const coords = editor.view.coordsAtPos(editor.state.selection.from);
+            setCite({ x: coords.left, y: coords.bottom + 6 });
+            return;
+          }
           if (e.key === "/") {
             const { $from, empty, from } = editor.state.selection;
             // Only at the start of an empty block — mid-sentence slashes are
@@ -218,6 +257,30 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
           x={toolbar.x}
           y={toolbar.y}
           onAskAI={askAboutSelection}
+          onUseAsVoice={useAsVoice}
+          onMatchVoice={voiceSample ? matchVoice : undefined}
+        />
+      )}
+
+      {cite && (
+        <CitePicker
+          projectId={projectId}
+          x={cite.x}
+          y={cite.y}
+          onClose={() => setCite(null)}
+          onInsert={(source, label) => {
+            setCite(null);
+            editor
+              .chain()
+              .focus()
+              .insertContent({
+                type: "citation",
+                attrs: { sourceId: source.id, label },
+              })
+              // A citation is nearly always followed by more prose.
+              .insertContent(" ")
+              .run();
+          }}
         />
       )}
 
@@ -241,11 +304,16 @@ function SelectionToolbar({
   x,
   y,
   onAskAI,
+  onUseAsVoice,
+  onMatchVoice,
 }: {
   editor: Editor;
   x: number;
   y: number;
   onAskAI: () => void;
+  onUseAsVoice: () => void;
+  /** Absent until a voice sample has been captured. */
+  onMatchVoice?: () => void;
 }) {
   const items = [
     {
@@ -336,6 +404,26 @@ function SelectionToolbar({
         Ask AI
         <kbd className="kbd !px-1 !py-0.5">⌘J</kbd>
       </button>
+
+      <button
+        type="button"
+        onClick={onUseAsVoice}
+        title="Use this passage as the voice to match"
+        className="rounded-xs px-1.5 py-1 text-[11.5px] text-fg-muted transition-colors duration-100 hover:bg-white/5 hover:text-fg"
+      >
+        Voice
+      </button>
+
+      {onMatchVoice && (
+        <button
+          type="button"
+          onClick={onMatchVoice}
+          title="Rewrite this in the sampled voice"
+          className="rounded-xs px-1.5 py-1 text-[11.5px] text-fg-muted transition-colors duration-100 hover:bg-white/5 hover:text-fg"
+        >
+          Match
+        </button>
+      )}
     </div>
   );
 }

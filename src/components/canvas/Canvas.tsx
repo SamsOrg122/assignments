@@ -28,11 +28,19 @@ import { TableBlock } from "@/components/blocks/TableBlock";
 import { ChartBlock } from "@/components/blocks/ChartBlock";
 import { SlidesBlock } from "@/components/blocks/SlidesBlock";
 import { CodeBlock } from "@/components/blocks/CodeBlock";
+import { BibliographyBlock } from "@/components/blocks/BibliographyBlock";
 import { Icon } from "@/components/ui/Icon";
 import { BLOCK_META } from "@/components/shell/CommandPalette";
 import type { BlockType } from "@/lib/types";
 
-const ADDABLE: BlockType[] = ["text", "table", "chart", "slides", "code"];
+const ADDABLE: BlockType[] = [
+  "text",
+  "table",
+  "chart",
+  "slides",
+  "code",
+  "bibliography",
+];
 
 export function Canvas({
   project,
@@ -196,5 +204,7 @@ function BlockBody({
       return <SlidesBlock projectId={projectId} block={block} />;
     case "code":
       return <CodeBlock projectId={projectId} block={block} />;
+    case "bibliography":
+      return <BibliographyBlock projectId={projectId} block={block} />;
   }
 }

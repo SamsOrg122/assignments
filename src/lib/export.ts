@@ -1,0 +1,238 @@
+"use client";
+
+/**
+ * Export.
+ *
+ * One interface, four targets. Everything is generated from the document model
+ * rather than scraped from the DOM, so what you get doesn't depend on what
+ * happened to be on screen or which panels were open.
+ *
+ * A note on Word: this produces Word-compatible HTML (`.doc`), not OOXML
+ * (`.docx`). Word opens it correctly and keeps headings, emphasis, lists,
+ * tables and citations — which is what a supervisor asking for "a Word file"
+ * actually needs. Real `.docx` means a ZIP of OOXML parts and belongs behind
+ * this same `exportProject` call when it lands; nothing above here changes.
+ */
+
+import { formatReference, sortSources } from "./sources";
+import { htmlToText } from "./ai/context";
+import { computeFormulas } from "./formula";
+import type { Project } from "./types";
+
+export type ExportFormat = "pdf" | "doc" | "html" | "markdown";
+
+export const EXPORT_LABELS: Record<ExportFormat, string> = {
+  pdf: "PDF",
+  doc: "Word (.doc)",
+  html: "Web page",
+  markdown: "Markdown",
+};
+
+/* ── Document body ──────────────────────────────────────── */
+
+/** Every block as HTML, in document order. */
+function bodyHtml(project: Project): string {
+  const style = project.citationStyle ?? "apa";
+  const parts: string[] = [];
+
+  for (const block of project.blocks) {
+    switch (block.type) {
+      case "text":
+        parts.push(block.html);
+        break;
+
+      case "table": {
+        const derived = computeFormulas(block.columns, block.rows);
+        const head = block.columns.map((c) => `<th>${esc(c.name)}</th>`).join("");
+        const rows = block.rows
+          .map(
+            (r) =>
+              `<tr>${block.columns
+                .map((c) => {
+                  const v =
+                    c.type === "formula"
+                      ? (derived[r.id]?.[c.id] ?? "")
+                      : (r.cells[c.id] ?? "");
+                  return `<td>${esc(String(v))}</td>`;
+                })
+                .join("")}</tr>`,
+          )
+          .join("");
+        parts.push(
+          `<table><caption>${esc(block.title ?? "Table")}</caption><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`,
+        );
+        break;
+      }
+
+      case "slides":
+        parts.push(
+          block.slides
+            .map(
+              (s) =>
+                `<h2>${esc(s.title)}</h2><ul>${s.bullets
+                  .filter(Boolean)
+                  .map((b) => `<li>${esc(b)}</li>`)
+                  .join("")}</ul>`,
+            )
+            .join(""),
+        );
+        break;
+
+      case "code":
+        parts.push(
+          block.files
+            .map(
+              (f) =>
+                `<h3>${esc(f.name)}</h3><pre><code>${esc(f.content)}</code></pre>`,
+            )
+            .join(""),
+        );
+        break;
+
+      case "bibliography": {
+        const cited = new Set<string>();
+        for (const b of project.blocks)
+          if (b.type === "text")
+            for (const m of b.html.matchAll(/data-citation="([^"]+)"/g))
+              cited.add(m[1]);
+
+        const pool =
+          block.scope === "cited"
+            ? (project.sources ?? []).filter((s) => cited.has(s.id))
+            : (project.sources ?? []);
+
+        parts.push(
+          `<h2>${esc(block.title ?? "References")}</h2>` +
+            sortSources(pool)
+              .map((s) => `<p class="reference">${formatReference(s, style)}</p>`)
+              .join(""),
+        );
+        break;
+      }
+
+      case "chart":
+        // Charts are canvas-rendered; a caption beats a blank rectangle.
+        parts.push(
+          `<p><em>[${esc(block.title ?? "Chart")} — ${esc(block.kind)} chart]</em></p>`,
+        );
+        break;
+    }
+  }
+
+  return parts.join("\n");
+}
+
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/* ── Targets ────────────────────────────────────────────── */
+
+/** Print styling that survives the transition to paper. */
+const PRINT_CSS = `
+  @page { margin: 2.4cm; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 12pt;
+    line-height: 1.7;
+    color: #111;
+    max-width: 40em;
+    margin: 0 auto;
+  }
+  h1 { font-size: 20pt; line-height: 1.2; margin: 0 0 .6em; }
+  h2 { font-size: 15pt; line-height: 1.25; margin: 1.6em 0 .4em; page-break-after: avoid; }
+  h3 { font-size: 12.5pt; margin: 1.2em 0 .3em; page-break-after: avoid; }
+  p  { margin: 0 0 .8em; }
+  blockquote { margin: 1em 0 1em 1.5em; color: #444; font-style: italic; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 10.5pt; }
+  th, td { border: 1px solid #999; padding: 5px 8px; text-align: left; }
+  caption { text-align: left; font-weight: bold; padding-bottom: .4em; }
+  pre { background: #f4f4f4; padding: 10px; overflow-x: auto; font-size: 9.5pt; }
+  .reference { padding-left: 2em; text-indent: -2em; margin-bottom: .5em; }
+  .citation { white-space: nowrap; }
+`;
+
+function wrapDocument(project: Project, extraHead = ""): string {
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8" />
+<title>${esc(project.name)}</title>
+${extraHead}
+<style>${PRINT_CSS}</style>
+</head><body>
+${bodyHtml(project)}
+</body></html>`;
+}
+
+/** Markdown, for anywhere that wants plain text with structure. */
+function toMarkdown(project: Project): string {
+  const html = bodyHtml(project);
+  return html
+    .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, (_m, t) => `\n# ${htmlToText(t)}\n`)
+    .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, (_m, t) => `\n## ${htmlToText(t)}\n`)
+    .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, (_m, t) => `\n### ${htmlToText(t)}\n`)
+    .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_m, t) => `- ${htmlToText(t)}\n`)
+    .replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (_m, t) => `\n> ${htmlToText(t)}\n`)
+    .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, (_m, t) => `**${htmlToText(t)}**`)
+    .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, (_m, t) => `_${htmlToText(t)}_`)
+    .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (_m, t) => `\n${htmlToText(t)}\n`)
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function download(filename: string, content: string, mime: string) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  // Revoke on the next tick — Safari needs the URL alive through the click.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "document";
+
+export function exportProject(project: Project, format: ExportFormat): void {
+  const name = slug(project.name);
+
+  switch (format) {
+    case "pdf": {
+      // Print the *document*, not the app: a clean window means panels,
+      // cursors and chrome can't leak into the output.
+      const win = window.open("", "_blank", "width=820,height=1000");
+      if (!win) {
+        window.print();
+        return;
+      }
+      win.document.write(wrapDocument(project));
+      win.document.close();
+      win.focus();
+      setTimeout(() => win.print(), 350);
+      return;
+    }
+
+    case "doc":
+      download(
+        `${name}.doc`,
+        wrapDocument(
+          project,
+          `<meta name="ProgId" content="Word.Document" /><meta name="Generator" content="Assignments" />`,
+        ),
+        "application/msword",
+      );
+      return;
+
+    case "html":
+      download(`${name}.html`, wrapDocument(project), "text/html");
+      return;
+
+    case "markdown":
+      download(`${name}.md`, toMarkdown(project), "text/markdown");
+      return;
+  }
+}

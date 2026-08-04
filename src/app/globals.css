@@ -321,6 +321,23 @@
   font-weight: 600;
 }
 
+/* Inline citations: present but never louder than the prose. */
+.prose-canvas .citation {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-fg-muted);
+  border-bottom: 1px dotted var(--color-line-strong);
+  cursor: default;
+  white-space: nowrap;
+}
+.prose-canvas .citation:hover {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+.ProseMirror .citation.ProseMirror-selectednode {
+  background: var(--color-accent-soft);
+  border-radius: var(--radius-xs);
+}
+
 .ProseMirror {
   outline: none !important;
 }

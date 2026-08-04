@@ -144,6 +144,13 @@ export function createBlock(type: BlockType, source?: TableBlock): Block {
       return createSlidesBlock();
     case "code":
       return createCodeBlock();
+    case "bibliography":
+      return {
+        id: uid(),
+        type: "bibliography",
+        title: "References",
+        scope: "all",
+      };
   }
 }
 

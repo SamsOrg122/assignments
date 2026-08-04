@@ -30,6 +30,8 @@ export interface AIContext {
     title?: string;
     /** Heading text, when the block opens with one. */
     heading?: string;
+    /** 1 for a document title, 2+ for sections. */
+    headingLevel?: number;
     /** Plain-text rendering of the block's content. */
     text: string;
     words: number;
@@ -79,6 +81,15 @@ export type AIChange =
       kind: "append-text";
       blockId: string;
       html: string;
+      label: string;
+    }
+  | {
+      /**
+       * A document-wide formatting pass. Carries no payload: the operation is
+       * named and applied by the client, so it always acts on the current
+       * document rather than a snapshot taken when the answer was generated.
+       */
+      kind: "renumber-headings";
       label: string;
     }
   | {

@@ -7,7 +7,13 @@
  * one copy of the data, and every view reads from it.
  */
 
-export type BlockType = "text" | "table" | "chart" | "slides" | "code";
+export type BlockType =
+  | "text"
+  | "table"
+  | "chart"
+  | "slides"
+  | "code"
+  | "bibliography";
 
 export interface BlockBase {
   id: string;
@@ -99,12 +105,79 @@ export interface CodeBlock extends BlockBase {
   preview: boolean;
 }
 
+/* ── Sources & citations ────────────────────────────────── */
+
+export type CitationStyle = "apa" | "mla" | "chicago" | "harvard";
+
+export type SourceKind =
+  | "article"
+  | "book"
+  | "chapter"
+  | "web"
+  | "report"
+  | "thesis";
+
+/**
+ * One entry in the project's source list. Deliberately CSL-ish: these are the
+ * fields every citation style needs, so a real metadata service (Crossref,
+ * OpenLibrary, Zotero) can populate them without the model changing.
+ */
+export interface Source {
+  id: string;
+  kind: SourceKind;
+  /** Family names, in author order. `given` is optional — many feeds omit it. */
+  authors: Array<{ family: string; given?: string }>;
+  title: string;
+  /** Journal, book or site name. */
+  container?: string;
+  publisher?: string;
+  year?: number;
+  volume?: string;
+  issue?: string;
+  pages?: string;
+  doi?: string;
+  url?: string;
+  accessed?: number;
+  /** What the user pasted, kept so a better resolver can re-parse it later. */
+  raw?: string;
+  /** Fields the resolver guessed rather than read. Shown as "check this". */
+  uncertain?: string[];
+}
+
+/**
+ * A bibliography block renders the project's sources — it holds no data of its
+ * own, so it can never drift from the source list.
+ */
+export interface BibliographyBlock extends BlockBase {
+  type: "bibliography";
+  /** Only cited sources, or everything collected. */
+  scope: "cited" | "all";
+}
+
+/* ── Version history ────────────────────────────────────── */
+
+/**
+ * A point-in-time copy of a project's blocks. Snapshots are coalesced while
+ * you type and capped, so history is a scrubbable timeline rather than an
+ * unbounded log.
+ */
+export interface Snapshot {
+  id: string;
+  at: number;
+  /** Total words at that moment — the timeline's y-axis. */
+  words: number;
+  /** What changed, in a few words. */
+  label: string;
+  blocks: Block[];
+}
+
 export type Block =
   | TextBlock
   | TableBlock
   | ChartBlock
   | SlidesBlock
-  | CodeBlock;
+  | CodeBlock
+  | BibliographyBlock;
 
 /* ── Board ──────────────────────────────────────────────── */
 
@@ -216,6 +289,15 @@ export interface Project {
   typography?: Typography;
   /** Word target for the whole project; sections can override. */
   wordGoal?: number;
+  /** Per-section targets, keyed by the section's block id. */
+  sectionGoals?: Record<string, number>;
+
+  /** Collected sources, and the style the bibliography renders in. */
+  sources?: Source[];
+  citationStyle?: CitationStyle;
+
+  /** Scrubbable history. Newest last. */
+  history?: Snapshot[];
   /**
    * Set when this project was promoted off a board, so the origin card keeps
    * mirroring it — the other half of the bridge.

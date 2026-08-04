@@ -30,11 +30,16 @@ export function htmlToText(html: string): string {
     .trim();
 }
 
-/** The heading a text block opens with, if any. */
-export function blockHeading(block: Block): string | undefined {
-  if (block.type !== "text") return block.title;
+/** The heading a text block opens with, and at what level. */
+export function blockHeading(
+  block: Block,
+): { text: string; level: number } | undefined {
+  if (block.type !== "text")
+    return block.title ? { text: block.title, level: 2 } : undefined;
   const match = /<h([1-3])[^>]*>(.*?)<\/h\1>/i.exec(block.html);
-  return match ? htmlToText(match[2]).trim() || undefined : undefined;
+  if (!match) return undefined;
+  const text = htmlToText(match[2]).trim();
+  return text ? { text, level: Number(match[1]) } : undefined;
 }
 
 /** One block, as text a language model can read. */
@@ -76,6 +81,13 @@ export function blockToText(block: Block, project: Project): string {
       return block.files
         .map((f) => `// ${f.name}\n${f.content.slice(0, 1200)}`)
         .join("\n\n");
+
+    case "bibliography":
+      // Rendered from project.sources, so the sources themselves are the
+      // content worth handing over.
+      return (project.sources ?? [])
+        .map((s) => `${s.authors.map((a) => a.family).join(", ")} — ${s.title}`)
+        .join("\n");
   }
 }
 
@@ -145,11 +157,13 @@ export function buildContext(
         ]
       : project.blocks.map((b) => {
           const text = blockToText(b, project);
+          const heading = blockHeading(b);
           return {
             id: b.id,
             type: b.type,
             title: b.title,
-            heading: blockHeading(b),
+            heading: heading?.text,
+            headingLevel: heading?.level,
             text,
             words: b.type === "text" ? countWords(text) : 0,
           };

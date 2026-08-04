@@ -15,7 +15,14 @@ import { Icon } from "@/components/ui/Icon";
 import { BLOCK_META } from "@/components/shell/CommandPalette";
 import type { BlockType } from "@/lib/types";
 
-const ORDER: BlockType[] = ["text", "table", "chart", "slides", "code"];
+const ORDER: BlockType[] = [
+  "text",
+  "table",
+  "chart",
+  "slides",
+  "code",
+  "bibliography",
+];
 
 export function SlashMenu({
   query,

@@ -164,6 +164,36 @@ function AIPopover({ target }: { target: AITarget }) {
         return;
       }
 
+      case "renumber-headings": {
+        // Applied against the live document, not the one the answer saw.
+        const current = projects.find((p) => p.id === projectId);
+        let n = 0;
+        for (const block of current?.blocks ?? []) {
+          if (block.type !== "text") continue;
+          // h1 is the document title, not section 1.
+          const html = block.html.replace(
+            /(<h([23])[^>]*>)(.*?)(<\/h\2>)/i,
+            (_whole, open: string, _lvl: string, inner: string, close: string) => {
+              n++;
+              // Strip a previous number before adding the new one, so running
+              // this twice renumbers rather than accumulating. The prefix isn't
+              // always at character zero — a citation or other inline node can
+              // sit in front of it — so clear it from the start of every text
+              // run, never from inside a tag.
+              const clean = inner.replace(
+                /(^|>)([^<]*)/g,
+                (_m, boundary: string, text: string) =>
+                  boundary + text.replace(/^\s*\d+\s*(?:—|-|\.)\s+/, ""),
+              );
+              return `${open}${n} — ${clean}${close}`;
+            },
+          );
+          if (html !== block.html)
+            updateBlock<TextBlock>(projectId, block.id, { html });
+        }
+        break;
+      }
+
       case "add-column":
         addValueColumn(
           projectId,

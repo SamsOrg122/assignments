@@ -31,6 +31,11 @@ interface UIState {
   focusedBlockId: string | null;
   /** Distraction-free writing. Strips the shell down to the page. */
   focusMode: boolean;
+  /**
+   * A passage the user marked as "this is the voice". Held here rather than in
+   * the document because it's a working preference, not content.
+   */
+  voiceSample: { text: string; projectId: string } | null;
   toast: { id: number; message: string } | null;
 
   /** Bumped on every openAI call, so the popover remounts with fresh state. */
@@ -45,6 +50,7 @@ interface UIState {
   closeAI: () => void;
   setFocusedBlock: (blockId: string | null) => void;
   setFocusMode: (on: boolean) => void;
+  setVoiceSample: (sample: { text: string; projectId: string } | null) => void;
   notify: (message: string) => void;
   dismissToast: () => void;
 }
@@ -59,6 +65,7 @@ export const useUI = create<UIState>()((set, get) => ({
   aiOpenId: 0,
   focusedBlockId: null,
   focusMode: false,
+  voiceSample: null,
   toast: null,
 
   openPalette: (seed = "") => set({ paletteOpen: true, paletteSeed: seed }),
@@ -75,6 +82,7 @@ export const useUI = create<UIState>()((set, get) => ({
 
   setFocusedBlock: (focusedBlockId) => set({ focusedBlockId }),
   setFocusMode: (focusMode) => set({ focusMode }),
+  setVoiceSample: (voiceSample) => set({ voiceSample }),
 
   notify: (message) => {
     const id = ++toastSeq;

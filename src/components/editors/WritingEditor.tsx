@@ -9,7 +9,7 @@
  * it, and focus mode dims everything but the paragraph under the caret.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PeerState, Project } from "@/lib/types";
 import { DEFAULT_TYPOGRAPHY } from "@/lib/types";
 import { useUI } from "@/lib/ui-store";
@@ -21,6 +21,8 @@ import { ProjectTopBar } from "./ProjectTopBar";
 import { TypographyPanel } from "./TypographyPanel";
 import { DictationBar } from "./DictationBar";
 import { Canvas } from "@/components/canvas/Canvas";
+import { SourcesPanel } from "@/components/sources/SourcesPanel";
+import { VersionTimeline } from "./VersionTimeline";
 
 export function WritingEditor({
   project,
@@ -30,6 +32,8 @@ export function WritingEditor({
   peers: PeerState[];
 }) {
   const setWordGoal = useProjects((s) => s.setWordGoal);
+  const setSectionGoal = useProjects((s) => s.setSectionGoal);
+  const snapshot = useProjects((s) => s.snapshot);
   const focusMode = useUI((s) => s.focusMode);
   const setFocusMode = useUI((s) => s.setFocusMode);
   const openAI = useUI((s) => s.openAI);
@@ -37,6 +41,8 @@ export function WritingEditor({
   const [typeOpen, setTypeOpen] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(false);
   const [dictating, setDictating] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
 
   const type = project.typography ?? DEFAULT_TYPOGRAPHY;
   const words = useMemo(() => projectWordCount(project), [project]);
@@ -45,6 +51,21 @@ export function WritingEditor({
   const progress = project.wordGoal
     ? Math.min(1, words / project.wordGoal)
     : null;
+
+  /**
+   * Capture history in the background. Debounced well past a keystroke, and
+   * the store coalesces anything inside its window, so a session of writing
+   * becomes a handful of timeline points rather than hundreds.
+   */
+  const blocks = project.blocks;
+  const snapshotTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (snapshotTimer.current) clearTimeout(snapshotTimer.current);
+    snapshotTimer.current = setTimeout(() => snapshot(project.id, "Writing"), 3000);
+    return () => {
+      if (snapshotTimer.current) clearTimeout(snapshotTimer.current);
+    };
+  }, [blocks, project.id, snapshot]);
 
   return (
     <>
@@ -56,10 +77,25 @@ export function WritingEditor({
           tools={
             <span className="relative flex shrink-0 items-center gap-1">
               <IconToggle
-                icon="history"
+                icon="sort"
                 label="Outline"
                 active={outlineOpen}
                 onClick={() => setOutlineOpen((v) => !v)}
+              />
+              <IconToggle
+                icon="quote"
+                label="Sources"
+                active={sourcesOpen}
+                onClick={() => {
+                  setSourcesOpen((v) => !v);
+                  setOutlineOpen(false);
+                }}
+              />
+              <IconToggle
+                icon="history"
+                label="Version timeline"
+                active={timelineOpen}
+                onClick={() => setTimelineOpen((v) => !v)}
               />
               <IconToggle
                 icon="mic"
@@ -192,14 +228,27 @@ export function WritingEditor({
           <OutlinePanel
             sections={sections}
             goal={project.wordGoal}
+            sectionGoals={project.sectionGoals ?? {}}
             onGoal={(g) => setWordGoal(project.id, g)}
+            onSectionGoal={(blockId, g) => setSectionGoal(project.id, blockId, g)}
             onClose={() => setOutlineOpen(false)}
+          />
+        )}
+
+        {sourcesOpen && !focusMode && (
+          <SourcesPanel
+            projectId={project.id}
+            onClose={() => setSourcesOpen(false)}
           />
         )}
       </main>
 
       {dictating && (
         <DictationBar project={project} onClose={() => setDictating(false)} />
+      )}
+
+      {timelineOpen && (
+        <VersionTimeline project={project} onClose={() => setTimelineOpen(false)} />
       )}
     </>
   );
@@ -239,12 +288,16 @@ function IconToggle({
 function OutlinePanel({
   sections,
   goal,
+  sectionGoals,
   onGoal,
+  onSectionGoal,
   onClose,
 }: {
   sections: ReturnType<typeof outline>;
   goal?: number;
+  sectionGoals: Record<string, number>;
   onGoal: (goal: number | undefined) => void;
+  onSectionGoal: (blockId: string, goal?: number) => void;
   onClose: () => void;
 }) {
   const total = sections.reduce((n, s) => n + s.words, 0);
@@ -264,27 +317,65 @@ function OutlinePanel({
       </div>
 
       <ul className="mb-4 flex flex-col gap-0.5">
-        {sections.map((s) => (
-          <li key={s.blockId}>
-            <button
-              type="button"
-              onClick={() =>
-                document
-                  .getElementById(`block-${s.blockId}`)
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
-              }
-              className="flex w-full items-baseline gap-2 rounded-sm px-2 py-1.5 text-left transition-colors duration-150 hover:bg-surface-2"
-              style={{ paddingLeft: 8 + Math.max(0, s.level - 1) * 12 }}
-            >
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg-muted">
-                {s.title}
-              </span>
-              <span className="shrink-0 font-mono text-[10px] text-fg-subtle">
-                {s.words}
-              </span>
-            </button>
-          </li>
-        ))}
+        {sections.map((s) => {
+          const target = sectionGoals[s.blockId];
+          const pct = target ? Math.min(1, s.words / target) : null;
+          return (
+            <li key={s.blockId} className="group/sec">
+              <button
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById(`block-${s.blockId}`)
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
+                className="flex w-full items-baseline gap-2 rounded-sm px-2 py-1.5 text-left transition-colors duration-150 hover:bg-surface-2"
+                style={{ paddingLeft: 8 + Math.max(0, s.level - 1) * 12 }}
+              >
+                <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg-muted">
+                  {s.title}
+                </span>
+                <span className="shrink-0 font-mono text-[10px] text-fg-subtle">
+                  {s.words}
+                  {target ? `/${target}` : ""}
+                </span>
+              </button>
+
+              {/* Per-section target — set it inline, no dialog. */}
+              <div
+                className={cn(
+                  "flex items-center gap-1.5 px-2 pb-1",
+                  target ? "" : "opacity-0 group-hover/sec:opacity-100 focus-within:opacity-100",
+                )}
+                style={{ paddingLeft: 8 + Math.max(0, s.level - 1) * 12 }}
+              >
+                {pct !== null && (
+                  <span className="h-px flex-1 overflow-hidden bg-line">
+                    <span
+                      className="block h-px bg-accent transition-[width] duration-300"
+                      style={{ width: `${pct * 100}%` }}
+                    />
+                  </span>
+                )}
+                <input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={target ?? ""}
+                  placeholder="target"
+                  aria-label={`Word target for ${s.title}`}
+                  onChange={(e) =>
+                    onSectionGoal(
+                      s.blockId,
+                      e.target.value ? Number(e.target.value) : undefined,
+                    )
+                  }
+                  className="w-[62px] rounded-xs border border-line bg-surface-2 px-1.5 py-0.5 text-right font-mono text-[10px] text-fg-muted outline-none focus:border-accent"
+                />
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
       <div className="border-t border-line pt-3">

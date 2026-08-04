@@ -28,7 +28,10 @@ import {
   type ColumnType,
   type Project,
   type ProjectKind,
+  type CitationStyle,
   type Row,
+  type Snapshot,
+  type Source,
   type TableBlock,
   type Typography,
 } from "./types";
@@ -40,6 +43,7 @@ import {
   uid,
 } from "./factories";
 import { SEED_PROJECTS } from "./seed";
+import { formatInline } from "./sources/format";
 
 interface ProjectsState {
   projects: Project[];
@@ -51,6 +55,23 @@ interface ProjectsState {
   duplicateProject: (projectId: string) => string | null;
   setTypography: (projectId: string, patch: Partial<Typography>) => void;
   setWordGoal: (projectId: string, goal: number | undefined) => void;
+  setSectionGoal: (projectId: string, blockId: string, goal?: number) => void;
+
+  /* Sources & citations */
+  addSource: (projectId: string, source: Source) => void;
+  updateSource: (projectId: string, sourceId: string, patch: Partial<Source>) => void;
+  removeSource: (projectId: string, sourceId: string) => void;
+  setCitationStyle: (projectId: string, style: CitationStyle) => void;
+  /**
+   * Re-derive every in-text citation label from its source. Called whenever the
+   * style changes or a source is edited, so markers can never go stale.
+   */
+  refreshCitations: (projectId: string) => void;
+
+  /* Version history */
+  /** Capture a snapshot, coalescing rapid edits into one entry. */
+  snapshot: (projectId: string, label: string) => void;
+  restoreSnapshot: (projectId: string, snapshotId: string) => void;
 
   /* Board */
   addBoardItem: (
@@ -167,6 +188,28 @@ function mapBlock(
   );
 }
 
+/**
+ * History tuning. Edits merge into the previous point while they're both
+ * recent and small; either bound being exceeded starts a new point, so a
+ * timeline always has something to scrub back to.
+ */
+const COALESCE_MS = 30_000;
+const MAX_SNAPSHOTS = 80;
+
+/** Word count straight off stored HTML, without pulling in the AI helpers. */
+function countWordsInHtml(html: string): number {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z#0-9]+;/gi, " ")
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+/** Reference-equality check — blocks are immutable, so this is exact. */
+function sameBlocks(a: Block[], b: Block[]): boolean {
+  return a.length === b.length && a.every((block, i) => block === b[i]);
+}
+
 /** Narrow to a table block, or return the block untouched. */
 function onTable(b: Block, fn: (t: TableBlock) => TableBlock): Block {
   return b.type === "table" ? fn(b) : b;
@@ -194,6 +237,158 @@ export const useProjects = create<ProjectsState>()(
       setWordGoal: (projectId, wordGoal) =>
         set((s) => ({
           projects: withProject(s.projects, projectId, (p) => ({ ...p, wordGoal })),
+        })),
+
+      setSectionGoal: (projectId, blockId, goal) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => {
+            const sectionGoals = { ...(p.sectionGoals ?? {}) };
+            if (goal && goal > 0) sectionGoals[blockId] = goal;
+            else delete sectionGoals[blockId];
+            return { ...p, sectionGoals };
+          }),
+        })),
+
+      /* ── Sources ──────────────────────────────────────── */
+
+      addSource: (projectId, source) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            sources: [...(p.sources ?? []), source],
+          })),
+        })),
+
+      updateSource: (projectId, sourceId, patch) => {
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            sources: (p.sources ?? []).map((src) =>
+              src.id === sourceId ? { ...src, ...patch } : src,
+            ),
+          })),
+        }));
+        // Editing an author or year changes every marker for that source.
+        get().refreshCitations(projectId);
+      },
+
+      removeSource: (projectId, sourceId) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            sources: (p.sources ?? []).filter((src) => src.id !== sourceId),
+          })),
+        })),
+
+      setCitationStyle: (projectId, citationStyle) => {
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            citationStyle,
+          })),
+        }));
+        get().refreshCitations(projectId);
+      },
+
+      refreshCitations: (projectId) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => {
+            const sources = p.sources ?? [];
+            if (sources.length === 0) return p;
+            const style = p.citationStyle ?? "apa";
+            const byId = new Map(sources.map((src) => [src.id, src]));
+
+            let changed = false;
+            const blocks = p.blocks.map((b) => {
+              if (b.type !== "text") return b;
+              const html = b.html.replace(
+                /(<span[^>]*data-citation="([^"]+)"[^>]*>)([^<]*)(<\/span>)/g,
+                (whole, open: string, id: string, _label: string, close: string) => {
+                  const source = byId.get(id);
+                  if (!source) return whole;
+                  return `${open}${formatInline(source, style)}${close}`;
+                },
+              );
+              if (html === b.html) return b;
+              changed = true;
+              return { ...b, html };
+            });
+
+            return changed ? { ...p, blocks } : p;
+          }),
+        })),
+
+      /* ── History ──────────────────────────────────────── */
+
+      snapshot: (projectId, label) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => {
+            const history = [...(p.history ?? [])];
+            const words = p.blocks.reduce(
+              (n, b) =>
+                b.type === "text"
+                  ? n + countWordsInHtml(b.html)
+                  : n,
+              0,
+            );
+            const last = history.at(-1);
+
+            // Nothing changed — don't record a beat of silence as history.
+            if (last && last.words === words && sameBlocks(last.blocks, p.blocks))
+              return p;
+
+            const entry: Snapshot = {
+              id: uid(),
+              at: Date.now(),
+              words,
+              label,
+              blocks: p.blocks,
+            };
+
+            // Coalesce edits inside a short window into one entry, so a
+            // paragraph of typing is one point on the timeline, not forty.
+            // But a *large* change always starts a new point, otherwise the
+            // state you had before a burst of writing gets overwritten and
+            // there's nothing to scrub back to.
+            // The very first entry is the baseline for this session and is
+            // never merged into — otherwise a burst of typing overwrites the
+            // state you'd want to scrub back to, and the timeline has one
+            // point that always equals "now".
+            const recent = last && Date.now() - last.at < COALESCE_MS;
+            const mergeable = recent && history.length >= 2;
+            if (mergeable && last!.label === label)
+              history[history.length - 1] = { ...entry, id: last.id, at: last.at };
+            else history.push(entry);
+
+            return {
+              ...p,
+              history: history.slice(-MAX_SNAPSHOTS),
+            };
+          }),
+        })),
+
+      restoreSnapshot: (projectId, snapshotId) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => {
+            const entry = (p.history ?? []).find((h) => h.id === snapshotId);
+            if (!entry) return p;
+            // Restoring is itself an edit: record where we were first, so the
+            // restore can be undone by scrubbing forward again.
+            const history = [
+              ...(p.history ?? []),
+              {
+                id: uid(),
+                at: Date.now(),
+                words: p.blocks.reduce(
+                  (n, b) => (b.type === "text" ? n + countWordsInHtml(b.html) : n),
+                  0,
+                ),
+                label: "Before restore",
+                blocks: p.blocks,
+              },
+            ].slice(-MAX_SNAPSHOTS);
+            return { ...p, blocks: entry.blocks, history };
+          }),
         })),
 
       /* ── Board ────────────────────────────────────────── */

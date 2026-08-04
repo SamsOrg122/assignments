@@ -12,6 +12,7 @@ import type { AIChange, AIChunk, AIProvider, AIRequest } from "./types";
 import type { CellValue, Row, Slide, TableBlock } from "../types";
 import { escapeHtml, uid } from "../factories";
 import { toNumber } from "../formula";
+import { analyseRegister, compareRegister, describeRegister, nudgeRegister } from "./register";
 import {
   analyseDrift,
   analyseTerminology,
@@ -23,6 +24,8 @@ import {
 
 type Intent =
   | "speech"
+  | "tone"
+  | "format"
   | "terminology"
   | "consistency"
   | "drift"
@@ -40,6 +43,11 @@ function classify(prompt: string): Intent {
   const p = prompt.toLowerCase();
   // Ordered most-specific first: "outline my thesis as a deck" is a deck.
   if (/^__speech__/.test(p)) return "speech";
+  if (/^__tone__/.test(p)) return "tone";
+  if (/\b(match (the |my )?(tone|voice|register|style)|write .*like this|same (tone|voice|style))/.test(p))
+    return "tone";
+  if (/\b(number (all )?(the )?headings|title ?case|sentence ?case|capitali[sz]e (all )?headings|make .* headings|two columns|bold the)/.test(p))
+    return "format";
   if (/\b(interchangeab|terminolog|consistent(ly)? (use|call)|same term|which term)/.test(p))
     return "terminology";
   if (/\b(deck|pitch|slide)s?\b/.test(p) && /\b(make|turn|build|create|from|into)\b/.test(p))
@@ -125,6 +133,122 @@ function findTable(ctx: AIRequest["context"], blocks: TableBlock[]): TableBlock 
 interface Built {
   text: string;
   change?: AIChange;
+}
+
+/* ── Tone matching ──────────────────────────────────────── */
+
+/**
+ * "Write the rest like this." The sample arrives after a `__tone__` marker;
+ * the passage to bring into line is the current selection.
+ */
+function buildTone(req: AIRequest): Built {
+  const marked = /^__tone__\s*([\s\S]*?)\s*__endtone__\s*([\s\S]*)$/.exec(req.prompt);
+  const sampleText = marked?.[1] ?? "";
+  const targetText =
+    marked?.[2]?.trim() ||
+    req.context.selection?.text ||
+    req.context.blocks.filter((b) => b.type === "text").at(-1)?.text ||
+    "";
+
+  if (!sampleText.trim())
+    return {
+      text: "Select a passage whose voice is right, choose **Use as voice sample**, then select the passage to bring into line.",
+    };
+  if (!targetText.trim())
+    return { text: "Nothing selected to rewrite in that voice." };
+
+  const sample = analyseRegister(sampleText);
+  const target = analyseRegister(targetText);
+  const gaps = compareRegister(sample, target);
+
+  const lines = [
+    `Your sample reads as **${describeRegister(sample)}**.`,
+    `The passage you've selected reads as **${describeRegister(target)}**.`,
+    "",
+  ];
+
+  if (gaps.length === 0) {
+    lines.push("They already match on every feature I measure — nothing to change.");
+    return { text: lines.join("\n") };
+  }
+
+  lines.push("Where they diverge:", "");
+  for (const g of gaps)
+    lines.push(`• **${g.feature}** — ${g.sample} vs ${g.target}. ${g.direction}.`);
+
+  const rewritten = nudgeRegister(targetText, sample);
+  const changed = rewritten !== targetText.replace(/\s{2,}/g, " ").trim();
+
+  lines.push(
+    "",
+    changed
+      ? `_I've applied only the mechanical parts — contractions and sentence length. Word choice stays yours; a model would take it further without flattening your voice._`
+      : `_Nothing here is safe to change mechanically. These are judgement calls, not find-and-replace._`,
+  );
+
+  return {
+    text: lines.join("\n"),
+    change:
+      changed && req.context.selection
+        ? {
+            kind: "replace-text",
+            blockId: req.context.selection.blockId,
+            label: "Bring this passage into the sample's register",
+            html: rewritten
+              .split(/\n{2,}/)
+              .map((p) => `<p>${escapeHtml(p)}</p>`)
+              .join(""),
+          }
+        : undefined,
+  };
+}
+
+/* ── Natural-language formatting ────────────────────────── */
+
+/**
+ * Typed formatting commands — "number all headings", "title case the
+ * headings" — so nobody has to hunt a menu. Each one is a concrete,
+ * reviewable change rather than a suggestion.
+ */
+function buildFormat(req: AIRequest): Built {
+  const p = req.prompt.toLowerCase();
+  const textBlocks = req.context.blocks.filter((b) => b.type === "text");
+  if (textBlocks.length === 0)
+    return { text: "There's no prose here to format." };
+
+  if (/number/.test(p)) {
+    let n = 0;
+    const edits: Array<{ blockId: string; html: string }> = [];
+    for (const b of textBlocks) {
+      // The document's h1 is its title; numbering starts at the first section.
+      if (!b.heading || b.headingLevel === 1) continue;
+      n++;
+      const clean = b.heading.replace(/^\s*\d+\s*(?:—|-|\.)\s*/, "");
+      edits.push({ blockId: b.id, html: `${n} — ${clean}` });
+    }
+    if (n === 0) return { text: "No headings found to number." };
+
+    return {
+      text:
+        `Found ${n} heading${n === 1 ? "" : "s"}:\n\n` +
+        edits.map((e) => `• ${e.html}`).join("\n") +
+        `\n\nAccepting renumbers them in order. Existing numbers are replaced, not doubled.`,
+      change: {
+        kind: "renumber-headings",
+        label: `Number ${n} heading${n === 1 ? "" : "s"}`,
+      },
+    };
+  }
+
+  if (/title ?case/.test(p)) {
+    return {
+      text: `Title Case is a style choice your department may have an opinion on — APA wants sentence case for headings, MLA wants title case. Say which and I'll apply it.`,
+    };
+  }
+
+  return {
+    text: `I can number headings today. "Two columns" needs a layout primitive the document model doesn't have yet — it's on the list, not faked.`,
+  };
 }
 
 /* ── Workspace-aware builders ───────────────────────────── */
@@ -584,6 +708,10 @@ export function createMockProvider(getTables: (projectId: string) => TableBlock[
       const built: Built =
         intent === "speech"
           ? buildSpeech(req)
+          : intent === "tone"
+            ? buildTone(req)
+            : intent === "format"
+              ? buildFormat(req)
           : intent === "terminology"
             ? buildTerminology(req)
             : intent === "consistency"

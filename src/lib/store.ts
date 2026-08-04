@@ -17,27 +17,73 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type {
-  Block,
-  BlockType,
-  CellValue,
-  Column,
-  ColumnType,
-  Project,
-  Row,
-  TableBlock,
+import {
+  DEFAULT_TYPOGRAPHY,
+  type Block,
+  type BlockType,
+  type BoardItem,
+  type BoardItemKind,
+  type CellValue,
+  type Column,
+  type ColumnType,
+  type Project,
+  type ProjectKind,
+  type Row,
+  type TableBlock,
+  type Typography,
 } from "./types";
-import { createBlock, createProject, emptyRow, uid } from "./factories";
+import {
+  createBoardItem,
+  createBlock,
+  createProject,
+  emptyRow,
+  uid,
+} from "./factories";
 import { SEED_PROJECTS } from "./seed";
 
 interface ProjectsState {
   projects: Project[];
 
   /* Projects */
-  addProject: (name?: string) => string;
+  addProject: (kind?: ProjectKind, name?: string) => string;
   renameProject: (projectId: string, name: string) => void;
   deleteProject: (projectId: string) => void;
   duplicateProject: (projectId: string) => string | null;
+  setTypography: (projectId: string, patch: Partial<Typography>) => void;
+  setWordGoal: (projectId: string, goal: number | undefined) => void;
+
+  /* Board */
+  addBoardItem: (
+    projectId: string,
+    kind: BoardItemKind,
+    at: { x: number; y: number },
+    extra?: { projectId?: string; text?: string },
+  ) => string;
+  updateBoardItem: (
+    projectId: string,
+    itemId: string,
+    patch: Partial<BoardItem>,
+  ) => void;
+  removeBoardItem: (projectId: string, itemId: string) => void;
+  /** Raise items above everything else — called when a drag starts. */
+  raiseBoardItems: (projectId: string, itemIds: string[]) => void;
+  setViewport: (
+    projectId: string,
+    viewport: { x: number; y: number; scale: number },
+  ) => void;
+
+  /**
+   * The bridge. Turns board items into a real Library project and replaces
+   * them with a single card pointing at it, so the thinking stays where it was
+   * while the finished work moves somewhere findable.
+   */
+  promoteBoardItems: (
+    projectId: string,
+    itemIds: string[],
+    kind: ProjectKind,
+    name: string,
+    blocks: Block[],
+  ) => string | null;
 
   /* Blocks */
   addBlock: (projectId: string, type: BlockType, afterBlockId?: string) => string;
@@ -131,9 +177,108 @@ export const useProjects = create<ProjectsState>()(
     (set, get) => ({
       projects: SEED_PROJECTS,
 
-      addProject: (name) => {
-        const project = createProject(name?.trim() || "Untitled project");
+      addProject: (kind = "doc", name) => {
+        const project = createProject(kind, name);
         set((s) => ({ projects: [project, ...s.projects] }));
+        return project.id;
+      },
+
+      setTypography: (projectId, patch) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            typography: { ...DEFAULT_TYPOGRAPHY, ...p.typography, ...patch },
+          })),
+        })),
+
+      setWordGoal: (projectId, wordGoal) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({ ...p, wordGoal })),
+        })),
+
+      /* ── Board ────────────────────────────────────────── */
+
+      addBoardItem: (projectId, kind, at, extra) => {
+        const item = createBoardItem(kind, at, extra);
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            board: [...p.board, item],
+          })),
+        }));
+        return item.id;
+      },
+
+      updateBoardItem: (projectId, itemId, patch) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            board: p.board.map((i) =>
+              // Same union-widening dance as updateBlock; `kind` never changes.
+              i.id === itemId ? ({ ...i, ...patch } as BoardItem) : i,
+            ),
+          })),
+        })),
+
+      removeBoardItem: (projectId, itemId) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            board: p.board.filter((i) => i.id !== itemId),
+          })),
+        })),
+
+      raiseBoardItems: (projectId, itemIds) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => {
+            const top = p.board.reduce((m, i) => Math.max(m, i.z), 0);
+            const ids = new Set(itemIds);
+            let n = 1;
+            return {
+              ...p,
+              board: p.board.map((i) =>
+                ids.has(i.id) ? { ...i, z: top + n++ } : i,
+              ),
+            };
+          }),
+        })),
+
+      setViewport: (projectId, viewport) =>
+        set((s) => ({
+          // Viewport is view state — deliberately not stamping updatedAt, so
+          // panning around a board doesn't reorder the Library.
+          projects: s.projects.map((p) =>
+            p.id === projectId ? { ...p, viewport } : p,
+          ),
+        })),
+
+      promoteBoardItems: (projectId, itemIds, kind, name, blocks) => {
+        const board = get().projects.find((p) => p.id === projectId);
+        if (!board || itemIds.length === 0) return null;
+
+        const promoted = board.board.filter((i) => itemIds.includes(i.id));
+        if (promoted.length === 0) return null;
+
+        // Drop the card where the cluster sat, so the board keeps its shape.
+        const x = Math.min(...promoted.map((i) => i.x));
+        const y = Math.min(...promoted.map((i) => i.y));
+
+        const project: Project = {
+          ...createProject(kind, name),
+          blocks,
+        };
+        const card = createBoardItem("card", { x, y }, { projectId: project.id });
+        project.promotedFrom = { boardId: projectId, itemId: card.id };
+
+        set((s) => ({
+          projects: [
+            project,
+            ...withProject(s.projects, projectId, (p) => ({
+              ...p,
+              board: [...p.board.filter((i) => !itemIds.includes(i.id)), card],
+            })),
+          ],
+        }));
         return project.id;
       },
 

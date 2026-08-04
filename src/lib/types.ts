@@ -106,16 +106,121 @@ export type Block =
   | SlidesBlock
   | CodeBlock;
 
+/* ── Board ──────────────────────────────────────────────── */
+
+/**
+ * Board items live in *world* coordinates on an infinite plane. Pan and zoom
+ * are view state and never touch the document, so two people looking at the
+ * same board from different positions are still editing the same thing.
+ */
+export interface BoardItemBase {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Stacking order. Bumped to the top when an item is grabbed. */
+  z: number;
+}
+
+export interface BoardTextItem extends BoardItemBase {
+  kind: "text";
+  text: string;
+}
+
+export interface BoardStickyItem extends BoardItemBase {
+  kind: "sticky";
+  text: string;
+  /** A small fixed set — free colour choice would wreck the palette. */
+  tone: "neutral" | "accent" | "mint" | "warn";
+}
+
+export interface BoardImageItem extends BoardItemBase {
+  kind: "image";
+  /** Data URL. Empty means the drop target is still waiting. */
+  src: string;
+  alt: string;
+}
+
+/**
+ * A live window onto a Library project. It stores only the id, so the card
+ * always reflects the real project — the "drop in" half of the bridge.
+ */
+export interface BoardCardItem extends BoardItemBase {
+  kind: "card";
+  projectId: string;
+}
+
+export type BoardItem =
+  | BoardTextItem
+  | BoardStickyItem
+  | BoardImageItem
+  | BoardCardItem;
+
+export type BoardItemKind = BoardItem["kind"];
+
 /* ── Project ────────────────────────────────────────────── */
+
+/**
+ * What a project *is*. Drives which editor opens and how it reads in the
+ * Library. A Board is just another project type, so a user can keep many.
+ */
+export type ProjectKind =
+  | "doc"
+  | "notes"
+  | "deck"
+  | "board"
+  | "code"
+  | "design";
+
+/**
+ * Continuous typography controls for writing projects. Word offers a fixed
+ * handful of values; these are real numbers with good presets on top.
+ */
+export interface Typography {
+  /** Line length in characters — 60–75 is the readable band. */
+  measure: number;
+  lineHeight: number;
+  /** em. Negative tightens. */
+  letterSpacing: number;
+  fontSize: number;
+  family: "sans" | "serif" | "mono";
+  /** Vertical page padding, in px. */
+  margin: number;
+}
+
+export const DEFAULT_TYPOGRAPHY: Typography = {
+  measure: 68,
+  lineHeight: 1.75,
+  letterSpacing: -0.003,
+  fontSize: 17,
+  family: "serif",
+  margin: 64,
+};
 
 export interface Project {
   id: string;
   name: string;
-  /** Single emoji shown in the sidebar and on the home grid. */
+  kind: ProjectKind;
+  /** Single glyph shown in the sidebar and on Library rows. */
   glyph: string;
   createdAt: number;
   updatedAt: number;
+  /** Stacked blocks — doc, notes, deck, code. */
   blocks: Block[];
+  /** Spatial items — board projects only. */
+  board: BoardItem[];
+  /** Last board viewport. View state, persisted as a convenience. */
+  viewport?: { x: number; y: number; scale: number };
+  /** Per-project typography for writing projects. */
+  typography?: Typography;
+  /** Word target for the whole project; sections can override. */
+  wordGoal?: number;
+  /**
+   * Set when this project was promoted off a board, so the origin card keeps
+   * mirroring it — the other half of the bridge.
+   */
+  promotedFrom?: { boardId: string; itemId: string };
 }
 
 /* ── Collaboration ──────────────────────────────────────── */

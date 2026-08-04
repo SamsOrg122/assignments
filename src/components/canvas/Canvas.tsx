@@ -37,9 +37,15 @@ const ADDABLE: BlockType[] = ["text", "table", "chart", "slides", "code"];
 export function Canvas({
   project,
   peers,
+  proseClassName,
+  minimal = false,
 }: {
   project: Project;
   peers: PeerState[];
+  /** Extra class applied to prose blocks — carries the chosen type face. */
+  proseClassName?: string;
+  /** Focus mode: drop the add-bar and every non-essential affordance. */
+  minimal?: boolean;
 }) {
   const moveBlock = useProjects((s) => s.moveBlock);
   const addBlock = useProjects((s) => s.addBlock);
@@ -111,8 +117,13 @@ export function Canvas({
                 projectId={project.id}
                 block={block}
                 peers={peersByBlock.get(block.id) ?? []}
+                minimal={minimal}
               >
-                <BlockBody projectId={project.id} block={block} />
+                <BlockBody
+                  projectId={project.id}
+                  block={block}
+                  proseClassName={proseClassName}
+                />
               </BlockShell>
             ))}
           </div>
@@ -136,6 +147,7 @@ export function Canvas({
         </p>
       )}
 
+      {!minimal && (
       <div className="mt-8 flex flex-wrap items-center gap-1.5 border-t border-line pt-4 print:hidden">
         <span className="label-mono mr-1">Add</span>
         {ADDABLE.map((type) => (
@@ -153,14 +165,29 @@ export function Canvas({
           or press / in any text block
         </span>
       </div>
+      )}
     </div>
   );
 }
 
-function BlockBody({ projectId, block }: { projectId: string; block: Block }) {
+function BlockBody({
+  projectId,
+  block,
+  proseClassName,
+}: {
+  projectId: string;
+  block: Block;
+  proseClassName?: string;
+}) {
   switch (block.type) {
     case "text":
-      return <TextBlock projectId={projectId} block={block} />;
+      return (
+        <TextBlock
+          projectId={projectId}
+          block={block}
+          proseClassName={proseClassName}
+        />
+      );
     case "table":
       return <TableBlock projectId={projectId} block={block} />;
     case "chart":

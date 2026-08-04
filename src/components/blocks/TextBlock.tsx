@@ -14,6 +14,8 @@ import { SlashMenu } from "@/components/canvas/SlashMenu";
 interface Props {
   projectId: string;
   block: TextBlockModel;
+  /** Carries the writing editor's chosen type face into the prose. */
+  proseClassName?: string;
 }
 
 /** Where the `/` menu is anchored, plus what's been typed after the slash. */
@@ -24,7 +26,7 @@ interface SlashState {
   y: number;
 }
 
-export function TextBlock({ projectId, block }: Props) {
+export function TextBlock({ projectId, block, proseClassName }: Props) {
   const updateBlock = useProjects((s) => s.updateBlock);
   const addBlock = useProjects((s) => s.addBlock);
   const openAI = useUI((s) => s.openAI);
@@ -52,7 +54,7 @@ export function TextBlock({ projectId, block }: Props) {
     content: block.html,
     editorProps: {
       attributes: {
-        class: "prose-canvas min-h-[1.75em] focus:outline-none",
+        class: `prose-canvas min-h-[1.75em] focus:outline-none ${proseClassName ?? ""}`,
       },
     },
     onUpdate({ editor }) {

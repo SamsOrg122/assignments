@@ -17,7 +17,73 @@ import { useUI } from "@/lib/ui-store";
 import { fuzzyMatch, segments } from "@/lib/fuzzy";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import type { BlockType } from "@/lib/types";
+import { KINDS, KIND_ORDER } from "@/lib/kinds";
+import type { BlockType, ProjectKind } from "@/lib/types";
+
+/**
+ * The prompts that only make sense with the whole document in context. They
+ * live in the palette so they're discoverable by typing, not buried in a menu.
+ */
+const WORKSPACE_PROMPTS: Array<[string, string, string, string]> = [
+  [
+    "outline",
+    "Outline my whole document",
+    "Outline my whole thesis and tell me where I am",
+    "Every section, with word counts against the goal",
+  ],
+  [
+    "terminology",
+    "Check terminology consistency",
+    "Am I using terms interchangeably?",
+    "Finds near-synonyms drifting across sections",
+  ],
+  [
+    "consistency",
+    "Find contradictory claims",
+    "Is this consistent with what I argued earlier?",
+    "Compares every claim against every other",
+  ],
+  [
+    "drift",
+    "Where does my argument drift?",
+    "My conclusion doesn't line up with my research question — where does it drift?",
+    "Scores each section against your research question",
+  ],
+  [
+    "deck",
+    "Make a 10-slide deck from this",
+    "Make a 10-slide pitch from this document",
+    "Creates a Deck project from your headings",
+  ],
+];
+
+/** Maps a spoken word in "new thesis" onto a project kind. */
+function kindFromWord(word: string): ProjectKind | null {
+  const w = word.toLowerCase();
+  const direct: Record<string, ProjectKind> = {
+    thesis: "doc",
+    doc: "doc",
+    document: "doc",
+    essay: "doc",
+    paper: "doc",
+    dissertation: "doc",
+    note: "notes",
+    notebook: "notes",
+    deck: "deck",
+    slide: "deck",
+    presentation: "deck",
+    pitch: "deck",
+    board: "board",
+    canvas: "board",
+    whiteboard: "board",
+    code: "code",
+    design: "design",
+    project: "doc",
+  };
+  // Exact match first, then a naive de-pluralisation for "notes"/"slides".
+  // Order matters: stripping the "s" first would turn "thesis" into "thesi".
+  return direct[w] ?? direct[w.replace(/s$/, "")] ?? null;
+}
 
 interface Command {
   id: string;
@@ -133,22 +199,38 @@ function PaletteDialog({ seed }: { seed: string }) {
         });
       }
 
+      const askWith = (seedPrompt?: string) => () =>
+        openAI({
+          projectId: project.id,
+          blockId: project.blocks[0]?.id ?? project.board[0]?.id ?? "",
+          blockType: project.blocks[0]?.type ?? "text",
+          selectionText: "",
+          anchor: { x: window.innerWidth / 2, y: 140 },
+          seedPrompt,
+        });
+
       list.push({
         id: "ai:project",
         title: "Ask AI about this project",
-        subtitle: "Uses every block as context",
+        subtitle: "Reads every block, not just the selection",
         group: "AI",
         icon: "sparkle",
-        keywords: "assistant summarize forecast rewrite slides generate",
-        run: () =>
-          openAI({
-            projectId: project.id,
-            blockId: project.blocks[0]?.id ?? "",
-            blockType: project.blocks[0]?.type ?? "text",
-            selectionText: "",
-            anchor: { x: window.innerWidth / 2, y: 140 },
-          }),
+        keywords: "assistant question context whole workspace",
+        run: askWith(),
       });
+
+      // The workspace-aware checks — the ones that need the whole document.
+      for (const [id, title, prompt, subtitle] of WORKSPACE_PROMPTS) {
+        list.push({
+          id: `ai:${id}`,
+          title,
+          subtitle,
+          group: "AI",
+          icon: "sparkle",
+          keywords: `${prompt} whole document thesis check`,
+          run: askWith(prompt),
+        });
+      }
 
       list.push({
         id: "project:export",
@@ -202,15 +284,18 @@ function PaletteDialog({ seed }: { seed: string }) {
       }
     }
 
-    list.push({
-      id: "project:new",
-      title: "New project",
-      subtitle: "Start a blank canvas",
-      group: "Project",
-      icon: "plus",
-      keywords: "create add blank start",
-      run: () => router.push(`/p/${addProject()}`),
-    });
+    for (const k of KIND_ORDER) {
+      const meta = KINDS[k];
+      list.push({
+        id: `new:${k}`,
+        title: `New ${meta.label.toLowerCase()}`,
+        subtitle: meta.hint,
+        group: "Create",
+        icon: meta.icon,
+        keywords: `new create start blank ${meta.keywords}`,
+        run: () => router.push(`/p/${addProject(k)}`),
+      });
+    }
 
     for (const p of projects) {
       if (p.id === projectId) continue;
@@ -294,21 +379,27 @@ function PaletteDialog({ seed }: { seed: string }) {
       .filter((r): r is NonNullable<typeof r> => r !== null)
       .sort((a, b) => b.score - a.score);
 
-    // Natural-language shortcut: "new project Roadmap" creates it by name.
-    const named = /^(?:new|create)\s+project\s+(.+)$/i.exec(q);
+    // Natural language: "new thesis", "new board Structure", "create a deck".
+    const named = /^(?:new|create|start)\s+(?:an?\s+)?([a-z/]+)\s*(.*)$/i.exec(q);
     if (named) {
-      const name = named[1].trim();
-      scored.unshift({
-        command: {
-          id: "project:new-named",
-          title: `Create project “${name}”`,
-          group: "Project",
-          icon: "plus",
-          run: () => router.push(`/p/${addProject(name)}`),
-        },
-        score: 9999,
-        matches: [],
-      });
+      const kind = kindFromWord(named[1]);
+      const name = named[2].trim();
+      if (kind) {
+        scored.unshift({
+          command: {
+            id: "project:new-named",
+            title: name
+              ? `New ${KINDS[kind].label.toLowerCase()} “${name}”`
+              : `New ${KINDS[kind].label.toLowerCase()}`,
+            subtitle: KINDS[kind].hint,
+            group: "Create",
+            icon: KINDS[kind].icon,
+            run: () => router.push(`/p/${addProject(kind, name || undefined)}`),
+          },
+          score: 9999,
+          matches: [],
+        });
+      }
     }
 
     return scored.slice(0, 40);

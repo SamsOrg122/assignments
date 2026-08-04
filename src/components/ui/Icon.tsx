@@ -37,7 +37,18 @@ export type IconName =
   | "file"
   | "sort"
   | "users"
-  | "refresh";
+  | "refresh"
+  | "board"
+  | "sticky"
+  | "image"
+  | "mic"
+  | "stop"
+  | "focus"
+  | "type"
+  | "quote"
+  | "promote"
+  | "minus"
+  | "history";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   search: (
@@ -122,6 +133,42 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   refresh: <path d="M13 8a5 5 0 1 1-1.6-3.7M13 3v2.5h-2.5" />,
+  board: (
+    <>
+      <rect x="2" y="2.5" width="5.5" height="7" rx="1" />
+      <rect x="9" y="2.5" width="5" height="4" rx="1" />
+      <rect x="9" y="8" width="5" height="5.5" rx="1" />
+      <rect x="2" y="11" width="5.5" height="2.5" rx="1" />
+    </>
+  ),
+  sticky: <path d="M3 3h10v6.5L9.5 13H3zM13 9.5H9.5V13" />,
+  image: (
+    <>
+      <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+      <circle cx="6" cy="6.5" r="1" />
+      <path d="m3 11 3-2.5 3 2.5 2-1.5 3 2.5" />
+    </>
+  ),
+  mic: (
+    <>
+      <rect x="6" y="1.5" width="4" height="7.5" rx="2" />
+      <path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2.5" />
+    </>
+  ),
+  stop: <rect x="4" y="4" width="8" height="8" rx="1.5" />,
+  focus: <path d="M2.5 5.5v-3h3M13.5 5.5v-3h-3M2.5 10.5v3h3M13.5 10.5v3h-3" />,
+  type: <path d="M3 5V3.5h10V5M8 3.5v9M6 12.5h4" />,
+  quote: (
+    <path d="M6 4.5C4.3 5 3.5 6.2 3.5 8v3.5h4V8H5.2c0-1.2.4-2 1.3-2.3zM13 4.5c-1.7.5-2.5 1.7-2.5 3.5v3.5h4V8h-2.3c0-1.2.4-2 1.3-2.3z" />
+  ),
+  promote: <path d="M8 13V4M4.5 7.5 8 4l3.5 3.5M3 2.5h10" />,
+  minus: <path d="M3.5 8h9" />,
+  history: (
+    <>
+      <path d="M8 4.5V8l2.5 1.5" />
+      <path d="M2.8 8a5.2 5.2 0 1 0 1.6-3.8M2.5 3v2.6h2.6" />
+    </>
+  ),
 };
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, "name"> {

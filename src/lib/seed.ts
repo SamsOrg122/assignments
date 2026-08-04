@@ -9,12 +9,186 @@ import type { Project } from "./types";
 const SEED_TS = 1767225600000; // 2026-01-01T00:00:00Z — fixed, so SSR is stable.
 
 export const SEED_PROJECTS: Project[] = [
+  /**
+   * A thesis-shaped document. The prose deliberately drifts between
+   * "respondent" and "participant", and the conclusion overreaches what the
+   * research question asks — so the workspace-aware AI checks have something
+   * real to find rather than a canned answer.
+   */
   {
-    id: "p_orbit",
-    name: "Orbit — Q3 review",
+    id: "p_thesis",
+    name: "Attention & Interface Density",
+    kind: "doc",
     glyph: "◆",
     createdAt: SEED_TS,
     updatedAt: SEED_TS,
+    board: [],
+    wordGoal: 12000,
+    typography: {
+      measure: 68,
+      lineHeight: 1.8,
+      letterSpacing: -0.003,
+      fontSize: 18,
+      family: "serif",
+      margin: 72,
+    },
+    blocks: [
+      {
+        id: "t_title",
+        type: "text",
+        html: `<h1>Attention &amp; Interface Density</h1><p>A study of how visual density in productivity software affects sustained attention during long-form writing tasks.</p>`,
+      },
+      {
+        id: "t_ch1",
+        type: "text",
+        html: `<h2>1 — Introduction</h2><p>Word processors have accumulated chrome for thirty years. Each toolbar was reasonable on its own, and the sum is a workspace where the text occupies less than half the screen. This thesis asks whether that accumulation carries a measurable cost.</p><p><strong>Research question:</strong> Does reducing visible interface density increase sustained attention during long-form writing?</p><p>Each respondent completed two 40-minute writing sessions. I recorded self-reported focus alongside interaction telemetry.</p>`,
+      },
+      {
+        id: "t_ch2",
+        type: "text",
+        html: `<h2>2 — Method</h2><p>Twenty-four participants were recruited from two graduate programmes. Every participant used both a dense and a sparse editor, with order counterbalanced.</p><p>I chose a within-subjects design because between-subjects variance in writing speed is large enough to swamp the effect I was looking for. Each respondent therefore acted as their own control.</p><blockquote>Ask AI to check whether "respondent" and "participant" are used interchangeably — they are, and it will tell you where.</blockquote>`,
+      },
+      {
+        id: "t_ch3",
+        type: "text",
+        html: `<h2>3 — Findings</h2><p>Sparse conditions produced longer uninterrupted writing runs: a median of 9.4 minutes against 5.1. Self-reported focus moved in the same direction but less sharply.</p><p>Interaction telemetry showed the difference was not simply fewer clicks. In the dense condition participants looked away from the text more often even when they did not act on what they saw.</p>`,
+      },
+      {
+        id: "t_ch4",
+        type: "text",
+        html: `<h2>4 — Conclusion</h2><p>Interface density degrades sustained attention, and software vendors should therefore adopt minimal interfaces as a default across all product categories.</p><p>The effect appears robust across both programmes sampled.</p>`,
+      },
+    ],
+  },
+
+  /**
+   * A board that already demonstrates both halves of the bridge: loose
+   * thinking (stickies, a stray paragraph) sitting next to a live card that
+   * mirrors the thesis above.
+   */
+  {
+    id: "p_board",
+    name: "Thinking — thesis structure",
+    kind: "board",
+    glyph: "◈",
+    createdAt: SEED_TS,
+    updatedAt: SEED_TS,
+    viewport: { x: 60, y: 40, scale: 1 },
+    blocks: [],
+    board: [
+      {
+        id: "bi_head",
+        kind: "text",
+        x: 80,
+        y: 60,
+        width: 380,
+        height: 110,
+        z: 1,
+        text: "Everything below is unsorted on purpose. Drag things around, then select a cluster and press P to promote it into a real Library project.",
+      },
+      {
+        id: "bi_s1",
+        kind: "sticky",
+        x: 100,
+        y: 220,
+        width: 180,
+        height: 180,
+        z: 2,
+        tone: "accent",
+        text: "Density has a cost — but is it attention or just clicks?",
+      },
+      {
+        id: "bi_s2",
+        kind: "sticky",
+        x: 300,
+        y: 250,
+        width: 180,
+        height: 180,
+        z: 3,
+        tone: "neutral",
+        text: "Within-subjects. Variance between writers is enormous.",
+      },
+      {
+        id: "bi_s3",
+        kind: "sticky",
+        x: 200,
+        y: 440,
+        width: 180,
+        height: 180,
+        z: 4,
+        tone: "mint",
+        text: "Counterbalance the order or the practice effect eats the result.",
+      },
+      {
+        id: "bi_card",
+        kind: "card",
+        x: 560,
+        y: 210,
+        width: 300,
+        height: 200,
+        z: 5,
+        projectId: "p_thesis",
+      },
+      {
+        id: "bi_note",
+        kind: "text",
+        x: 560,
+        y: 450,
+        width: 300,
+        height: 90,
+        z: 6,
+        text: "The card on the right is live. Edit the thesis and it updates here.",
+      },
+    ],
+  },
+
+  {
+    id: "p_pitch",
+    name: "Sparse — pitch",
+    kind: "deck",
+    glyph: "▲",
+    createdAt: SEED_TS,
+    updatedAt: SEED_TS,
+    board: [],
+    blocks: [
+      {
+        id: "d_deck",
+        type: "slides",
+        title: "Deck",
+        slides: [
+          {
+            id: "ds1",
+            title: "Sparse",
+            bullets: ["Writing software that gets out of the way"],
+            note: "Open on the problem, not the product.",
+          },
+          {
+            id: "ds2",
+            title: "The cost of chrome",
+            bullets: [
+              "Text occupies under half the screen",
+              "Median writing run: 5.1 minutes",
+              "Attention leaks even without clicks",
+            ],
+          },
+          {
+            id: "ds3",
+            title: "What we built",
+            bullets: ["One canvas", "One accent", "Nothing else"],
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "p_orbit",
+    name: "Orbit — Q3 review",
+    kind: "doc",
+    glyph: "◆",
+    createdAt: SEED_TS,
+    updatedAt: SEED_TS,
+    board: [],
     blocks: [
       {
         id: "b_intro",
@@ -147,9 +321,11 @@ btn.addEventListener("click", () => {
   {
     id: "p_atlas",
     name: "Atlas — design system",
+    kind: "doc",
     glyph: "◇",
     createdAt: SEED_TS,
     updatedAt: SEED_TS,
+    board: [],
     blocks: [
       {
         id: "b_atlas_intro",

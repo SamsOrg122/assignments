@@ -29,6 +29,8 @@ interface UIState {
   aiTarget: AITarget | null;
   /** Block the local user is focused in — drives the "you" presence chip. */
   focusedBlockId: string | null;
+  /** Distraction-free writing. Strips the shell down to the page. */
+  focusMode: boolean;
   toast: { id: number; message: string } | null;
 
   /** Bumped on every openAI call, so the popover remounts with fresh state. */
@@ -42,6 +44,7 @@ interface UIState {
   openAI: (target: AITarget) => void;
   closeAI: () => void;
   setFocusedBlock: (blockId: string | null) => void;
+  setFocusMode: (on: boolean) => void;
   notify: (message: string) => void;
   dismissToast: () => void;
 }
@@ -55,6 +58,7 @@ export const useUI = create<UIState>()((set, get) => ({
   aiTarget: null,
   aiOpenId: 0,
   focusedBlockId: null,
+  focusMode: false,
   toast: null,
 
   openPalette: (seed = "") => set({ paletteOpen: true, paletteSeed: seed }),
@@ -70,6 +74,7 @@ export const useUI = create<UIState>()((set, get) => ({
   closeAI: () => set({ aiTarget: null }),
 
   setFocusedBlock: (focusedBlockId) => set({ focusedBlockId }),
+  setFocusMode: (focusMode) => set({ focusMode }),
 
   notify: (message) => {
     const id = ++toastSeq;

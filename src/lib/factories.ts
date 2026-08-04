@@ -1,15 +1,20 @@
 import { nanoid } from "nanoid";
-import type {
-  Block,
-  BlockType,
-  ChartBlock,
-  CodeBlock,
-  Column,
-  Project,
-  Row,
-  SlidesBlock,
-  TableBlock,
-  TextBlock,
+import { KINDS } from "./kinds";
+import {
+  DEFAULT_TYPOGRAPHY,
+  type Block,
+  type BlockType,
+  type BoardItem,
+  type BoardItemKind,
+  type ChartBlock,
+  type CodeBlock,
+  type Column,
+  type Project,
+  type ProjectKind,
+  type Row,
+  type SlidesBlock,
+  type TableBlock,
+  type TextBlock,
 } from "./types";
 
 export const uid = () => nanoid(10);
@@ -142,21 +147,86 @@ export function createBlock(type: BlockType, source?: TableBlock): Block {
   }
 }
 
-const GLYPHS = ["◆", "◇", "●", "○", "▲", "■", "◈", "✦"];
+/* ── Board items ────────────────────────────────────────── */
 
-export function createProject(name = "Untitled project"): Project {
+export function createBoardItem(
+  kind: BoardItemKind,
+  at: { x: number; y: number },
+  extra?: { projectId?: string; text?: string },
+): BoardItem {
+  const base = { id: uid(), x: at.x, y: at.y, z: Date.now() };
+  switch (kind) {
+    case "sticky":
+      return {
+        ...base,
+        kind: "sticky",
+        width: 180,
+        height: 180,
+        text: extra?.text ?? "",
+        tone: "neutral",
+      };
+    case "image":
+      return { ...base, kind: "image", width: 280, height: 200, src: "", alt: "" };
+    case "card":
+      return {
+        ...base,
+        kind: "card",
+        width: 280,
+        height: 190,
+        projectId: extra?.projectId ?? "",
+      };
+    default:
+      return {
+        ...base,
+        kind: "text",
+        width: 320,
+        height: 120,
+        text: extra?.text ?? "",
+      };
+  }
+}
+
+/* ── Projects ───────────────────────────────────────────── */
+
+/** Opening content per kind. A blank page is a worse start than a good one. */
+function starterBlocks(kind: ProjectKind, name: string): Block[] {
+  switch (kind) {
+    case "doc":
+      return [
+        createTextBlock(
+          `<h1>${escapeHtml(name)}</h1><p></p>`,
+        ),
+      ];
+    case "notes":
+      return [createTextBlock(`<h2>${escapeHtml(name)}</h2><ul><li></li></ul>`)];
+    case "deck":
+      return [createSlidesBlock()];
+    case "code":
+      return [createCodeBlock()];
+    default:
+      return [];
+  }
+}
+
+export function createProject(
+  kind: ProjectKind = "doc",
+  name?: string,
+): Project {
   const now = Date.now();
+  const meta = KINDS[kind];
+  const title = name?.trim() || `Untitled ${meta.label.toLowerCase()}`;
   return {
     id: uid(),
-    name,
-    glyph: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+    name: title,
+    kind,
+    glyph: meta.glyph,
     createdAt: now,
     updatedAt: now,
-    blocks: [
-      createTextBlock(
-        `<h1>${escapeHtml(name)}</h1><p>Press <code>/</code> for a block, or <code>⌘K</code> for anything.</p>`,
-      ),
-    ],
+    blocks: starterBlocks(kind, title),
+    board: [],
+    ...(kind === "doc" || kind === "notes"
+      ? { typography: { ...DEFAULT_TYPOGRAPHY } }
+      : {}),
   };
 }
 

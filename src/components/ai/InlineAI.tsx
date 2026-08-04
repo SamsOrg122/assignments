@@ -11,11 +11,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { askAI, type AIChange } from "@/lib/ai";
 import { buildContext } from "@/lib/ai/context";
+import { useRouter } from "next/navigation";
 import { useProjects } from "@/lib/store";
 import { useUI, type AITarget } from "@/lib/ui-store";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
-import type { Row } from "@/lib/types";
+import type { Row, TextBlock } from "@/lib/types";
 
 const SUGGESTIONS: Record<string, string[]> = {
   text: ["Summarize this", "Tighten this prose", "Turn this into slides"],
@@ -44,6 +45,9 @@ function AIPopover({ target }: { target: AITarget }) {
   const updateBlock = useProjects((s) => s.updateBlock);
   const insertBlock = useProjects((s) => s.insertBlock);
   const addValueColumn = useProjects((s) => s.addValueColumn);
+  const addProject = useProjects((s) => s.addProject);
+  const removeBlock = useProjects((s) => s.removeBlock);
+  const router = useRouter();
 
   const [prompt, setPrompt] = useState(target.seedPrompt ?? "");
   const [answer, setAnswer] = useState("");
@@ -85,6 +89,7 @@ function AIPopover({ target }: { target: AITarget }) {
 
       const context = buildContext(
         project,
+        projects,
         target.selectionText
           ? {
               blockId: target.blockId,
@@ -107,30 +112,84 @@ function AIPopover({ target }: { target: AITarget }) {
         setStatus("done");
       }
     },
-    [project, target],
+    [project, projects, target],
   );
 
   const accept = useCallback(() => {
     if (!change) return;
     const projectId = target.projectId;
 
-    if (change.kind === "replace-text") {
-      updateBlock(projectId, change.blockId, { html: change.html });
-    } else if (change.kind === "insert-block") {
-      insertBlock(projectId, change.block, change.afterBlockId || undefined);
-    } else {
-      addValueColumn(
-        projectId,
-        change.blockId,
-        change.column,
-        change.values,
-        (change.appendRows as Row[] | undefined) ?? [],
-      );
+    switch (change.kind) {
+      case "replace-text":
+        updateBlock<TextBlock>(projectId, change.blockId, { html: change.html });
+        break;
+
+      case "append-text": {
+        // Appending, never overwriting — dictation adds to what's there.
+        const existing = projects
+          .find((p) => p.id === projectId)
+          ?.blocks.find((b) => b.id === change.blockId);
+        const before =
+          existing?.type === "text" && existing.html !== "<p></p>"
+            ? existing.html
+            : "";
+        updateBlock<TextBlock>(projectId, change.blockId, {
+          html: before + change.html,
+        });
+        break;
+      }
+
+      case "insert-block":
+        insertBlock(projectId, change.block, change.afterBlockId || undefined);
+        break;
+
+      case "create-project": {
+        // The thesis → deck bridge: a brand new Library project, and we land
+        // the user in it rather than leaving them to go find it.
+        const id = addProject(change.projectKind, change.name);
+        for (const block of change.blocks) insertBlock(id, block);
+        // The starter block a new project ships with would sit above ours.
+        const created = useProjects
+          .getState()
+          .projects.find((p) => p.id === id);
+        if (created)
+          for (const block of created.blocks.slice(
+            0,
+            created.blocks.length - change.blocks.length,
+          ))
+            removeBlock(id, block.id);
+        notify(`Created “${change.name}”`);
+        closeAI();
+        router.push(`/p/${id}`);
+        return;
+      }
+
+      case "add-column":
+        addValueColumn(
+          projectId,
+          change.blockId,
+          change.column,
+          change.values,
+          (change.appendRows as Row[] | undefined) ?? [],
+        );
+        break;
     }
 
     notify("Change applied");
     closeAI();
-  }, [change, target, updateBlock, insertBlock, addValueColumn, notify, closeAI]);
+  }, [
+    change,
+    target,
+    projects,
+    updateBlock,
+    insertBlock,
+    addValueColumn,
+    addProject,
+    removeBlock,
+    notify,
+    closeAI,
+    router,
+  ]);
 
   const suggestions = useMemo(
     () => SUGGESTIONS[target.blockType] ?? SUGGESTIONS.text,

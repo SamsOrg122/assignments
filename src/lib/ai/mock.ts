@@ -12,8 +12,22 @@ import type { AIChange, AIChunk, AIProvider, AIRequest } from "./types";
 import type { CellValue, Row, Slide, TableBlock } from "../types";
 import { escapeHtml, uid } from "../factories";
 import { toNumber } from "../formula";
+import {
+  analyseDrift,
+  analyseTerminology,
+  buildOutline,
+  findInconsistencies,
+  speechToProse,
+  termsFromPrompt,
+} from "./analysis";
 
 type Intent =
+  | "speech"
+  | "terminology"
+  | "consistency"
+  | "drift"
+  | "outline"
+  | "deck"
   | "summarize"
   | "slides"
   | "forecast"
@@ -24,6 +38,18 @@ type Intent =
 
 function classify(prompt: string): Intent {
   const p = prompt.toLowerCase();
+  // Ordered most-specific first: "outline my thesis as a deck" is a deck.
+  if (/^__speech__/.test(p)) return "speech";
+  if (/\b(interchangeab|terminolog|consistent(ly)? (use|call)|same term|which term)/.test(p))
+    return "terminology";
+  if (/\b(deck|pitch|slide)s?\b/.test(p) && /\b(make|turn|build|create|from|into)\b/.test(p))
+    return "deck";
+  if (/\b(drift|line up|lines up|match(es)? my|answer(s)? the (research )?question|off topic|wander)/.test(p))
+    return "drift";
+  if (/\b(consistent with|contradict|conflicts?|disagree|argued in|earlier chapter|chapter \d)/.test(p))
+    return "consistency";
+  if (/\b(outline|structure of|where (am|i am)|how far|table of contents)/.test(p))
+    return "outline";
   if (/\b(summar|tl;?dr|recap|gist)/.test(p)) return "summarize";
   if (/\b(slide|deck|present)/.test(p)) return "slides";
   if (/\b(forecast|project|predict|extrapolat|trend)/.test(p)) return "forecast";
@@ -99,6 +125,223 @@ function findTable(ctx: AIRequest["context"], blocks: TableBlock[]): TableBlock 
 interface Built {
   text: string;
   change?: AIChange;
+}
+
+/* ── Workspace-aware builders ───────────────────────────── */
+
+/**
+ * Speech → prose. Arrives with a `__speech__` prefix from the dictation panel
+ * so it can never be confused with something the user typed.
+ */
+function buildSpeech(req: AIRequest): Built {
+  const raw = req.prompt.replace(/^__speech__\s*/i, "");
+  if (!raw.trim())
+    return { text: "I didn't catch anything to write up." };
+
+  const { html, stats } = speechToProse(raw);
+  const target =
+    req.context.selection?.blockId ?? req.context.blocks.at(-1)?.id ?? "";
+
+  return {
+    text:
+      `Wrote up ${stats.before} spoken words as ${stats.after} written ones` +
+      (stats.removed ? `, dropping ${stats.removed} filler${stats.removed === 1 ? "" : "s"}` : "") +
+      `.\n\n` +
+      `I removed the hesitations and false starts, joined the spoken clauses into sentences, ` +
+      `and broke the result into paragraphs — so it reads like something you wrote, not something you said.`,
+    change: target
+      ? {
+          kind: "append-text",
+          blockId: target,
+          html,
+          label: "Insert the written-up prose",
+        }
+      : undefined,
+  };
+}
+
+function buildTerminology(req: AIRequest): Built {
+  const requested = termsFromPrompt(req.prompt);
+  const found = analyseTerminology(req.context, requested);
+
+  if (!found)
+    return {
+      text:
+        requested.length >= 2
+          ? `Neither “${requested[0]}” nor “${requested[1]}” appears often enough in ${req.context.projectName} to judge.`
+          : `I scanned all ${req.context.blocks.length} sections and didn't find a term drifting between near-synonyms.`,
+    };
+
+  const total = found.group.reduce((n, u) => n + u.count, 0);
+  const dominant = found.group.reduce((m, u) => (u.count > m.count ? u : m));
+
+  const lines = [
+    `Yes — you're using ${found.group.length} terms for the same thing across ${found.scanned} sections:`,
+    "",
+    ...found.group.map(
+      (u) =>
+        `• **${u.term}** — ${u.count}× in ${u.sections.join(", ") || "—"}`,
+    ),
+    "",
+    `“${dominant.term}” is the majority usage (${dominant.count} of ${total}). ` +
+      `The mixed sections are the ones to fix first: ` +
+      `${[...new Set(found.group.flatMap((u) => u.sections))].join(", ")}.`,
+    "",
+    `_Pick one and I can rewrite the others to match._`,
+  ];
+
+  return { text: lines.join("\n") };
+}
+
+function buildConsistency(req: AIRequest): Built {
+  const pairs = findInconsistencies(req.context);
+  if (pairs.length === 0)
+    return {
+      text: `I compared every claim across the ${req.context.blocks.length} sections of ${req.context.projectName} and found no pair that contradicts itself on figures or polarity. That's a weak guarantee, not a strong one — it catches numeric and hedging conflicts, not conceptual ones.`,
+    };
+
+  const lines = [
+    `Reading the whole document, ${pairs.length} pair${pairs.length === 1 ? "" : "s"} of claims sit awkwardly together:`,
+    "",
+  ];
+  for (const p of pairs) {
+    lines.push(`**${p.a.where} ↔ ${p.b.where}** — ${p.reason}`);
+    lines.push(`• ${p.a.text}`);
+    lines.push(`• ${p.b.text}`);
+    lines.push("");
+  }
+  return { text: lines.join("\n") };
+}
+
+function buildDrift(req: AIRequest): Built {
+  const drift = analyseDrift(req.context);
+  if (!drift)
+    return {
+      text: `I couldn't find a stated research question. Write one as “Research question: …” and I can measure every section against it.`,
+    };
+
+  const lines = [
+    `Your research question:`,
+    "",
+    `> ${drift.question}`,
+    "",
+    `Measuring each section's vocabulary against it:`,
+    "",
+    ...drift.sections.map(
+      (s) =>
+        `• ${s.where} — ${s.alignment}% ${bar(s.alignment, Math.max(...drift.sections.map((x) => x.alignment)))}`,
+    ),
+    "",
+  ];
+
+  if (drift.weakest)
+    lines.push(
+      `**${drift.weakest.where}** drifts furthest (${drift.weakest.alignment}%).`,
+    );
+  if (drift.strays.length)
+    lines.push(
+      `It leans on terms the question never raises: ${drift.strays.map((w) => `\`${w}\``).join(", ")}.`,
+    );
+  lines.push(
+    "",
+    `_Either the conclusion is answering a broader question than you asked, or the question needs widening to match it._`,
+  );
+
+  return { text: lines.join("\n") };
+}
+
+/** A tiny inline meter — cheaper to read than a column of bare percentages. */
+function bar(value: number, max: number): string {
+  const filled = Math.max(1, Math.round((value / (max || 1)) * 8));
+  return "▮".repeat(filled) + "▯".repeat(8 - filled);
+}
+
+function buildOutlineAnswer(req: AIRequest): Built {
+  const entries = buildOutline(req.context);
+  const { words, wordGoal } = req.context;
+
+  const lines = [
+    `**${req.context.projectName}** — ${entries.length} sections, ${words.toLocaleString()} words` +
+      (wordGoal ? ` of ${wordGoal.toLocaleString()} (${Math.round((words / wordGoal) * 100)}%)` : "") +
+      `.`,
+    "",
+    ...entries.map(
+      (e) => `• **${e.where}** — ${e.words} words${e.lead ? `\n  ${e.lead}…` : ""}`,
+    ),
+  ];
+
+  if (wordGoal) {
+    const remaining = Math.max(0, wordGoal - words);
+    lines.push(
+      "",
+      remaining
+        ? `${remaining.toLocaleString()} words to go. The thinnest section is **${
+            entries.reduce((m, e) => (e.words < m.words ? e : m), entries[0])?.where
+          }**.`
+        : `You're past the target.`,
+    );
+  }
+
+  return { text: lines.join("\n") };
+}
+
+/**
+ * Thesis → deck. Uses the document's own structure: one slide per section,
+ * bullets pulled from that section's leading sentences.
+ */
+function buildDeck(req: AIRequest): Built {
+  const requested = /\b(\d{1,2})[- ]?slide/i.exec(req.prompt);
+  const target = Math.min(20, Math.max(3, Number(requested?.[1] ?? 10)));
+
+  const sections = buildOutline(req.context).filter((e) => e.words > 15);
+  if (sections.length === 0)
+    return { text: "There's no prose here yet to build a deck from." };
+
+  const slides: Slide[] = [
+    {
+      id: uid(),
+      title: req.context.projectName,
+      bullets: [sections[0]?.lead?.slice(0, 90) ?? "A summary"],
+      note: "Open on the problem.",
+    },
+  ];
+
+  // Spread the available sections across the remaining slide budget.
+  const body = sections.slice(sections.length > 1 ? 1 : 0);
+  const perSlide = Math.max(1, Math.ceil(body.length / (target - 2)));
+  for (let i = 0; i < body.length && slides.length < target - 1; i += perSlide) {
+    const group = body.slice(i, i + perSlide);
+    const source = req.context.blocks.find((b) => b.id === group[0].blockId);
+    slides.push({
+      id: uid(),
+      title: group[0].where,
+      bullets: sentences(source?.text ?? "")
+        .slice(0, 3)
+        .map((s) => (s.length > 96 ? s.slice(0, 95) + "…" : s)),
+    });
+  }
+
+  slides.push({
+    id: uid(),
+    title: "In one line",
+    bullets: [sections.at(-1)?.lead?.slice(0, 90) ?? "What it adds up to"],
+    note: "Land the ask.",
+  });
+
+  return {
+    text:
+      `Built a ${slides.length}-slide deck from the ${sections.length} sections of **${req.context.projectName}**.\n\n` +
+      `One slide per section, bullets taken from each section's opening claims, ` +
+      `titles from your own headings. Accepting creates a new Deck project in the library ` +
+      `and leaves this document untouched.`,
+    change: {
+      kind: "create-project",
+      projectKind: "deck",
+      name: `${req.context.projectName} — pitch`,
+      label: `Create a ${slides.length}-slide deck project`,
+      blocks: [{ id: uid(), type: "slides", title: "Deck", slides }],
+    },
+  };
 }
 
 function buildSummary(req: AIRequest): Built {
@@ -339,7 +582,19 @@ export function createMockProvider(getTables: (projectId: string) => TableBlock[
 
       const intent = classify(req.prompt);
       const built: Built =
-        intent === "summarize"
+        intent === "speech"
+          ? buildSpeech(req)
+          : intent === "terminology"
+            ? buildTerminology(req)
+            : intent === "consistency"
+              ? buildConsistency(req)
+              : intent === "drift"
+                ? buildDrift(req)
+                : intent === "outline"
+                  ? buildOutlineAnswer(req)
+                  : intent === "deck"
+                    ? buildDeck(req)
+                    : intent === "summarize"
           ? buildSummary(req)
           : intent === "slides"
             ? buildSlides(req)

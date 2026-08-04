@@ -206,10 +206,27 @@
 
 /* ── Prose (Tiptap text blocks) ──────────────────────────── */
 
+/* Every value is a custom property so the typography panel can drive it
+   continuously, rather than offering a fixed handful of presets. */
+/* Defaults live in the `var()` fallbacks, NOT as declarations on this rule.
+   A custom property declared here would win over the same property inherited
+   from the editor's wrapper, and the typography panel could never move it. */
 .prose-canvas {
   color: var(--color-fg);
-  font-size: 15px;
-  line-height: 1.75;
+  font-family: var(--prose-family, var(--font-sans));
+  font-size: var(--prose-size, 15px);
+  line-height: var(--prose-leading, 1.75);
+  letter-spacing: var(--prose-tracking, -0.003em);
+}
+
+/* A reading serif for long-form work. System stack — no network fetch, and
+   these are the faces most likely to already be hinted well on the OS. */
+.prose-serif {
+  --prose-family: "Iowan Old Style", "Palatino Linotype", Palatino, Charter,
+    "Bitstream Charter", Georgia, "Times New Roman", serif;
+}
+.prose-mono {
+  --prose-family: var(--font-mono);
 }
 .prose-canvas :is(h1, h2, h3) {
   color: var(--color-fg);
@@ -218,19 +235,32 @@
   line-height: 1.25;
 }
 .prose-canvas h1 {
-  font-size: 26px;
-  margin: 1.1em 0 0.4em;
+  font-size: calc(var(--prose-size, 15px) * 1.85);
+  letter-spacing: -0.028em;
+  margin: 1.1em 0 0.45em;
 }
 .prose-canvas h2 {
-  font-size: 20px;
-  margin: 1em 0 0.35em;
+  font-size: calc(var(--prose-size, 15px) * 1.32);
+  margin: 1.5em 0 0.4em;
 }
 .prose-canvas h3 {
-  font-size: 16px;
-  margin: 0.9em 0 0.3em;
+  font-size: calc(var(--prose-size, 15px) * 1.08);
+  margin: 1.2em 0 0.3em;
+}
+/* Headings sit tighter than body text at every size. */
+.prose-canvas :is(h1, h2, h3) {
+  line-height: 1.22;
 }
 .prose-canvas p {
-  margin: 0.55em 0;
+  margin: 0 0 0.85em;
+}
+.prose-canvas p:last-child {
+  margin-bottom: 0;
+}
+/* Optical hanging: the first line after a heading shouldn't be indented or
+   spaced twice over. */
+.prose-canvas :is(h1, h2, h3) + p {
+  margin-top: 0;
 }
 .prose-canvas :is(ul, ol) {
   margin: 0.55em 0;
@@ -333,4 +363,25 @@
 }
 .cm-editor .cm-cursor {
   border-left-color: var(--color-accent) !important;
+}
+
+/* ── Focus mode ──────────────────────────────────────────
+   Everything except the active block fades back. Opacity rather than
+   display, so the page doesn't reflow when the caret moves. */
+
+.focus-mode .focus-dim {
+  opacity: 0.18;
+  filter: saturate(0.4);
+  transition:
+    opacity 220ms var(--ease-out-fast),
+    filter 220ms var(--ease-out-fast);
+}
+.focus-mode .focus-active {
+  opacity: 1;
+  transition: opacity 220ms var(--ease-out-fast);
+}
+@media (prefers-reduced-motion: reduce) {
+  .focus-mode .focus-dim {
+    transition: none;
+  }
 }

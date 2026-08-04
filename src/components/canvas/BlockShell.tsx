@@ -20,17 +20,21 @@ export function BlockShell({
   block,
   peers,
   children,
+  minimal = false,
 }: {
   projectId: string;
   block: Block;
   peers: PeerState[];
   children: React.ReactNode;
+  /** Focus mode — drop every affordance that isn't the text itself. */
+  minimal?: boolean;
 }) {
   const removeBlock = useProjects((s) => s.removeBlock);
   const duplicateBlock = useProjects((s) => s.duplicateBlock);
   const updateBlock = useProjects((s) => s.updateBlock);
   const openAI = useUI((s) => s.openAI);
   const setFocusedBlock = useUI((s) => s.setFocusedBlock);
+  const focusedBlockId = useUI((s) => s.focusedBlockId);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -97,9 +101,12 @@ export function BlockShell({
       className={cn(
         "group/block relative scroll-mt-20",
         isDragging && "z-20 opacity-60",
+        // Inert unless an ancestor turns focus mode on (see globals.css).
+        focusedBlockId === block.id ? "focus-active" : "focus-dim",
       )}
     >
       {/* Gutter — sits outside the content column on wide screens. */}
+      {!minimal && (
       <div
         className={cn(
           "absolute top-0.5 -left-9 hidden items-center gap-0.5 lg:flex",
@@ -129,6 +136,7 @@ export function BlockShell({
           <Icon name="dots" size={13} />
         </button>
       </div>
+      )}
 
       {menuOpen && (
         <div
@@ -164,7 +172,7 @@ export function BlockShell({
       )}
 
       {/* Header row for non-text blocks: editable title + peer chip + AI. */}
-      {(titled || peers.length > 0) && (
+      {!minimal && (titled || peers.length > 0) && (
         <div className="mb-1.5 flex items-center gap-2">
           {titled && (
             <>
@@ -222,6 +230,7 @@ export function BlockShell({
       {children}
 
       {/* Mobile controls — no gutter room, so they live under the block. */}
+      {!minimal && (
       <div className="mt-1.5 flex items-center gap-1 lg:hidden print:hidden">
         <button
           ref={setActivatorNodeRef}
@@ -258,6 +267,7 @@ export function BlockShell({
           <Icon name="trash" size={12} />
         </button>
       </div>
+      )}
     </div>
   );
 }

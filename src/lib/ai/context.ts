@@ -1,13 +1,17 @@
 /**
- * Flattens a project into the plain-text view handed to the AI provider.
+ * Flattens a project — and the workspace around it — into what the provider
+ * sees.
  *
  * This is where "AI is aware of the whole project" is actually implemented:
- * every block contributes, not just the one the user is standing in.
+ * every block contributes, not just the one the caret is in. Long documents
+ * are trimmed to a fixed character budget from the middle outward, so the
+ * opening and the conclusion (the two things consistency questions hinge on)
+ * always survive.
  */
 
 import type { Block, Project } from "../types";
 import { computeFormulas } from "../formula";
-import type { AIContext } from "./types";
+import { CONTEXT_CHAR_BUDGET, type AIContext } from "./types";
 
 /** Strip HTML to text without a DOM, so this is safe on the server too. */
 export function htmlToText(html: string): string {
@@ -24,6 +28,13 @@ export function htmlToText(html: string): string {
     .replace(/&#39;/g, "'")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/** The heading a text block opens with, if any. */
+export function blockHeading(block: Block): string | undefined {
+  if (block.type !== "text") return block.title;
+  const match = /<h([1-3])[^>]*>(.*?)<\/h\1>/i.exec(block.html);
+  return match ? htmlToText(match[2]).trim() || undefined : undefined;
 }
 
 /** One block, as text a language model can read. */
@@ -68,19 +79,100 @@ export function blockToText(block: Block, project: Project): string {
   }
 }
 
+/** Board items read as text too, so boards can be asked about. */
+export function boardToText(project: Project): string {
+  return project.board
+    .map((i) => {
+      if (i.kind === "sticky") return `[sticky] ${i.text}`;
+      if (i.kind === "text") return i.text;
+      if (i.kind === "image") return `[image] ${i.alt || "untitled"}`;
+      return `[card] project ${i.projectId}`;
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+const countWords = (s: string) => s.split(/\s+/).filter(Boolean).length;
+
+/**
+ * Trim to the character budget by shrinking the *middle* blocks first. An
+ * opening and a conclusion are what cross-document questions compare, so they
+ * are the last things to go.
+ */
+function fitToBudget(blocks: AIContext["blocks"]): AIContext["blocks"] {
+  let total = blocks.reduce((n, b) => n + b.text.length, 0);
+  if (total <= CONTEXT_CHAR_BUDGET) return blocks;
+
+  const order = blocks
+    .map((_, i) => i)
+    .sort((a, b) => {
+      // Distance from either end — middle blocks have the highest score.
+      const da = Math.min(a, blocks.length - 1 - a);
+      const db = Math.min(b, blocks.length - 1 - b);
+      return db - da;
+    });
+
+  const out = [...blocks];
+  for (const i of order) {
+    if (total <= CONTEXT_CHAR_BUDGET) break;
+    const block = out[i];
+    if (block.text.length < 400) continue;
+    const keep = Math.max(300, Math.floor(block.text.length / 3));
+    total -= block.text.length - keep;
+    out[i] = {
+      ...block,
+      text: block.text.slice(0, keep) + "\n… [trimmed for length] …",
+    };
+  }
+  return out;
+}
+
 export function buildContext(
   project: Project,
+  allProjects: Project[],
   selection?: AIContext["selection"],
 ): AIContext {
+  const blocks: AIContext["blocks"] =
+    project.kind === "board"
+      ? [
+          {
+            id: "board",
+            type: "text",
+            title: "Board",
+            text: boardToText(project),
+            words: countWords(boardToText(project)),
+          },
+        ]
+      : project.blocks.map((b) => {
+          const text = blockToText(b, project);
+          return {
+            id: b.id,
+            type: b.type,
+            title: b.title,
+            heading: blockHeading(b),
+            text,
+            words: b.type === "text" ? countWords(text) : 0,
+          };
+        });
+
   return {
     projectId: project.id,
     projectName: project.name,
-    blocks: project.blocks.map((b) => ({
-      id: b.id,
-      type: b.type,
-      title: b.title,
-      text: blockToText(b, project),
-    })),
+    projectKind: project.kind,
+    blocks: fitToBudget(blocks),
+    workspace: allProjects
+      .filter((p) => p.id !== project.id)
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        kind: p.kind,
+        summary:
+          p.kind === "board"
+            ? `${p.board.length} board items`
+            : `${p.blocks.length} blocks`,
+      })),
     selection,
+    words: blocks.reduce((n, b) => n + b.words, 0),
+    wordGoal: project.wordGoal,
   };
 }

@@ -1,0 +1,97 @@
+"use client";
+
+import { useEffect } from "react";
+import { useParams } from "next/navigation";
+import { Sidebar } from "./Sidebar";
+import { CommandPalette } from "./CommandPalette";
+import { Toast } from "@/components/ui/Toast";
+import { InlineAI } from "@/components/ai/InlineAI";
+import { useUI } from "@/lib/ui-store";
+import { useProjects } from "@/lib/store";
+import type { BlockType } from "@/lib/types";
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const { togglePalette, toggleSidebar, setSidebarOpen, openAI, closeAI, closePalette } =
+    useUI();
+  const params = useParams<{ projectId?: string }>();
+  const projectId = params?.projectId ?? null;
+
+  // The sidebar overlays the canvas below `lg`, so it starts closed there.
+  useEffect(() => {
+    setSidebarOpen(window.matchMedia("(min-width: 1024px)").matches);
+  }, [setSidebarOpen]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+
+      if (e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        togglePalette();
+        return;
+      }
+      if (e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebar();
+        return;
+      }
+      // ⌘J — ask AI about whatever is selected, wherever the caret is.
+      if (e.key.toLowerCase() === "j") {
+        if (!projectId) return;
+        e.preventDefault();
+        const selection = window.getSelection();
+        const text = selection?.toString().trim() ?? "";
+        const node = selection?.anchorNode;
+        const element =
+          node instanceof Element ? node : (node?.parentElement ?? null);
+        const host = element?.closest<HTMLElement>("[data-block-id]");
+        const blocks = useProjects
+          .getState()
+          .projects.find((p) => p.id === projectId)?.blocks;
+        const blockId = host?.dataset.blockId ?? blocks?.[0]?.id;
+        if (!blockId) return;
+
+        const rect =
+          (selection?.rangeCount
+            ? selection.getRangeAt(0).getBoundingClientRect()
+            : null) ??
+          host?.getBoundingClientRect() ??
+          null;
+
+        openAI({
+          projectId,
+          blockId,
+          blockType:
+            (host?.dataset.blockType as BlockType | undefined) ??
+            blocks?.find((b) => b.id === blockId)?.type ??
+            "text",
+          selectionText: text,
+          anchor: {
+            x: rect && rect.width ? rect.left + rect.width / 2 : window.innerWidth / 2,
+            y: rect && rect.height ? rect.bottom + 8 : 140,
+          },
+        });
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [togglePalette, toggleSidebar, openAI, projectId]);
+
+  // Route changes should never leave a modal behind.
+  useEffect(() => {
+    closeAI();
+    closePalette();
+  }, [projectId, closeAI, closePalette]);
+
+  return (
+    <div className="flex h-full">
+      <Sidebar />
+      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      <CommandPalette />
+      <InlineAI />
+      <Toast />
+    </div>
+  );
+}

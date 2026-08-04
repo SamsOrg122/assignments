@@ -1,0 +1,336 @@
+@import "tailwindcss";
+
+/* ───────────────────────────────────────────────────────────
+   Assignments — design tokens
+   Dark, precise, calm. One restrained accent.
+   ─────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Surfaces */
+  --color-canvas: #0a0a0a;
+  --color-surface: #141414;
+  --color-surface-2: #1c1c1c;
+  --color-surface-3: #232323;
+
+  /* Lines */
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-line-strong: rgba(255, 255, 255, 0.14);
+
+  /* Type */
+  --color-fg: #ededed;
+  --color-fg-muted: #8a8a8a;
+  --color-fg-subtle: #5c5c5c;
+
+  /* Accent — cool electric blue, used sparingly */
+  --color-accent: #3d7dff;
+  --color-accent-dim: #2a5cd0;
+  --color-accent-soft: rgba(61, 125, 255, 0.14);
+
+  /* Semantic (kept desaturated so nothing shouts) */
+  --color-danger: #e5484d;
+  --color-warn: #d9a441;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "JetBrains Mono", monospace;
+
+  --ease-out-fast: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  /* Visible, consistent keyboard focus everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+  /* Mouse users don't get rings; keyboard users always do. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background: rgba(61, 125, 255, 0.32);
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.09);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.18);
+    background-clip: content-box;
+  }
+}
+
+@layer utilities {
+  .hairline {
+    border: 1px solid var(--color-line);
+  }
+
+  /* Tiny uppercase mono label used for metadata / section heads. */
+  .label-mono {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-fg-subtle);
+  }
+
+  .kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1;
+    padding: 4px 5px;
+    border-radius: var(--radius-xs);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-line);
+    color: var(--color-fg-muted);
+    white-space: nowrap;
+  }
+
+  .surface-grain {
+    background-image: radial-gradient(
+      120% 80% at 50% -20%,
+      rgba(255, 255, 255, 0.045),
+      transparent 60%
+    );
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}
+
+/* ── Motion ──────────────────────────────────────────────── */
+
+@keyframes a-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes a-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes a-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes a-shimmer {
+  0% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.35;
+  }
+}
+
+.anim-fade {
+  animation: a-fade-in 150ms var(--ease-out-fast) both;
+}
+.anim-pop {
+  animation: a-pop-in 180ms var(--ease-out-fast) both;
+}
+.anim-slide-up {
+  animation: a-slide-up 200ms var(--ease-out-fast) both;
+}
+.anim-shimmer {
+  animation: a-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Prose (Tiptap text blocks) ──────────────────────────── */
+
+.prose-canvas {
+  color: var(--color-fg);
+  font-size: 15px;
+  line-height: 1.75;
+}
+.prose-canvas :is(h1, h2, h3) {
+  color: var(--color-fg);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+.prose-canvas h1 {
+  font-size: 26px;
+  margin: 1.1em 0 0.4em;
+}
+.prose-canvas h2 {
+  font-size: 20px;
+  margin: 1em 0 0.35em;
+}
+.prose-canvas h3 {
+  font-size: 16px;
+  margin: 0.9em 0 0.3em;
+}
+.prose-canvas p {
+  margin: 0.55em 0;
+}
+.prose-canvas :is(ul, ol) {
+  margin: 0.55em 0;
+  padding-left: 1.35em;
+}
+.prose-canvas ul {
+  list-style: disc;
+}
+.prose-canvas ol {
+  list-style: decimal;
+}
+.prose-canvas li {
+  margin: 0.2em 0;
+}
+.prose-canvas li::marker {
+  color: var(--color-fg-subtle);
+}
+.prose-canvas blockquote {
+  border-left: 2px solid var(--color-line-strong);
+  padding-left: 14px;
+  margin: 0.8em 0;
+  color: var(--color-fg-muted);
+}
+.prose-canvas code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+}
+.prose-canvas pre {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 0.8em 0;
+}
+.prose-canvas pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.prose-canvas hr {
+  border: none;
+  border-top: 1px solid var(--color-line);
+  margin: 1.4em 0;
+}
+.prose-canvas a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-canvas strong {
+  font-weight: 600;
+}
+
+.ProseMirror {
+  outline: none !important;
+}
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--color-fg-subtle);
+}
+
+/* ── CodeMirror ──────────────────────────────────────────── */
+
+.cm-editor {
+  background: transparent !important;
+  font-size: 13px;
+}
+.cm-editor .cm-scroller {
+  font-family: var(--font-mono) !important;
+  line-height: 1.65;
+}
+.cm-editor .cm-gutters {
+  background: transparent !important;
+  border-right: 1px solid var(--color-line) !important;
+  color: var(--color-fg-subtle) !important;
+}
+.cm-editor .cm-activeLine {
+  background: rgba(255, 255, 255, 0.025) !important;
+}
+.cm-editor .cm-activeLineGutter {
+  background: transparent !important;
+  color: var(--color-fg-muted) !important;
+}
+.cm-editor.cm-focused {
+  outline: none !important;
+}
+.cm-editor .cm-selectionBackground,
+.cm-editor .cm-content ::selection {
+  background: rgba(61, 125, 255, 0.28) !important;
+}
+.cm-editor .cm-cursor {
+  border-left-color: var(--color-accent) !important;
+}

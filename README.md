@@ -146,6 +146,33 @@ first page view. Ambient slots paint as backgrounds with the hand-built graphic
 broken-image box. Half the page is meant to be hand-made — that mix is the
 brand argument: AI where it shines, design everywhere.
 
+**Files go into conversations, not just into a settings page.** Attach, drop or
+paste a file in any channel, DM or the assistant thread. Extraction runs
+through the same `ingestFile` seam the Team page uses, and the *extracted text*
+travels with the message rather than a blob — so a file shared in a channel is
+answerable from immediately, with no separate "index this" step, and a
+server-side extractor upgrades every surface at once. A file attached to a
+question also steers the answer to it: ask "summarise this" with a document
+attached and it answers from the document, not from an empty page. Those files
+join the context for that turn only — sharing a file in a chat isn't the same
+act as putting it in the workspace's permanent memory.
+
+**A document is a setting, not a pile of controls.** Six presets — Thesis,
+Book, Report, Manuscript, Notes, Draft — each a *complete* setting shown as a
+real specimen drawn in its own face, measure and leading. The combinations are
+the point: justified text turns hyphenation on with it, because justification
+without it opens rivers; choosing indented paragraphs clears the paragraph gap,
+because doing both reads as a mistake. Paper (app, white, warm, night) re-points
+the colour tokens on the writing surface alone, so a white sheet stays a sheet
+and the chrome around it keeps the app's colours. Everything else is folded
+behind "Fine-tune" for the person who wants the last five per cent.
+
+**A deck is a look, not a formatting surface.** Five themes, plus an accent
+override from a fixed set, four surface treatments drawn from the theme's own
+ink, and a transition. No free colour picker: the whole value of a theme is
+that its ground and its ink were chosen together, and an arbitrary accent is
+the one value that can undo that.
+
 **A team is a record, not a member list.** `/team` holds who is here, what they
 may do, what the group knows and what it has read — and those last two are
 exactly what the assistant is handed, so the page doubles as *what the AI knows

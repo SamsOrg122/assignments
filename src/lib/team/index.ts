@@ -14,6 +14,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { uid } from "../factories";
 import { LOCAL_USER } from "../realtime";
 import { PEERS } from "../realtime/mock";
+import { AI_PERSON } from "../chat/seed";
 import type { Collaborator } from "../types";
 import { SEED_FILES, SEED_KNOWLEDGE, SEED_WORKSPACE } from "./seed";
 import { can, type Action } from "./permissions";
@@ -37,7 +38,7 @@ export {
 } from "./permissions";
 
 /** Everyone the app can resolve to a face. */
-const DIRECTORY: Collaborator[] = [LOCAL_USER, ...PEERS];
+const DIRECTORY: Collaborator[] = [LOCAL_USER, ...PEERS, AI_PERSON];
 
 export const collaboratorById = (id: string): Collaborator =>
   DIRECTORY.find((p) => p.id === id) ?? {

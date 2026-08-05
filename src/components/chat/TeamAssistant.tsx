@@ -15,13 +15,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { askAI, type AIChange } from "@/lib/ai";
 import { useTeamContext } from "@/lib/ai/use-team-context";
 import { useTeam, KNOWLEDGE_LABELS, type KnowledgeKind } from "@/lib/team";
-import { useChat, type Message } from "@/lib/chat";
+import { useChat, type Message, type MessageAttachment } from "@/lib/chat";
 import { AI_USER_ID } from "@/lib/chat/seed";
 import { useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
 import { uid } from "@/lib/factories";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import {
+  AttachButton,
+  AttachmentChips,
+  DropZone,
+  FileCard,
+  useFileAttachments,
+} from "./attachments";
 
 const PROMPTS = [
   "Catch me up on this team",
@@ -41,6 +48,7 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
   const [streaming, setStreaming] = useState("");
   const [pending, setPending] = useState<AIChange | null>(null);
   const [busy, setBusy] = useState(false);
+  const files = useFileAttachments();
 
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -61,8 +69,13 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
       const question = text.trim();
       if (!question || busy) return;
 
-      // The question is an ordinary message, so it persists like any other.
-      useChat.getState().send(channelId, question);
+      // The question is an ordinary message, so it persists like any other —
+      // attachments included, which is what makes them re-readable later.
+      const attached = files.files;
+      useChat.getState().send(channelId, question, {
+        attachments: attached.length ? (attached as MessageAttachment[]) : undefined,
+      });
+      files.clear();
       setDraft("");
       setPending(null);
       setStreaming("");
@@ -82,7 +95,26 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
           kind: p.kind,
           summary: `${p.blocks.length} blocks`,
         })),
-        team,
+        // Files attached to *this* question join the workspace's own for the
+        // duration of the answer. They are not silently added to the team's
+        // permanent record — sharing a file in a chat isn't the same act as
+        // putting it in the workspace, and conflating the two is how a
+        // shared memory fills with things nobody meant to keep.
+        team: attached.length
+          ? {
+              ...team,
+              files: [
+                ...team.files,
+                ...attached.map((f) => ({
+                  id: f.id,
+                  name: f.name,
+                  text: f.text,
+                  status: f.status,
+                })),
+              ],
+              focusFiles: attached.map((f) => f.id),
+            }
+          : team,
         words: 0,
       };
 
@@ -117,7 +149,7 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
       setPending(change);
       setBusy(false);
     },
-    [busy, channelId, team, projects],
+    [busy, channelId, team, projects, files],
   );
 
   const acceptLearning = () => {
@@ -217,8 +249,18 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
         </div>
       )}
 
-      <div className="border-t border-line px-3 py-2.5">
+      <DropZone
+        onFiles={(list) => void files.add(list)}
+        className="border-t border-line px-3 py-2.5"
+        hint="Drop a file and ask about it"
+      >
+        <AttachmentChips files={files.files} onRemove={files.remove} />
         <div className="flex items-end gap-2 rounded-md border border-line bg-surface px-2.5 py-1.5 transition-colors focus-within:border-line-strong">
+          <AttachButton
+            onFiles={(list) => void files.add(list)}
+            busy={files.busy}
+            label="Attach a file to this question"
+          />
           <textarea
             ref={inputRef}
             rows={1}
@@ -237,11 +279,11 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
           <button
             type="button"
             onClick={() => void ask(draft)}
-            disabled={!draft.trim() || busy}
+            disabled={(!draft.trim() && !files.files.length) || busy}
             aria-label="Send message"
             className={cn(
               "mb-0.5 grid size-6 shrink-0 place-items-center rounded-sm transition-colors duration-150",
-              draft.trim() && !busy
+              (draft.trim() || files.files.length) && !busy
                 ? "bg-accent text-white hover:brightness-110"
                 : "border border-line text-fg-subtle",
             )}
@@ -249,7 +291,7 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
             <Icon name="arrow-up" size={12} />
           </button>
         </div>
-      </div>
+      </DropZone>
     </div>
   );
 }
@@ -281,7 +323,14 @@ function Bubble({
             : "bg-accent-soft text-fg",
         )}
       >
-        <Markdownish text={message.body} />
+        {message.body && <Markdownish text={message.body} />}
+        {message.attachments
+          ?.filter((a) => a.kind === "file")
+          .map((a) => (
+            <div key={a.id} className={message.body ? "mt-2" : undefined}>
+              <FileCard file={a} />
+            </div>
+          ))}
         {streaming && (
           <span className="anim-shimmer ml-0.5 inline-block h-3.5 w-1.5 translate-y-0.5 bg-accent" />
         )}

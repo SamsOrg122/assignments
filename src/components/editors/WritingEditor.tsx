@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PeerState, Project } from "@/lib/types";
+import { proseVars } from "@/lib/doc-presets";
 import { DEFAULT_TYPOGRAPHY } from "@/lib/types";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
@@ -129,11 +130,18 @@ export function WritingEditor({
         />
       )}
 
+      {/*
+        The paper class re-points the colour tokens on this element only, so a
+        white sheet stays a sheet — the sidebar, top bar and panels around it
+        keep the app's own colours rather than the document turning the whole
+        window into a second theme.
+      */}
       <main
         className={cn(
-          "relative flex-1 overflow-y-auto",
+          "paper relative flex-1 overflow-y-auto",
           focusMode && "focus-mode",
         )}
+        data-paper={type.paper && type.paper !== "canvas" ? type.paper : undefined}
       >
         {focusMode && (
           <button
@@ -200,14 +208,9 @@ export function WritingEditor({
 
           <div
             className="prose-shell"
-            style={
-              {
-                "--prose-size": `${type.fontSize}px`,
-                "--prose-leading": String(type.lineHeight),
-                "--prose-tracking": `${type.letterSpacing}em`,
-              } as React.CSSProperties
-            }
+            style={proseVars(type)}
             data-family={type.family}
+            data-indent={type.firstLineIndent ? "true" : undefined}
           >
             <Canvas
               project={project}

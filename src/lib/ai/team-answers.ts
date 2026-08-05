@@ -106,18 +106,38 @@ export function answerKnowledge(team: Team, prompt: string): TeamAnswer {
 /* ── Files ──────────────────────────────────────────────── */
 
 export function answerFiles(team: Team, prompt: string): TeamAnswer {
-  if (team.files.length === 0)
+  // A file attached to this very question is what "this" means. Everything
+  // else in the workspace is context, not the subject.
+  const focused = team.focusFiles?.length
+    ? team.files.filter((f) => team.focusFiles?.includes(f.id))
+    : [];
+  const pool = focused.length ? focused : team.files;
+
+  if (pool.length === 0)
     return {
-      text: "No files have been given to the workspace yet. Upload one on the Team page and I'll read it.",
+      text: "No files have been given to the workspace yet. Upload one on the Team page, or attach one here and I'll read it.",
+    };
+
+  const unreadable = pool.filter((f) => f.status !== "ready");
+  if (unreadable.length === pool.length)
+    return {
+      text:
+        `I can see ${unreadable.map((f) => `**${f.name}**`).join(" and ")}, but couldn't read the text out of ` +
+        `${unreadable.length === 1 ? "it" : "them"}. That format needs a server-side extractor — ` +
+        `paste the passage you care about and I'll work from that.`,
     };
 
   const query = new Set(contentWords(prompt));
-  const scored = team.files
+  const scored = pool
+    .filter((f) => f.status === "ready")
     .map((f) => ({ f, score: relevance(query, `${f.name} ${f.text}`) }))
     .sort((a, b) => b.score - a.score);
 
   const best = scored[0];
-  if (!best || best.score < 0.12) {
+
+  // Nothing matched the wording — but if a file was just attached, the honest
+  // move is to open it anyway rather than list the shelf back at them.
+  if (!best || (best.score < 0.12 && !focused.length)) {
     return {
       text:
         `I have ${team.files.length} file${team.files.length === 1 ? "" : "s"}:\n\n` +
@@ -129,22 +149,67 @@ export function answerFiles(team: Team, prompt: string): TeamAnswer {
   }
 
   // Quote the passages that actually matched, so the answer is checkable.
-  const sentences = best.f.text
-    .split(/(?<=[.!?])\s+|\n+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 25);
-  const picked = sentences
+  const sentences = passages(best.f.text);
+  const ranked = sentences
     .map((s) => ({ s, score: relevance(query, s) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
-    .filter((r) => r.score > 0);
+    .sort((a, b) => b.score - a.score);
+  const matched = ranked.slice(0, 3).filter((r) => r.score > 0);
+  // A freshly attached file with no keyword overlap still deserves an answer:
+  // the opening sentences are the closest thing to "what this is about".
+  const picked = matched.length ? matched : ranked.slice(0, 0).concat(
+    sentences.slice(0, 3).map((s) => ({ s, score: 0 })),
+  );
 
+  const words = best.f.text.split(/\s+/).filter(Boolean).length;
   return {
     text:
-      `From **${best.f.name}**:\n\n` +
+      `From **${best.f.name}** (${words.toLocaleString()} words):\n\n` +
       picked.map((p) => `> ${p.s}`).join("\n\n") +
-      `\n\n_Quoted from the uploaded file so you can check it._`,
+      `\n\n_Quoted from the file itself so you can check it._`,
   };
+}
+
+/**
+ * Split text into quotable passages.
+ *
+ * Paragraph-first, because the paragraph is the unit that actually bounds
+ * meaning. Within one, wrapped lines are unwrapped and sentences split; a
+ * short leading fragment merges into the sentence it heads, so a brief
+ * written as "Scope.\nConclusions must stay within…" keeps the only
+ * occurrence of the word attached to the rule it labels.
+ *
+ * Merging never crosses a blank line. An earlier version merged fragments
+ * forward across the whole document and cheerfully glued a heading onto the
+ * tail of the previous paragraph.
+ */
+function passages(text: string): string[] {
+  const out: string[] = [];
+
+  for (const para of text.split(/\n\s*\n/)) {
+    const flat = para
+      .replace(/^#+\s*/gm, "")
+      .replace(/\s*\n\s*/g, " ")
+      .trim();
+    if (!flat) continue;
+
+    const parts = flat.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+
+    let carry = "";
+    for (const part of parts) {
+      const joined = carry ? `${carry} ${part}` : part;
+      if (joined.length <= 25) {
+        carry = joined;
+        continue;
+      }
+      out.push(joined);
+      carry = "";
+    }
+    // A paragraph shorter than the threshold is still a passage — it's the
+    // whole thought, not a fragment of one.
+    if (carry) out.push(carry);
+  }
+
+  return out;
 }
 
 /* ── Remembering ────────────────────────────────────────── */

@@ -17,7 +17,7 @@ import { LOCAL_USER } from "../realtime";
 import { PEERS } from "../realtime/mock";
 import type { Collaborator } from "../types";
 import { createMockChatProvider } from "./mock";
-import { SEED_CHANNELS, SEED_MESSAGES } from "./seed";
+import { AI_PERSON, SEED_CHANNELS, SEED_MESSAGES } from "./seed";
 import type {
   Channel,
   ChatProvider,
@@ -25,10 +25,20 @@ import type {
   MessageAttachment,
 } from "./types";
 
-export type { Channel, Message, MessageAttachment } from "./types";
+export type {
+  Channel,
+  FileAttachment,
+  Message,
+  MessageAttachment,
+  ProjectAttachment,
+} from "./types";
 
 /** Everyone who can appear in a conversation. */
-export const PEOPLE: Collaborator[] = [LOCAL_USER, ...PEERS];
+/** Everyone a message can be from, including the assistant. */
+export const PEOPLE: Collaborator[] = [LOCAL_USER, ...PEERS, AI_PERSON];
+
+/** Just the people — for mentions, membership and anything social. */
+export const HUMANS: Collaborator[] = [LOCAL_USER, ...PEERS];
 
 export const personById = (id: string): Collaborator =>
   PEOPLE.find((p) => p.id === id) ?? {
@@ -207,7 +217,9 @@ export const useChat = create<ChatState>()(
           kind: "channel",
           name: slug || "channel",
           topic,
-          memberIds: PEOPLE.map((p) => p.id),
+          // People, not the assistant — it belongs to its own channel, and
+          // adding it here would inflate every new channel's member count.
+          memberIds: HUMANS.map((p) => p.id),
         });
         set((s) => ({ channels: [...s.channels, channel] }));
         return channel.id;

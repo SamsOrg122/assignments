@@ -166,6 +166,15 @@ interface Built {
 
 /* ── Team-aware builders ────────────────────────────────── */
 
+/** The intents answered from the workspace record rather than the document. */
+const TEAM_INTENTS = new Set<Intent>([
+  "who",
+  "brief",
+  "files",
+  "remember",
+  "knowledge",
+]);
+
 /**
  * These need the workspace. Without it the honest answer is that the
  * assistant hasn't been introduced to anyone yet.
@@ -769,7 +778,12 @@ export function createMockProvider(getTables: (projectId: string) => TableBlock[
       // A beat of latency so the streaming UI has something to show.
       await sleep(220, req.signal);
 
-      const intent = classify(req.prompt);
+      // A file attached to the question steers the answer to it, unless the
+      // wording already asks for something else the workspace can answer.
+      const focused = req.context.team?.focusFiles?.length ?? 0;
+      const spoken = classify(req.prompt);
+      const intent: Intent =
+        focused && !TEAM_INTENTS.has(spoken) ? "files" : spoken;
       const built: Built =
         intent === "speech"
           ? buildSpeech(req)

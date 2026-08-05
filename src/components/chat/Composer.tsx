@@ -9,13 +9,19 @@
  */
 
 import { useMemo, useRef, useState } from "react";
-import { PEOPLE, useChat, type MessageAttachment } from "@/lib/chat";
+import { HUMANS, useChat, type MessageAttachment, type ProjectAttachment } from "@/lib/chat";
 import { LOCAL_USER } from "@/lib/realtime";
 import { useProjects } from "@/lib/store";
 import { KINDS } from "@/lib/kinds";
 import { fuzzyMatch } from "@/lib/fuzzy";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import {
+  AttachButton,
+  AttachmentChips,
+  DropZone,
+  useFileAttachments,
+} from "./attachments";
 
 type Trigger = { kind: "mention" | "project"; query: string; from: number };
 
@@ -33,7 +39,8 @@ export function Composer({
   const projects = useProjects((s) => s.projects);
 
   const [body, setBody] = useState("");
-  const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
+  const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
+  const files = useFileAttachments();
   const [trigger, setTrigger] = useState<Trigger | null>(null);
   const [active, setActive] = useState(0);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -42,7 +49,7 @@ export function Composer({
   const suggestions = useMemo(() => {
     if (!trigger) return [];
     if (trigger.kind === "mention")
-      return PEOPLE.filter((p) => p.id !== LOCAL_USER.id)
+      return HUMANS.filter((p) => p.id !== LOCAL_USER.id)
         .map((p) => ({ id: p.id, label: p.name, hint: "person" }))
         .filter((o) => !trigger.query || fuzzyMatch(trigger.query, o.label));
     return projects
@@ -92,16 +99,26 @@ export function Composer({
     requestAnimationFrame(() => ref.current?.focus());
   };
 
+  const all: MessageAttachment[] = [...attachments, ...files.files];
+
   const submit = () => {
-    if (!body.trim() && attachments.length === 0) return;
-    send(channelId, body, { parentId, attachments: attachments.length ? attachments : undefined });
+    if (!body.trim() && all.length === 0) return;
+    send(channelId, body, {
+      parentId,
+      attachments: all.length ? all : undefined,
+    });
     setBody("");
     setAttachments([]);
+    files.clear();
     setTrigger(null);
   };
 
   return (
-    <div className="relative border-t border-line px-3 py-2.5">
+    <DropZone
+      onFiles={(list) => void files.add(list)}
+      className="border-t border-line px-3 py-2.5"
+      hint="Drop to attach to this message"
+    >
       {trigger && suggestions.length > 0 && (
         <div className="anim-pop absolute bottom-full left-3 z-30 mb-1.5 w-[280px] overflow-hidden rounded-md border border-line-strong bg-surface p-1 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.6)]">
           {suggestions.map((option, i) => (
@@ -156,7 +173,10 @@ export function Composer({
         </div>
       )}
 
+      <AttachmentChips files={files.files} onRemove={files.remove} />
+
       <div className="flex items-end gap-2 rounded-md border border-line bg-surface px-2.5 py-1.5 transition-colors focus-within:border-line-strong">
+        <AttachButton onFiles={(list) => void files.add(list)} busy={files.busy} />
         <textarea
           ref={ref}
           rows={1}
@@ -173,6 +193,14 @@ export function Composer({
             }
           }}
           onBlur={() => setTyping(channelId, false)}
+          onPaste={(e) => {
+            // Only intercept when the clipboard actually carries a file —
+            // pasting text must stay ordinary paste.
+            if (e.clipboardData.files.length) {
+              e.preventDefault();
+              void files.add(e.clipboardData.files);
+            }
+          }}
           onKeyDown={(e) => {
             if (trigger && suggestions.length > 0) {
               if (e.key === "ArrowDown") {
@@ -207,11 +235,11 @@ export function Composer({
         <button
           type="button"
           onClick={submit}
-          disabled={!body.trim() && attachments.length === 0}
+          disabled={!body.trim() && all.length === 0}
           aria-label="Send message"
           className={cn(
             "mb-0.5 grid size-6 shrink-0 place-items-center rounded-sm transition-colors duration-150",
-            body.trim() || attachments.length
+            body.trim() || all.length
               ? "bg-accent text-white hover:brightness-110"
               : "border border-line text-fg-subtle",
           )}
@@ -219,7 +247,6 @@ export function Composer({
           <Icon name="arrow-up" size={12} />
         </button>
       </div>
-
-    </div>
+    </DropZone>
   );
 }

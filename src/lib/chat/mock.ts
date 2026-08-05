@@ -13,7 +13,7 @@
 import { LOCAL_USER } from "../realtime";
 import { PEERS } from "../realtime/mock";
 import { uid } from "../factories";
-import { SEED_CHANNELS, SEED_MESSAGES } from "./seed";
+import { AI_USER_ID, SEED_CHANNELS, SEED_MESSAGES } from "./seed";
 import type { Channel, ChatHandlers, ChatProvider, ChatSnapshot, Message } from "./types";
 
 const ACKS = [
@@ -61,7 +61,13 @@ export function createMockChatProvider(): ChatProvider {
   /** Someone in the channel (never you) writes back. */
   const scheduleReply = (to: Message) => {
     const channel = channels.find((c) => c.id === to.channelId);
-    const others = (channel?.memberIds ?? []).filter((id) => id !== LOCAL_USER.id);
+    // The assistant channel already has a responder — the assistant. A
+    // simulated colleague chiming in there produces two answers to one
+    // question, from two different things claiming to be in the room.
+    if (channel?.kind === "ai") return;
+    const others = (channel?.memberIds ?? []).filter(
+      (id) => id !== LOCAL_USER.id && id !== AI_USER_ID,
+    );
     if (others.length === 0) return;
 
     const authorId = others[Math.floor(Math.random() * others.length)];

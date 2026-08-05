@@ -33,10 +33,34 @@ export interface Channel {
 }
 
 /** A live reference to something in the workspace. */
-export interface MessageAttachment {
+export interface ProjectAttachment {
   kind: "project";
   projectId: string;
 }
+
+/**
+ * A file dropped into the conversation.
+ *
+ * The extracted text travels with the message rather than a blob, for the same
+ * reason the Team page stores words instead of originals: it is what the
+ * assistant can actually read, it is a fraction of the size, and it means a
+ * file shared in a channel is answerable from immediately — no separate
+ * "index this" step.
+ */
+export interface FileAttachment {
+  kind: "file";
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+  /** Extracted text. Empty when the type needs a server-side extractor. */
+  text: string;
+  status: "ready" | "unsupported" | "failed";
+  /** Why it couldn't be read, or what was dropped in reading it. */
+  note?: string;
+}
+
+export type MessageAttachment = ProjectAttachment | FileAttachment;
 
 export interface Message {
   id: string;

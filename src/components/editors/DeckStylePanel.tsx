@@ -10,6 +10,7 @@
 
 import { useEffect, useRef } from "react";
 import {
+  DECK_ACCENTS,
   DECK_THEMES,
   DECK_THEME_ORDER,
   deckVars,
@@ -70,6 +71,53 @@ export function DeckStylePanel({
         ))}
       </div>
 
+      <Control label="Accent">
+        <div className="flex gap-1">
+          {DECK_ACCENTS.map((a) => {
+            const on = (style.accent ?? "") === a.value;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                title={a.label}
+                aria-label={`${a.label} accent`}
+                aria-pressed={on}
+                onClick={() => onChange({ accent: a.value || undefined })}
+                className={cn(
+                  "grid h-6 flex-1 place-items-center rounded-sm border transition-colors duration-150",
+                  on ? "border-accent" : "border-line hover:border-line-strong",
+                )}
+              >
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{
+                    // "Theme" shows the current theme's own accent rather than
+                    // an empty swatch, so the row reads as six colours.
+                    background:
+                      a.value || DECK_THEMES[style.theme].accent,
+                  }}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </Control>
+
+      <Control label="Surface">
+        <Segmented
+          value={style.background ?? "flat"}
+          options={[
+            ["flat", "Flat"],
+            ["grain", "Grain"],
+            ["glow", "Glow"],
+            ["grid", "Grid"],
+          ]}
+          onChange={(v) =>
+            onChange({ background: v as DeckStyle["background"] })
+          }
+        />
+      </Control>
+
       <Control label="Type size">
         <input
           type="range"
@@ -113,6 +161,20 @@ export function DeckStylePanel({
             ["off", "Hide"],
           ]}
           onChange={(v) => onChange({ numbers: v === "on" })}
+        />
+      </Control>
+
+      <Control label="Transition">
+        <Segmented
+          value={style.transition ?? "fade"}
+          options={[
+            ["none", "Cut"],
+            ["fade", "Fade"],
+            ["rise", "Rise"],
+          ]}
+          onChange={(v) =>
+            onChange({ transition: v as DeckStyle["transition"] })
+          }
         />
       </Control>
 

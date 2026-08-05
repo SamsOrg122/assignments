@@ -5,6 +5,7 @@
 
 import { LOCAL_USER } from "../realtime";
 import { PEERS } from "../realtime/mock";
+import type { Collaborator } from "../types";
 import type { Channel, Message } from "./types";
 
 const T = 1767225600000; // 2026-01-01T00:00:00Z
@@ -13,6 +14,18 @@ const min = 60_000;
 const [mira, dev, ana] = PEERS;
 
 export const AI_USER_ID = "u_assistant";
+
+/**
+ * The assistant, as a participant. It appears in member lists and avatar
+ * stacks like anyone else, so it needs a real entry — without one it falls
+ * through to the "Unknown / ??" placeholder in every avatar stack it's in.
+ */
+export const AI_PERSON: Collaborator = {
+  id: AI_USER_ID,
+  name: "Team assistant",
+  initials: "AI",
+  color: "#3d7dff",
+};
 
 export const SEED_CHANNELS: Channel[] = [
   {

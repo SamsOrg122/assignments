@@ -109,6 +109,16 @@ export interface DeckStyle {
   numbers: boolean;
   /** Text shown in the footer of every slide. */
   footer?: string;
+  /**
+   * Overrides the theme's accent. A hex string, chosen from a fixed set — a
+   * free colour picker is how decks end up with an accent that fights the
+   * surface it sits on.
+   */
+  accent?: string;
+  /** Surface treatment. Never louder than the type sitting on it. */
+  background?: "flat" | "grain" | "glow" | "grid";
+  /** How one slide gives way to the next while presenting. */
+  transition?: "none" | "fade" | "rise";
 }
 
 export const DEFAULT_DECK_STYLE: DeckStyle = {
@@ -117,6 +127,8 @@ export const DEFAULT_DECK_STYLE: DeckStyle = {
   align: "left",
   rule: true,
   numbers: false,
+  background: "flat",
+  transition: "fade",
 };
 
 export interface SlidesBlock extends BlockBase {
@@ -289,6 +301,9 @@ export type ProjectKind =
  * Continuous typography controls for writing projects. Word offers a fixed
  * handful of values; these are real numbers with good presets on top.
  */
+/** The page a document is set on. Tints the sheet, not the whole app. */
+export type Paper = "canvas" | "sheet" | "warm" | "night";
+
 export interface Typography {
   /** Line length in characters — 60–75 is the readable band. */
   measure: number;
@@ -299,6 +314,20 @@ export interface Typography {
   family: "sans" | "serif" | "mono";
   /** Vertical page padding, in px. */
   margin: number;
+
+  /**
+   * Justified text needs hyphenation to avoid rivers of white space, so the
+   * two travel together in the presets even though they're separate switches.
+   */
+  align?: "left" | "justify";
+  hyphenate?: boolean;
+  /** Space between paragraphs, in em of the body size. */
+  paragraphSpacing?: number;
+  /** Indent the first line instead of spacing paragraphs — the book setting. */
+  firstLineIndent?: boolean;
+  /** How much bigger headings are than body text. 1 is the default ramp. */
+  headingScale?: number;
+  paper?: Paper;
 }
 
 export const DEFAULT_TYPOGRAPHY: Typography = {
@@ -308,6 +337,12 @@ export const DEFAULT_TYPOGRAPHY: Typography = {
   fontSize: 17,
   family: "serif",
   margin: 64,
+  align: "left",
+  hyphenate: false,
+  paragraphSpacing: 0.85,
+  firstLineIndent: false,
+  headingScale: 1,
+  paper: "canvas",
 };
 
 export interface Project {

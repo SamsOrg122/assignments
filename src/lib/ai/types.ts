@@ -76,6 +76,13 @@ export interface AIContext {
       Pick<KnowledgeEntry, "kind" | "subject" | "body" | "confirmed" | "source">
     >;
     files: Array<Pick<TeamFile, "id" | "name" | "text" | "status">>;
+    /**
+     * Ids of files this particular question is *about* — the ones just
+     * attached to it, as opposed to the workspace's standing collection.
+     * Attaching a file and asking "summarise this" has to answer from the
+     * file, not from an empty document.
+     */
+    focusFiles?: string[];
   };
 
   /** Total words in the project, and the target if one is set. */

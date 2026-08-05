@@ -100,16 +100,33 @@ export const DECK_THEME_ORDER: DeckThemeName[] = [
   "slate",
 ];
 
+/**
+ * Accents a deck can be tinted with, on top of its theme.
+ *
+ * A fixed set rather than a colour picker: the point of themes is that the
+ * surface and the ink were chosen together, and an arbitrary accent is the one
+ * value that can undo that. These are all legible on every theme's ground.
+ */
+export const DECK_ACCENTS: Array<{ id: string; label: string; value: string }> = [
+  { id: "theme", label: "Theme", value: "" },
+  { id: "blue", label: "Blue", value: "#3d7dff" },
+  { id: "leaf", label: "Green", value: "#4ad2a0" },
+  { id: "amber", label: "Amber", value: "#e0a04a" },
+  { id: "rose", label: "Rose", value: "#f43f6e" },
+  { id: "violet", label: "Violet", value: "#8b5cf6" },
+];
+
 /** Theme + scale as inline custom properties for one slide surface. */
 export function deckVars(
   theme: DeckTheme,
   scale: number,
+  accent?: string,
 ): React.CSSProperties {
   return {
     "--slide-bg": theme.bg,
     "--slide-fg": theme.fg,
     "--slide-muted": theme.muted,
-    "--slide-accent": theme.accent,
+    "--slide-accent": accent || theme.accent,
     "--slide-line": theme.line,
     "--slide-title-family": theme.titleFamily,
     "--slide-title-weight": String(theme.titleWeight),

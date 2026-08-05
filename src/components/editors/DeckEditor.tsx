@@ -239,7 +239,20 @@ export function DeckEditor({
             aria-label="Next slide"
           >
             <div className="aspect-[16/9] w-full max-w-[1100px]">
-              <SlideView slide={current} index={clamped} style={style} readOnly />
+              {/* Keyed on the slide so React remounts it and the entry
+                  animation actually replays on every advance. */}
+              <div
+                key={current?.id ?? clamped}
+                className={
+                  style.transition === "rise"
+                    ? "anim-slide-up size-full"
+                    : style.transition === "none"
+                      ? "size-full"
+                      : "anim-fade size-full"
+                }
+              >
+                <SlideView slide={current} index={clamped} style={style} readOnly />
+              </div>
             </div>
           </button>
         ) : (
@@ -410,7 +423,7 @@ function SlideView({
   readOnly?: boolean;
 }) {
   const theme = DECK_THEMES[style.theme] ?? DECK_THEMES.ink;
-  const vars = deckVars(theme, style.scale);
+  const vars = deckVars(theme, style.scale, style.accent);
 
   if (!slide)
     return <div className="size-full" style={{ background: theme.bg }} />;
@@ -527,6 +540,7 @@ function SlideView({
       )}
       style={{ ...vars, background: "var(--slide-bg)", containerType: "size" }}
     >
+      <SlideSurface background={style.background} />
       {layout === "title" ? (
         <div className={cn("w-full", centred && "text-center")}>
           {Title}
@@ -560,6 +574,54 @@ function SlideView({
       )}
       {chrome}
     </div>
+  );
+}
+
+/**
+ * The slide's surface treatment.
+ *
+ * Drawn from the theme's own accent and ink, so a texture can never introduce
+ * a colour the theme didn't choose. Absolutely positioned behind everything
+ * and non-interactive — a background that can take a click is a bug.
+ */
+function SlideSurface({ background }: { background?: DeckStyle["background"] }) {
+  if (!background || background === "flat") return null;
+
+  if (background === "grid")
+    return (
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(var(--slide-line) 1px, transparent 1px), linear-gradient(90deg, var(--slide-line) 1px, transparent 1px)",
+          backgroundSize: "6cqw 6cqw",
+          opacity: 0.5,
+        }}
+      />
+    );
+
+  if (background === "glow")
+    return (
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(70% 90% at 12% 0%, color-mix(in srgb, var(--slide-accent) 20%, transparent), transparent 62%)",
+        }}
+      />
+    );
+
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0"
+      style={{
+        backgroundImage:
+          "radial-gradient(120% 90% at 50% -20%, color-mix(in srgb, var(--slide-fg) 7%, transparent), transparent 60%)",
+      }}
+    />
   );
 }
 

@@ -17,6 +17,7 @@ import { KINDS } from "@/lib/kinds";
 import { firstLine, projectSummary } from "@/lib/summary";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import { FileCard } from "./attachments";
 import type { Message } from "@/lib/chat";
 
 const EMPTY: string[] = [];
@@ -198,9 +199,15 @@ function MessageRow({
           )
         )}
 
-        {message.attachments?.map((a, i) => (
-          <ProjectAttachment key={i} projectId={a.projectId} />
-        ))}
+        {message.attachments?.map((a, i) =>
+          a.kind === "project" ? (
+            <ProjectCard key={i} projectId={a.projectId} />
+          ) : (
+            <div key={i} className="mt-2 max-w-[420px]">
+              <FileCard file={a} />
+            </div>
+          ),
+        )}
 
         {message.reactions && Object.keys(message.reactions).length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
@@ -304,7 +311,7 @@ function MessageRow({
  * cards. Share a doc in chat and the card reflects the doc, not a snapshot of
  * how it looked when someone pasted it.
  */
-function ProjectAttachment({ projectId }: { projectId: string }) {
+function ProjectCard({ projectId }: { projectId: string }) {
   const project = useProjects((s) => s.projects.find((p) => p.id === projectId));
   const router = useRouter();
 

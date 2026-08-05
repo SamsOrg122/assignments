@@ -15,6 +15,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
 import { fuzzyMatch, segments } from "@/lib/fuzzy";
+import { searchContent } from "@/lib/global-search";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { KINDS, KIND_ORDER } from "@/lib/kinds";
@@ -553,8 +554,25 @@ function PaletteDialog({ seed }: { seed: string }) {
       }
     }
 
+    // Content hits ride below the command hits: the palette stays an action
+    // launcher first, but three typed words reach inside every table cell.
+    for (const hit of searchContent(projects, q)) {
+      scored.push({
+        command: {
+          id: `content:${hit.projectId}:${hit.blockId}`,
+          title: hit.snippet,
+          subtitle: `${hit.projectName} · ${hit.where}`,
+          group: "In your work",
+          icon: "search",
+          run: () => router.push(`/p/${hit.projectId}#block-${hit.blockId}`),
+        },
+        score: -1,
+        matches: [],
+      });
+    }
+
     return scored.slice(0, 40);
-  }, [commands, query, addProject, router]);
+  }, [commands, query, addProject, router, projects]);
 
   // Reset the highlight as the query changes, adjusting during render rather
   // than in an effect so the list never paints with a stale selection.

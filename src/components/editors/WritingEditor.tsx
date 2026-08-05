@@ -20,6 +20,7 @@ import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { ProjectTopBar } from "./ProjectTopBar";
 import { TypographyPanel } from "./TypographyPanel";
+import { FindReplace } from "./FindReplace";
 import { DictationBar } from "./DictationBar";
 import { Canvas } from "@/components/canvas/Canvas";
 import { SourcesPanel } from "@/components/sources/SourcesPanel";
@@ -44,6 +45,7 @@ export function WritingEditor({
   const [dictating, setDictating] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
 
   const type = project.typography ?? DEFAULT_TYPOGRAPHY;
   const words = useMemo(() => projectWordCount(project), [project]);
@@ -58,6 +60,19 @@ export function WritingEditor({
    * the store coalesces anything inside its window, so a session of writing
    * becomes a handful of timeline points rather than hundreds.
    */
+  // ⌘F is find & replace here — the browser's own find can't see across
+  // virtualised tables anyway, and a writing tool owns this key.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setFindOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const blocks = project.blocks;
   const snapshotTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -136,6 +151,10 @@ export function WritingEditor({
         keep the app's own colours rather than the document turning the whole
         window into a second theme.
       */}
+      {findOpen && (
+        <FindReplace project={project} onClose={() => setFindOpen(false)} />
+      )}
+
       <main
         className={cn(
           "paper relative flex-1 overflow-y-auto",

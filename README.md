@@ -146,6 +146,28 @@ first page view. Ambient slots paint as backgrounds with the hand-built graphic
 broken-image box. Half the page is meant to be hand-made — that mix is the
 brand argument: AI where it shines, design everywhere.
 
+**The table is a real grid.** One editor mounted over the active cell instead
+of ten thousand inputs — which is what buys virtualised rows (a 1,200-row
+sheet keeps ~27 in the DOM), rectangle selection, spreadsheet keyboarding
+(type-to-edit, Tab/Enter, ⌘C/⌘D/⌘A, paste that grows the table), typed columns
+(currency, percent, date, checkbox, select), comparisons + IF + LOOKUP in the
+formula grammar, multi-key sort, filters, colour rules and a frozen first
+column. The strip above the grid is a row count until a cell is selected —
+then it's the formula bar. No ribbon.
+
+**Slides carry a free-form layer.** Text, shapes and lines in percent
+coordinates over the structured content, with snap guides, arrow-key nudge and
+an inspector that exists only while something is selected. Fills are theme
+roles rather than hex, so restyling the deck re-inks every shape — one-click
+restyle stays safe by construction. Alignment, distribution and "balance this
+slide" are pure functions in `lib/geometry.ts`, shared with the board.
+
+**⌘F and ⌘K reach inside the work.** Find & replace walks text nodes through a
+real parser (searching "div" can never rewrite a tag), takes a timeline
+snapshot before any bulk rewrite, and keeps regex behind one disclosure. The
+palette's search now also scans content — prose, table cells, slide text, code
+— and shows the matching passage as evidence, jumping straight to the block.
+
 **Right-click anything.** One context-menu implementation serves the Library,
 the sidebar, the board, the block canvas and channels, so the same gesture
 behaves identically everywhere and a new surface gets keyboard navigation,

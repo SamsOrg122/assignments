@@ -158,6 +158,8 @@ interface ProjectsState {
     blockId: string,
     writes: Array<{ rowId: string; columnId: string; value: CellValue }>,
   ) => void;
+  /** Replace a project's whole block list in one commit (find & replace). */
+  setBlocks: (projectId: string, blocks: Block[]) => void;
   /**
    * Add a column whose values are supplied wholesale, optionally appending
    * rows. One action, so an accepted AI suggestion is a single undo-able step
@@ -812,6 +814,14 @@ export const useProjects = create<ProjectsState>()(
        * One commit for a whole paste or fill. Cell-by-cell writes would make
        * a 200-cell paste 200 history entries and 200 renders.
        */
+      setBlocks: (projectId, blocks) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            blocks,
+          })),
+        })),
+
       setCells: (projectId, blockId, writes) =>
         set((s) => ({
           projects: mapBlock(s.projects, projectId, blockId, (b) =>

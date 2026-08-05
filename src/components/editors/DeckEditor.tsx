@@ -9,8 +9,20 @@
  * surface.
  */
 
-import { useMemo, useState } from "react";
-import type { PeerState, Project, Slide, SlidesBlock } from "@/lib/types";
+import { useMemo, useRef, useState } from "react";
+import type {
+  DeckStyle,
+  PeerState,
+  Project,
+  Slide,
+  SlideLayout,
+  SlidesBlock,
+} from "@/lib/types";
+import { DEFAULT_DECK_STYLE } from "@/lib/types";
+import { DECK_THEMES, deckVars } from "@/lib/deck-themes";
+import { DeckStylePanel } from "./DeckStylePanel";
+import { importPptxFile } from "@/lib/pptx";
+import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
 import { uid } from "@/lib/factories";
 import { cn } from "@/lib/cn";
@@ -24,6 +36,8 @@ import { ProjectTopBar } from "./ProjectTopBar";
 type Layout = "title" | "statement" | "bullets" | "split";
 
 function layoutOf(slide: Slide, index: number): Layout {
+  // An author's choice always beats the guess.
+  if (slide.layout && slide.layout !== "auto") return slide.layout;
   const bullets = slide.bullets.filter((b) => b.trim());
   if (index === 0 && bullets.length <= 1) return "title";
   if (bullets.length === 0) return "statement";
@@ -46,8 +60,12 @@ export function DeckEditor({
     [project.blocks],
   );
 
+  const notify = useUI((s) => s.notify);
   const [index, setIndex] = useState(0);
   const [presenting, setPresenting] = useState(false);
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
 
   if (!deck) {
     return (
@@ -74,6 +92,37 @@ export function DeckEditor({
   const slides = deck.slides;
   const clamped = Math.min(index, Math.max(slides.length - 1, 0));
   const current = slides[clamped];
+
+  const style = deck.style ?? DEFAULT_DECK_STYLE;
+
+  const setStyle = (next: Partial<DeckStyle>) =>
+    updateBlock<SlidesBlock>(project.id, deck.id, (b) => ({
+      style: { ...DEFAULT_DECK_STYLE, ...b.style, ...next },
+    }));
+
+  /** Append an imported deck rather than replacing what's here. */
+  const importDeck = async (file: File | undefined) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const imported = await importPptxFile(file);
+      updateBlock<SlidesBlock>(project.id, deck.id, (b) => ({
+        slides: [...b.slides, ...imported.slides],
+      }));
+      setIndex(slides.length);
+      notify(
+        `Imported ${imported.slideCount} slide${imported.slideCount === 1 ? "" : "s"}` +
+          (imported.skipped.length ? ` — ${imported.skipped.join(", ")} not carried over` : ""),
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : "Could not read that file",
+      );
+    } finally {
+      setImporting(false);
+      if (importRef.current) importRef.current.value = "";
+    }
+  };
 
   const patch = (slideId: string, next: Partial<Slide>) =>
     updateBlock<SlidesBlock>(project.id, deck.id, (b) => ({
@@ -113,6 +162,47 @@ export function DeckEditor({
                 <Icon name="plus" size={11} />
                 Slide
               </button>
+              <span className="relative">
+                <button
+                  type="button"
+                  onClick={() => setStyleOpen((v) => !v)}
+                  aria-pressed={styleOpen}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-sm border px-2 py-1.5 text-[11.5px] transition-colors duration-150",
+                    styleOpen
+                      ? "border-line-strong bg-surface-2 text-fg"
+                      : "border-line text-fg-subtle hover:border-line-strong hover:text-fg",
+                  )}
+                >
+                  <Icon name="type" size={11} />
+                  {DECK_THEMES[style.theme].label}
+                </button>
+                {styleOpen && (
+                  <DeckStylePanel
+                    style={style}
+                    onChange={setStyle}
+                    onClose={() => setStyleOpen(false)}
+                  />
+                )}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => importRef.current?.click()}
+                className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
+              >
+                <Icon name="download" size={11} />
+                {importing ? "Reading…" : "Import .pptx"}
+              </button>
+              <input
+                ref={importRef}
+                type="file"
+                accept=".pptx"
+                className="sr-only"
+                aria-label="Import a PowerPoint file"
+                onChange={(e) => void importDeck(e.target.files?.[0])}
+              />
+
               <button
                 type="button"
                 onClick={() => setPresenting(true)}
@@ -149,7 +239,7 @@ export function DeckEditor({
             aria-label="Next slide"
           >
             <div className="aspect-[16/9] w-full max-w-[1100px]">
-              <SlideView slide={current} index={clamped} readOnly />
+              <SlideView slide={current} index={clamped} style={style} readOnly />
             </div>
           </button>
         ) : (
@@ -170,7 +260,7 @@ export function DeckEditor({
                     )}
                   >
                     <div className="pointer-events-none size-full origin-top-left scale-[0.22]" style={{ width: "455%", height: "455%" }}>
-                      <SlideView slide={s} index={i} readOnly />
+                      <SlideView slide={s} index={i} style={style} readOnly />
                     </div>
                   </button>
                   <span className="absolute top-1 left-1 rounded-xs bg-black/60 px-1 font-mono text-[9px] text-fg-subtle">
@@ -204,15 +294,19 @@ export function DeckEditor({
                 <SlideView
                   slide={current}
                   index={clamped}
+                  style={style}
                   onChange={(next) => current && patch(current.id, next)}
                 />
               </div>
 
               <div className="mt-3 flex w-full max-w-[860px] items-center gap-2">
-                <span className="label-mono">
-                  {clamped + 1} / {slides.length} ·{" "}
-                  {current ? layoutOf(current, clamped) : "—"}
-                </span>
+                {current && (
+                  <LayoutPicker
+                    value={current.layout ?? "auto"}
+                    inferred={layoutOf(current, clamped)}
+                    onChange={(layout) => patch(current.id, { layout })}
+                  />
+                )}
                 <span className="h-px flex-1 bg-line" />
                 <button
                   type="button"
@@ -252,27 +346,84 @@ export function DeckEditor({
   );
 }
 
+const LAYOUT_LABELS: Record<SlideLayout, string> = {
+  auto: "Automatic",
+  title: "Title",
+  statement: "Statement",
+  bullets: "Bullets",
+  split: "Two columns",
+};
+
 /**
- * One slide, rendered with the layout its content implies. All four layouts
- * share the same scale and margins so a deck reads as one object.
+ * Per-slide layout. "Automatic" is the default and stays honest — it shows
+ * which layout the content is currently implying, so overriding is a decision
+ * rather than a guess.
+ */
+function LayoutPicker({
+  value,
+  inferred,
+  onChange,
+}: {
+  value: SlideLayout;
+  inferred: Layout;
+  onChange: (layout: SlideLayout) => void;
+}) {
+  return (
+    <label className="flex items-center gap-1.5">
+      <span className="text-[11.5px] text-fg-subtle">Layout</span>
+      <select
+        value={value}
+        aria-label="Slide layout"
+        onChange={(e) => onChange(e.target.value as SlideLayout)}
+        className="rounded-sm border border-line bg-surface px-1.5 py-1 text-[11.5px] text-fg-muted outline-none transition-colors hover:border-line-strong focus:border-accent"
+      >
+        {(Object.keys(LAYOUT_LABELS) as SlideLayout[]).map((key) => (
+          <option key={key} value={key}>
+            {key === "auto"
+              ? `Automatic — ${LAYOUT_LABELS[inferred]}`
+              : LAYOUT_LABELS[key]}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * One slide, rendered with the layout its content implies and the deck's theme.
+ *
+ * Nothing here reads a colour or a face directly — every value comes from the
+ * `--slide-*` custom properties the theme sets on the surface, so the same
+ * markup renders as Ink, Paper or Signal without a branch.
  */
 function SlideView({
   slide,
   index,
+  style,
   onChange,
   readOnly = false,
 }: {
   slide?: Slide;
   index: number;
+  style: DeckStyle;
   onChange?: (next: Partial<Slide>) => void;
   readOnly?: boolean;
 }) {
-  if (!slide) return <div className="size-full bg-canvas" />;
+  const theme = DECK_THEMES[style.theme] ?? DECK_THEMES.ink;
+  const vars = deckVars(theme, style.scale);
+
+  if (!slide)
+    return <div className="size-full" style={{ background: theme.bg }} />;
 
   const layout = layoutOf(slide, index);
   const bullets = slide.bullets;
+  const centred = style.align === "centre";
 
   const setBullets = (next: string[]) => onChange?.({ bullets: next });
+
+  /** Scale folds into the clamp so the whole deck moves together. */
+  const size = (min: number, fluid: string, max: number) =>
+    `calc(clamp(${min}px, ${fluid}, ${max}px) * var(--slide-scale))`;
 
   const Title = (
     <Field
@@ -281,13 +432,32 @@ function SlideView({
       onChange={(title) => onChange?.({ title })}
       placeholder="Slide title"
       className={cn(
-        "w-full bg-transparent font-medium tracking-[-0.03em] text-fg outline-none",
-        layout === "title"
-          ? "text-[clamp(28px,5.2cqw,60px)] leading-[1.05]"
-          : "text-[clamp(20px,3.2cqw,34px)] leading-[1.1]",
+        "w-full bg-transparent outline-none",
+        centred && "text-center",
       )}
+      style={{
+        color: "var(--slide-fg)",
+        fontFamily: "var(--slide-title-family)",
+        fontWeight: "var(--slide-title-weight)" as unknown as number,
+        letterSpacing: "var(--slide-title-tracking)",
+        fontSize:
+          layout === "title"
+            ? size(28, "5.2cqw", 60)
+            : size(20, "3.2cqw", 34),
+        lineHeight: layout === "title" ? 1.05 : 1.12,
+      }}
     />
   );
+
+  const Rule = style.rule ? (
+    <span
+      className={cn(
+        "block h-px shrink-0",
+        centred ? "mx-auto w-[12%]" : "w-[18%]",
+      )}
+      style={{ background: "var(--slide-accent)" }}
+    />
+  ) : null;
 
   const Bullets = (
     <ul
@@ -297,10 +467,17 @@ function SlideView({
       )}
     >
       {bullets.map((b, i) => (
-        <li key={i} className="flex items-start gap-[0.6em]">
+        <li
+          key={i}
+          className={cn(
+            "flex items-start gap-[0.6em]",
+            centred && layout !== "split" && "justify-center",
+          )}
+        >
           <span
             aria-hidden="true"
-            className="mt-[0.62em] size-[0.28em] shrink-0 rounded-full bg-accent"
+            className="mt-[0.62em] size-[0.28em] shrink-0 rounded-full"
+            style={{ background: "var(--slide-accent)" }}
           />
           <Field
             value={b}
@@ -314,40 +491,74 @@ function SlideView({
               bullets.length > 1 &&
               setBullets(bullets.filter((_, j) => j !== i))
             }
-            className="w-full bg-transparent text-[clamp(12px,1.9cqw,20px)] leading-relaxed text-fg-muted outline-none"
+            className={cn(
+              "w-full bg-transparent leading-relaxed outline-none",
+              centred && layout !== "split" && "text-center",
+            )}
+            style={{
+              color: "var(--slide-muted)",
+              fontSize: size(12, "1.9cqw", 20),
+            }}
           />
         </li>
       ))}
     </ul>
   );
 
+  const chrome =
+    style.numbers || style.footer?.trim() ? (
+      <div
+        className="pointer-events-none absolute inset-x-[7cqw] bottom-[3.5cqh] flex items-center justify-between"
+        style={{
+          color: "var(--slide-muted)",
+          fontSize: size(7, "0.95cqw", 11),
+        }}
+      >
+        <span className="truncate">{style.footer?.trim() ?? ""}</span>
+        {style.numbers && <span className="tabular-nums">{index + 1}</span>}
+      </div>
+    ) : null;
+
   return (
     <div
-      className="flex size-full flex-col justify-center bg-canvas px-[7cqw] py-[6cqh]"
-      style={{ containerType: "size" }}
+      className={cn(
+        "relative flex size-full flex-col justify-center px-[7cqw] py-[6cqh]",
+        centred && "items-center",
+      )}
+      style={{ ...vars, background: "var(--slide-bg)", containerType: "size" }}
     >
       {layout === "title" ? (
-        <>
-          <p className="mb-[2cqh] font-mono text-[clamp(8px,1.1cqw,12px)] tracking-[0.08em] text-fg-subtle uppercase">
-            {new Date(0).getUTCFullYear() ? "" : ""}
-            Assignments
-          </p>
+        <div className={cn("w-full", centred && "text-center")}>
           {Title}
-          <div className="mt-[2.5cqh] max-w-[62%]">{Bullets}</div>
-          <span className="mt-[4cqh] h-px w-[18%] bg-accent" />
-        </>
+          <div className={cn("mt-[2.5cqh]", centred ? "mx-auto max-w-[74%]" : "max-w-[62%]")}>
+            {Bullets}
+          </div>
+          {Rule && <div className="mt-[4cqh]">{Rule}</div>}
+        </div>
       ) : layout === "statement" ? (
-        <div className="max-w-[86%]">
+        <div className={cn("w-full", centred ? "max-w-[80%]" : "max-w-[86%]")}>
           {Title}
+          {Rule && <div className="mt-[2.5cqh]">{Rule}</div>}
           <div className="mt-[3cqh]">{Bullets}</div>
         </div>
       ) : (
-        <>
+        <div className="w-full">
           {Title}
-          <span className="my-[3cqh] h-px w-full bg-line" />
-          <div className="max-w-[92%]">{Bullets}</div>
-        </>
+          <span
+            className="my-[3cqh] block h-px w-full"
+            style={{
+              background: style.rule
+                ? "var(--slide-accent)"
+                : "var(--slide-line)",
+              opacity: style.rule ? 0.9 : 1,
+            }}
+          />
+          <div className={cn(centred ? "mx-auto max-w-[92%]" : "max-w-[92%]")}>
+            {Bullets}
+          </div>
+        </div>
       )}
+      {chrome}
     </div>
   );
 }
@@ -359,6 +570,7 @@ function Field({
   onEmptyBackspace,
   placeholder,
   className,
+  style,
   readOnly,
 }: {
   value: string;
@@ -367,12 +579,13 @@ function Field({
   onEmptyBackspace?: () => void;
   placeholder?: string;
   className?: string;
+  style?: React.CSSProperties;
   readOnly?: boolean;
 }) {
   if (readOnly)
     return (
-      <div className={cn(className, "truncate-none")}>
-        {value || <span className="text-fg-subtle">{placeholder}</span>}
+      <div className={className} style={style}>
+        {value || <span className="opacity-40">{placeholder}</span>}
       </div>
     );
 
@@ -382,6 +595,7 @@ function Field({
       onChange={(e) => onChange?.(e.target.value)}
       placeholder={placeholder}
       aria-label={placeholder}
+      style={style}
       onKeyDown={(e) => {
         if (e.key === "Enter" && onEnter) {
           e.preventDefault();
@@ -391,7 +605,7 @@ function Field({
           onEmptyBackspace();
         }
       }}
-      className={cn(className, "placeholder:text-fg-subtle")}
+      className={cn(className, "placeholder:opacity-40")}
     />
   );
 }

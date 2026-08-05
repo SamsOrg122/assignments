@@ -8,6 +8,7 @@
  */
 
 import type { Block, Column, CellValue, ProjectKind } from "../types";
+import type { KnowledgeEntry, Member, TeamFile, Workspace } from "../team/types";
 
 /**
  * What the provider gets to see.
@@ -52,6 +53,31 @@ export interface AIContext {
     text: string;
   };
 
+  /**
+   * Who this team is and what it knows.
+   *
+   * The third ring, and the one that makes answers feel like they come from a
+   * colleague rather than a stranger: roles, the institution, the group's
+   * conventions, and the files it has been handed. Unconfirmed entries are
+   * marked so a provider can weigh them differently from established fact.
+   */
+  team?: {
+    workspaceName: string;
+    kind: Workspace["kind"];
+    context?: Workspace["context"];
+    members: Array<{
+      name: string;
+      role: Member["role"];
+      title?: string;
+      about?: string;
+      isYou: boolean;
+    }>;
+    knowledge: Array<
+      Pick<KnowledgeEntry, "kind" | "subject" | "body" | "confirmed" | "source">
+    >;
+    files: Array<Pick<TeamFile, "id" | "name" | "text" | "status">>;
+  };
+
   /** Total words in the project, and the target if one is set. */
   words: number;
   wordGoal?: number;
@@ -81,6 +107,16 @@ export type AIChange =
       kind: "append-text";
       blockId: string;
       html: string;
+      label: string;
+    }
+  | {
+      /**
+       * Something the assistant inferred and offers to keep. It lands
+       * unconfirmed, so a wrong guess is visible rather than silently becoming
+       * workspace fact.
+       */
+      kind: "remember";
+      entry: { kind: string; subject: string; body: string };
       label: string;
     }
   | {

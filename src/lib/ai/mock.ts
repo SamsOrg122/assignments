@@ -14,6 +14,13 @@ import { escapeHtml, uid } from "../factories";
 import { toNumber } from "../formula";
 import { analyseRegister, compareRegister, describeRegister, nudgeRegister } from "./register";
 import {
+  answerBrief,
+  answerFiles,
+  answerKnowledge,
+  answerRemember,
+  answerWho,
+} from "./team-answers";
+import {
   analyseDrift,
   analyseTerminology,
   buildOutline,
@@ -24,6 +31,11 @@ import {
 
 type Intent =
   | "speech"
+  | "who"
+  | "remember"
+  | "brief"
+  | "files"
+  | "knowledge"
   | "tone"
   | "format"
   | "terminology"
@@ -43,6 +55,23 @@ function classify(prompt: string): Intent {
   const p = prompt.toLowerCase();
   // Ordered most-specific first: "outline my thesis as a deck" is a deck.
   if (/^__speech__/.test(p)) return "speech";
+  if (/^\s*(please\s+)?(remember|note that|keep in mind|don'?t forget)\b/.test(p))
+    return "remember";
+  if (/\b(who (is|are|does|should|handles|owns)|whose|my supervisor|second reader|team member|on the team|roles?)\b/.test(p))
+    return "who";
+  if (/\b(catch me up|onboard|new (person|member)|brief me|get up to speed|what should i know|where are we)\b/.test(p))
+    return "brief";
+  // Questions about the workspace itself — subject, school, company, remit.
+  if (
+    /\b(what (are|do) we (study|studying|research|working on|doing|building)|what('?s| is) (this|our|the) (workspace|team|project|course|subject|company|school|university) (about|called)|what subject|which (course|programme|program|department|faculty)|where do we (work|study))\b/.test(
+      p,
+    )
+  )
+    return "brief";
+  if (/\b(file|upload|document i gave|brief|pdf|attachment|the deck i)\b/.test(p))
+    return "files";
+  if (/\b(what do (you|we) know|do (you|we) know|deadline|when is|convention|what do we call|our style)\b/.test(p))
+    return "knowledge";
   if (/^__tone__/.test(p)) return "tone";
   if (/\b(match (the |my )?(tone|voice|register|style)|write .*like this|same (tone|voice|style))/.test(p))
     return "tone";
@@ -133,6 +162,42 @@ function findTable(ctx: AIRequest["context"], blocks: TableBlock[]): TableBlock 
 interface Built {
   text: string;
   change?: AIChange;
+}
+
+/* ── Team-aware builders ────────────────────────────────── */
+
+/**
+ * These need the workspace. Without it the honest answer is that the
+ * assistant hasn't been introduced to anyone yet.
+ */
+function buildTeam(req: AIRequest, intent: Intent): Built {
+  const team = req.context.team;
+  if (!team)
+    return {
+      text: "I don't have this workspace's team yet. Open the Team page to set up members and what the group knows.",
+    };
+
+  const answer =
+    intent === "who"
+      ? answerWho(team, req.prompt)
+      : intent === "brief"
+        ? answerBrief(team)
+        : intent === "files"
+          ? answerFiles(team, req.prompt)
+          : intent === "remember"
+            ? answerRemember(req.prompt)
+            : answerKnowledge(team, req.prompt);
+
+  return {
+    text: answer.text,
+    change: answer.learn
+      ? {
+          kind: "remember",
+          entry: answer.learn,
+          label: `Remember “${answer.learn.subject}”`,
+        }
+      : undefined,
+  };
 }
 
 /* ── Tone matching ──────────────────────────────────────── */
@@ -708,6 +773,12 @@ export function createMockProvider(getTables: (projectId: string) => TableBlock[
       const built: Built =
         intent === "speech"
           ? buildSpeech(req)
+          : intent === "who" ||
+              intent === "brief" ||
+              intent === "files" ||
+              intent === "remember" ||
+              intent === "knowledge"
+            ? buildTeam(req, intent)
           : intent === "tone"
             ? buildTone(req)
             : intent === "format"

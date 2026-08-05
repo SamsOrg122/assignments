@@ -12,7 +12,12 @@
  * component change.
  */
 
-export type ChannelKind = "channel" | "dm";
+/**
+ * `ai` is a channel whose other participant is the workspace assistant. It is
+ * a channel kind rather than a separate surface so threads, attachments,
+ * history and search all work without a second implementation.
+ */
+export type ChannelKind = "channel" | "dm" | "ai";
 
 export interface Channel {
   id: string;

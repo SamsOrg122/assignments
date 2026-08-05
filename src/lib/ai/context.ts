@@ -10,6 +10,7 @@
  */
 
 import type { Block, Project } from "../types";
+import type { KnowledgeEntry, TeamFile, Workspace } from "../team/types";
 import { computeFormulas } from "../formula";
 import { CONTEXT_CHAR_BUDGET, type AIContext } from "./types";
 
@@ -139,10 +140,52 @@ function fitToBudget(blocks: AIContext["blocks"]): AIContext["blocks"] {
   return out;
 }
 
+/** The workspace half of the context, assembled once and reused. */
+export function buildTeamContext(
+  workspace: Workspace,
+  knowledge: KnowledgeEntry[],
+  files: TeamFile[],
+  nameOf: (id: string) => string,
+  localUserId: string,
+): NonNullable<AIContext["team"]> {
+  return {
+    workspaceName: workspace.name,
+    kind: workspace.kind,
+    context: workspace.context,
+    members: workspace.members.map((m) => ({
+      name: nameOf(m.id),
+      role: m.role,
+      title: m.title,
+      about: m.about,
+      isYou: m.id === localUserId,
+    })),
+    // Unconfirmed entries still travel — flagged, so a provider can hedge
+    // rather than treating a guess as established.
+    knowledge: knowledge.map((k) => ({
+      kind: k.kind,
+      subject: k.subject,
+      body: k.body,
+      confirmed: k.confirmed,
+      source: k.source,
+    })),
+    files: files
+      .filter((f) => f.status === "ready" && !f.muted)
+      .map((f) => ({
+        id: f.id,
+        name: f.name,
+        // Files share the budget with the document; a long PDF must not
+        // crowd out the thing being written.
+        text: f.text.slice(0, 8000),
+        status: f.status,
+      })),
+  };
+}
+
 export function buildContext(
   project: Project,
   allProjects: Project[],
   selection?: AIContext["selection"],
+  team?: AIContext["team"],
 ): AIContext {
   const blocks: AIContext["blocks"] =
     project.kind === "board"
@@ -186,6 +229,7 @@ export function buildContext(
             : `${p.blocks.length} blocks`,
       })),
     selection,
+    team,
     words: blocks.reduce((n, b) => n + b.words, 0),
     wordGoal: project.wordGoal,
   };

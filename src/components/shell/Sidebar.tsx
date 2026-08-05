@@ -49,7 +49,7 @@ export function Sidebar() {
   const activeChannel = params?.channelId?.[0];
   const onChat = pathname?.startsWith("/chat") ?? false;
 
-  const { rooms, dms, totalUnread } = useMemo(() => {
+  const { assistant, rooms, dms, totalUnread } = useMemo(() => {
     const withMeta = channels.map((c) => ({
       channel: c,
       unread: unreadCount(messages, c.id, readAt[c.id]),
@@ -57,6 +57,7 @@ export function Sidebar() {
     }));
     const byRecency = (a: { at: number }, b: { at: number }) => b.at - a.at;
     return {
+      assistant: withMeta.find((c) => c.channel.kind === "ai"),
       rooms: withMeta.filter((c) => c.channel.kind === "channel").sort(byRecency),
       dms: withMeta.filter((c) => c.channel.kind === "dm").sort(byRecency),
       totalUnread: withMeta.reduce((n, c) => n + c.unread, 0),
@@ -157,6 +158,22 @@ export function Sidebar() {
             badge={totalUnread}
             onNavigate={closeOnMobile}
           />
+          <NavLink
+            href="/team"
+            icon="board"
+            label="Team"
+            active={pathname === "/team"}
+            onNavigate={closeOnMobile}
+          />
+          {assistant && (
+            <NavLink
+              href={`/chat/${assistant.channel.id}`}
+              icon="sparkle"
+              label="Team assistant"
+              active={assistant.channel.id === activeChannel}
+              onNavigate={closeOnMobile}
+            />
+          )}
         </nav>
 
         <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto pb-3">

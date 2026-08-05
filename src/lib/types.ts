@@ -74,16 +74,55 @@ export interface ChartBlock extends BlockBase {
 
 /* ── Slides ─────────────────────────────────────────────── */
 
+/** Explicit layout beats the inferred one when the author sets it. */
+export type SlideLayout = "auto" | "title" | "statement" | "bullets" | "split";
+
 export interface Slide {
   id: string;
   title: string;
   bullets: string[];
   note?: string;
+  layout?: SlideLayout;
 }
+
+/**
+ * Deck styling. Opinionated presets rather than a formatting surface: pick a
+ * look, don't assemble one. Each preset resolves to CSS custom properties the
+ * slide renderer reads, so adding one is a data change.
+ */
+export type DeckThemeName =
+  | "ink"
+  | "paper"
+  | "editorial"
+  | "signal"
+  | "slate";
+
+export interface DeckStyle {
+  theme: DeckThemeName;
+  /** Type scale multiplier — the same deck, louder or quieter. */
+  scale: number;
+  /** Where titles sit on the slide. */
+  align: "left" | "centre";
+  /** Show the accent rule under titles. */
+  rule: boolean;
+  /** Slide numbers in the corner. */
+  numbers: boolean;
+  /** Text shown in the footer of every slide. */
+  footer?: string;
+}
+
+export const DEFAULT_DECK_STYLE: DeckStyle = {
+  theme: "ink",
+  scale: 1,
+  align: "left",
+  rule: true,
+  numbers: false,
+};
 
 export interface SlidesBlock extends BlockBase {
   type: "slides";
   slides: Slide[];
+  style?: DeckStyle;
 }
 
 /* ── Code ───────────────────────────────────────────────── */

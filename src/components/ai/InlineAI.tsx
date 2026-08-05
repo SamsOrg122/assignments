@@ -11,6 +11,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { askAI, type AIChange } from "@/lib/ai";
 import { buildContext } from "@/lib/ai/context";
+import { useTeamContext } from "@/lib/ai/use-team-context";
+import { useTeam } from "@/lib/team";
 import { useRouter } from "next/navigation";
 import { useProjects } from "@/lib/store";
 import { useUI, type AITarget } from "@/lib/ui-store";
@@ -48,6 +50,8 @@ function AIPopover({ target }: { target: AITarget }) {
   const addProject = useProjects((s) => s.addProject);
   const removeBlock = useProjects((s) => s.removeBlock);
   const router = useRouter();
+  const team = useTeamContext();
+  const remember = useTeam((s) => s.remember);
 
   const [prompt, setPrompt] = useState(target.seedPrompt ?? "");
   const [answer, setAnswer] = useState("");
@@ -77,7 +81,7 @@ function AIPopover({ target }: { target: AITarget }) {
 
   const ask = useCallback(
     async (text: string) => {
-      if (!project || !text.trim()) return;
+      if (!text.trim()) return;
 
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -87,17 +91,35 @@ function AIPopover({ target }: { target: AITarget }) {
       setChange(null);
       setStatus("streaming");
 
-      const context = buildContext(
-        project,
-        projects,
-        target.selectionText
-          ? {
-              blockId: target.blockId,
-              blockType: target.blockType,
-              text: target.selectionText,
-            }
-          : undefined,
-      );
+      // Team questions can be asked from anywhere, including pages with no
+      // project open — the workspace is context enough.
+      const context = project
+        ? buildContext(
+            project,
+            projects,
+            target.selectionText
+              ? {
+                  blockId: target.blockId,
+                  blockType: target.blockType,
+                  text: target.selectionText,
+                }
+              : undefined,
+            team,
+          )
+        : {
+            projectId: "",
+            projectName: team.workspaceName,
+            projectKind: "doc" as const,
+            blocks: [],
+            workspace: projects.map((p) => ({
+              id: p.id,
+              name: p.name,
+              kind: p.kind,
+              summary: `${p.blocks.length} blocks`,
+            })),
+            team,
+            words: 0,
+          };
 
       try {
         for await (const chunk of askAI(text, context, controller.signal)) {
@@ -112,7 +134,7 @@ function AIPopover({ target }: { target: AITarget }) {
         setStatus("done");
       }
     },
-    [project, projects, target],
+    [project, projects, target, team],
   );
 
   const accept = useCallback(() => {
@@ -194,6 +216,21 @@ function AIPopover({ target }: { target: AITarget }) {
         break;
       }
 
+      case "remember": {
+        // Lands unconfirmed on purpose: an inferred fact should be visibly
+        // provisional until a human agrees with it.
+        remember({
+          kind: change.entry.kind as Parameters<typeof remember>[0]["kind"],
+          subject: change.entry.subject,
+          body: change.entry.body,
+          source: "ai",
+          confirmed: false,
+        });
+        notify("Added to what the team knows");
+        closeAI();
+        return;
+      }
+
       case "add-column":
         addValueColumn(
           projectId,
@@ -216,6 +253,7 @@ function AIPopover({ target }: { target: AITarget }) {
     addValueColumn,
     addProject,
     removeBlock,
+    remember,
     notify,
     closeAI,
     router,
@@ -225,8 +263,6 @@ function AIPopover({ target }: { target: AITarget }) {
     () => SUGGESTIONS[target.blockType] ?? SUGGESTIONS.text,
     [target],
   );
-
-  if (!project) return null;
 
   // Keep the popover fully on screen wherever it was invoked from. The
   // accept/reject bar is the point of this surface — it must never be pushed
@@ -265,7 +301,9 @@ function AIPopover({ target }: { target: AITarget }) {
           <span className="ml-auto truncate font-mono text-[10px] text-fg-subtle">
             {target.selectionText
               ? `${target.selectionText.split(/\s+/).filter(Boolean).length} words selected`
-              : `${project.blocks.length} blocks in context`}
+              : project
+                ? `${project.blocks.length} blocks in context`
+                : `${team.members.length} people, ${team.knowledge.length} things known`}
           </span>
           <button
             type="button"

@@ -21,6 +21,7 @@ import { useUI } from "@/lib/ui-store";
 import { TopBar } from "@/components/shell/TopBar";
 import { MessageList } from "@/components/chat/MessageList";
 import { Composer } from "@/components/chat/Composer";
+import { TeamAssistant } from "@/components/chat/TeamAssistant";
 import { Icon } from "@/components/ui/Icon";
 
 export default function ChatPage() {
@@ -109,7 +110,13 @@ export default function ChatPage() {
         }
       >
         <Icon
-          name={active.kind === "dm" ? "users" : "board"}
+          name={
+            active.kind === "ai"
+              ? "sparkle"
+              : active.kind === "dm"
+                ? "users"
+                : "board"
+          }
           size={13}
           className="shrink-0 text-fg-subtle"
         />
@@ -124,6 +131,9 @@ export default function ChatPage() {
       </TopBar>
 
       <main className="flex min-h-0 flex-1">
+        {active.kind === "ai" ? (
+          <TeamAssistant channelId={active.id} />
+        ) : (
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto">
             <MessageList channelId={active.id} onOpenThread={setThreadId} />
@@ -137,8 +147,9 @@ export default function ChatPage() {
             }
           />
         </div>
+        )}
 
-        {parent && (
+        {parent && active.kind !== "ai" && (
           <aside className="hidden w-[380px] shrink-0 flex-col border-l border-line lg:flex">
             <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
               <span className="label-mono">Thread</span>

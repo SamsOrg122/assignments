@@ -21,11 +21,11 @@ persists to `localStorage` from then on (⌘K → "Reset workspace" restores the
 
 ```
 src/
-  app/                    / (Library) · /p/[id] · /chat/[id] · /settings
+  app/                    / (Library) · /p/[id] · /chat/[id] · /team · /settings
   components/
     shell/                sidebar, top bar, ⌘K command palette
-    editors/              one per project kind + typography & dictation
-    chat/                 message list, composer, threads
+    editors/              one per project kind + typography, deck style, dictation
+    chat/                 message list, composer, threads, team assistant
     board/                board items, live project cards, promote dialog
     canvas/               block canvas, block chrome, / menu
     blocks/               text · table · chart · slides · code
@@ -41,10 +41,14 @@ src/
     summary.ts            word counts, outlines, one-line descriptions
     appearance.ts         theme tokens + the pre-paint boot script
     theme-store.ts        appearance store, synced to <html data-*>
+    team/                 workspace, members, roles, permissions, memory
+    files/                ingestFile seam — text extraction for AI context
+    deck-themes.ts        five deck looks, each as --slide-* properties
+    pptx.ts               PowerPoint import (unzip + read the slide XML)
     chat/                 ChatProvider seam + simulated transport
     sources/              resolveSource seam, parsers, four citation styles
     export.ts             PDF · Word · web · Markdown, from the model
-    ai/                   askAI seam, stub provider, document analyses
+    ai/                   askAI seam, stub provider, document + team analyses
     speech/               transcribe seam — Web Speech + simulated fallback
     realtime/             RealtimeProvider seam + simulated presence
 ```
@@ -94,6 +98,46 @@ reflects the project rather than being a dead link to another tool. `#` in the
 composer attaches one, and ⌘K can share the project you're in without leaving
 the keyboard. Channels, DMs, threads, reactions, typing indicators and unread
 counts all sit behind a websocket-shaped `ChatProvider`.
+
+**A team is a record, not a member list.** `/team` holds who is here, what they
+may do, what the group knows and what it has read — and those last two are
+exactly what the assistant is handed, so the page doubles as *what the AI knows
+about us*. Roles are ordered (owner → admin → editor → commenter → viewer) and
+every capability check goes through one `can(role, action)`; the store refuses
+any change that would leave the workspace with no owner, so the last owner
+simply has no demote control. Invites carry the role they'll join with and
+produce a real link.
+
+**The assistant learns, but nothing it infers becomes truth on its own.** Ask it
+in `#Team assistant` and it answers over the workspace record: who your
+supervisor is, what the department requires, what's in the brief someone
+uploaded — quoting the file so the answer is checkable. When an exchange
+produces something worth keeping it offers to remember it, and the entry lands
+**unconfirmed**, shown as such on the Team page until a person confirms it.
+Shared memory earns a higher bar than one person's phrasing.
+
+**Files become context, not attachments.** `ingestFile()` extracts text in the
+browser — Markdown, text, CSV, JSON, `.docx` and `.pptx` (both are ZIPs of XML)
+— stores the words rather than the original, and says plainly when it can't
+read something (PDFs need a server-side extractor). Any file can be excluded
+from context without deleting it.
+
+**Decks: pick a look, don't assemble one.** Five themes, each fully set —
+surface, ink, accent, type pairing — resolving to `--slide-*` custom properties
+that the slide renderer reads, so the same markup renders as Ink, Paper or
+Signal without a branch and adding a theme is a data change. The controls
+underneath (type scale, title position, accent rule, slide numbers, footer)
+only adjust things that can't make it ugly. Layout is inferred from each
+slide's own shape, and "Automatic" tells you which layout it's currently
+implying before you override it.
+
+**PowerPoint import is honest about what it drops.** A `.pptx` is unzipped, its
+slides read in numeric order (so slide10 sorts after slide2), titles told from
+bullets by the placeholder tag rather than by position, and speaker notes
+pulled from the parallel notes part. It does *not* reproduce the original
+theme, images, positioning or animations — those are bound to PowerPoint's
+layout model, and a half-copy would look broken. The import names what it left
+behind and the slides adopt your deck's theme.
 
 **Appearance is CSS custom properties, end to end.** Theme (dark/light/system),
 accent, corner radius, density, interface typeface, motion and sidebar width

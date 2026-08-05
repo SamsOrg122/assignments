@@ -12,7 +12,17 @@ const min = 60_000;
 
 const [mira, dev, ana] = PEERS;
 
+export const AI_USER_ID = "u_assistant";
+
 export const SEED_CHANNELS: Channel[] = [
+  {
+    id: "c_ai",
+    kind: "ai",
+    name: "Team assistant",
+    topic: "Knows the team, the files and every project",
+    memberIds: [LOCAL_USER.id, AI_USER_ID],
+    createdAt: T,
+  },
   {
     id: "c_general",
     kind: "channel",
@@ -54,6 +64,13 @@ export const SEED_CHANNELS: Channel[] = [
 ];
 
 export const SEED_MESSAGES: Message[] = [
+  {
+    id: "m_ai_1",
+    channelId: "c_ai",
+    authorId: AI_USER_ID,
+    body: "Ask me about the team, the deadlines, anything in the files, or any project. Say \u201cremember that\u2026\u201d and I will keep it for everyone.",
+    at: T - 200 * min,
+  },
   {
     id: "m1",
     channelId: "c_thesis",

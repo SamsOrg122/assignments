@@ -21,6 +21,12 @@ import type {
 import { DEFAULT_DECK_STYLE } from "@/lib/types";
 import { DECK_THEMES, deckVars } from "@/lib/deck-themes";
 import { DeckStylePanel } from "./DeckStylePanel";
+import {
+  SlideObjectsEditor,
+  SlideObjectsView,
+  balanceObjects,
+  insertObject,
+} from "./SlideObjects";
 import { importPptxFile } from "@/lib/pptx";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
@@ -65,6 +71,7 @@ export function DeckEditor({
   const [presenting, setPresenting] = useState(false);
   const [styleOpen, setStyleOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [elementOpen, setElementOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   if (!deck) {
@@ -153,6 +160,9 @@ export function DeckEditor({
           project={project}
           peers={peers}
           tools={
+            // Icons-only below sm: five labelled buttons don't fit a phone,
+            // and a scroll container here would clip the panels that anchor
+            // to these buttons.
             <span className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
@@ -160,7 +170,7 @@ export function DeckEditor({
                 className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
               >
                 <Icon name="plus" size={11} />
-                Slide
+                <span className="hidden sm:inline">Slide</span>
               </button>
               <span className="relative">
                 <button
@@ -175,7 +185,9 @@ export function DeckEditor({
                   )}
                 >
                   <Icon name="type" size={11} />
-                  {DECK_THEMES[style.theme].label}
+                  <span className="hidden sm:inline">
+                    {DECK_THEMES[style.theme].label}
+                  </span>
                 </button>
                 {styleOpen && (
                   <DeckStylePanel
@@ -186,13 +198,76 @@ export function DeckEditor({
                 )}
               </span>
 
+              <span className="relative">
+                <button
+                  type="button"
+                  onClick={() => setElementOpen((v) => !v)}
+                  aria-pressed={elementOpen}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-sm border px-2 py-1.5 text-[11.5px] transition-colors duration-150",
+                    elementOpen
+                      ? "border-line-strong bg-surface-2 text-fg"
+                      : "border-line text-fg-subtle hover:border-line-strong hover:text-fg",
+                  )}
+                >
+                  <Icon name="board" size={11} />
+                  <span className="hidden sm:inline">Element</span>
+                </button>
+                {elementOpen && current && (
+                  <div className="anim-pop absolute top-full right-0 z-40 mt-1.5 w-[168px] rounded-md border border-line-strong bg-surface p-1.5 shadow-[0_24px_70px_-12px_rgba(0,0,0,0.75)]">
+                    {(
+                      [
+                        ["text", "Text"],
+                        ["rect", "Rectangle"],
+                        ["ellipse", "Ellipse"],
+                        ["line", "Line"],
+                      ] as const
+                    ).map(([kind, label]) => (
+                      <button
+                        key={kind}
+                        type="button"
+                        onClick={() => {
+                          patch(current.id, {
+                            objects: insertObject(current.objects ?? [], kind),
+                          });
+                          setElementOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[12px] text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    {(current.objects?.length ?? 0) > 1 && (
+                      <>
+                        <span className="my-1 block h-px bg-line" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            patch(current.id, {
+                              objects: balanceObjects(current.objects ?? []),
+                            });
+                            setElementOpen(false);
+                          }}
+                          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[12px] text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                        >
+                          <Icon name="grip" size={11} />
+                          Balance layout
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </span>
+
               <button
                 type="button"
                 onClick={() => importRef.current?.click()}
                 className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
               >
                 <Icon name="download" size={11} />
-                {importing ? "Reading…" : "Import .pptx"}
+                <span className="hidden sm:inline">
+                  {importing ? "Reading…" : "Import .pptx"}
+                </span>
               </button>
               <input
                 ref={importRef}
@@ -209,7 +284,7 @@ export function DeckEditor({
                 className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
               >
                 <Icon name="play" size={11} />
-                Present
+                <span className="hidden sm:inline">Present</span>
               </button>
             </span>
           }
@@ -303,13 +378,25 @@ export function DeckEditor({
 
             {/* Stage */}
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center overflow-y-auto p-5 sm:p-8">
-              <div className="aspect-[16/9] w-full max-w-[860px] overflow-hidden rounded-lg border border-line">
+              <div
+                className="relative aspect-[16/9] w-full max-w-[860px] overflow-hidden rounded-lg border border-line"
+                style={{ containerType: "inline-size" }}
+              >
                 <SlideView
                   slide={current}
                   index={clamped}
                   style={style}
+                  hideObjects
                   onChange={(next) => current && patch(current.id, next)}
                 />
+                {current && (
+                  <div style={deckVars(DECK_THEMES[style.theme], style.scale, style.accent)} className="absolute inset-0">
+                    <SlideObjectsEditor
+                      slide={current}
+                      onChange={(objects) => patch(current.id, { objects })}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="mt-3 flex w-full max-w-[860px] items-center gap-2">
@@ -415,12 +502,15 @@ function SlideView({
   style,
   onChange,
   readOnly = false,
+  hideObjects = false,
 }: {
   slide?: Slide;
   index: number;
   style: DeckStyle;
   onChange?: (next: Partial<Slide>) => void;
   readOnly?: boolean;
+  /** The stage hides the static layer — the editor renders it interactively. */
+  hideObjects?: boolean;
 }) {
   const theme = DECK_THEMES[style.theme] ?? DECK_THEMES.ink;
   const vars = deckVars(theme, style.scale, style.accent);
@@ -541,6 +631,7 @@ function SlideView({
       style={{ ...vars, background: "var(--slide-bg)", containerType: "size" }}
     >
       <SlideSurface background={style.background} />
+      {!hideObjects && <SlideObjectsView objects={slide.objects} />}
       {layout === "title" ? (
         <div className={cn("w-full", centred && "text-center")}>
           {Title}

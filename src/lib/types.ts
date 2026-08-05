@@ -140,12 +140,46 @@ export interface ChartBlock extends BlockBase {
 /** Explicit layout beats the inferred one when the author sets it. */
 export type SlideLayout = "auto" | "title" | "statement" | "bullets" | "split";
 
+/**
+ * A free-form object on a slide, layered over the structured content.
+ *
+ * Coordinates are percentages of the slide, so an object sits in the same
+ * place on the filmstrip thumbnail, the stage and the projector. Fill colours
+ * are theme *roles*, not hex — a deck restyled to another theme re-inks its
+ * shapes too, which is what makes one-click restyle safe.
+ */
+export type SlideObjectFill = "accent" | "fg" | "muted" | "surface" | "none";
+
+export interface SlideObject {
+  id: string;
+  kind: "text" | "rect" | "ellipse" | "line";
+  /** Percent of slide width/height, 0–100. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Degrees. */
+  rotation?: number;
+  /** 0–1. */
+  opacity?: number;
+  z: number;
+  fill?: SlideObjectFill;
+  /** Border on shapes; the line kind uses it as its stroke. */
+  border?: boolean;
+  /** Text content, for the text kind. */
+  text?: string;
+  /** Text size in cqw units so it scales with the slide. */
+  textSize?: number;
+}
+
 export interface Slide {
   id: string;
   title: string;
   bullets: string[];
   note?: string;
   layout?: SlideLayout;
+  /** Free-form layer. Empty/absent for purely structured slides. */
+  objects?: SlideObject[];
 }
 
 /**

@@ -150,7 +150,7 @@ export function PromoteDialog({
       >
         <div className="flex items-center gap-2 border-b border-line px-3 py-2">
           <Icon name="promote" size={13} className="text-accent" />
-          <span className="label-mono !text-fg-muted">Promote to a project</span>
+          <span className="label-mono">Promote to a project</span>
           <button
             type="button"
             onClick={onClose}

@@ -25,7 +25,6 @@ export function BoardItemView({
   item,
   selected,
   peers,
-  scale,
   onPointerDown,
   onOpen,
 }: {
@@ -33,7 +32,6 @@ export function BoardItemView({
   item: BoardItem;
   selected: boolean;
   peers: PeerState[];
-  scale: number;
   onPointerDown: (e: React.PointerEvent) => void;
   onOpen?: () => void;
 }) {
@@ -143,7 +141,7 @@ export function BoardItemView({
       )}
 
       {item.kind === "card" && (
-        <ProjectCardBody projectId={item.projectId} scale={scale} />
+        <ProjectCardBody projectId={item.projectId} />
       )}
     </div>
   );

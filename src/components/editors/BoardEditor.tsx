@@ -376,7 +376,6 @@ export function BoardEditor({
                 item={item}
                 selected={selection.includes(item.id)}
                 peers={peersByItem.get(item.id) ?? []}
-                scale={view.scale}
                 onPointerDown={(e) => dragItem(item, e)}
                 onOpen={
                   item.kind === "card"

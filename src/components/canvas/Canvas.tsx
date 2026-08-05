@@ -169,9 +169,6 @@ export function Canvas({
             {BLOCK_META[type].label}
           </button>
         ))}
-        <span className="ml-auto hidden font-mono text-[10px] text-fg-subtle sm:inline">
-          or press / in any text block
-        </span>
       </div>
       )}
     </div>

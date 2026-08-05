@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { AppShell } from "@/components/shell/AppShell";
+import { APPEARANCE_BOOT_SCRIPT } from "@/lib/appearance";
 
 export const metadata: Metadata = {
   title: "Assignments",
@@ -11,8 +12,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
-  colorScheme: "dark",
+  themeColor: "#121215",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -20,8 +20,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
+      // The boot script writes these attributes before React hydrates.
+      suppressHydrationWarning
     >
       <body className="h-full">
+        {/*
+          A plain inline script, deliberately. `next/script` with
+          `beforeInteractive` emits this as a data payload the Next runtime
+          executes after hydration bootstraps — far too late to stop a
+          light-mode user seeing a dark flash. Rendered this way it is real
+          markup and runs before first paint. React dev-warns about script
+          elements in components (they don't re-execute on client navigation),
+          which is exactly the behaviour wanted here: this runs once, at load.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: APPEARANCE_BOOT_SCRIPT }} />
         <AppShell>{children}</AppShell>
       </body>
     </html>

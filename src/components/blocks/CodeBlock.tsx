@@ -312,9 +312,6 @@ export function CodeBlock({
           <div className="min-w-0 border-t border-line lg:border-t-0 lg:border-l">
             <div className="flex items-center gap-2 border-b border-line px-2.5 py-1">
               <span className="label-mono">Preview</span>
-              <span className="ml-auto font-mono text-[9.5px] text-fg-subtle">
-                {ranAt ? "ran just now" : "sandboxed iframe"}
-              </span>
             </div>
             <iframe
               key={ranAt ?? "initial"}

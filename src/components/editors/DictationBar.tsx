@@ -153,7 +153,7 @@ export function DictationBar({
       >
         <div className="flex items-center gap-2.5 border-b border-line px-3 py-2">
           <Icon name="mic" size={13} className={phase === "listening" ? "text-accent" : "text-fg-subtle"} />
-          <span className="label-mono !text-fg-muted">Speak to prose</span>
+          <span className="label-mono">Speak to prose</span>
           <span className="ml-auto font-mono text-[10px] text-fg-subtle">
             {phase === "listening"
               ? "listening…"
@@ -176,7 +176,7 @@ export function DictationBar({
         {/* What was heard — deliberately quiet and small. It is not the output. */}
         {(phase === "listening" || heard) && (
           <div className="border-b border-line px-3 py-2.5" data-testid="heard">
-            <p className="label-mono mb-1.5">Heard</p>
+            <p className="mb-1.5 text-[11px] text-fg-subtle">Heard</p>
             <p className="max-h-[64px] overflow-y-auto font-mono text-[11px] leading-relaxed text-fg-subtle">
               {heard || "…"}
             </p>
@@ -186,7 +186,7 @@ export function DictationBar({
         {/* What will be written. */}
         {(phase === "writing" || phase === "ready") && (
           <div className="border-b border-line px-3 py-3" data-testid="written">
-            <p className="label-mono mb-1.5">Written</p>
+            <p className="mb-1.5 text-[11px] text-fg-subtle">Written</p>
             <div className="max-h-[180px] overflow-y-auto text-[13.5px] leading-relaxed text-fg">
               {change && change.kind === "append-text" ? (
                 <div
@@ -260,11 +260,6 @@ export function DictationBar({
             </>
           )}
 
-          <span className="ml-auto hidden font-mono text-[10px] text-fg-subtle sm:block">
-            {phase === "ready"
-              ? "nothing is written until you insert"
-              : "your words, cleaned up — not a transcript"}
-          </span>
         </div>
       </div>
     </div>

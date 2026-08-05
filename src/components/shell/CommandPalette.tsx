@@ -19,6 +19,9 @@ import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { KINDS, KIND_ORDER } from "@/lib/kinds";
 import { exportProject, EXPORT_LABELS, type ExportFormat } from "@/lib/export";
+import { PEOPLE, useChat } from "@/lib/chat";
+import { LOCAL_USER } from "@/lib/realtime";
+import { ACCENTS, useAppearance, type AccentName } from "@/lib/theme-store";
 import type { BlockType, ProjectKind } from "@/lib/types";
 
 /**
@@ -167,6 +170,11 @@ function PaletteDialog({ seed }: { seed: string }) {
   const duplicateProject = useProjects((s) => s.duplicateProject);
   const deleteProject = useProjects((s) => s.deleteProject);
   const resetWorkspace = useProjects((s) => s.resetWorkspace);
+
+  const channels = useChat((s) => s.channels);
+  const openDM = useChat((s) => s.openDM);
+  const sendMessage = useChat((s) => s.send);
+  const appearance = useAppearance();
 
   const closePalette = useUI((s) => s.closePalette);
   const toggleSidebar = useUI((s) => s.toggleSidebar);
@@ -340,13 +348,122 @@ function PaletteDialog({ seed }: { seed: string }) {
       });
     }
 
+    /* ── Chat ─────────────────────────────────────────── */
+
+    for (const channel of channels) {
+      const label =
+        channel.kind === "channel" ? `#${channel.name}` : channel.name;
+      list.push({
+        id: `chat:${channel.id}`,
+        title: label,
+        subtitle: channel.topic ?? "Direct message",
+        group: "Chat",
+        icon: channel.kind === "dm" ? "users" : "board",
+        keywords: `chat channel message conversation dm ${channel.name}`,
+        run: () => router.push(`/chat/${channel.id}`),
+      });
+    }
+
+    for (const person of PEOPLE) {
+      if (person.id === LOCAL_USER.id) continue;
+      list.push({
+        id: `dm:${person.id}`,
+        title: `Message ${person.name}`,
+        subtitle: "Open a direct message",
+        group: "Chat",
+        icon: "users",
+        keywords: "dm direct message chat talk write",
+        run: () => router.push(`/chat/${openDM(person.id)}`),
+      });
+    }
+
+    // Sharing the open project into a channel — the bridge from work to
+    // conversation, without leaving the keyboard.
+    if (project) {
+      for (const channel of channels.slice(0, 8)) {
+        const label =
+          channel.kind === "channel" ? `#${channel.name}` : channel.name;
+        list.push({
+          id: `share:${channel.id}`,
+          title: `Share this project in ${label}`,
+          subtitle: "Posts a live card, not a link",
+          group: "Chat",
+          icon: "arrow-right",
+          keywords: `share post send project to channel ${channel.name}`,
+          run: () => {
+            sendMessage(channel.id, "", {
+              attachments: [{ kind: "project", projectId: project.id }],
+            });
+            notify(`Shared in ${label}`);
+            router.push(`/chat/${channel.id}`);
+          },
+        });
+      }
+    }
+
+    /* ── Appearance ───────────────────────────────────── */
+
+    list.push({
+      id: "theme:toggle",
+      title: appearance.mode === "light" ? "Switch to dark" : "Switch to light",
+      subtitle: "Theme",
+      group: "Appearance",
+      icon: "sparkle",
+      keywords: "theme dark light mode appearance colour color",
+      run: () =>
+        appearance.set("mode", appearance.mode === "light" ? "dark" : "light"),
+    });
+
+    for (const accent of Object.keys(ACCENTS) as AccentName[]) {
+      list.push({
+        id: `accent:${accent}`,
+        title: `Accent: ${ACCENTS[accent].label}`,
+        group: "Appearance",
+        icon: "sparkle",
+        keywords: `accent colour color theme ${accent}`,
+        run: () => appearance.set("accent", accent),
+      });
+    }
+
+    list.push({
+      id: "density:toggle",
+      title:
+        appearance.density === "compact"
+          ? "Comfortable density"
+          : "Compact density",
+      group: "Appearance",
+      icon: "panel-left",
+      keywords: "density compact comfortable spacing tighter",
+      run: () =>
+        appearance.set(
+          "density",
+          appearance.density === "compact" ? "comfortable" : "compact",
+        ),
+    });
+
     list.push(
       {
+        id: "nav:settings",
+        title: "Open settings",
+        group: "Navigate",
+        icon: "settings",
+        keywords: "preferences appearance theme accent providers",
+        run: () => router.push("/settings"),
+      },
+      {
+        id: "nav:chat",
+        title: "Go to chat",
+        group: "Navigate",
+        icon: "users",
+        keywords: "messages channels conversations dm",
+        run: () => router.push("/chat"),
+      },
+      {
         id: "nav:home",
-        title: "Go home",
+        title: "Go to the library",
         group: "Navigate",
         icon: "home",
-        keywords: "projects list index dashboard",
+        keywords: "projects list index dashboard home",
         run: () => router.push("/"),
       },
       {
@@ -387,6 +504,10 @@ function PaletteDialog({ seed }: { seed: string }) {
     notify,
     openAI,
     router,
+    channels,
+    openDM,
+    sendMessage,
+    appearance,
   ]);
 
   const results = useMemo(() => {

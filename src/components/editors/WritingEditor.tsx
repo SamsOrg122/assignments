@@ -191,7 +191,7 @@ export function WritingEditor({
                     seedPrompt: "Outline my whole thesis and tell me where I am",
                   })
                 }
-                className="label-mono transition-colors duration-150 hover:!text-fg-muted"
+                className="text-[11px] text-fg-muted transition-colors duration-150 hover:text-fg"
               >
                 Ask about the whole document
               </button>

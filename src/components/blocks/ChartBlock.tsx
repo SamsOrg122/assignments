@@ -256,10 +256,6 @@ export function ChartBlock({
         )}
       </div>
 
-      <p className="border-t border-line px-3 py-1.5 font-mono text-[10px] text-fg-subtle">
-        live from “{source.title ?? "Table"}” · {source.rows.length} rows · edits
-        upstream appear here immediately
-      </p>
     </div>
   );
 }

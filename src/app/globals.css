@@ -6,20 +6,22 @@
    ─────────────────────────────────────────────────────────── */
 
 @theme {
-  /* Surfaces */
-  --color-canvas: #0a0a0a;
-  --color-surface: #141414;
-  --color-surface-2: #1c1c1c;
-  --color-surface-3: #232323;
+  /* Surfaces. Lifted off pure black: #0A0A0A crushes every hairline and
+     makes elevation invisible on most panels. */
+  --color-canvas: #121215;
+  --color-surface: #1a1a1e;
+  --color-surface-2: #222227;
+  --color-surface-3: #2c2c33;
 
   /* Lines */
-  --color-line: rgba(255, 255, 255, 0.08);
-  --color-line-strong: rgba(255, 255, 255, 0.14);
+  --color-line: rgba(255, 255, 255, 0.11);
+  --color-line-strong: rgba(255, 255, 255, 0.2);
 
-  /* Type */
-  --color-fg: #ededed;
-  --color-fg-muted: #8a8a8a;
-  --color-fg-subtle: #5c5c5c;
+  /* Type. Muted and subtle were both under 4.5:1 on the old canvas —
+     secondary text should be quiet, not unreadable. */
+  --color-fg: #f2f2f5;
+  --color-fg-muted: #a8a8b3;
+  --color-fg-subtle: #85858f;
 
   /* Accent — cool electric blue, used sparingly */
   --color-accent: #3d7dff;
@@ -27,8 +29,8 @@
   --color-accent-soft: rgba(61, 125, 255, 0.14);
 
   /* Semantic (kept desaturated so nothing shouts) */
-  --color-danger: #e5484d;
-  --color-warn: #d9a441;
+  --color-danger: #f06a6f;
+  --color-warn: #e5b45c;
 
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -71,9 +73,9 @@
     outline: none;
   }
 
+  /* Follows the chosen accent rather than hard-coding the default blue. */
   ::selection {
-    background: rgba(61, 125, 255, 0.32);
-    color: #fff;
+    background: color-mix(in srgb, var(--color-accent) 34%, transparent);
   }
 
   ::-webkit-scrollbar {
@@ -100,14 +102,13 @@
     border: 1px solid var(--color-line);
   }
 
-  /* Tiny uppercase mono label used for metadata / section heads. */
+  /* Small label for metadata and section heads. Sentence case on purpose:
+     uppercase mono everywhere read like generated captions rather than UI. */
   .label-mono {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    line-height: 1;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-fg-subtle);
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0;
+    color: var(--color-fg-muted);
   }
 
   .kbd {
@@ -116,7 +117,7 @@
     line-height: 1;
     padding: 4px 5px;
     border-radius: var(--radius-xs);
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.07);
     border: 1px solid var(--color-line);
     color: var(--color-fg-muted);
     white-space: nowrap;
@@ -136,6 +137,132 @@
   .no-scrollbar {
     scrollbar-width: none;
   }
+}
+
+
+/* ───────────────────────────────────────────────────────────
+   Appearance
+   Every preference is an attribute on <html> overriding tokens
+   the utilities already reference, so nothing re-renders in JS.
+   ─────────────────────────────────────────────────────────── */
+
+:root[data-theme="light"] {
+  --color-canvas: #fbfbfc;
+  --color-surface: #ffffff;
+  --color-surface-2: #f2f2f4;
+  --color-surface-3: #e6e6ea;
+
+  --color-line: rgba(0, 0, 0, 0.12);
+  --color-line-strong: rgba(0, 0, 0, 0.2);
+
+  --color-fg: #16161a;
+  --color-fg-muted: #55555f;
+  --color-fg-subtle: #71717c;
+
+  --color-danger: #cc2f36;
+  --color-warn: #8a6116;
+}
+
+/* Surfaces that lean on white overlays need the opposite in light mode. */
+:root[data-theme="light"] .kbd,
+:root[data-theme="light"] .prose-canvas code {
+  background: rgba(0, 0, 0, 0.04);
+}
+:root[data-theme="light"] .surface-grain {
+  background-image: radial-gradient(
+    120% 80% at 50% -20%,
+    rgba(0, 0, 0, 0.03),
+    transparent 60%
+  );
+}
+:root[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.16);
+  background-clip: content-box;
+}
+:root[data-theme="light"] .prose-canvas pre {
+  background: var(--color-surface-2);
+}
+
+/* ── Accent ─────────────────────────────────────────────── */
+
+:root[data-accent="violet"] {
+  --color-accent: #8b5cf6;
+  --color-accent-dim: #6d3fd4;
+  --color-accent-soft: rgba(139, 92, 246, 0.14);
+}
+:root[data-accent="teal"] {
+  --color-accent: #14b8a6;
+  --color-accent-dim: #0e8f81;
+  --color-accent-soft: rgba(20, 184, 166, 0.14);
+}
+:root[data-accent="amber"] {
+  --color-accent: #e0a04a;
+  --color-accent-dim: #b87f34;
+  --color-accent-soft: rgba(224, 160, 74, 0.16);
+}
+:root[data-accent="rose"] {
+  --color-accent: #f43f6e;
+  --color-accent-dim: #cc2a55;
+  --color-accent-soft: rgba(244, 63, 110, 0.14);
+}
+/* "Mono" drops the accent entirely — the restrained end of the dial. */
+:root[data-accent="mono"] {
+  --color-accent: #ededed;
+  --color-accent-dim: #b8b8b8;
+  --color-accent-soft: rgba(255, 255, 255, 0.12);
+}
+:root[data-theme="light"][data-accent="mono"] {
+  --color-accent: #16161a;
+  --color-accent-dim: #3a3a42;
+  --color-accent-soft: rgba(0, 0, 0, 0.08);
+}
+
+/* ── Radius ─────────────────────────────────────────────── */
+
+:root[data-radius="sharp"] {
+  --radius-xs: 0px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+}
+:root[data-radius="soft"] {
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+}
+
+/* ── Density ────────────────────────────────────────────── */
+
+:root {
+  --ui-row-y: 6px;
+  --ui-gap: 20px;
+  --ui-bar-h: 48px;
+  --sidebar-w: 228px;
+}
+:root[data-density="compact"] {
+  --ui-row-y: 3px;
+  --ui-gap: 12px;
+  --ui-bar-h: 40px;
+}
+
+/* ── UI typeface ────────────────────────────────────────── */
+
+:root[data-font="system"] {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+:root[data-font="mono"] {
+  --font-sans: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* ── Motion ─────────────────────────────────────────────── */
+
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }
 
 /* ── Motion ──────────────────────────────────────────────── */

@@ -21,10 +21,11 @@ persists to `localStorage` from then on (⌘K → "Reset workspace" restores the
 
 ```
 src/
-  app/                    routes — / (Library) and /p/[projectId]
+  app/                    / (Library) · /p/[id] · /chat/[id] · /settings
   components/
     shell/                sidebar, top bar, ⌘K command palette
     editors/              one per project kind + typography & dictation
+    chat/                 message list, composer, threads
     board/                board items, live project cards, promote dialog
     canvas/               block canvas, block chrome, / menu
     blocks/               text · table · chart · slides · code
@@ -38,6 +39,9 @@ src/
     formula.ts            hand-written spreadsheet expression parser
     fuzzy.ts              ranking for ⌘K and the / menu
     summary.ts            word counts, outlines, one-line descriptions
+    appearance.ts         theme tokens + the pre-paint boot script
+    theme-store.ts        appearance store, synced to <html data-*>
+    chat/                 ChatProvider seam + simulated transport
     sources/              resolveSource seam, parsers, four citation styles
     export.ts             PDF · Word · web · Markdown, from the model
     ai/                   askAI seam, stub provider, document analyses
@@ -84,6 +88,21 @@ in the prose are Tiptap nodes holding a source id, so switching APA → MLA
 rewrites every marker and every reference in one move, and the bibliography —
 which stores nothing of its own — can never drift from the source list.
 
+**Chat is in the workspace, not beside it.** A message can carry a live
+reference to a Library project: the card reads through the store, so it
+reflects the project rather than being a dead link to another tool. `#` in the
+composer attaches one, and ⌘K can share the project you're in without leaving
+the keyboard. Channels, DMs, threads, reactions, typing indicators and unread
+counts all sit behind a websocket-shaped `ChatProvider`.
+
+**Appearance is CSS custom properties, end to end.** Theme (dark/light/system),
+accent, corner radius, density, interface typeface, motion and sidebar width
+all resolve to attributes on `<html>` that override tokens the utilities
+already reference — so a preference change repaints everything without a
+component re-render. A small inline script applies stored preferences before
+first paint; `next/script` can't do this job, because `beforeInteractive`
+defers execution until after hydration bootstraps.
+
 **AI is a seam, not a feature.** Everything the UI knows is
 `askAI(prompt, context)` returning a stream of chunks, plus an optional
 structured `AIChange` the user accepts or rejects — the model never writes to
@@ -104,6 +123,7 @@ simulates peers.
 | `⌘K` | command palette — actions, blocks, projects, settings |
 | `⌘J` | ask AI about the selection (whole project as context) |
 | `⌘B` | toggle sidebar |
+| `@` / `#` | in chat: mention someone / attach a live project |
 | `/` | insert a block, from inside any text block |
 | `⌘⇧C` | cite a source at the caret (paste a link to add and cite in one) |
 | `P` | promote the board selection into a Library project |

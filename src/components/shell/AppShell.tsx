@@ -8,9 +8,13 @@ import { Toast } from "@/components/ui/Toast";
 import { InlineAI } from "@/components/ai/InlineAI";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
+import { useAppearanceSync } from "@/lib/theme-store";
 import type { BlockType } from "@/lib/types";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  // Keeps <html data-*> in step with stored preferences.
+  useAppearanceSync();
+
   const { togglePalette, toggleSidebar, setSidebarOpen, openAI, closeAI, closePalette } =
     useUI();
   const params = useParams<{ projectId?: string }>();

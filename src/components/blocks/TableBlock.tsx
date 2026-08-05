@@ -221,7 +221,7 @@ export function TableBlock({ projectId, block }: Props) {
                     className="border-r border-line px-2.5 py-1.5 last:border-r-0"
                   >
                     {i === 0 ? (
-                      <span className="label-mono">
+                      <span className="text-[11px] text-fg-subtle">
                         {block.rows.length} row{block.rows.length === 1 ? "" : "s"}
                       </span>
                     ) : totals[column.id] !== null ? (

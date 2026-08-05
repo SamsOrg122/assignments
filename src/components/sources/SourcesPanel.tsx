@@ -78,7 +78,7 @@ export function SourcesPanel({
     <aside className="fixed top-12 right-0 bottom-0 z-30 flex w-[320px] flex-col border-l border-line bg-surface/95 backdrop-blur print:hidden">
       <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
         <Icon name="quote" size={13} className="text-fg-subtle" />
-        <span className="label-mono !text-fg-muted">Sources</span>
+        <span className="label-mono">Sources</span>
         <button
           type="button"
           onClick={onClose}

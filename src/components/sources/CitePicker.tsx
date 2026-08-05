@@ -198,10 +198,6 @@ export function CitePicker({
         )}
       </div>
 
-      <p className="border-t border-line px-2.5 py-1.5 font-mono text-[9.5px] text-fg-subtle">
-        {sources.length} source{sources.length === 1 ? "" : "s"} ·{" "}
-        {style.toUpperCase()} · ↵ to cite
-      </p>
     </div>
   );
 }

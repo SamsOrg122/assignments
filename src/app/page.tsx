@@ -13,7 +13,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProjects, useHydrated } from "@/lib/store";
-import { useUI } from "@/lib/ui-store";
 import { KINDS, KIND_ORDER } from "@/lib/kinds";
 import { fuzzyMatch } from "@/lib/fuzzy";
 import { TopBar } from "@/components/shell/TopBar";
@@ -28,7 +27,6 @@ export default function LibraryPage() {
   const projects = useProjects((s) => s.projects);
   const addProject = useProjects((s) => s.addProject);
   const hydrated = useHydrated();
-  const openPalette = useUI((s) => s.openPalette);
   const router = useRouter();
 
   const [query, setQuery] = useState("");
@@ -179,16 +177,6 @@ export default function LibraryPage() {
             </ul>
           )}
 
-          <p className="mt-4 font-mono text-[10px] text-fg-subtle">
-            {rows.length} of {projects.length} ·{" "}
-            <button
-              type="button"
-              onClick={() => openPalette("new ")}
-              className="underline underline-offset-2 transition-colors hover:text-fg-muted"
-            >
-              ⌘K → “new thesis”, “new board”
-            </button>
-          </p>
         </div>
       </main>
     </>

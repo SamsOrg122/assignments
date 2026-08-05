@@ -16,13 +16,7 @@ import { KINDS } from "@/lib/kinds";
 import { firstLine, projectSummary } from "@/lib/summary";
 import { Icon } from "@/components/ui/Icon";
 
-export function ProjectCardBody({
-  projectId,
-  scale,
-}: {
-  projectId: string;
-  scale: number;
-}) {
+export function ProjectCardBody({ projectId }: { projectId: string }) {
   const project = useProjects((s) => s.projects.find((p) => p.id === projectId));
 
   if (!project)
@@ -59,12 +53,6 @@ export function ProjectCardBody({
         </p>
       </div>
 
-      {/* The hint only helps when the card is legible; hide it when zoomed out. */}
-      {scale > 0.55 && (
-        <p className="border-t border-line px-2.5 py-1 font-mono text-[9px] text-fg-subtle">
-          double-click to open
-        </p>
-      )}
     </div>
   );
 }

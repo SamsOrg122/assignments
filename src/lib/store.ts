@@ -31,9 +31,13 @@ import {
   type CitationStyle,
   type Row,
   type Snapshot,
+  type SortKey,
   type Source,
   type TableBlock,
+  type TableFilter,
+  type FormatRule,
   type Typography,
+  sortsOf,
 } from "./types";
 import {
   createBoardItem,
@@ -139,7 +143,21 @@ interface ProjectsState {
     patch: Partial<Column>,
   ) => void;
   removeColumn: (projectId: string, blockId: string, columnId: string) => void;
-  setSort: (projectId: string, blockId: string, columnId: string) => void;
+  setSort: (
+    projectId: string,
+    blockId: string,
+    columnId: string,
+    additive?: boolean,
+  ) => void;
+  setFilters: (projectId: string, blockId: string, filters: TableFilter[]) => void;
+  setFormats: (projectId: string, blockId: string, formats: FormatRule[]) => void;
+  setFreeze: (projectId: string, blockId: string, freeze: boolean) => void;
+  addRows: (projectId: string, blockId: string, count: number) => string[];
+  setCells: (
+    projectId: string,
+    blockId: string,
+    writes: Array<{ rowId: string; columnId: string; value: CellValue }>,
+  ) => void;
   /**
    * Add a column whose values are supplied wholesale, optionally appending
    * rows. One action, so an accepted AI suggestion is a single undo-able step
@@ -706,7 +724,13 @@ export const useProjects = create<ProjectsState>()(
                     delete cells[columnId];
                     return { ...r, cells };
                   }),
-                  sort: t.sort?.columnId === columnId ? null : t.sort,
+                  sort: sortsOf(t).filter((k) => k.columnId !== columnId),
+                  filters: (t.filters ?? []).filter(
+                    (f) => f.columnId !== columnId,
+                  ),
+                  formats: (t.formats ?? []).filter(
+                    (f) => f.columnId !== columnId,
+                  ),
                 }));
               // Charts plotting the dropped column must forget it too.
               if (b.type === "chart" && b.sourceId === blockId)
@@ -720,16 +744,94 @@ export const useProjects = create<ProjectsState>()(
           ),
         })),
 
-      setSort: (projectId, blockId, columnId) =>
+      setSort: (projectId, blockId, columnId, additive) =>
         set((s) => ({
           projects: mapBlock(s.projects, projectId, blockId, (b) =>
             onTable(b, (t) => {
-              // asc → desc → unsorted
-              if (t.sort?.columnId !== columnId)
-                return { ...t, sort: { columnId, dir: "asc" } };
-              if (t.sort.dir === "asc")
-                return { ...t, sort: { columnId, dir: "desc" } };
-              return { ...t, sort: null };
+              const keys = sortsOf(t);
+              const at = keys.findIndex((k) => k.columnId === columnId);
+
+              // Plain click: this column becomes the whole sort, cycling
+              // asc → desc → unsorted. Shift-click keeps the other keys, so
+              // "by status, then by date" is two clicks rather than a dialog.
+              const cycled: SortKey | null =
+                at === -1
+                  ? { columnId, dir: "asc" }
+                  : keys[at].dir === "asc"
+                    ? { columnId, dir: "desc" }
+                    : null;
+
+              if (!additive)
+                return { ...t, sort: cycled ? [cycled] : [] };
+
+              const rest = keys.filter((k) => k.columnId !== columnId);
+              return { ...t, sort: cycled ? [...rest, cycled] : rest };
+            }),
+          ),
+        })),
+
+      setFilters: (projectId, blockId, filters) =>
+        set((s) => ({
+          projects: mapBlock(s.projects, projectId, blockId, (b) =>
+            onTable(b, (t) => ({ ...t, filters })),
+          ),
+        })),
+
+      setFormats: (projectId, blockId, formats) =>
+        set((s) => ({
+          projects: mapBlock(s.projects, projectId, blockId, (b) =>
+            onTable(b, (t) => ({ ...t, formats })),
+          ),
+        })),
+
+      setFreeze: (projectId, blockId, freeze) =>
+        set((s) => ({
+          projects: mapBlock(s.projects, projectId, blockId, (b) =>
+            onTable(b, (t) => ({ ...t, freeze })),
+          ),
+        })),
+
+      addRows: (projectId, blockId, count) => {
+        const ids: string[] = [];
+        set((s) => ({
+          projects: mapBlock(s.projects, projectId, blockId, (b) =>
+            onTable(b, (t) => {
+              const fresh = Array.from({ length: count }, () => {
+                const id = uid();
+                ids.push(id);
+                return { id, cells: {} };
+              });
+              return { ...t, rows: [...t.rows, ...fresh] };
+            }),
+          ),
+        }));
+        return ids;
+      },
+
+      /**
+       * One commit for a whole paste or fill. Cell-by-cell writes would make
+       * a 200-cell paste 200 history entries and 200 renders.
+       */
+      setCells: (projectId, blockId, writes) =>
+        set((s) => ({
+          projects: mapBlock(s.projects, projectId, blockId, (b) =>
+            onTable(b, (t) => {
+              const byRow = new Map<string, Array<{ columnId: string; value: CellValue }>>();
+              for (const w of writes) {
+                const list = byRow.get(w.rowId) ?? [];
+                list.push(w);
+                byRow.set(w.rowId, list);
+              }
+              return {
+                ...t,
+                rows: t.rows.map((r) => {
+                  const hits = byRow.get(r.id);
+                  if (!hits) return r;
+                  const cells = { ...r.cells };
+                  for (const h of hits) cells[h.columnId] = h.value;
+                  return { ...r, cells };
+                }),
+              };
             }),
           ),
         })),

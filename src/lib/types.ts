@@ -32,7 +32,23 @@ export interface TextBlock extends BlockBase {
 
 /* ── Table ──────────────────────────────────────────────── */
 
-export type ColumnType = "text" | "number" | "date" | "formula";
+export type ColumnType =
+  | "text"
+  | "number"
+  | "currency"
+  | "percent"
+  | "date"
+  | "checkbox"
+  | "select"
+  | "formula";
+
+/** The types whose cells hold numbers and can feed charts and aggregates. */
+export const NUMERIC_COLUMN_TYPES: ReadonlySet<ColumnType> = new Set([
+  "number",
+  "currency",
+  "percent",
+  "formula",
+]);
 
 export interface Column {
   id: string;
@@ -41,6 +57,8 @@ export interface Column {
   /** Row-level expression for `type: "formula"`, e.g. `[units] * [price]`. */
   formula?: string;
   width?: number;
+  /** The choices a `select` column offers. Order is display order. */
+  options?: string[];
 }
 
 export type CellValue = string | number | null;
@@ -51,12 +69,57 @@ export interface Row {
   cells: Record<string, CellValue>;
 }
 
+/** One sort key. Multi-column sort is an ordered list of these. */
+export interface SortKey {
+  columnId: string;
+  dir: "asc" | "desc";
+}
+
+export type FilterOp =
+  | "contains"
+  | "eq"
+  | "neq"
+  | "gt"
+  | "lt"
+  | "empty"
+  | "notEmpty";
+
+export interface TableFilter {
+  id: string;
+  columnId: string;
+  op: FilterOp;
+  /** Unused for empty/notEmpty. */
+  value?: string;
+}
+
+/** Conditional formatting: colour a cell when its value passes a test. */
+export interface FormatRule {
+  id: string;
+  columnId: string;
+  op: "gt" | "lt" | "eq" | "contains";
+  value: string;
+  tone: "accent" | "mint" | "warn" | "danger";
+}
+
 export interface TableBlock extends BlockBase {
   type: "table";
   columns: Column[];
   rows: Row[];
-  /** View-only sort. Never mutates row order in the source data. */
-  sort?: { columnId: string; dir: "asc" | "desc" } | null;
+  /**
+   * View-only sort, in priority order. Never mutates row order in the data.
+   * Older documents stored a single object here; `sortsOf` normalises.
+   */
+  sort?: SortKey[] | { columnId: string; dir: "asc" | "desc" } | null;
+  filters?: TableFilter[];
+  formats?: FormatRule[];
+  /** Keep the first column in view while scrolling horizontally. */
+  freeze?: boolean;
+}
+
+/** Sort as a list, whatever vintage the stored shape is. */
+export function sortsOf(block: TableBlock): SortKey[] {
+  if (!block.sort) return [];
+  return Array.isArray(block.sort) ? block.sort : [block.sort];
 }
 
 /* ── Chart ──────────────────────────────────────────────── */

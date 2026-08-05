@@ -27,7 +27,7 @@ type Token =
   | { k: "name"; v: string }
   | { k: "op"; v: string };
 
-const OPS = new Set(["+", "-", "*", "/", "%", "^", "(", ")", ","]);
+const OPS = new Set(["+", "-", "*", "/", "%", "^", "(", ")", ",", ">", "<", "="]);
 
 function tokenize(src: string): Token[] {
   const out: Token[] = [];
@@ -62,6 +62,13 @@ function tokenize(src: string): Token[] {
       continue;
     }
     if (OPS.has(c)) {
+      // Two-character comparisons first: >= <= <>
+      const pair = src.slice(i, i + 2);
+      if (pair === ">=" || pair === "<=" || pair === "<>") {
+        out.push({ k: "op", v: pair });
+        i += 2;
+        continue;
+      }
       out.push({ k: "op", v: c });
       i++;
       continue;
@@ -77,11 +84,25 @@ interface Scope {
   cell(name: string): number;
   /** Every numeric value of `name` across the table, for aggregates. */
   column(name: string): number[];
+  /**
+   * VLOOKUP's honest core: find `key` in one column, return the value beside
+   * it in another. Exact match; the first hit wins.
+   */
+  lookup(key: number, keyColumn: string, resultColumn: string): number;
 }
+
+const median = (xs: number[]) => {
+  if (!xs.length) return 0;
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
 
 const AGGREGATES: Record<string, (xs: number[]) => number> = {
   SUM: (xs) => xs.reduce((a, b) => a + b, 0),
   AVG: (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0),
+  AVERAGE: (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0),
+  MEDIAN: median,
   MIN: (xs) => (xs.length ? Math.min(...xs) : 0),
   MAX: (xs) => (xs.length ? Math.max(...xs) : 0),
   COUNT: (xs) => xs.length,
@@ -110,6 +131,30 @@ function parse(tokens: Token[], scope: Scope): number {
   };
 
   function expr(): number {
+    return comparison();
+  }
+
+  /** Comparisons produce 1 or 0, spreadsheet-style, so IF can consume them. */
+  function comparison(): number {
+    let left = additive();
+    for (;;) {
+      const t = peek();
+      if (t?.k === "op" && ["<", ">", "<=", ">=", "=", "<>"].includes(t.v)) {
+        p++;
+        const right = additive();
+        const hit =
+          t.v === "<" ? left < right
+          : t.v === ">" ? left > right
+          : t.v === "<=" ? left <= right
+          : t.v === ">=" ? left >= right
+          : t.v === "=" ? left === right
+          : left !== right;
+        left = hit ? 1 : 0;
+      } else return left;
+    }
+  }
+
+  function additive(): number {
     let left = term();
     for (;;) {
       const t = peek();
@@ -181,6 +226,24 @@ function parse(tokens: Token[], scope: Scope): number {
       const fn = t.v;
       p++;
       eat("(");
+
+      // LOOKUP(value, [key column], [result column]) — three args, two of
+      // them column references, so it parses specially like the aggregates.
+      if (fn === "LOOKUP") {
+        const key = expr();
+        eat(",");
+        const keyCol = peek();
+        if (!keyCol || keyCol.k !== "ref")
+          throw new Error("LOOKUP expects a [key column]");
+        p++;
+        eat(",");
+        const resCol = peek();
+        if (!resCol || resCol.k !== "ref")
+          throw new Error("LOOKUP expects a [result column]");
+        p++;
+        eat(")");
+        return scope.lookup(key, keyCol.v, resCol.v);
+      }
 
       // Aggregates fold a whole column rather than evaluating an expression.
       const agg = AGGREGATES[fn];
@@ -276,6 +339,18 @@ export function computeFormulas(
             return toNumber(row.cells[target.id]);
           },
           column: columnValues,
+          lookup: (key, keyName, resName) => {
+            const keyCol = byName.get(keyName.toLowerCase());
+            const resCol = byName.get(resName.toLowerCase());
+            if (!keyCol || !resCol) throw new Error("unknown column");
+            if (keyCol.type === "formula" || resCol.type === "formula")
+              throw new Error("formula → formula reference");
+            const hit = rows.find(
+              (r) => toNumber(r.cells[keyCol.id]) === key,
+            );
+            if (!hit) throw new Error("no match");
+            return toNumber(hit.cells[resCol.id]);
+          },
         });
         rowOut[col.id] = Number.isFinite(value)
           ? Math.round(value * 1e6) / 1e6
@@ -303,7 +378,7 @@ export function checkFormula(
       if (t.k === "ref" && !names.has(t.v.toLowerCase()))
         return `Unknown column [${t.v}]`;
     }
-    parse(tokens, { cell: () => 1, column: () => [1] });
+    parse(tokens, { cell: () => 1, column: () => [1], lookup: () => 1 });
     return null;
   } catch (e) {
     return e instanceof Error ? e.message : "Invalid formula";

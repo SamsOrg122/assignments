@@ -33,6 +33,7 @@ import type {
 } from "@/lib/types";
 import { useProjects } from "@/lib/store";
 import { computeFormulas, toNumber } from "@/lib/formula";
+import { NUMERIC_COLUMN_TYPES } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 
@@ -114,7 +115,7 @@ export function ChartBlock({
   }, [source, block.xColumnId, block.yColumnIds]);
 
   const plottable = source?.columns.filter(
-    (c) => c.type === "number" || c.type === "formula",
+    (c) => NUMERIC_COLUMN_TYPES.has(c.type),
   );
 
   if (tables.length === 0) {
@@ -136,7 +137,7 @@ export function ChartBlock({
               type="button"
               onClick={() => {
                 const numeric = t.columns.filter(
-                  (c) => c.type === "number" || c.type === "formula",
+                  (c) => NUMERIC_COLUMN_TYPES.has(c.type),
                 );
                 updateBlock<ChartBlockModel>(projectId, block.id, {
                   sourceId: t.id,
@@ -164,7 +165,7 @@ export function ChartBlock({
             onChange={(id) => {
               const t = tables.find((x) => x.id === id);
               const numeric =
-                t?.columns.filter((c) => c.type === "number" || c.type === "formula") ??
+                t?.columns.filter((c) => NUMERIC_COLUMN_TYPES.has(c.type)) ??
                 [];
               updateBlock<ChartBlockModel>(projectId, block.id, {
                 sourceId: id,

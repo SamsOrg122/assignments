@@ -109,7 +109,7 @@ export function Sidebar() {
       >
         <div className="flex h-12 shrink-0 items-center gap-2 px-3">
           <Link
-            href="/"
+            href="/library"
             className="flex items-center gap-2 rounded-sm px-1 py-1 text-[13px] font-medium tracking-[-0.01em] text-fg"
           >
             <span
@@ -144,7 +144,7 @@ export function Sidebar() {
 
         <nav className="flex shrink-0 flex-col gap-0.5 px-2.5 pb-3">
           <NavLink
-            href="/"
+            href="/library"
             icon="home"
             label="Library"
             active={!activeProject && !onChat && pathname === "/"}

@@ -214,7 +214,7 @@ export default function SettingsPage() {
               onClick={() => {
                 resetWorkspace();
                 notify("Workspace reset to the samples");
-                router.push("/");
+                router.push("/library");
               }}
               className="flex items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-danger/50 hover:text-danger"
             >

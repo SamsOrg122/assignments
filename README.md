@@ -1,5 +1,7 @@
 # Assignments
 
+`/` is the public landing page. The app lives at `/library`.
+
 Everything, in one. Two layers with a clear line between them:
 
 - **Library** — sorted, findable, finished work. Every project has a real type
@@ -21,8 +23,11 @@ persists to `localStorage` from then on (⌘K → "Reset workspace" restores the
 
 ```
 src/
-  app/                    / (Library) · /p/[id] · /chat/[id] · /team · /settings
+  app/
+    (marketing)/          / — the public landing page, no app shell
+    (app)/                /library · /p/[id] · /chat/[id] · /team · /settings
   components/
+    landing/              hero, product, impact, pricing, estimator, footer
     shell/                sidebar, top bar, ⌘K command palette
     editors/              one per project kind + typography, deck style, dictation
     chat/                 message list, composer, threads, team assistant
@@ -41,6 +46,8 @@ src/
     summary.ts            word counts, outlines, one-line descriptions
     appearance.ts         theme tokens + the pre-paint boot script
     theme-store.ts        appearance store, synced to <html data-*>
+    impact/               ← every price, share and euro→tree rate lives here
+    visuals/              landing-page asset slots + the generateVisual seam
     team/                 workspace, members, roles, permissions, memory
     files/                ingestFile seam — text extraction for AI context
     deck-themes.ts        five deck looks, each as --slide-* properties
@@ -98,6 +105,39 @@ reflects the project rather than being a dead link to another tool. `#` in the
 composer attaches one, and ⌘K can share the project you're in without leaving
 the keyboard. Channels, DMs, threads, reactions, typing indicators and unread
 counts all sit behind a websocket-shaped `ChatProvider`.
+
+**The landing page argues with numbers, not adjectives.** `/` is a route group
+of its own — no sidebar, no palette, no stores — so a visitor who hasn't opened
+the tool doesn't pay to hydrate it. Every price, share and euro→tree rate on it
+resolves from `lib/impact/config.ts`; there is no arithmetic in a component
+that isn't layout. The estimator is pure front-end maths against that config
+and swaps for real billing behind `estimate()`.
+
+**Nothing unverified is presented as verified.** Each figure in the config
+carries a `status`, and anything still `"placeholder"` renders with a visible
+*provisional* marker plus a panel headed "What we can't tell you yet" — no
+partner appointed, per-tree cost an estimate, nobody has audited us. The
+"funded so far" counter reads a `getImpactLedger()` seam that ships reporting
+*nothing*, because on day one nothing has been funded and a counter spinning up
+to an invented number is the exact move that makes people stop believing
+environmental claims. The page states the 95% we keep as plainly as the 5% we
+give. Flip a `status` to `"confirmed"` in one file and the markers disappear on
+their own.
+
+**The pricing model has an invariant, and it's written down.** A plan's
+included AI allowance must be worth less at the metered rate than the plan
+costs — otherwise a seat is a cheaper way to buy credits than credits are, and
+a Team customer lowers their bill by adding seats they don't need. It's a
+comment in `config.ts` and an assertion in the smoke suite because the first
+draft of these numbers had exactly that bug.
+
+**Visuals are slots, not hard-coded art.** `lib/visuals/slots.ts` declares each
+image position with the prompt it was generated from; `generateVisual()` is the
+Higgsfield seam, deliberately design-time rather than a live call on someone's
+first page view. Ambient slots paint as backgrounds with the hand-built graphic
+*underneath*, so an unreachable asset degrades to crafted vector instead of a
+broken-image box. Half the page is meant to be hand-made — that mix is the
+brand argument: AI where it shines, design everywhere.
 
 **A team is a record, not a member list.** `/team` holds who is here, what they
 may do, what the group knows and what it has read — and those last two are

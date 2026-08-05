@@ -45,7 +45,7 @@ export default function ProjectPage() {
             It may have been deleted from this browser.
           </p>
           <Link
-            href="/"
+            href="/library"
             className="mt-4 inline-block text-[13px] text-accent transition-opacity hover:opacity-80"
           >
             Back to the library

@@ -301,7 +301,7 @@ function PaletteDialog({ seed }: { seed: string }) {
         run: () => {
           deleteProject(project.id);
           notify("Project deleted");
-          router.push("/");
+          router.push("/library");
         },
       });
 
@@ -464,7 +464,7 @@ function PaletteDialog({ seed }: { seed: string }) {
         group: "Navigate",
         icon: "home",
         keywords: "projects list index dashboard home",
-        run: () => router.push("/"),
+        run: () => router.push("/library"),
       },
       {
         id: "settings:sidebar",
@@ -485,7 +485,7 @@ function PaletteDialog({ seed }: { seed: string }) {
         run: () => {
           resetWorkspace();
           notify("Workspace reset");
-          router.push("/");
+          router.push("/library");
         },
       },
     );

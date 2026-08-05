@@ -2,13 +2,15 @@ import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
-import { AppShell } from "@/components/shell/AppShell";
 import { APPEARANCE_BOOT_SCRIPT } from "@/lib/appearance";
 
 export const metadata: Metadata = {
-  title: "Assignments",
+  title: {
+    default: "Assignments — everything, in one",
+    template: "%s · Assignments",
+  },
   description:
-    "Everything, in one. Projects made of blocks — prose, tables, charts, slides and code on a single canvas.",
+    "A beautiful, AI-native workspace for entrepreneurs and students. Write, present, draw and organise in one place — and a fixed share of every euro is set aside for planting trees.",
 };
 
 export const viewport: Viewport = {
@@ -34,7 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           which is exactly the behaviour wanted here: this runs once, at load.
         */}
         <script dangerouslySetInnerHTML={{ __html: APPEARANCE_BOOT_SCRIPT }} />
-        <AppShell>{children}</AppShell>
+        {children}
       </body>
     </html>
   );

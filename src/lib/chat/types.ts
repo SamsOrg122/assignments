@@ -19,17 +19,46 @@
  */
 export type ChannelKind = "channel" | "dm" | "ai";
 
+/**
+ * How a channel is entered.
+ *
+ * `closed` channels ask for a passcode. Read the note on `passcodeHash` before
+ * treating that as security — it isn't, and the UI says so.
+ */
+export type ChannelAccess = "open" | "closed";
+
 export interface Channel {
   id: string;
   kind: ChannelKind;
   /** Channels have names; DMs derive theirs from members. */
   name: string;
   topic?: string;
+  /** A longer description, shown in channel settings and on the join gate. */
+  description?: string;
   /** Collaborator ids, including the local user. */
   memberIds: string[];
   createdAt: number;
+  createdBy?: string;
   /** Private channels are listed only to members. */
   isPrivate?: boolean;
+
+  access?: ChannelAccess;
+  /**
+   * SHA-256 of the passcode, so the code itself is never written to storage.
+   *
+   * This is a latch, not a lock. The messages are not encrypted, and anyone
+   * who can read this browser's storage — or, later, the API — can read the
+   * channel without ever seeing the gate. It keeps a closed group out of the
+   * way of people who shouldn't wander in; it does not keep anything out of
+   * reach. Real access control belongs on the server, behind the same
+   * `ChatProvider` seam as everything else, and the UI states this plainly
+   * rather than implying a guarantee we can't make.
+   */
+  passcodeHash?: string;
+  /** Shareable join token. Rotating it invalidates every old link. */
+  invite?: { token: string; createdAt: number };
+  /** Archived channels drop out of the sidebar but keep their history. */
+  archived?: boolean;
 }
 
 /** A live reference to something in the workspace. */

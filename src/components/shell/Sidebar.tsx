@@ -12,6 +12,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useProjects } from "@/lib/store";
+import { useMenu, type MenuItem } from "@/components/ui/Menu";
+import { ProjectSettings } from "./ProjectSettings";
+import { ChannelSettings } from "@/components/chat/ChannelSettings";
+import { projectMenu } from "@/lib/project-menu";
 import { useUI } from "@/lib/ui-store";
 import { useAppearance } from "@/lib/theme-store";
 import {
@@ -44,6 +48,70 @@ export function Sidebar() {
   const [newChannel, setNewChannel] = useState(false);
   const [channelName, setChannelName] = useState("");
   const [showAllProjects, setShowAllProjects] = useState(false);
+  const notify = useUI.getState().notify;
+  const menu = useMenu();
+  const [settingsFor, setSettingsFor] = useState<string | null>(null);
+  const [channelSettingsFor, setChannelSettingsFor] = useState<string | null>(null);
+  const settingsProject = projects.find((p) => p.id === settingsFor);
+  const settingsChannel = channels.find((c) => c.id === channelSettingsFor);
+
+  const channelMenu = (channelId: string): MenuItem[] => {
+    const chat = useChat.getState();
+    const channel = chat.channels.find((c) => c.id === channelId);
+    if (!channel) return [];
+    const closed = channel.access === "closed" && Boolean(channel.passcodeHash);
+    return [
+      {
+        kind: "item",
+        label: "Open",
+        icon: "arrow-right",
+        onSelect: () => router.push(`/chat/${channelId}`),
+      },
+      {
+        kind: "item",
+        label: "Mark as read",
+        icon: "check",
+        onSelect: () => chat.markRead(channelId),
+      },
+      { kind: "separator" },
+      {
+        kind: "item",
+        label: "Settings…",
+        icon: "settings",
+        onSelect: () => setChannelSettingsFor(channelId),
+      },
+      {
+        kind: "item",
+        label: closed ? "Copy invite link" : "Create invite link",
+        icon: "copy",
+        onSelect: () => {
+          const token =
+            channel.invite?.token ?? chat.rotateInvite(channelId);
+          void navigator.clipboard?.writeText(
+            `${window.location.origin}/chat/${channelId}?join=${token}`,
+          );
+          notify("Invite link copied");
+        },
+      },
+      { kind: "separator" },
+      {
+        kind: "item",
+        label: channel.archived ? "Restore" : "Archive",
+        icon: "history",
+        onSelect: () => chat.setArchived(channelId, !channel.archived),
+      },
+      {
+        kind: "item",
+        label: "Leave",
+        icon: "x",
+        danger: true,
+        onSelect: () => {
+          chat.leaveChannel(channelId);
+          notify(`You left #${channel.name}`);
+        },
+      },
+    ];
+  };
 
   const activeProject = params?.projectId;
   const activeChannel = params?.channelId?.[0];
@@ -58,9 +126,15 @@ export function Sidebar() {
     const byRecency = (a: { at: number }, b: { at: number }) => b.at - a.at;
     return {
       assistant: withMeta.find((c) => c.channel.kind === "ai"),
-      rooms: withMeta.filter((c) => c.channel.kind === "channel").sort(byRecency),
+      // Archived channels keep their history but leave the sidebar; you find
+      // them again through ⌘K or by restoring them.
+      rooms: withMeta
+        .filter((c) => c.channel.kind === "channel" && !c.channel.archived)
+        .sort(byRecency),
       dms: withMeta.filter((c) => c.channel.kind === "dm").sort(byRecency),
-      totalUnread: withMeta.reduce((n, c) => n + c.unread, 0),
+      totalUnread: withMeta
+        .filter((c) => !c.channel.archived)
+        .reduce((n, c) => n + c.unread, 0),
     };
   }, [channels, messages, readAt]);
 
@@ -87,6 +161,20 @@ export function Sidebar() {
 
   return (
     <>
+      {menu.node}
+      {settingsProject && (
+        <ProjectSettings
+          project={settingsProject}
+          onClose={() => setSettingsFor(null)}
+        />
+      )}
+      {settingsChannel && (
+        <ChannelSettings
+          channel={settingsChannel}
+          onClose={() => setChannelSettingsFor(null)}
+        />
+      )}
+
       <div
         className={cn(
           "fixed inset-0 z-30 bg-black/60 transition-opacity duration-200 lg:hidden",
@@ -200,6 +288,16 @@ export function Sidebar() {
                 <Link
                   href={`/p/${p.id}`}
                   onClick={closeOnMobile}
+                  onContextMenu={(e) =>
+                    menu.open(
+                      e,
+                      projectMenu(p, {
+                        open: (id) => router.push(`/p/${id}`),
+                        settings: () => setSettingsFor(p.id),
+                        rename: () => setSettingsFor(p.id),
+                      }),
+                    )
+                  }
                   className={cn(
                     "flex items-center gap-2 rounded-md px-2 text-[13px] transition-colors duration-150",
                     "py-[var(--ui-row-y)]",
@@ -254,7 +352,13 @@ export function Sidebar() {
                   label={`# ${channel.name}`}
                   active={channel.id === activeChannel}
                   unread={unread}
+                  locked={
+                    channel.access === "closed" && Boolean(channel.passcodeHash)
+                  }
                   onNavigate={closeOnMobile}
+                  onContextMenu={(e) =>
+                    menu.open(e, channelMenu(channel.id))
+                  }
                 />
               </li>
             ))}
@@ -373,19 +477,24 @@ function ChannelLink({
   active,
   unread,
   dot,
+  locked,
   onNavigate,
+  onContextMenu,
 }: {
   href: string;
   label: string;
   active: boolean;
   unread: number;
   dot?: string;
+  locked?: boolean;
   onNavigate?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   return (
     <Link
       href={href}
       onClick={onNavigate}
+      onContextMenu={onContextMenu}
       className={cn(
         "flex items-center gap-2 rounded-md px-2 text-[13px] transition-colors duration-150",
         "py-[var(--ui-row-y)]",
@@ -396,6 +505,14 @@ function ChannelLink({
             : "text-fg-muted hover:bg-surface hover:text-fg",
       )}
     >
+      {locked && (
+        <Icon
+          name="focus"
+          size={10}
+          aria-label="Closed group"
+          className="shrink-0 text-fg-subtle"
+        />
+      )}
       {dot && (
         <span
           aria-hidden="true"

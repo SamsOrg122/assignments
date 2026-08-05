@@ -16,6 +16,10 @@ import { useProjects, useHydrated } from "@/lib/store";
 import { KINDS, KIND_ORDER } from "@/lib/kinds";
 import { fuzzyMatch } from "@/lib/fuzzy";
 import { TopBar } from "@/components/shell/TopBar";
+import { useMenu } from "@/components/ui/Menu";
+import { ProjectSettings } from "@/components/shell/ProjectSettings";
+import { projectMenu } from "@/lib/project-menu";
+import { Button, Dialog, fieldClass } from "@/components/ui/Dialog";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 import type { Project, ProjectKind } from "@/lib/types";
@@ -29,9 +33,25 @@ export default function LibraryPage() {
   const hydrated = useHydrated();
   const router = useRouter();
 
+  const menu = useMenu();
+  const [settingsFor, setSettingsFor] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<ProjectKind | "all">("all");
   const [sort, setSort] = useState<Sort>("recent");
+
+  const openMenu = (e: React.MouseEvent, project: Project) =>
+    menu.open(
+      e,
+      projectMenu(project, {
+        open: (id) => router.push(`/p/${id}`),
+        settings: () => setSettingsFor(project.id),
+        rename: () => setRenaming(project.id),
+      }),
+    );
+
+  const settingsProject = projects.find((p) => p.id === settingsFor);
+  const renamingProject = projects.find((p) => p.id === renaming);
 
   const counts = useMemo(() => {
     const map = new Map<ProjectKind, number>();
@@ -68,6 +88,20 @@ export default function LibraryPage() {
 
   return (
     <>
+      {menu.node}
+      {settingsProject && (
+        <ProjectSettings
+          project={settingsProject}
+          onClose={() => setSettingsFor(null)}
+        />
+      )}
+      {renamingProject && (
+        <RenameDialog
+          project={renamingProject}
+          onClose={() => setRenaming(null)}
+        />
+      )}
+
       <TopBar
         right={
           <NewProjectButton onCreate={create} />
@@ -171,7 +205,11 @@ export default function LibraryPage() {
             <ul className="overflow-hidden rounded-lg border border-line">
               {rows.map(({ project }) => (
                 <li key={project.id}>
-                  <LibraryRow project={project} showTime={hydrated} />
+                  <LibraryRow
+                    project={project}
+                    showTime={hydrated}
+                    onMenu={openMenu}
+                  />
                 </li>
               ))}
             </ul>
@@ -186,9 +224,11 @@ export default function LibraryPage() {
 function LibraryRow({
   project,
   showTime,
+  onMenu,
 }: {
   project: Project;
   showTime: boolean;
+  onMenu: (e: React.MouseEvent, project: Project) => void;
 }) {
   const meta = KINDS[project.kind];
   const summary = projectSummary(project);
@@ -197,6 +237,7 @@ function LibraryRow({
     <Link
       href={`/p/${project.id}`}
       prefetch
+      onContextMenu={(e) => onMenu(e, project)}
       className={cn(
         "group flex items-center gap-3 border-b border-line bg-surface px-3.5 py-3 last:border-b-0",
         "transition-colors duration-150 hover:bg-surface-2",
@@ -335,4 +376,52 @@ function relativeTime(ts: number): string {
     month: "short",
     day: "numeric",
   });
+}
+
+/**
+ * Rename on its own, because renaming is the one thing people do to a project
+ * far more often than everything else in settings put together.
+ */
+function RenameDialog({
+  project,
+  onClose,
+}: {
+  project: Project;
+  onClose: () => void;
+}) {
+  const rename = useProjects((s) => s.renameProject);
+  const [name, setName] = useState(project.name);
+
+  const commit = () => {
+    const next = name.trim();
+    if (next) rename(project.id, next);
+    onClose();
+  };
+
+  return (
+    <Dialog
+      title="Rename project"
+      onClose={onClose}
+      width={420}
+      footer={
+        <>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={commit} disabled={!name.trim()}>
+            Rename
+          </Button>
+        </>
+      }
+    >
+      <input
+        value={name}
+        autoFocus
+        aria-label="Project name"
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+        }}
+        className={fieldClass}
+      />
+    </Dialog>
+  );
 }

@@ -6,6 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { Block, PeerState } from "@/lib/types";
 import { useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
+import { useMenu, type MenuItem } from "@/components/ui/Menu";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { BLOCK_META } from "@/components/shell/CommandPalette";
@@ -30,15 +31,76 @@ export function BlockShell({
   minimal?: boolean;
 }) {
   const removeBlock = useProjects((s) => s.removeBlock);
+  const moveBlock = useProjects((s) => s.moveBlock);
   const duplicateBlock = useProjects((s) => s.duplicateBlock);
   const updateBlock = useProjects((s) => s.updateBlock);
   const openAI = useUI((s) => s.openAI);
   const setFocusedBlock = useUI((s) => s.setFocusedBlock);
   const focusedBlockId = useUI((s) => s.focusedBlockId);
 
+  const context = useMenu();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  /** The actions this block has, wherever it is in the document. */
+  const blockMenu = (): MenuItem[] => {
+    const project = useProjects.getState().projects.find((p) => p.id === projectId);
+    const index = project?.blocks.findIndex((b) => b.id === block.id) ?? -1;
+    const total = project?.blocks.length ?? 0;
+
+    return [
+      {
+        kind: "item",
+        label: "Ask AI about this",
+        icon: "sparkle",
+        shortcut: "⌘J",
+        onSelect: () => {
+          const rect = rootRef.current?.getBoundingClientRect();
+          openAI({
+            projectId,
+            blockId: block.id,
+            blockType: block.type,
+            selectionText: "",
+            anchor: {
+              x: rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+              y: rect ? rect.top + 40 : 140,
+            },
+          });
+        },
+      },
+      { kind: "separator" },
+      {
+        kind: "item",
+        label: "Move up",
+        icon: "arrow-up",
+        disabled: index <= 0,
+        onSelect: () => moveBlock(projectId, index, index - 1),
+      },
+      {
+        kind: "item",
+        label: "Move down",
+        icon: "chevron-down",
+        disabled: index < 0 || index >= total - 1,
+        onSelect: () => moveBlock(projectId, index, index + 1),
+      },
+      {
+        kind: "item",
+        label: "Duplicate",
+        icon: "copy",
+        onSelect: () => duplicateBlock(projectId, block.id),
+      },
+      { kind: "separator" },
+      {
+        kind: "item",
+        label: "Delete block",
+        icon: "trash",
+        danger: true,
+        disabled: total <= 1,
+        onSelect: () => removeBlock(projectId, block.id),
+      },
+    ];
+  };
 
   const {
     attributes,
@@ -92,6 +154,13 @@ export function BlockShell({
       id={`block-${block.id}`}
       data-block-id={block.id}
       data-block-type={block.type}
+      onContextMenu={(e) => {
+        // Let the browser's own menu win inside a text selection — cut, copy
+        // and "look up" are the right actions there, and ours would replace
+        // them with worse ones.
+        if (!window.getSelection()?.isCollapsed) return;
+        context.open(e, blockMenu());
+      }}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       onFocusCapture={() => setFocusedBlock(block.id)}
       onBlurCapture={(e) => {
@@ -105,6 +174,7 @@ export function BlockShell({
         focusedBlockId === block.id ? "focus-active" : "focus-dim",
       )}
     >
+      {context.node}
       {/* Gutter — sits outside the content column on wide screens. */}
       {!minimal && (
       <div

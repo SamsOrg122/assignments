@@ -15,6 +15,7 @@ import {
   unreadCount,
   useChat,
   useChatHydrated,
+  canOpen,
 } from "@/lib/chat";
 import { LOCAL_USER } from "@/lib/realtime";
 import { useUI } from "@/lib/ui-store";
@@ -22,6 +23,8 @@ import { TopBar } from "@/components/shell/TopBar";
 import { MessageList } from "@/components/chat/MessageList";
 import { Composer } from "@/components/chat/Composer";
 import { TeamAssistant } from "@/components/chat/TeamAssistant";
+import { ChannelGate } from "@/components/chat/ChannelGate";
+import { ChannelSettings } from "@/components/chat/ChannelSettings";
 import { Icon } from "@/components/ui/Icon";
 
 export default function ChatPage() {
@@ -35,6 +38,8 @@ export default function ChatPage() {
   const notify = useUI((s) => s.notify);
 
   const [threadId, setThreadId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const unlocked = useChat((s) => s.unlocked);
 
   // With no channel in the URL, open whichever has spoken most recently.
   const active = useMemo(() => {
@@ -52,7 +57,11 @@ export default function ChatPage() {
   if (lastChannel !== active?.id) {
     setLastChannel(active?.id);
     setThreadId(null);
+    setSettingsOpen(false);
   }
+
+  /** A closed channel shows its gate instead of its history. */
+  const locked = active ? !canOpen(active, unlocked) : false;
 
   if (!active) {
     return (
@@ -106,6 +115,17 @@ export default function ChatPage() {
             >
               {others.length + 1} members
             </button>
+            {active.kind !== "ai" && (
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                aria-label="Channel settings"
+                title="Channel settings"
+                className="rounded-sm border border-line p-1.5 text-fg-subtle transition-colors hover:border-line-strong hover:text-fg"
+              >
+                <Icon name="settings" size={12} />
+              </button>
+            )}
           </div>
         }
       >
@@ -130,8 +150,14 @@ export default function ChatPage() {
         )}
       </TopBar>
 
+      {settingsOpen && (
+        <ChannelSettings channel={active} onClose={() => setSettingsOpen(false)} />
+      )}
+
       <main className="flex min-h-0 flex-1">
-        {active.kind === "ai" ? (
+        {locked ? (
+          <ChannelGate channel={active} />
+        ) : active.kind === "ai" ? (
           <TeamAssistant channelId={active.id} />
         ) : (
         <div className="flex min-w-0 flex-1 flex-col">

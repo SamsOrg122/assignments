@@ -51,6 +51,9 @@ interface ProjectsState {
   /* Projects */
   addProject: (kind?: ProjectKind, name?: string) => string;
   renameProject: (projectId: string, name: string) => void;
+  /** Changes which editor opens. Blocks are untouched. */
+  setProjectKind: (projectId: string, kind: ProjectKind) => void;
+  setProjectGlyph: (projectId: string, glyph: string) => void;
   deleteProject: (projectId: string) => void;
   duplicateProject: (projectId: string) => string | null;
   setTypography: (projectId: string, patch: Partial<Typography>) => void;
@@ -480,6 +483,18 @@ export const useProjects = create<ProjectsState>()(
       renameProject: (projectId, name) =>
         set((s) => ({
           projects: withProject(s.projects, projectId, (p) => ({ ...p, name })),
+        })),
+
+      setProjectKind: (projectId, kind) =>
+        set((s) => ({
+          // Only the kind moves. A deck reopened as a doc is the same blocks
+          // shown differently, which is the whole point of blocks.
+          projects: withProject(s.projects, projectId, (p) => ({ ...p, kind })),
+        })),
+
+      setProjectGlyph: (projectId, glyph) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({ ...p, glyph })),
         })),
 
       deleteProject: (projectId) =>

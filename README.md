@@ -146,6 +146,24 @@ first page view. Ambient slots paint as backgrounds with the hand-built graphic
 broken-image box. Half the page is meant to be hand-made — that mix is the
 brand argument: AI where it shines, design everywhere.
 
+**Right-click anything.** One context-menu implementation serves the Library,
+the sidebar, the board, the block canvas and channels, so the same gesture
+behaves identically everywhere and a new surface gets keyboard navigation,
+edge-flipping and submenus for free. A project offers the same actions
+wherever you meet it, because both surfaces build their menu from one
+`projectMenu()`. Inside a text selection the browser's own menu wins — cut,
+copy and look-up are the right actions there, and ours would replace them with
+worse ones.
+
+**Closed groups, described honestly.** A channel can be closed with a
+passcode, stored as a SHA-256 digest so the code itself never lands in
+storage. The UI then says exactly what that buys: *a passcode keeps this group
+out of the way, not out of reach* — messages aren't encrypted, the check
+happens in the browser, and anyone who can read the workspace data can read
+the channel. Real access control belongs on the server behind the same
+`ChatProvider` seam as everything else. A lock icon that implied more than
+this would be worse than no lock at all.
+
 **Files go into conversations, not just into a settings page.** Attach, drop or
 paste a file in any channel, DM or the assistant thread. Extraction runs
 through the same `ingestFile` seam the Team page uses, and the *extracted text*

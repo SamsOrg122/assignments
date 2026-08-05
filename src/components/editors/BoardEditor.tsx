@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import type { BoardItem, BoardItemKind, PeerState, Project } from "@/lib/types";
 import { useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
+import { useMenu, type MenuItem } from "@/components/ui/Menu";
 import { Icon } from "@/components/ui/Icon";
 import { ProjectTopBar } from "./ProjectTopBar";
 import { BoardItemView } from "@/components/board/BoardItemView";
@@ -57,6 +58,7 @@ export function BoardEditor({
     () => project.viewport ?? { x: 0, y: 0, scale: 1 },
   );
   const [selection, setSelection] = useState<string[]>([]);
+  const menu = useMenu();
   const [promoting, setPromoting] = useState(false);
   const [marquee, setMarquee] = useState<{
     x0: number;
@@ -142,6 +144,108 @@ export function BoardEditor({
       persist(next);
       return next;
     });
+  };
+
+  /**
+   * What a board item can do, under the pointer. The set changes with the
+   * kind — a sticky has a tone, a card opens a project, neither applies to
+   * the other.
+   */
+  const boardItemMenu = (item: BoardItem): MenuItem[] => {
+    const ids = selection.includes(item.id) ? selection : [item.id];
+    const many = ids.length > 1;
+
+    const items: MenuItem[] = [];
+
+    if (item.kind === "card")
+      items.push({
+        kind: "item",
+        label: "Open project",
+        icon: "arrow-right",
+        onSelect: () => router.push(`/p/${item.projectId}`),
+      });
+
+    items.push(
+      {
+        kind: "item",
+        label: "Bring to front",
+        icon: "arrow-up",
+        onSelect: () => raiseBoardItems(project.id, ids),
+      },
+      {
+        kind: "item",
+        label: many ? `Duplicate ${ids.length} items` : "Duplicate",
+        icon: "copy",
+        onSelect: () => {
+          // Offset the copies so they don't land exactly on top of the
+          // originals, and select them — the copy is what you want to move.
+          const copies: string[] = [];
+          for (const id of ids) {
+            const source = project.board.find((b) => b.id === id);
+            if (!source) continue;
+            const copy = addBoardItem(
+              project.id,
+              source.kind,
+              { x: source.x + 24, y: source.y + 24 },
+              {
+                text: "text" in source ? source.text : undefined,
+                projectId: source.kind === "card" ? source.projectId : undefined,
+              },
+            );
+            updateBoardItem(project.id, copy, {
+              width: source.width,
+              height: source.height,
+              ...(source.kind === "sticky" ? { tone: source.tone } : {}),
+            });
+            copies.push(copy);
+          }
+          setSelection(copies);
+        },
+      },
+    );
+
+    if (item.kind === "sticky")
+      items.push({
+        kind: "submenu",
+        label: "Tone",
+        icon: "sticky",
+        items: (["neutral", "accent", "mint", "warn"] as const).map((tone) => ({
+          kind: "item" as const,
+          label: tone[0].toUpperCase() + tone.slice(1),
+          checked: item.tone === tone,
+          onSelect: () => {
+            for (const id of ids) updateBoardItem(project.id, id, { tone });
+          },
+        })),
+      });
+
+    items.push(
+      { kind: "separator" },
+      {
+        kind: "item",
+        label: many ? `Promote ${ids.length} into a project` : "Promote to project",
+        icon: "promote",
+        shortcut: "P",
+        onSelect: () => {
+          setSelection(ids);
+          setPromoting(true);
+        },
+      },
+      { kind: "separator" },
+      {
+        kind: "item",
+        label: many ? `Delete ${ids.length} items` : "Delete",
+        icon: "trash",
+        danger: true,
+        shortcut: "⌫",
+        onSelect: () => {
+          for (const id of ids) removeBoardItem(project.id, id);
+          setSelection([]);
+        },
+      },
+    );
+
+    return items;
   };
 
   const fitToContent = useCallback(() => {
@@ -377,6 +481,12 @@ export function BoardEditor({
                 selected={selection.includes(item.id)}
                 peers={peersByItem.get(item.id) ?? []}
                 onPointerDown={(e) => dragItem(item, e)}
+                onContextMenu={(e) => {
+                  // Right-clicking an unselected item selects it first, so the
+                  // menu always acts on what's under the pointer.
+                  if (!selection.includes(item.id)) setSelection([item.id]);
+                  menu.open(e, boardItemMenu(item));
+                }}
                 onOpen={
                   item.kind === "card"
                     ? () => router.push(`/p/${item.projectId}`)
@@ -496,6 +606,7 @@ export function BoardEditor({
         )}
       </main>
 
+      {menu.node}
       {promoting && (
         <PromoteDialog
           project={project}

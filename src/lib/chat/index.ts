@@ -20,6 +20,7 @@ import { createMockChatProvider } from "./mock";
 import { AI_PERSON, SEED_CHANNELS, SEED_MESSAGES } from "./seed";
 import type {
   Channel,
+  ChannelAccess,
   ChatProvider,
   Message,
   MessageAttachment,
@@ -53,6 +54,11 @@ interface ChatState {
   messages: Message[];
   /** channelId → last-read timestamp. */
   readAt: Record<string, number>;
+  /**
+   * Closed channels this browser has entered the passcode for. Local, because
+   * the latch is local — see the note on `Channel.passcodeHash`.
+   */
+  unlocked: string[];
   /** channelId → user ids currently typing. Never persisted. */
   typing: Record<string, string[]>;
   connected: boolean;
@@ -68,10 +74,46 @@ interface ChatState {
   toggleReaction: (messageId: string, emoji: string) => void;
   editMessage: (messageId: string, body: string) => void;
   removeMessage: (messageId: string) => void;
-  createChannel: (name: string, topic?: string) => Promise<string>;
+  createChannel: (
+    name: string,
+    topic?: string,
+    options?: { access?: ChannelAccess; passcode?: string; memberIds?: string[] },
+  ) => Promise<string>;
   openDM: (userId: string) => string;
   markRead: (channelId: string) => void;
   setTyping: (channelId: string, typing: boolean) => void;
+
+  updateChannel: (channelId: string, patch: Partial<Channel>) => void;
+  /** Pass null to remove the passcode and re-open the channel. */
+  setPasscode: (channelId: string, passcode: string | null) => Promise<void>;
+  /** Returns false on a wrong code rather than throwing. */
+  unlockChannel: (channelId: string, passcode: string) => Promise<boolean>;
+  lockChannel: (channelId: string) => void;
+  rotateInvite: (channelId: string) => string;
+  addMembers: (channelId: string, userIds: string[]) => void;
+  removeMember: (channelId: string, userId: string) => void;
+  leaveChannel: (channelId: string) => void;
+  setArchived: (channelId: string, archived: boolean) => void;
+}
+
+/**
+ * SHA-256 via the platform. Async because SubtleCrypto is, and worth it: a
+ * passcode should not sit in localStorage in the clear even when the thing it
+ * guards is readable anyway.
+ */
+async function hash(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** Whether the local user can read a channel right now. */
+export function canOpen(channel: Channel, unlocked: string[]): boolean {
+  if (channel.access !== "closed" || !channel.passcodeHash) return true;
+  if (channel.createdBy === LOCAL_USER.id) return true;
+  return unlocked.includes(channel.id);
 }
 
 let provider: ChatProvider = createMockChatProvider();
@@ -91,6 +133,7 @@ export const useChat = create<ChatState>()(
       channels: SEED_CHANNELS,
       messages: SEED_MESSAGES,
       readAt: {},
+      unlocked: [],
       typing: {},
       connected: false,
 
@@ -202,7 +245,95 @@ export const useChat = create<ChatState>()(
           ),
         })),
 
-      createChannel: async (name, topic) => {
+      updateChannel: (channelId, patch) =>
+        set((s) => ({
+          channels: s.channels.map((c) =>
+            c.id === channelId ? { ...c, ...patch, id: c.id } : c,
+          ),
+        })),
+
+      setPasscode: async (channelId, passcode) => {
+        const passcodeHash = passcode ? await hash(passcode) : undefined;
+        set((s) => ({
+          channels: s.channels.map((c) =>
+            c.id === channelId
+              ? {
+                  ...c,
+                  access: passcode ? "closed" : "open",
+                  passcodeHash,
+                }
+              : c,
+          ),
+          // Setting a code shouldn't lock out the person setting it.
+          unlocked: passcode
+            ? [...new Set([...s.unlocked, channelId])]
+            : s.unlocked.filter((id) => id !== channelId),
+        }));
+      },
+
+      unlockChannel: async (channelId, passcode) => {
+        const channel = get().channels.find((c) => c.id === channelId);
+        if (!channel?.passcodeHash) return true;
+        if ((await hash(passcode)) !== channel.passcodeHash) return false;
+        set((s) => ({ unlocked: [...new Set([...s.unlocked, channelId])] }));
+        return true;
+      },
+
+      lockChannel: (channelId) =>
+        set((s) => ({ unlocked: s.unlocked.filter((id) => id !== channelId) })),
+
+      rotateInvite: (channelId) => {
+        const token = uid() + uid();
+        set((s) => ({
+          channels: s.channels.map((c) =>
+            c.id === channelId
+              ? { ...c, invite: { token, createdAt: Date.now() } }
+              : c,
+          ),
+        }));
+        return token;
+      },
+
+      addMembers: (channelId, userIds) =>
+        set((s) => ({
+          channels: s.channels.map((c) =>
+            c.id === channelId
+              ? { ...c, memberIds: [...new Set([...c.memberIds, ...userIds])] }
+              : c,
+          ),
+        })),
+
+      removeMember: (channelId, userId) =>
+        set((s) => ({
+          channels: s.channels.map((c) =>
+            c.id === channelId
+              ? { ...c, memberIds: c.memberIds.filter((id) => id !== userId) }
+              : c,
+          ),
+        })),
+
+      leaveChannel: (channelId) =>
+        set((s) => ({
+          channels: s.channels.map((c) =>
+            c.id === channelId
+              ? {
+                  ...c,
+                  memberIds: c.memberIds.filter((id) => id !== LOCAL_USER.id),
+                }
+              : c,
+          ),
+          // Leaving drops the latch too, so re-joining asks again.
+          unlocked: s.unlocked.filter((id) => id !== channelId),
+        })),
+
+      setArchived: (channelId, archived) =>
+        set((s) => ({
+          channels: s.channels.map((c) =>
+            c.id === channelId ? { ...c, archived } : c,
+          ),
+        })),
+
+      createChannel: async (name, topic, options) => {
         const slug = name
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
@@ -217,11 +348,22 @@ export const useChat = create<ChatState>()(
           kind: "channel",
           name: slug || "channel",
           topic,
+          createdBy: LOCAL_USER.id,
+          access: options?.passcode ? "closed" : "open",
+          passcodeHash: options?.passcode
+            ? await hash(options.passcode)
+            : undefined,
           // People, not the assistant — it belongs to its own channel, and
           // adding it here would inflate every new channel's member count.
-          memberIds: HUMANS.map((p) => p.id),
+          memberIds:
+            options?.memberIds ?? HUMANS.map((p) => p.id),
         });
-        set((s) => ({ channels: [...s.channels, channel] }));
+        set((s) => ({
+          channels: [...s.channels, channel],
+          unlocked: options?.passcode
+            ? [...new Set([...s.unlocked, channel.id])]
+            : s.unlocked,
+        }));
         return channel.id;
       },
 
@@ -254,6 +396,7 @@ export const useChat = create<ChatState>()(
         channels: s.channels,
         messages: s.messages,
         readAt: s.readAt,
+        unlocked: s.unlocked,
       }),
       skipHydration: true,
     },

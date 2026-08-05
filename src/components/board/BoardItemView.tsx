@@ -27,6 +27,7 @@ export function BoardItemView({
   peers,
   onPointerDown,
   onOpen,
+  onContextMenu,
 }: {
   projectId: string;
   item: BoardItem;
@@ -34,6 +35,7 @@ export function BoardItemView({
   peers: PeerState[];
   onPointerDown: (e: React.PointerEvent) => void;
   onOpen?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   const updateBoardItem = useProjects((s) => s.updateBoardItem);
   const [editing, setEditing] = useState(false);
@@ -45,6 +47,7 @@ export function BoardItemView({
       data-board-item={item.id}
       data-board-kind={item.kind}
       onPointerDown={onPointerDown}
+      onContextMenu={onContextMenu}
       onDoubleClick={() => {
         if (onOpen) onOpen();
         else if (item.kind === "text" || item.kind === "sticky") setEditing(true);

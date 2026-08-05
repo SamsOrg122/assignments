@@ -4,6 +4,7 @@ import { Hero } from "@/components/landing/Hero";
 import { Product } from "@/components/landing/Product";
 import { Signature } from "@/components/landing/Signature";
 import { Mission } from "@/components/landing/Mission";
+import { ForestBand } from "@/components/landing/ForestBand";
 import { Impact } from "@/components/landing/Impact";
 import { Pricing } from "@/components/landing/Pricing";
 import { Footer } from "@/components/landing/Footer";
@@ -25,6 +26,7 @@ export default function LandingPage() {
         <Product />
         <Signature />
         <Mission />
+        <ForestBand />
         <Impact />
         <Pricing />
       </main>

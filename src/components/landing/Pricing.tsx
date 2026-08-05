@@ -28,6 +28,7 @@ import {
   type PlanId,
 } from "@/lib/impact/config";
 import { estimate, rangeLabel } from "@/lib/impact/estimate";
+import { useTweenedNumber } from "@/lib/use-parallax";
 import { Glass, Leaf, Provisional, Reveal, Section, SectionHead } from "./primitives";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
@@ -217,11 +218,7 @@ export function Pricing() {
                   muted={est.usage === 0}
                 />
                 <div className="border-t border-line pt-2.5">
-                  <Line
-                    label="Per month"
-                    value={euro(est.total)}
-                    strong
-                  />
+                  <Line label="Per month" value={<TweenedEuro to={est.total} />} strong />
                 </div>
               </dl>
 
@@ -320,8 +317,9 @@ function PlanCard({
 
   return (
     <Glass
+      lift
       className={cn(
-        "flex h-full flex-col p-5 transition-colors duration-150",
+        "flex h-full flex-col p-5",
         selected ? "border-accent/45" : "",
       )}
     >
@@ -410,6 +408,18 @@ function PlanCard({
   );
 }
 
+/**
+ * The headline total, eased rather than snapped.
+ *
+ * Rounded to whatever precision the settled figure has, so the width doesn't
+ * jitter between "€17" and "€17.43" while the slider is moving.
+ */
+function TweenedEuro({ to }: { to: number }) {
+  const value = useTweenedNumber(to);
+  const whole = Number.isInteger(to);
+  return <>{euro(whole ? Math.round(value) : value, { cents: !whole })}</>;
+}
+
 function Line({
   label,
   value,
@@ -417,7 +427,7 @@ function Line({
   muted = false,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   strong?: boolean;
   muted?: boolean;
 }) {

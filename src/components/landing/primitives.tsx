@@ -15,14 +15,20 @@ import { Icon } from "@/components/ui/Icon";
 
 /* ── Section scaffolding ────────────────────────────────── */
 
+/** The page's measure. `wide` is for things that want the room — the demo. */
+const CONTENT = "max-w-[1240px]";
+const WIDE = "max-w-[1480px]";
+
 export function Section({
   id,
   children,
   className,
+  wide = false,
 }: {
   id?: string;
   children: React.ReactNode;
   className?: string;
+  wide?: boolean;
 }) {
   return (
     <section
@@ -30,7 +36,9 @@ export function Section({
       // Anchored sections need to clear the sticky nav when jumped to.
       className={cn("relative scroll-mt-20 px-5 sm:px-8", className)}
     >
-      <div className="mx-auto w-full max-w-[1120px]">{children}</div>
+      <div className={cn("mx-auto w-full", wide ? WIDE : CONTENT)}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -79,15 +87,25 @@ export function Glass({
   children,
   className,
   soft = false,
+  lift = false,
   as: Tag = "div",
 }: {
   children?: React.ReactNode;
   className?: string;
   soft?: boolean;
+  /** Rises to meet the pointer. For panels that are a choice, not a container. */
+  lift?: boolean;
   as?: "div" | "figure" | "aside" | "li";
 }) {
   return (
-    <Tag className={cn(soft ? "glass-soft" : "glass", "rounded-lg", className)}>
+    <Tag
+      className={cn(
+        soft ? "glass-soft" : "glass",
+        "rounded-lg",
+        lift && "lift",
+        className,
+      )}
+    >
       {children}
     </Tag>
   );
@@ -110,10 +128,10 @@ export function CTA({
     <Link
       href={href}
       className={cn(
-        "group inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[14px] font-medium transition-all duration-150",
+        "group inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[14px] font-medium transition-all duration-200",
         variant === "primary"
-          ? "bg-fg text-canvas shadow-[0_8px_28px_-10px_rgba(255,255,255,0.32)] hover:-translate-y-px hover:shadow-[0_12px_34px_-10px_rgba(255,255,255,0.42)]"
-          : "glass-soft text-fg hover:border-line-strong",
+          ? "sheen bg-fg text-canvas shadow-[0_8px_28px_-10px_rgba(255,255,255,0.32)] hover:-translate-y-px hover:shadow-[0_14px_38px_-10px_rgba(255,255,255,0.45)]"
+          : "glass-soft text-fg hover:-translate-y-px hover:border-line-strong",
         className,
       )}
     >

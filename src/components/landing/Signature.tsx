@@ -71,7 +71,7 @@ function Feature({
   children: React.ReactNode;
 }) {
   return (
-    <Glass className="flex h-full flex-col p-5">
+    <Glass lift className="flex h-full flex-col p-5">
       <div className="min-h-[124px]">{children}</div>
       <h3 className="mt-5 text-[15px] font-medium text-fg">{title}</h3>
       <p className="mt-1.5 text-[13.5px] leading-relaxed text-fg-muted text-pretty">

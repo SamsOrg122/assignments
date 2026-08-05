@@ -332,6 +332,70 @@ export function AmbientFallback({ className }: { className?: string }) {
   );
 }
 
+/**
+ * Crafted stand-in for `impact-forest`: four ridgelines of conifer silhouettes
+ * receding into fog. Drawn rather than photographed, so it holds up at any
+ * width and never looks like stock.
+ */
+export function ForestFallback({ className }: { className?: string }) {
+  // Deterministic pseudo-random — a seeded walk, so the ridgeline looks
+  // natural but renders identically on the server and the client.
+  const ridge = (seed: number, baseline: number, height: number) => {
+    let n = seed;
+    const rand = () => {
+      n = (n * 1103515245 + 12345) % 2147483648;
+      return n / 2147483648;
+    };
+    const points: string[] = [`M-10 200`, `L-10 ${baseline}`];
+    let x = -10;
+    while (x < 410) {
+      // Vary both the width and the height of each crown, and let neighbours
+      // overlap. Evenly spaced identical triangles read as a zigzag border,
+      // not as a treeline.
+      const w = 4 + rand() * 9;
+      const h = height * (0.4 + rand() * rand() * 1.5);
+      // A slow undulation so the ridge itself rises and falls.
+      const drift = Math.sin(x / 90 + seed) * height * 0.3;
+      const foot = baseline + drift;
+      points.push(`L${(x + w).toFixed(1)} ${(foot - h).toFixed(1)}`);
+      points.push(`L${(x + w * 2).toFixed(1)} ${foot.toFixed(1)}`);
+      x += w * 1.55;
+    }
+    points.push(`L410 200`, "Z");
+    return points.join(" ");
+  };
+
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 400 200"
+      preserveAspectRatio="none"
+      className={cn("size-full", className)}
+    >
+      <defs>
+        <linearGradient id="forest-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#0e0e11" />
+          <stop offset="55%" stopColor="#14181c" />
+          <stop offset="100%" stopColor="#0e1114" />
+        </linearGradient>
+        <radialGradient id="forest-dawn" cx="72%" cy="58%" r="46%">
+          <stop offset="0%" stopColor="#5c7f8f" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#5c7f8f" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      <rect width="400" height="200" fill="url(#forest-sky)" />
+      <rect width="400" height="200" fill="url(#forest-dawn)" />
+
+      {/* Far to near: each ridge darker and taller, fog between them. */}
+      <path d={ridge(7, 150, 16)} fill="#26333a" opacity="0.5" />
+      <path d={ridge(31, 166, 22)} fill="#1c262c" opacity="0.7" />
+      <path d={ridge(53, 184, 28)} fill="#141b20" opacity="0.85" />
+      <path d={ridge(97, 205, 34)} fill="#0d1215" />
+    </svg>
+  );
+}
+
 /** Crafted stand-in for `impact-canopy` — a sapling, drawn. */
 export function SaplingFallback({ className }: { className?: string }) {
   return (

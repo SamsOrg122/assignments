@@ -60,7 +60,7 @@ const COLUMNS: Array<{ title: string; links: FooterLink[] }> = [
 export function Footer() {
   return (
     <footer className="relative border-t border-line">
-      <div className="mx-auto w-full max-w-[1120px] px-5 py-14 sm:px-8">
+      <div className="mx-auto w-full max-w-[1240px] px-5 py-14 sm:px-8">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,2fr)]">
           <div>
             <Link

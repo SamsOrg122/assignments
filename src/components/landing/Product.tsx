@@ -58,7 +58,7 @@ export function Product() {
             title="The Library keeps it findable"
             body="Every project has a real type and opens in an editor built for it. Search here ranks identically to ⌘K, because it's the same matcher."
           >
-            <Glass className="overflow-hidden">
+            <Glass lift className="overflow-hidden">
               <LibraryMock />
             </Glass>
           </Moment>
@@ -69,7 +69,7 @@ export function Product() {
             title="The Board keeps it loose"
             body="An infinite canvas where a paragraph sits beside a sticky beside a live card for a real project."
           >
-            <Glass className="h-[240px] overflow-hidden">
+            <Glass lift className="h-[240px] overflow-hidden">
               <BoardMock />
             </Glass>
           </Moment>

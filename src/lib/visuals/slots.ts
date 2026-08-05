@@ -25,6 +25,7 @@
 
 export type SlotId =
   | "hero-ambient"
+  | "impact-forest"
   | "impact-canopy"
   | "mission-texture";
 
@@ -60,6 +61,8 @@ export interface VisualSlot {
    * Download it, put it in `public/visuals/`, then set `src` and `status`.
    */
   generated?: { url: string; model: string };
+  /** Another take on the same slot, kept so the choice can be revisited. */
+  alternate?: string;
 }
 
 const BRAND =
@@ -87,6 +90,28 @@ export const VISUAL_SLOTS: Record<SlotId, VisualSlot> = {
       url: "https://d8j0ntlcm91z4.cloudfront.net/user_3EWli8CAM0sQ73ZEQAcK2HryYZM/hf_20260805_090818_0f485780-8b7a-4c9d-a9cc-027428e447a4.png",
       model: "nano_banana",
     },
+  },
+  "impact-forest": {
+    id: "impact-forest",
+    role: "The full-bleed forest band that opens the impact section.",
+    prompt:
+      `Wide cinematic aerial view over a vast dense forest canopy at dawn, thick low ` +
+      `fog drifting between the treetops, deep cool desaturated blue-green tones, almost ` +
+      `monochrome, very dark and moody, deep shadows in the valleys, one soft cool light ` +
+      `low on the horizon. ${BRAND}`,
+    model: "nano_banana",
+    aspect: "21:9",
+    alt: "An aerial view over a dense forest canopy at dawn, with fog between the treetops.",
+    decorative: true,
+    status: "generated",
+    src: "https://d8j0ntlcm91z4.cloudfront.net/user_3EWli8CAM0sQ73ZEQAcK2HryYZM/hf_20260805_094924_4265ebef-7e93-45c0-8776-b40fe4c1c266.png",
+    generated: {
+      url: "https://d8j0ntlcm91z4.cloudfront.net/user_3EWli8CAM0sQ73ZEQAcK2HryYZM/hf_20260805_094924_4265ebef-7e93-45c0-8776-b40fe4c1c266.png",
+      model: "nano_banana",
+    },
+    /** A second take: looking up through pines into fog, 16:9. */
+    alternate:
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3EWli8CAM0sQ73ZEQAcK2HryYZM/hf_20260805_094924_51e15411-b9d5-4da5-a242-071ccae18150.png",
   },
   "impact-canopy": {
     id: "impact-canopy",

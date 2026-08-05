@@ -498,39 +498,138 @@
   line-height: 1.02;
 }
 
+/* Anchor jumps glide instead of cutting — storefront only, so the app's own
+   navigation stays instant. Falls back to a jump where :has() isn't supported,
+   which is the correct degradation rather than a broken one. */
+:root:has(.storefront) {
+  scroll-behavior: smooth;
+}
+
 /* ── Reveal on scroll ───────────────────────────────────── */
 
+/* Content arrives from slightly below, slightly small, slightly out of focus.
+   The blur is what stops this reading as a generic fade — it's the difference
+   between "an element appeared" and "an element settled". */
 .reveal {
   opacity: 0;
-  transform: translateY(14px);
+  transform: translateY(18px) scale(0.988);
+  filter: blur(6px);
   transition:
-    opacity 620ms var(--ease-out-fast),
-    transform 620ms var(--ease-out-fast);
+    opacity 700ms var(--ease-out-fast),
+    transform 700ms var(--ease-out-fast),
+    filter 700ms var(--ease-out-fast);
 }
 .reveal[data-shown="true"] {
   opacity: 1;
   transform: none;
+  filter: none;
+}
+
+/* ── Hover ──────────────────────────────────────────────── */
+
+/* Panels you can act on lift a little and catch more light. Not a scale —
+   scaling a panel full of text resamples the type and looks cheap. */
+.lift {
+  transition:
+    transform 260ms var(--ease-out-fast),
+    border-color 260ms var(--ease-out-fast),
+    box-shadow 260ms var(--ease-out-fast);
+  will-change: transform;
+}
+.lift:hover {
+  transform: translateY(-3px);
+  border-color: var(--color-line-strong);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.11),
+    0 34px 80px -30px rgba(0, 0, 0, 0.95);
+}
+
+/* A light sweeping across the primary call to action on hover. One pass,
+   clipped to the button, no loop — an animation that repeats forever on a
+   button is a distraction, not an invitation. */
+.sheen {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  transition: transform 620ms var(--ease-out-fast);
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+.sheen:hover::after {
+  transform: translateX(120%);
+}
+
+/* A slow float for the hero's overlapping panels. Long, tiny, and offset per
+   element so the composition breathes rather than bobbing in unison. */
+@keyframes a-float {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -9px, 0);
+  }
+}
+.float {
+  animation: a-float 7s ease-in-out infinite alternate;
+}
+.float-slow {
+  animation: a-float 9.5s ease-in-out infinite alternate;
+  animation-delay: -3s;
 }
 
 /* Reduced motion: everything arrives, nothing moves. The reveal must not be
    able to leave content invisible, so it resets rather than just shortening. */
+/* Reduced motion: everything arrives, nothing moves. The reveal must not be
+   able to leave content invisible, so it resets rather than just shortening —
+   and the blur has to go with it, or text lands permanently out of focus. */
 @media (prefers-reduced-motion: reduce) {
   .reveal {
     opacity: 1;
     transform: none;
+    filter: none;
     transition: none;
   }
-  .aurora {
+  .aurora,
+  .float,
+  .float-slow {
     animation: none;
+  }
+  .lift:hover {
+    transform: none;
+  }
+  .sheen::after {
+    display: none;
   }
 }
 :root[data-motion="reduced"] .reveal {
   opacity: 1;
   transform: none;
+  filter: none;
   transition: none;
 }
-:root[data-motion="reduced"] .aurora {
+:root[data-motion="reduced"] .aurora,
+:root[data-motion="reduced"] .float,
+:root[data-motion="reduced"] .float-slow {
   animation: none;
+}
+:root[data-motion="reduced"] .lift:hover {
+  transform: none;
+}
+:root[data-motion="reduced"] .sheen::after {
+  display: none;
 }
 
 /* ── Prose (Tiptap text blocks) ──────────────────────────── */

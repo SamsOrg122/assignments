@@ -106,9 +106,16 @@ composer attaches one, and ⌘K can share the project you're in without leaving
 the keyboard. Channels, DMs, threads, reactions, typing indicators and unread
 counts all sit behind a websocket-shaped `ChatProvider`.
 
+**The demo under the hero is the app, not a picture of it.** It frames the real
+`/library` route, same origin and same bundle, so it is 1:1 by construction and
+you can click into it — open a project, type, press ⌘K. A hand-drawn
+approximation drifts the moment the product moves and can never be clicked. It
+mounts lazily, ~300px before it scrolls into view, so the storefront itself
+still loads without the editor.
+
 **The landing page argues with numbers, not adjectives.** `/` is a route group
-of its own — no sidebar, no palette, no stores — so a visitor who hasn't opened
-the tool doesn't pay to hydrate it. Every price, share and euro→tree rate on it
+of its own — no sidebar, no palette, no stores until the demo mounts. Every
+price, share and euro→tree rate on it
 resolves from `lib/impact/config.ts`; there is no arithmetic in a component
 that isn't layout. The estimator is pure front-end maths against that config
 and swaps for real billing behind `estimate()`.

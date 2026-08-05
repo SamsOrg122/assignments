@@ -212,7 +212,7 @@ export function PromoteDialog({
           <button
             type="button"
             onClick={submit}
-            className="rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-white transition-[filter] duration-150 hover:brightness-110"
+            className="rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
           >
             Promote
           </button>

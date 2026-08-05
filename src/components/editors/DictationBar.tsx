@@ -215,7 +215,7 @@ export function DictationBar({
             <button
               type="button"
               onClick={() => void start()}
-              className="flex items-center gap-2 rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-white transition-[filter] duration-150 hover:brightness-110"
+              className="flex items-center gap-2 rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
             >
               <Icon name="mic" size={12} />
               Start talking
@@ -241,7 +241,7 @@ export function DictationBar({
               <button
                 type="button"
                 onClick={accept}
-                className="rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-white transition-[filter] duration-150 hover:brightness-110"
+                className="rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
               >
                 Insert
               </button>

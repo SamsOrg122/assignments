@@ -203,7 +203,7 @@ export function CodeBlock({
             className={cn(
               "flex items-center gap-1.5 rounded-sm px-2 py-1 text-[11px] transition-[filter,color] duration-150",
               hasHtml
-                ? "bg-accent text-white hover:brightness-110"
+                ? "bg-accent text-on-accent hover:brightness-110"
                 : "border border-line text-fg-subtle",
             )}
           >

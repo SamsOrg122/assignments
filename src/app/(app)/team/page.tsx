@@ -331,7 +331,7 @@ function InvitesSection({
           className={cn(
             "rounded-sm px-2.5 py-1.5 text-[12.5px] font-medium transition-[filter] duration-150",
             email.trim()
-              ? "bg-accent text-white hover:brightness-110"
+              ? "bg-accent text-on-accent hover:brightness-110"
               : "border border-line text-fg-subtle",
           )}
         >
@@ -484,7 +484,7 @@ function KnowledgeSection({ count }: { count: number }) {
             className={cn(
               "self-start rounded-sm px-2.5 py-1 text-[12px] font-medium transition-[filter] duration-150",
               subject.trim() && body.trim()
-                ? "bg-accent text-white hover:brightness-110"
+                ? "bg-accent text-on-accent hover:brightness-110"
                 : "border border-line text-fg-subtle",
             )}
           >

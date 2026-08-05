@@ -158,7 +158,7 @@ export function InlineAIMock({ className }: { className?: string }) {
           claim is the honest one — and section 4 already assumes it.
         </p>
         <div className="mt-2.5 flex items-center gap-1.5">
-          <span className="rounded-xs bg-accent px-2 py-1 text-[10.5px] font-medium text-white">
+          <span className="rounded-xs bg-accent px-2 py-1 text-[10.5px] font-medium text-on-accent">
             Accept
           </span>
           <span className="rounded-xs border border-line px-2 py-1 text-[10.5px] text-fg-muted">

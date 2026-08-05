@@ -113,7 +113,7 @@ export function SourcesPanel({
             className={cn(
               "rounded-sm px-2.5 py-1 text-[12px] font-medium transition-[filter] duration-150",
               input.trim() && !resolving
-                ? "bg-accent text-white hover:brightness-110"
+                ? "bg-accent text-on-accent hover:brightness-110"
                 : "border border-line text-fg-subtle",
             )}
           >

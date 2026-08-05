@@ -359,7 +359,7 @@ function NavLink({
       <Icon name={icon} size={14} className="shrink-0" />
       {label}
       {badge !== undefined && badge > 0 && (
-        <span className="ml-auto grid min-w-[16px] place-items-center rounded-full bg-accent px-1 font-mono text-[9px] text-white">
+        <span className="ml-auto grid min-w-[16px] place-items-center rounded-full bg-accent px-1 font-mono text-[9px] text-on-accent">
           {badge > 99 ? "99+" : badge}
         </span>
       )}
@@ -405,7 +405,7 @@ function ChannelLink({
       )}
       <span className={cn("truncate", unread > 0 && "font-medium")}>{label}</span>
       {unread > 0 && (
-        <span className="ml-auto grid min-w-[16px] shrink-0 place-items-center rounded-full bg-accent px-1 font-mono text-[9px] text-white">
+        <span className="ml-auto grid min-w-[16px] shrink-0 place-items-center rounded-full bg-accent px-1 font-mono text-[9px] text-on-accent">
           {unread > 99 ? "99+" : unread}
         </span>
       )}

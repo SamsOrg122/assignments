@@ -173,7 +173,7 @@ export function VersionTimeline({
                   "rounded-sm px-3 py-1.5 text-[12.5px] font-medium transition-[filter] duration-150",
                   isLatest || !entry
                     ? "border border-line text-fg-subtle"
-                    : "bg-accent text-white hover:brightness-110",
+                    : "bg-accent text-on-accent hover:brightness-110",
                 )}
               >
                 {isLatest ? "This is current" : "Restore this version"}

@@ -240,7 +240,7 @@ export function Composer({
           className={cn(
             "mb-0.5 grid size-6 shrink-0 place-items-center rounded-sm transition-colors duration-150",
             body.trim() || all.length
-              ? "bg-accent text-white hover:brightness-110"
+              ? "bg-accent text-on-accent hover:brightness-110"
               : "border border-line text-fg-subtle",
           )}
         >

@@ -216,7 +216,7 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
               <button
                 type="button"
                 onClick={acceptLearning}
-                className="rounded-sm bg-accent px-2.5 py-1 text-[12px] font-medium text-white transition-[filter] duration-150 hover:brightness-110"
+                className="rounded-sm bg-accent px-2.5 py-1 text-[12px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
               >
                 Remember
               </button>
@@ -284,7 +284,7 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
             className={cn(
               "mb-0.5 grid size-6 shrink-0 place-items-center rounded-sm transition-colors duration-150",
               (draft.trim() || files.files.length) && !busy
-                ? "bg-accent text-white hover:brightness-110"
+                ? "bg-accent text-on-accent hover:brightness-110"
                 : "border border-line text-fg-subtle",
             )}
           >

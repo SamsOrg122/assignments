@@ -412,7 +412,7 @@ export function BoardEditor({
               <button
                 type="button"
                 onClick={() => setPromoting(true)}
-                className="flex items-center gap-1.5 rounded-sm bg-accent px-2.5 py-1 text-[12px] font-medium text-white transition-[filter] duration-150 hover:brightness-110"
+                className="flex items-center gap-1.5 rounded-sm bg-accent px-2.5 py-1 text-[12px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
               >
                 <Icon name="promote" size={11} />
                 Promote to project

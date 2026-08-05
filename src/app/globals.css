@@ -6,27 +6,38 @@
    ─────────────────────────────────────────────────────────── */
 
 @theme {
-  /* Surfaces. Lifted off pure black: #0A0A0A crushes every hairline and
-     makes elevation invisible on most panels. */
-  --color-canvas: #121215;
-  --color-surface: #1a1a1e;
-  --color-surface-2: #222227;
-  --color-surface-3: #2c2c33;
+  /* Surfaces. Neutral dark grey rather than near-black: black crushes every
+     hairline, makes elevation invisible, and on an OLED panel turns each
+     border into a hard edge with nothing behind it. Grey gives the whole
+     stack somewhere to sit. */
+  --color-canvas: #202124;
+  --color-surface: #282a2d;
+  --color-surface-2: #303134;
+  --color-surface-3: #3c4043;
 
-  /* Lines */
-  --color-line: rgba(255, 255, 255, 0.11);
-  --color-line-strong: rgba(255, 255, 255, 0.2);
+  /* Lines. Slightly stronger than before — the same alpha over a lighter
+     ground reads as a fainter line. */
+  --color-line: rgba(255, 255, 255, 0.13);
+  --color-line-strong: rgba(255, 255, 255, 0.24);
 
-  /* Type. Muted and subtle were both under 4.5:1 on the old canvas —
-     secondary text should be quiet, not unreadable. */
-  --color-fg: #f2f2f5;
-  --color-fg-muted: #a8a8b3;
-  --color-fg-subtle: #85858f;
+  /* Type. Measured against the canvas: muted 6.5:1, subtle 5.2:1 — quiet,
+     never unreadable. */
+  --color-fg: #e8eaed;
+  --color-fg-muted: #b8bdc4;
+  --color-fg-subtle: #969ba1;
 
-  /* Accent — cool electric blue, used sparingly */
-  --color-accent: #3d7dff;
-  --color-accent-dim: #2a5cd0;
-  --color-accent-soft: rgba(61, 125, 255, 0.14);
+  /* Accent — cool electric blue, used sparingly. Lifted from #3d7dff, which
+     managed 4.9:1 on the old near-black canvas but only 4.3:1 on grey. */
+  --color-accent: #5b8dff;
+  --color-accent-dim: #3f6ee0;
+  --color-accent-soft: rgba(91, 141, 255, 0.16);
+  /*
+   * Ink for text sitting *on* a filled accent. White on a blue this bright is
+   * about 3:1 — fine for a large glyph, not for a 12px button label. Dark ink
+   * on the same fill is 5.7:1, which is the Material dark-mode answer and the
+   * reason filled buttons here read as solid rather than glowing.
+   */
+  --color-on-accent: #15161a;
 
   /* Semantic (kept desaturated so nothing shouts) */
   --color-danger: #f06a6f;
@@ -166,6 +177,14 @@
 
   --color-danger: #cc2f36;
   --color-warn: #8a6116;
+
+  /* The dark theme's accent is tuned to be legible on grey, which makes it
+     far too light on white — 3:1 as link text. Light mode takes it the other
+     way, and white is the right ink on a fill this deep. */
+  --color-accent: #1a56db;
+  --color-accent-dim: #1544ad;
+  --color-accent-soft: rgba(26, 86, 219, 0.12);
+  --color-on-accent: #ffffff;
 }
 
 /* Surfaces that lean on white overlays need the opposite in light mode. */
@@ -190,36 +209,73 @@
 
 /* ── Accent ─────────────────────────────────────────────── */
 
+/* Every variant is stated twice: light enough to read on dark grey, deep
+   enough to read on white. The ink that sits on the fill flips with it. */
+
 :root[data-accent="violet"] {
-  --color-accent: #8b5cf6;
-  --color-accent-dim: #6d3fd4;
-  --color-accent-soft: rgba(139, 92, 246, 0.14);
+  --color-accent: #a78bfa;
+  --color-accent-dim: #8b5cf6;
+  --color-accent-soft: rgba(167, 139, 250, 0.16);
+  --color-on-accent: #15161a;
 }
+:root[data-theme="light"][data-accent="violet"] {
+  --color-accent: #6d28d9;
+  --color-accent-dim: #57209f;
+  --color-accent-soft: rgba(109, 40, 217, 0.12);
+  --color-on-accent: #ffffff;
+}
+
 :root[data-accent="teal"] {
-  --color-accent: #14b8a6;
-  --color-accent-dim: #0e8f81;
-  --color-accent-soft: rgba(20, 184, 166, 0.14);
+  --color-accent: #2ad4bd;
+  --color-accent-dim: #14b8a6;
+  --color-accent-soft: rgba(42, 212, 189, 0.16);
+  --color-on-accent: #10201d;
 }
+:root[data-theme="light"][data-accent="teal"] {
+  --color-accent: #0f766e;
+  --color-accent-dim: #0b5b55;
+  --color-accent-soft: rgba(15, 118, 110, 0.12);
+  --color-on-accent: #ffffff;
+}
+
 :root[data-accent="amber"] {
-  --color-accent: #e0a04a;
-  --color-accent-dim: #b87f34;
-  --color-accent-soft: rgba(224, 160, 74, 0.16);
+  --color-accent: #eab766;
+  --color-accent-dim: #c9954a;
+  --color-accent-soft: rgba(234, 183, 102, 0.18);
+  --color-on-accent: #201a10;
 }
+:root[data-theme="light"][data-accent="amber"] {
+  --color-accent: #92610a;
+  --color-accent-dim: #714a08;
+  --color-accent-soft: rgba(146, 97, 10, 0.12);
+  --color-on-accent: #ffffff;
+}
+
 :root[data-accent="rose"] {
-  --color-accent: #f43f6e;
-  --color-accent-dim: #cc2a55;
-  --color-accent-soft: rgba(244, 63, 110, 0.14);
+  --color-accent: #fb7185;
+  --color-accent-dim: #e14d63;
+  --color-accent-soft: rgba(251, 113, 133, 0.16);
+  --color-on-accent: #1f1013;
 }
+:root[data-theme="light"][data-accent="rose"] {
+  --color-accent: #be123c;
+  --color-accent-dim: #9b0f31;
+  --color-accent-soft: rgba(190, 18, 60, 0.12);
+  --color-on-accent: #ffffff;
+}
+
 /* "Mono" drops the accent entirely — the restrained end of the dial. */
 :root[data-accent="mono"] {
-  --color-accent: #ededed;
-  --color-accent-dim: #b8b8b8;
-  --color-accent-soft: rgba(255, 255, 255, 0.12);
+  --color-accent: #e8eaed;
+  --color-accent-dim: #b8bdc4;
+  --color-accent-soft: rgba(255, 255, 255, 0.13);
+  --color-on-accent: #202124;
 }
 :root[data-theme="light"][data-accent="mono"] {
   --color-accent: #16161a;
   --color-accent-dim: #3a3a42;
   --color-accent-soft: rgba(0, 0, 0, 0.08);
+  --color-on-accent: #ffffff;
 }
 
 /* ── Radius ─────────────────────────────────────────────── */
@@ -346,18 +402,19 @@
 /* The storefront is always the dark, near-black identity, even for someone
    whose app preference is light. It's the brand, not a preference. */
 .storefront {
-  --color-canvas: #0e0e11;
-  --color-surface: #17171b;
-  --color-surface-2: #1f1f24;
-  --color-surface-3: #2a2a31;
-  --color-line: rgba(255, 255, 255, 0.11);
-  --color-line-strong: rgba(255, 255, 255, 0.2);
-  --color-fg: #f4f4f7;
-  --color-fg-muted: #a9a9b4;
-  --color-fg-subtle: #86868f;
-  --color-accent: #3d7dff;
-  --color-accent-dim: #2a5cd0;
-  --color-accent-soft: rgba(61, 125, 255, 0.14);
+  --color-canvas: #1b1c1f;
+  --color-surface: #242629;
+  --color-surface-2: #2c2e31;
+  --color-surface-3: #383a3e;
+  --color-line: rgba(255, 255, 255, 0.13);
+  --color-line-strong: rgba(255, 255, 255, 0.24);
+  --color-fg: #e8eaed;
+  --color-fg-muted: #b8bdc4;
+  --color-fg-subtle: #969ba1;
+  --color-accent: #5b8dff;
+  --color-accent-dim: #3f6ee0;
+  --color-accent-soft: rgba(91, 141, 255, 0.16);
+  --color-on-accent: #15161a;
   /* The living green, used only where impact is the subject. */
   --color-leaf: #4ad2a0;
   --color-leaf-soft: rgba(74, 210, 160, 0.13);

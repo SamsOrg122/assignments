@@ -24,6 +24,7 @@
  */
 
 export type SlotId =
+  | "hero-photo"
   | "hero-ambient"
   | "impact-forest"
   | "impact-canopy"
@@ -72,6 +73,40 @@ const BRAND =
   "no logos, no people, no stock-photo styling";
 
 export const VISUAL_SLOTS: Record<SlotId, VisualSlot> = {
+  /**
+   * The one image on the page that isn't brand atmosphere. It's a real place
+   * at dusk, and it's here because the impact promise is about land — a page
+   * that talks about planting trees and shows only frosted glass is asking to
+   * be disbelieved.
+   */
+  "hero-photo": {
+    id: "hero-photo",
+    role: "Full-bleed photograph behind the wordmark at the top of the page.",
+    prompt:
+      `Painterly landscape photograph at dusk, wide open valley with a still shallow ` +
+      `river winding through low green meadow grass, dense dark treelines on both sides ` +
+      `framing the view, distant soft hills. Sky is a broad gradient of deep teal-cyan ` +
+      `fading into muted rose and dusty pink near the horizon, faint stars in the upper ` +
+      `corners. Cool soft diffuse light, the last minutes after sunset. Muted ` +
+      `desaturated colour, slight film grain, subtle vignette, painterly matte-painting ` +
+      `quality, generous empty sky in the upper middle third for text to sit over. ` +
+      `No text, no logos, no people, no buildings, no watermarks.`,
+    model: "nano_banana_pro",
+    aspect: "16:9",
+    alt:
+      "A river valley at dusk, dark treelines on both sides under a teal sky fading to rose.",
+    decorative: true,
+    status: "generated",
+    src: "https://d8j0ntlcm91z4.cloudfront.net/user_3EWli8CAM0sQ73ZEQAcK2HryYZM/hf_20260806_185822_6af62224-7a42-453b-8e78-f6ec883a99e2.png",
+    generated: {
+      url: "https://d8j0ntlcm91z4.cloudfront.net/user_3EWli8CAM0sQ73ZEQAcK2HryYZM/hf_20260806_185822_6af62224-7a42-453b-8e78-f6ec883a99e2.png",
+      model: "nano_banana_pro",
+    },
+    /** A second take on the same prompt, kept so the choice can be revisited. */
+    alternate:
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3EWli8CAM0sQ73ZEQAcK2HryYZM/hf_20260806_185822_d68e1804-882c-4ae3-83f6-6ca4ae3edf8f.png",
+  },
+
   "hero-ambient": {
     id: "hero-ambient",
     role: "Ambient light behind the hero, under the product mock-up.",

@@ -15,7 +15,7 @@ import { Icon } from "@/components/ui/Icon";
 
 export function Hero() {
   return (
-    <div className="relative overflow-hidden pt-10 pb-20 sm:pt-16 sm:pb-28">
+    <div className="relative overflow-hidden pt-8 pb-20 sm:pt-12 sm:pb-28">
       {/* Ambient layer. Falls back to crafted light until the slot is filled. */}
       <Visual
         id="hero-ambient"

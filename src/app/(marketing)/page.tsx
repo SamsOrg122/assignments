@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/landing/Nav";
+import { HeroBanner } from "@/components/landing/HeroBanner";
 import { Hero } from "@/components/landing/Hero";
 import { Product } from "@/components/landing/Product";
 import { Signature } from "@/components/landing/Signature";
@@ -22,6 +23,7 @@ export default function LandingPage() {
     <>
       <Nav />
       <main>
+        <HeroBanner />
         <Hero />
         <Product />
         <Signature />

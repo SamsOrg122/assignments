@@ -333,6 +333,62 @@ export function AmbientFallback({ className }: { className?: string }) {
 }
 
 /**
+ * Crafted stand-in for `hero-photo`: a painted dusk sky over a dark valley.
+ *
+ * Not an apology for a missing photograph — the banner has to hold on a slow
+ * connection and on the day that CDN link finally rots, and a hero that
+ * degrades to a grey rectangle takes the whole page with it. Pure gradients,
+ * so it costs nothing and scales to any width.
+ */
+export function DuskFallback({ className }: { className?: string }) {
+  return (
+    <div aria-hidden="true" className={cn("overflow-hidden", className)}>
+      {/* Sky: teal at altitude, warming to rose at the horizon. */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#0e2b34_0%,#1b4a52_30%,#43596a_56%,#8a6172_72%,#3a3e49_86%,#181b20_100%)]" />
+      {/* A low sun's afterglow, off-centre so it doesn't read as a vignette. */}
+      <div className="absolute inset-0 bg-[radial-gradient(52%_34%_at_44%_70%,rgba(220,150,158,0.4)_0%,transparent_72%)]" />
+
+      {/* The land, drawn rather than tiled: a repeating gradient makes rows of
+          identical blobs, which reads as a texture bug rather than as trees. */}
+      <svg
+        viewBox="0 0 400 200"
+        preserveAspectRatio="none"
+        className="absolute inset-0 size-full"
+      >
+        {/* Far ridge, hazed by distance. */}
+        <path
+          d="M0 140 C 40 132, 70 136, 110 130 C 150 124, 180 132, 220 128 C 265 124, 310 132, 360 126 L400 128 L400 200 L0 200 Z"
+          fill="#2b3a44"
+          opacity="0.75"
+        />
+        {/* Near treelines, left and right, framing an open middle. */}
+        <path
+          d="M0 118 C 20 112, 34 122, 52 114 C 70 106, 84 120, 104 116 C 118 113, 126 124, 138 130 L138 200 L0 200 Z"
+          fill="#0d1418"
+        />
+        <path
+          d="M400 112 C 380 106, 366 120, 348 112 C 330 104, 314 120, 294 116 C 278 113, 268 126, 258 132 L258 200 L400 200 Z"
+          fill="#0d1418"
+        />
+        {/* Meadow floor. */}
+        <path
+          d="M0 156 C 90 148, 150 162, 200 158 C 260 153, 330 164, 400 156 L400 200 L0 200 Z"
+          fill="#16211f"
+        />
+        {/* The river, catching what is left of the sky. */}
+        <path
+          d="M186 158 C 194 172, 176 184, 168 200 L232 200 C 224 184, 210 172, 214 158 Z"
+          fill="#7f94a0"
+          opacity="0.34"
+        />
+      </svg>
+
+      <div className="grid-faint absolute inset-0 opacity-25" />
+    </div>
+  );
+}
+
+/**
  * Crafted stand-in for `impact-forest`: four ridgelines of conifer silhouettes
  * receding into fog. Drawn rather than photographed, so it holds up at any
  * width and never looks like stock.

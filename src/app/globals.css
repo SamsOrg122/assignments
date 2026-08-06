@@ -652,6 +652,37 @@
 /* Reduced motion: everything arrives, nothing moves. The reveal must not be
    able to leave content invisible, so it resets rather than just shortening —
    and the blur has to go with it, or text lands permanently out of focus. */
+/* ── The hero word ──────────────────────────────────────────
+   A light, wide serif at display size — the face a book title is set in,
+   not a product logo. It reads as *made* rather than as software chrome,
+   which is the whole reason the photograph is there. */
+.hero-word {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Charter,
+    "Bitstream Charter", Georgia, "Times New Roman", serif;
+  text-shadow: 0 2px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* Each letter arrives from below through a blur. Staggered by index in the
+   component, so the word resolves left to right instead of appearing. */
+.hero-letter {
+  display: inline-block;
+  white-space: pre;
+  animation: a-letter-in 520ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+@keyframes a-letter-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(0.32em) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal {
     opacity: 1;
@@ -663,6 +694,13 @@
   .float,
   .float-slow {
     animation: none;
+  }
+  /* The word still needs to be legible, just not animated into place. */
+  .hero-letter {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
   }
   .lift:hover {
     transform: none;

@@ -62,6 +62,19 @@ export function Pricing() {
             </>
           }
         />
+        {/* The two pricing surfaces are one thing seen at two depths: this
+            section answers "what will it cost me", the page answers "what
+            exactly do I get". Linking them is what stops them reading as two
+            competing answers. */}
+        <p className="mt-5">
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-1 text-[13.5px] text-fg-muted underline decoration-line-strong underline-offset-4 transition-colors hover:text-fg"
+          >
+            Compare the plans line by line
+            <Icon name="chevron-right" size={11} />
+          </Link>
+        </p>
       </Reveal>
 
       {/* Plans */}

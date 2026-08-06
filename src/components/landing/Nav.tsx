@@ -27,7 +27,7 @@ const LINKS = [
   { href: "/#product", label: "Product" },
   { href: "/#features", label: "Features" },
   { href: "/impact", label: "Impact" },
-  { href: "/#pricing", label: "Pricing" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 export function Nav() {

@@ -29,6 +29,7 @@ import { sourceResolverName } from "@/lib/sources";
 import { chatProviderName } from "@/lib/chat";
 import { TopBar } from "@/components/shell/TopBar";
 import { Icon } from "@/components/ui/Icon";
+import { SafeKeeping } from "@/components/settings/SafeKeeping";
 import { cn } from "@/lib/cn";
 
 /**
@@ -206,6 +207,13 @@ export default function SettingsPage() {
               value={isClient ? sourceResolverName() : "…"}
               detail="Local parsing; a metadata service replaces it"
             />
+          </Section>
+
+          <Section
+            title="Keeping your work"
+            hint="There is no account yet, so this browser is the only thing holding it. Here is exactly how safe that is."
+          >
+            <SafeKeeping />
           </Section>
 
           <Section title="Workspace" hint="Everything lives in this browser.">

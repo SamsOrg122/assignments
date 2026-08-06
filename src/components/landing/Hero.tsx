@@ -35,7 +35,7 @@ export function Hero() {
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <CTA href="/library">Start writing</CTA>
-          <CTA href="#pricing" variant="ghost">
+          <CTA href="/pricing" variant="ghost">
             See pricing
           </CTA>
         </div>

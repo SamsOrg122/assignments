@@ -34,7 +34,7 @@ const COLUMNS: Array<{ title: string; links: FooterLink[] }> = [
     links: [
       { label: "Overview", href: "/#product" },
       { label: "Features", href: "/#features" },
-      { label: "Pricing", href: "/#pricing" },
+      { label: "Pricing", href: "/pricing" },
       { label: "Open Assignments", href: "/library" },
     ],
   },

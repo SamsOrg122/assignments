@@ -12,9 +12,16 @@ import type { BlockType } from "./types";
 export interface AITarget {
   projectId: string;
   blockId: string;
-  blockType: BlockType;
+  /**
+   * The surface asking. "board" isn't a block type — a board has no blocks —
+   * but it is a distinct place to ask a question from, and the openers and the
+   * context it needs are different from a document's.
+   */
+  blockType: BlockType | "board";
   /** Selected text, if the user invoked AI from a selection. */
   selectionText: string;
+  /** Selected board items, when asking from a board. */
+  selectionIds?: string[];
   /** Viewport coordinates to anchor the popover to. */
   anchor: { x: number; y: number };
   /** Pre-filled prompt, e.g. when launched from the command palette. */

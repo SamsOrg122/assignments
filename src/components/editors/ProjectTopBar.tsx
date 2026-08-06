@@ -64,8 +64,13 @@ export function ProjectTopBar({
           onClick={() =>
             openAI({
               projectId: project.id,
-              blockId: project.blocks[0]?.id ?? project.board[0]?.id ?? "",
-              blockType: project.blocks[0]?.type ?? "text",
+              blockId: project.blocks[0]?.id ?? "",
+              // A board has no blocks, so it names itself as the surface —
+              // otherwise it would be offered a document's openers.
+              blockType:
+                project.kind === "board"
+                  ? "board"
+                  : (project.blocks[0]?.type ?? "text"),
               selectionText: "",
               anchor: { x: window.innerWidth / 2, y: 120 },
             })

@@ -9,7 +9,7 @@
  */
 
 import type { AIChange, AIChunk, AIProvider, AIRequest } from "./types";
-import type { CellValue, Row, Slide, TableBlock } from "../types";
+import type { Block, CellValue, Row, Slide, SlidesBlock, TableBlock } from "../types";
 import { escapeHtml, uid } from "../factories";
 import { toNumber } from "../formula";
 import { analyseRegister, compareRegister, describeRegister, nudgeRegister } from "./register";
@@ -20,6 +20,17 @@ import {
   answerRemember,
   answerWho,
 } from "./team-answers";
+import {
+  buildBalance,
+  buildChart,
+  buildClean,
+  buildCompute,
+  buildFlow,
+  buildFormulaExplain,
+  buildPlan,
+  buildRestyle,
+  buildShorten,
+} from "./depth";
 import {
   analyseDrift,
   analyseTerminology,
@@ -49,6 +60,15 @@ type Intent =
   | "rewrite"
   | "bullets"
   | "explain"
+  | "clean"
+  | "compute"
+  | "formula"
+  | "chart"
+  | "restyle"
+  | "balance"
+  | "shorten"
+  | "plan"
+  | "flow"
   | "generic";
 
 function classify(prompt: string): Intent {
@@ -72,6 +92,24 @@ function classify(prompt: string): Intent {
     return "files";
   if (/\b(what do (you|we) know|do (you|we) know|deadline|when is|convention|what do we call|our style)\b/.test(p))
     return "knowledge";
+  // Depth intents first: "chart this table" is a chart, not a summary.
+  if (/\b(clean|tidy|normali[sz]e|fix)\b/.test(p) && /\b(data|table|cells?|column|numbers?|values?)\b/.test(p))
+    return "clean";
+  if (/\b(chart|graph|plot|visuali[sz]e)\b/.test(p)) return "chart";
+  if (/\b(explain|what does|how does|read)\b/.test(p) && /\bformula\b/.test(p))
+    return "formula";
+  if (/\b(add|new|create)\b.*\bcolumn\b/.test(p) || /\bcolumn that (computes|calculates)/.test(p))
+    return "compute";
+  if (/\b(restyle|rebrand|brand|our (colours?|colors?|style)|house style|on-brand)\b/.test(p))
+    return "restyle";
+  if (/\bbalance\b|\b(tidy|even out|space out)\b.*\b(layout|slide|objects?)\b/.test(p))
+    return "balance";
+  if (/\b(shorten|cut|trim|reduce)\b.*\b(slides?|deck)\b/.test(p) || /\bdown to \d+ slides?\b/.test(p))
+    return "shorten";
+  if (/\b(plan|now\/next|kanban|sort|organi[sz]e|bucket)\b/.test(p) && /\b(stick(y|ies)|notes?|these|board|items?)\b/.test(p))
+    return "plan";
+  if (/\b(connect|link|flow|sequence|chain|arrows?)\b/.test(p) && /\b(these|them|stick(y|ies)|notes?|items?|board)\b/.test(p))
+    return "flow";
   if (/^__tone__/.test(p)) return "tone";
   if (/\b(match (the |my )?(tone|voice|register|style)|write .*like this|same (tone|voice|style))/.test(p))
     return "tone";
@@ -152,9 +190,18 @@ function linearFit(values: number[]): { slope: number; intercept: number } {
   return { slope, intercept: meanY - slope * meanX };
 }
 
+const isTable = (b: Block): b is TableBlock => b.type === "table";
+const isDeck = (b: Block): b is SlidesBlock => b.type === "slides";
+
 function findTable(ctx: AIRequest["context"], blocks: TableBlock[]): TableBlock | undefined {
-  const selected = ctx.selection?.blockId;
-  return blocks.find((b) => b.id === selected) ?? blocks[0];
+  const asked = ctx.targetBlockId ?? ctx.selection?.blockId;
+  return blocks.find((b) => b.id === asked) ?? blocks[0];
+}
+
+/** Whatever the question was asked from, else the only one there is. */
+function pick<T extends Block>(req: AIRequest, blocks: T[]): T | undefined {
+  const asked = req.context.targetBlockId ?? req.context.selection?.blockId;
+  return blocks.find((b) => b.id === asked) ?? blocks[0];
 }
 
 /* ── Response builders ──────────────────────────────────── */
@@ -755,6 +802,49 @@ function buildGeneric(req: AIRequest): Built {
   };
 }
 
+/* ── Depth intents ──────────────────────────────────────── */
+
+/**
+ * Tables, decks and boards. Returns undefined for everything else, so the prose
+ * chain below stays exactly as it was — a question about a document doesn't
+ * suddenly route through the spreadsheet.
+ *
+ * The deck is found the same way tables are: whatever the user had selected,
+ * falling back to the first one in the project. Asking "balance this layout"
+ * from inside a deck should not require also selecting it.
+ */
+function buildDepth(
+  req: AIRequest,
+  intent: Intent,
+  blocks: Block[],
+): Built | undefined {
+  const table = () => findTable(req.context, blocks.filter(isTable));
+  const deck = () => pick(req, blocks.filter(isDeck));
+
+  switch (intent) {
+    case "clean":
+      return buildClean(table());
+    case "compute":
+      return buildCompute(req.prompt, table());
+    case "formula":
+      return buildFormulaExplain(req.prompt, table());
+    case "chart":
+      return buildChart(table());
+    case "restyle":
+      return buildRestyle(req, deck());
+    case "balance":
+      return buildBalance(req, deck());
+    case "shorten":
+      return buildShorten(req, deck());
+    case "plan":
+      return buildPlan(req);
+    case "flow":
+      return buildFlow(req);
+    default:
+      return undefined;
+  }
+}
+
 /* ── Streaming ──────────────────────────────────────────── */
 
 const sleep = (ms: number, signal?: AbortSignal) =>
@@ -771,7 +861,10 @@ const sleep = (ms: number, signal?: AbortSignal) =>
     );
   });
 
-export function createMockProvider(getTables: (projectId: string) => TableBlock[]): AIProvider {
+export function createMockProvider(
+  /** Live document access, so answers are computed from the real blocks. */
+  getBlocks: (projectId: string) => Block[],
+): AIProvider {
   return {
     name: "stub",
     async *stream(req: AIRequest): AsyncIterable<AIChunk> {
@@ -784,8 +877,11 @@ export function createMockProvider(getTables: (projectId: string) => TableBlock[
       const spoken = classify(req.prompt);
       const intent: Intent =
         focused && !TEAM_INTENTS.has(spoken) ? "files" : spoken;
+      const blocks = getBlocks(req.context.projectId);
+      const depth = buildDepth(req, intent, blocks);
       const built: Built =
-        intent === "speech"
+        depth ??
+        (intent === "speech"
           ? buildSpeech(req)
           : intent === "who" ||
               intent === "brief" ||
@@ -812,14 +908,14 @@ export function createMockProvider(getTables: (projectId: string) => TableBlock[
           : intent === "slides"
             ? buildSlides(req)
             : intent === "forecast"
-              ? buildForecast(req, getTables(req.context.projectId))
+              ? buildForecast(req, blocks.filter(isTable))
               : intent === "rewrite"
                 ? buildRewrite(req)
                 : intent === "bullets"
                   ? buildBullets(req)
                   : intent === "explain"
                     ? buildExplain(req)
-                    : buildGeneric(req);
+                    : buildGeneric(req));
 
       // Emit token-ish chunks at a readable cadence.
       const tokens = built.text.match(/\S+\s*/g) ?? [];

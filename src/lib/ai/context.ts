@@ -235,6 +235,8 @@ export function buildContext(
   allProjects: Project[],
   selection?: AIContext["selection"],
   team?: AIContext["team"],
+  boardSelection?: string[],
+  targetBlockId?: string,
 ): AIContext {
   const blocks: AIContext["blocks"] =
     project.kind === "board"
@@ -277,7 +279,11 @@ export function buildContext(
             ? `${p.board.length} board items`
             : `${p.blocks.length} blocks`,
       })),
+    targetBlockId,
     selection,
+    board: project.board.length
+      ? { items: project.board, selection: boardSelection ?? [] }
+      : undefined,
     team,
     words: blocks.reduce((n, b) => n + b.words, 0),
     wordGoal: project.wordGoal,

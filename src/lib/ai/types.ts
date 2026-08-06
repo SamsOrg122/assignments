@@ -7,7 +7,15 @@
  * writing one `AIProvider` and registering it; no component changes.
  */
 
-import type { Block, Column, CellValue, ProjectKind } from "../types";
+import type {
+  Block,
+  BoardItem,
+  CellValue,
+  Column,
+  DeckStyle,
+  ProjectKind,
+  Slide,
+} from "../types";
 import type { KnowledgeEntry, Member, TeamFile, Workspace } from "../team/types";
 
 /**
@@ -46,11 +54,29 @@ export interface AIContext {
     summary: string;
   }>;
 
+  /**
+   * The block the question was asked from, selection or not. Distinct from
+   * `selection`: clicking Ask AI on the second table in a document selects no
+   * text, but the question is unambiguously about *that* table.
+   */
+  targetBlockId?: string;
+
   /** What the user had selected when they invoked AI, if anything. */
   selection?: {
     blockId: string;
     blockType: Block["type"];
     text: string;
+  };
+
+  /**
+   * The board, with geometry. Board questions are spatial — "turn these into a
+   * plan" needs to know how big the stickies are and which ones were picked —
+   * and none of that survives being flattened to text.
+   */
+  board?: {
+    items: BoardItem[];
+    /** Ids the user had selected, if any. */
+    selection: string[];
   };
 
   /**
@@ -157,6 +183,45 @@ export type AIChange =
       values: Record<string, CellValue>;
       /** Rows appended by the change (e.g. forecast periods). */
       appendRows?: Array<{ id: string; cells: Record<string, CellValue> }>;
+      label: string;
+    }
+  | {
+      /**
+       * Individual cell edits — "clean this data" and friends. Cells rather
+       * than whole rows so the change applies to the *live* table: anything the
+       * user typed while reading the answer survives.
+       */
+      kind: "set-cells";
+      blockId: string;
+      cells: Array<{ rowId: string; columnId: string; value: CellValue }>;
+      /** A few before → after pairs, for the preview. */
+      examples: Array<{ from: string; to: string }>;
+      label: string;
+    }
+  | {
+      /** Whole-deck edits: reorder, trim, rebalance a layout. */
+      kind: "set-slides";
+      blockId: string;
+      slides: Slide[];
+      label: string;
+    }
+  | {
+      kind: "set-deck-style";
+      blockId: string;
+      style: DeckStyle;
+      label: string;
+    }
+  | {
+      /**
+       * Board edits, as concrete items and patches. General on purpose: the
+       * same shape carries "turn these stickies into a plan" (add frames, move
+       * the stickies into them) and "connect these into a flow" (add
+       * connectors), so the client stays a dumb applier of geometry it didn't
+       * have to compute.
+       */
+      kind: "board-ops";
+      add: BoardItem[];
+      patch: Record<string, Partial<BoardItem>>;
       label: string;
     };
 

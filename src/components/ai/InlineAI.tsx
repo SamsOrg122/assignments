@@ -18,13 +18,29 @@ import { useProjects } from "@/lib/store";
 import { useUI, type AITarget } from "@/lib/ui-store";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
-import type { Row, TextBlock } from "@/lib/types";
+import type { Row, SlidesBlock, TextBlock } from "@/lib/types";
 
+/**
+ * Openers, per surface. They double as documentation: the fastest way to learn
+ * that a table can be cleaned or a layout balanced is to be offered it in the
+ * place where it applies, rather than to read a list of capabilities.
+ */
 const SUGGESTIONS: Record<string, string[]> = {
   text: ["Summarize this", "Tighten this prose", "Turn this into slides"],
-  table: ["Forecast this column", "Summarize this table"],
+  table: [
+    "Clean this data",
+    "Chart this",
+    "Add a column that computes the total",
+    "Explain this formula",
+  ],
   chart: ["Explain what this shows", "Summarize the project"],
-  slides: ["Tighten these bullets", "Summarize this deck"],
+  slides: [
+    "Balance this layout",
+    "Shorten to 8 slides",
+    "Restyle to our brand",
+    "Tighten these bullets",
+  ],
+  board: ["Turn these into a plan", "Connect these into a flow"],
   code: ["Explain this code", "Summarize the project"],
 };
 
@@ -47,6 +63,9 @@ function AIPopover({ target }: { target: AITarget }) {
   const updateBlock = useProjects((s) => s.updateBlock);
   const insertBlock = useProjects((s) => s.insertBlock);
   const addValueColumn = useProjects((s) => s.addValueColumn);
+  const setCells = useProjects((s) => s.setCells);
+  const addBoardItems = useProjects((s) => s.addBoardItems);
+  const patchBoardItems = useProjects((s) => s.patchBoardItems);
   const addProject = useProjects((s) => s.addProject);
   const removeBlock = useProjects((s) => s.removeBlock);
   const router = useRouter();
@@ -97,7 +116,7 @@ function AIPopover({ target }: { target: AITarget }) {
         ? buildContext(
             project,
             projects,
-            target.selectionText
+            target.selectionText && target.blockType !== "board"
               ? {
                   blockId: target.blockId,
                   blockType: target.blockType,
@@ -105,6 +124,8 @@ function AIPopover({ target }: { target: AITarget }) {
                 }
               : undefined,
             team,
+            target.selectionIds,
+            target.blockId || undefined,
           )
         : {
             projectId: "",
@@ -240,6 +261,31 @@ function AIPopover({ target }: { target: AITarget }) {
           (change.appendRows as Row[] | undefined) ?? [],
         );
         break;
+
+      case "set-cells":
+        // Cell-by-cell, against the live table — anything typed while the
+        // answer was streaming survives.
+        setCells(projectId, change.blockId, change.cells);
+        break;
+
+      case "set-slides":
+        updateBlock<SlidesBlock>(projectId, change.blockId, {
+          slides: change.slides,
+        });
+        break;
+
+      case "set-deck-style":
+        updateBlock<SlidesBlock>(projectId, change.blockId, {
+          style: change.style,
+        });
+        break;
+
+      case "board-ops": {
+        if (change.add.length) addBoardItems(projectId, change.add);
+        if (Object.keys(change.patch).length)
+          patchBoardItems(projectId, change.patch);
+        break;
+      }
     }
 
     notify("Change applied");
@@ -251,6 +297,9 @@ function AIPopover({ target }: { target: AITarget }) {
     updateBlock,
     insertBlock,
     addValueColumn,
+    setCells,
+    addBoardItems,
+    patchBoardItems,
     addProject,
     removeBlock,
     remember,
@@ -386,6 +435,36 @@ function AIPopover({ target }: { target: AITarget }) {
               </span>
               <span className="text-[12px] text-fg">{change.label}</span>
             </div>
+
+            {/* A bulk edit deserves to be seen before it's agreed to. Four
+                before → after pairs is enough to tell a sensible cleanup from
+                one that would wreck a column. */}
+            {change.kind === "set-cells" && change.examples.length > 0 && (
+              <ul className="mb-2 space-y-0.5">
+                {change.examples.map((ex, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center gap-1.5 font-mono text-[10.5px]"
+                  >
+                    <span className="max-w-[42%] truncate text-fg-subtle line-through">
+                      {ex.from || "␣"}
+                    </span>
+                    <Icon
+                      name="arrow-right"
+                      size={9}
+                      className="shrink-0 text-fg-subtle"
+                    />
+                    <span className="max-w-[42%] truncate text-fg">{ex.to}</span>
+                  </li>
+                ))}
+                {change.cells.length > change.examples.length && (
+                  <li className="font-mono text-[10px] text-fg-subtle">
+                    +{change.cells.length - change.examples.length} more
+                  </li>
+                )}
+              </ul>
+            )}
+
             <div className="flex items-center gap-2">
               <button
                 type="button"

@@ -10,18 +10,21 @@
  */
 
 import { useProjects } from "../store";
-import type { TableBlock } from "../types";
+import type { Block } from "../types";
 import { createMockProvider } from "./mock";
 import type { AIChunk, AIContext, AIProvider } from "./types";
 
 export type { AIChange, AIChunk, AIContext, AIProvider, AIRequest } from "./types";
 
-const tablesFor = (projectId: string): TableBlock[] =>
-  (useProjects.getState().projects.find((p) => p.id === projectId)?.blocks ?? []).filter(
-    (b): b is TableBlock => b.type === "table",
-  );
+/**
+ * Live block access for the stub. The flattened context is what a real model
+ * would read; this is what the stub *computes* from, so a proposed change acts
+ * on the document as it is right now rather than a text rendering of it.
+ */
+const blocksFor = (projectId: string): Block[] =>
+  useProjects.getState().projects.find((p) => p.id === projectId)?.blocks ?? [];
 
-let provider: AIProvider = createMockProvider(tablesFor);
+let provider: AIProvider = createMockProvider(blocksFor);
 
 export function setAIProvider(next: AIProvider) {
   provider = next;

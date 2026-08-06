@@ -662,6 +662,26 @@ export function BoardEditor({
     },
   ];
 
+  /**
+   * Everything a marquee touched. Frames are excluded when they aren't the
+   * only thing caught: dragging a box over a section means "these notes", not
+   * "this section and everything in it", and including the frame would make
+   * the next drag move the whole board.
+   */
+  const selectWithin = useCallback(
+    (box: { x0: number; y0: number; x1: number; y1: number }) => {
+      const [x0, x1] = [Math.min(box.x0, box.x1), Math.max(box.x0, box.x1)];
+      const [y0, y1] = [Math.min(box.y0, box.y1), Math.max(box.y0, box.y1)];
+      const hit = blocks.filter(
+        (i) =>
+          i.x + i.width > x0 && i.x < x1 && i.y + i.height > y0 && i.y < y1,
+      );
+      const withoutFrames = hit.filter((i) => i.kind !== "frame");
+      select((withoutFrames.length ? withoutFrames : hit).map((i) => i.id));
+    },
+    [blocks, select],
+  );
+
   /* ── Surface interaction: pan on drag, marquee with shift ─ */
 
   const onSurfacePointerDown = (e: React.PointerEvent) => {
@@ -703,21 +723,7 @@ export function BoardEditor({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       setMarquee(null);
-      if (box) {
-        const [x0, x1] = [Math.min(box.x0, box.x1), Math.max(box.x0, box.x1)];
-        const [y0, y1] = [Math.min(box.y0, box.y1), Math.max(box.y0, box.y1)];
-        select(
-          blocks
-            .filter(
-              (i) =>
-                i.x + i.width > x0 &&
-                i.x < x1 &&
-                i.y + i.height > y0 &&
-                i.y < y1,
-            )
-            .map((i) => i.id),
-        );
-      }
+      if (box) selectWithin(box);
     };
 
     window.addEventListener("pointermove", onMove);
@@ -729,16 +735,42 @@ export function BoardEditor({
   const dragItem = (item: BoardItem, e: React.PointerEvent) => {
     e.stopPropagation();
 
-    // Shift-click extends the selection instead of starting a drag — the
-    // gesture everyone brings from Figma, and the only way to pick two things
-    // that a marquee would have to cross a third to reach.
+    // Shift is two gestures, told apart by whether the pointer moves.
+    // A shift-*click* extends the selection — the gesture everyone brings from
+    // Figma. A shift-*drag* is a marquee, even when it starts on top of
+    // something: a frame covers the notes inside it, so requiring a marquee to
+    // begin on empty canvas would make the notes in a frame unselectable as a
+    // group.
     if (e.shiftKey) {
       const group = expandGroups([item.id]);
-      setSelection((s) =>
-        s.includes(item.id)
-          ? s.filter((id) => !group.includes(id))
-          : [...new Set([...s, ...group])],
-      );
+      const from = toWorld(e.clientX, e.clientY);
+      const start = { x: e.clientX, y: e.clientY };
+      let box: { x0: number; y0: number; x1: number; y1: number } | null = null;
+
+      const onMove = (ev: PointerEvent) => {
+        if (
+          !box &&
+          Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 4
+        )
+          return;
+        const w = toWorld(ev.clientX, ev.clientY);
+        box = { x0: from.x, y0: from.y, x1: w.x, y1: w.y };
+        setMarquee(box);
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        setMarquee(null);
+        if (box) selectWithin(box);
+        else
+          setSelection((s) =>
+            s.includes(item.id)
+              ? s.filter((id) => !group.includes(id))
+              : [...new Set([...s, ...group])],
+          );
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
       return;
     }
 
@@ -1313,8 +1345,9 @@ export function BoardEditor({
                   openAI({
                     projectId: project.id,
                     blockId: first?.id ?? "",
-                    blockType: "text",
+                    blockType: "board",
                     selectionText: text,
+                    selectionIds: selection,
                     anchor: { x: window.innerWidth / 2, y: 160 },
                   });
                 }}

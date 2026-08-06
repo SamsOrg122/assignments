@@ -25,7 +25,6 @@
 
 export type SlotId =
   | "hero-photo"
-  | "hero-ambient"
   | "impact-forest"
   | "impact-canopy"
   | "mission-texture";
@@ -107,25 +106,6 @@ export const VISUAL_SLOTS: Record<SlotId, VisualSlot> = {
       "https://d8j0ntlcm91z4.cloudfront.net/user_3EWli8CAM0sQ73ZEQAcK2HryYZM/hf_20260806_185822_d68e1804-882c-4ae3-83f6-6ca4ae3edf8f.png",
   },
 
-  "hero-ambient": {
-    id: "hero-ambient",
-    role: "Ambient light behind the hero, under the product mock-up.",
-    prompt:
-      `Abstract composition of thin frosted glass panels floating in dark space, ` +
-      `edge-lit by one cool blue light source, deep falloff into black, ` +
-      `volumetric haze, extremely subtle. ${BRAND}`,
-    model: "nano_banana",
-    aspect: "16:9",
-    alt:
-      "Frosted glass panels floating in near-black space, edge-lit in cool blue.",
-    decorative: true,
-    status: "generated",
-    src: "https://d8j0ntlcm91z4.cloudfront.net/user_3EWli8CAM0sQ73ZEQAcK2HryYZM/hf_20260805_090818_0f485780-8b7a-4c9d-a9cc-027428e447a4.png",
-    generated: {
-      url: "https://d8j0ntlcm91z4.cloudfront.net/user_3EWli8CAM0sQ73ZEQAcK2HryYZM/hf_20260805_090818_0f485780-8b7a-4c9d-a9cc-027428e447a4.png",
-      model: "nano_banana",
-    },
-  },
   "impact-forest": {
     id: "impact-forest",
     role: "The full-bleed forest band that opens the impact section.",

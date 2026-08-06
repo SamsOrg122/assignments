@@ -69,7 +69,7 @@ export function SectionHead({
   return (
     <div className={cn("max-w-[62ch]", align === "centre" && "mx-auto text-center")}>
       {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-      <h2 className="headline mt-3 text-[clamp(28px,4.4vw,46px)] font-medium text-balance">
+      <h2 className="headline mt-3 text-[clamp(30px,4.6vw,50px)] text-balance">
         {title}
       </h2>
       {lead && (

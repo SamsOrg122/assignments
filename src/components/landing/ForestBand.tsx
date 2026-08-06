@@ -48,7 +48,7 @@ export function ForestBand() {
             <Leaf size={13} />
             {PRIMARY_CAUSE.name}
           </p>
-          <p className="mt-2 max-w-[34ch] text-[clamp(18px,2.6vw,26px)] leading-[1.25] font-medium tracking-[-0.02em] text-fg text-balance">
+          <p className="display mt-2 max-w-[34ch] text-[clamp(19px,2.7vw,28px)] leading-[1.24] text-fg text-balance">
             This is the part we can&apos;t design. So we pay for it instead.
           </p>
         </div>

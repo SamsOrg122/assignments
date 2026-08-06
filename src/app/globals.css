@@ -540,19 +540,28 @@
 }
 
 /* Headline treatment: near-white falling to grey, so long headings settle
-   rather than glare. */
+   rather than glare.
+
+   Set in the same display serif as the banner word, deliberately. The page is
+   two faces and only two: a book serif for the things being *said*, and Geist
+   for everything the product does — labels, numbers, controls, product copy.
+   A landing page in one geometric sans is the house style of every SaaS
+   template, and the serif is what stops this one reading like the rest. */
 .headline {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Charter,
+    "Bitstream Charter", Georgia, "Times New Roman", serif;
+  font-weight: 400;
   background: linear-gradient(
     176deg,
     #ffffff 8%,
-    var(--color-fg) 46%,
+    var(--color-fg) 52%,
     #9a9aa6 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  letter-spacing: -0.035em;
-  line-height: 1.02;
+  letter-spacing: -0.022em;
+  line-height: 1.06;
 }
 
 /* Anchor jumps glide instead of cutting — storefront only, so the app's own
@@ -656,6 +665,23 @@
    A light, wide serif at display size — the face a book title is set in,
    not a product logo. It reads as *made* rather than as software chrome,
    which is the whole reason the photograph is there. */
+/* The serif on its own, for the moments that are a *statement* rather than a
+   heading — the mission line, the impact line. Same face as .headline without
+   the gradient, because those sit on their own backgrounds. */
+.display {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Charter,
+    "Bitstream Charter", Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.018em;
+}
+
+/* The wordmark, in the display serif — the bar's half of the two-face mix. */
+.nav-wordmark {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Charter,
+    "Bitstream Charter", Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
 .hero-word {
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Charter,
     "Bitstream Charter", Georgia, "Times New Roman", serif;
@@ -668,6 +694,25 @@
   display: inline-block;
   white-space: pre;
   animation: a-letter-in 520ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+/* The mark turns as it arrives, so the shape reads as *replaced* rather than
+   swapped — a cross-fade between two outlines looks like a rendering glitch. */
+.hero-mark {
+  animation: a-mark-in 620ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+@keyframes a-mark-in {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: rotate(-38deg) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
 }
 
 @keyframes a-letter-in {
@@ -696,6 +741,7 @@
     animation: none;
   }
   /* The word still needs to be legible, just not animated into place. */
+  .hero-mark,
   .hero-letter {
     animation: none;
     opacity: 1;

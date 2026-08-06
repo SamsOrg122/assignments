@@ -30,7 +30,7 @@ export function Mission() {
       <Section className="relative">
         <Reveal>
           <div className="mx-auto max-w-[60ch] text-center">
-            <p className="text-[clamp(20px,3vw,30px)] leading-[1.35] font-medium tracking-[-0.025em] text-fg text-balance">
+            <p className="display text-[clamp(21px,3.1vw,32px)] leading-[1.32] text-fg text-balance">
               We wanted a beautiful place to make things. Building one on top of
               AI means using a lot of energy and a lot of other people&apos;s
               money, and we didn&apos;t want that to be the whole story.

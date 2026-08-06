@@ -316,23 +316,6 @@ export function DeckMock({ className }: { className?: string }) {
 /* ── Ambient fallbacks ──────────────────────────────────── */
 
 /**
- * Stands in for `hero-ambient` until a generated asset fills that slot: layered
- * conic and radial washes, which is what a photograph of edge-lit glass would
- * have given us anyway.
- */
-export function AmbientFallback({ className }: { className?: string }) {
-  // No `relative` of its own — `cn` is a plain join and Tailwind emits
-  // `relative` after `absolute`, so hardcoding it here would override a
-  // caller's `absolute inset-0` and collapse this to zero height.
-  return (
-    <div aria-hidden="true" className={cn("overflow-hidden", className)}>
-      <div className="aurora" />
-      <div className="grid-faint absolute inset-0" />
-    </div>
-  );
-}
-
-/**
  * Crafted stand-in for `hero-photo`: a painted dusk sky over a dark valley.
  *
  * Not an apology for a missing photograph — the banner has to hold on a slow

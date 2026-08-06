@@ -21,15 +21,67 @@ import { useReducedMotion } from "@/lib/use-reduced-motion";
 /**
  * The first entry is the product; the rest are what it replaces. Kept in the
  * order a person would meet them, not alphabetically.
+ *
+ * Each carries its own mark. The shape changing alongside the word is what
+ * stops the loop reading as a text effect — it looks like a different *thing*
+ * each time, and the notched square coming back around is the one that means
+ * "and all of it is this".
  */
-const WORDS = [
-  "Assignments",
-  "Documents",
-  "Presentations",
-  "Spreadsheets",
-  "Whiteboards",
-  "Research",
+const WORDS: Array<{ word: string; mark: MarkShape }> = [
+  { word: "Assignments", mark: "notch" },
+  { word: "Documents", mark: "circle" },
+  { word: "Presentations", mark: "square" },
+  { word: "Spreadsheets", mark: "triangle" },
+  { word: "Whiteboards", mark: "diamond" },
+  { word: "Research", mark: "hexagon" },
 ];
+
+type MarkShape =
+  | "notch"
+  | "circle"
+  | "square"
+  | "triangle"
+  | "diamond"
+  | "hexagon";
+
+/**
+ * The mark, drawn on a 24 grid at a single stroke weight so the shapes read as
+ * one family rather than as six clip-art glyphs. Optically sized, not
+ * mathematically: a triangle at the same bounding box as a circle looks
+ * smaller, so it gets more room.
+ */
+function Mark({ shape }: { shape: MarkShape }) {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.6,
+    strokeLinejoin: "round" as const,
+  };
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="hero-mark size-[0.62em] shrink-0"
+    >
+      {shape === "notch" && (
+        // A square with its corners taken out — the brand shape.
+        <path
+          {...common}
+          d="M8 3h8v5h5v8h-5v5H8v-5H3V8h5z"
+        />
+      )}
+      {shape === "circle" && <circle {...common} cx="12" cy="12" r="9" />}
+      {shape === "square" && (
+        <rect {...common} x="3.5" y="3.5" width="17" height="17" rx="2" />
+      )}
+      {shape === "triangle" && <path {...common} d="M12 2.5 22 20H2z" />}
+      {shape === "diamond" && <path {...common} d="M12 2 22 12 12 22 2 12z" />}
+      {shape === "hexagon" && (
+        <path {...common} d="M12 2.5 20.5 7.4v9.2L12 21.5 3.5 16.6V7.4z" />
+      )}
+    </svg>
+  );
+}
 
 /** Long enough to read the word, short enough that nobody waits for the loop. */
 const HOLD_MS = 2400;
@@ -49,8 +101,8 @@ export function HeroBanner() {
     return () => clearInterval(id);
   }, [reduced]);
 
-  const word = reduced ? WORDS[0] : WORDS[index];
-  const letters = [...word];
+  const current = reduced ? WORDS[0] : WORDS[index];
+  const letters = [...current.word];
 
   return (
     <div className="relative isolate h-[clamp(320px,52vh,560px)] w-full overflow-hidden">
@@ -82,19 +134,24 @@ export function HeroBanner() {
 
         <span
           aria-hidden="true"
-          className="hero-word text-center text-[clamp(38px,8.5vw,104px)] leading-[1.05] font-light tracking-[-0.02em] text-white"
+          className="hero-word flex items-center justify-center gap-[0.3em] text-center text-[clamp(34px,8vw,96px)] leading-[1.05] font-light tracking-[-0.02em] text-white"
         >
-          {letters.map((char, i) => (
-            <span
-              // Keyed on the word so React replaces the nodes and the
-              // animation actually restarts instead of being reused.
-              key={`${index}-${i}`}
-              className="hero-letter"
-              style={{ animationDelay: `${i * STEP_MS}ms` }}
-            >
-              {char}
-            </span>
-          ))}
+          <span key={`m-${index}`} className="contents">
+            <Mark shape={current.mark} />
+          </span>
+          <span>
+            {letters.map((char, i) => (
+              <span
+                // Keyed on the word so React replaces the nodes and the
+                // animation actually restarts instead of being reused.
+                key={`${index}-${i}`}
+                className="hero-letter"
+                style={{ animationDelay: `${i * STEP_MS}ms` }}
+              >
+                {char}
+              </span>
+            ))}
+          </span>
         </span>
       </div>
     </div>

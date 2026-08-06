@@ -19,11 +19,15 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 
+/**
+ * Absolute rather than bare fragments: the bar renders on the sub-pages too,
+ * where "#pricing" resolves to nothing at all.
+ */
 const LINKS = [
-  { href: "#product", label: "Product" },
-  { href: "#features", label: "Features" },
-  { href: "#impact", label: "Impact" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "/#product", label: "Product" },
+  { href: "/#features", label: "Features" },
+  { href: "/impact", label: "Impact" },
+  { href: "/#pricing", label: "Pricing" },
 ];
 
 export function Nav() {

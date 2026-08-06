@@ -22,37 +22,37 @@ const COLUMNS: Array<{ title: string; links: FooterLink[] }> = [
   {
     title: "Transparency",
     links: [
-      { label: "How impact works", href: "#impact" },
-      { label: "Where the money goes", href: "#impact" },
-      { label: "Impact reports", href: null },
-      { label: "Planting partner", href: null },
-      { label: "Independent review", href: null },
+      { label: "The commitment", href: "/impact" },
+      { label: "Where the money goes", href: "/impact#split" },
+      { label: "Planting partner", href: "/impact#partner" },
+      { label: "Independent review", href: "/impact#verification" },
+      { label: "Impact reports", href: "/impact#verification" },
     ],
   },
   {
     title: "Product",
     links: [
-      { label: "Overview", href: "#product" },
-      { label: "Features", href: "#features" },
-      { label: "Pricing", href: "#pricing" },
+      { label: "Overview", href: "/#product" },
+      { label: "Features", href: "/#features" },
+      { label: "Pricing", href: "/#pricing" },
       { label: "Open Assignments", href: "/library" },
     ],
   },
   {
     title: "Company",
     links: [
-      { label: "About", href: null },
-      { label: "Contact", href: null },
-      { label: "Status", href: null },
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
+      { label: "Status", href: "/contact#status" },
     ],
   },
   {
     title: "Legal",
     links: [
-      { label: "Terms", href: null },
-      { label: "Privacy", href: null },
-      { label: "Impact commitment", href: null },
-      { label: "Cookies", href: null },
+      { label: "Terms", href: "/legal" },
+      { label: "Privacy", href: "/legal#privacy" },
+      { label: "Cookies", href: "/legal#cookies" },
+      { label: "Impact commitment", href: "/impact" },
     ],
   },
 ];

@@ -251,8 +251,17 @@ export const PRIMARY_CAUSE = CAUSES.find((c) => c.primary) ?? CAUSES[0];
  * can't check. Revenue is the one both of us can see on your invoice.
  */
 export const IMPACT = {
+  /**
+   * Ten percent of revenue, not five.
+   *
+   * Five is the number a company picks when it wants the sentence without the
+   * cost — it reads as a rounding error and invites exactly that reading. Ten
+   * is large enough that it has to be planned for, which is the only version
+   * of this promise worth making. It comes out of the product-building line
+   * below, so it is a real trade against how fast this gets built.
+   */
   shareOfRevenue: {
-    value: 0.05,
+    value: 0.1,
     status: "placeholder",
     note: "Intended commitment. Becomes confirmed when it is written into our terms.",
   } as Figure<number>,
@@ -273,18 +282,21 @@ export const IMPACT = {
 } as const;
 
 /**
- * Where the other 95% goes. Rough shares, and labelled as rough — this is here
+ * Where the other 90% goes. Rough shares, and labelled as rough — this is here
  * so the page never implies every euro plants a tree.
+ *
+ * The impact line is funded out of product-building, not out of compute or
+ * card fees, because those two are what they are. Shares must total 1.
  */
 export const REVENUE_SPLIT: Array<{ label: string; share: number; note: string }> = [
   {
     label: "AI compute and hosting",
-    share: 0.38,
+    share: 0.36,
     note: "What the models and the servers actually cost us.",
   },
   {
     label: "Building the product",
-    share: 0.44,
+    share: 0.41,
     note: "Salaries, tools, the work of making it good.",
   },
   {
@@ -294,7 +306,7 @@ export const REVENUE_SPLIT: Array<{ label: string; share: number; note: string }
   },
   {
     label: "Impact",
-    share: 0.05,
+    share: 0.1,
     note: "Set aside before anything else is paid out.",
   },
 ];

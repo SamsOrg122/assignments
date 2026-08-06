@@ -85,16 +85,57 @@ interface ProjectsState {
     projectId: string,
     kind: BoardItemKind,
     at: { x: number; y: number },
-    extra?: { projectId?: string; text?: string },
+    extra?: {
+      projectId?: string;
+      text?: string;
+      fromId?: string;
+      toId?: string;
+    },
   ) => string;
   updateBoardItem: (
     projectId: string,
     itemId: string,
     patch: Partial<BoardItem>,
   ) => void;
+  /**
+   * One commit for many items. Align, distribute and group-drag all move a
+   * whole selection at once; doing that as N separate writes would put N
+   * entries through the persist middleware and make undo lumpy.
+   */
+  patchBoardItems: (
+    projectId: string,
+    patches: Record<string, Partial<BoardItem>>,
+  ) => void;
   removeBoardItem: (projectId: string, itemId: string) => void;
+  /** Remove several, plus any connector left dangling by the removal. */
+  removeBoardItems: (projectId: string, itemIds: string[]) => void;
+  addBoardItems: (projectId: string, items: BoardItem[]) => void;
   /** Raise items above everything else — called when a drag starts. */
   raiseBoardItems: (projectId: string, itemIds: string[]) => void;
+  lowerBoardItems: (projectId: string, itemIds: string[]) => void;
+  /** Tie a selection together, or cut it loose. Returns the new group id. */
+  groupBoardItems: (projectId: string, itemIds: string[]) => string;
+  ungroupBoardItems: (projectId: string, itemIds: string[]) => void;
+
+  /* Board comments */
+  addBoardComment: (
+    projectId: string,
+    itemId: string,
+    body: string,
+    authorId: string,
+  ) => void;
+  toggleBoardReaction: (
+    projectId: string,
+    itemId: string,
+    commentId: string,
+    emoji: string,
+    userId: string,
+  ) => void;
+  resolveBoardComment: (
+    projectId: string,
+    itemId: string,
+    commentId: string,
+  ) => void;
   setViewport: (
     projectId: string,
     viewport: { x: number; y: number; scale: number },
@@ -190,6 +231,20 @@ function withProject(
     return { ...fn(p), updatedAt: Date.now() };
   });
   return changed ? next : projects;
+}
+
+/**
+ * A connector whose endpoint just got deleted has nothing to draw between, so
+ * it goes with it. Cleaning up here rather than at render time keeps the
+ * document honest — no invisible items accumulating in storage.
+ */
+function dropDangling(board: BoardItem[]): BoardItem[] {
+  const present = new Set(board.map((i) => i.id));
+  return board.filter(
+    (i) =>
+      i.kind !== "connector" ||
+      (present.has(i.fromId) && present.has(i.toId)),
+  );
 }
 
 function withBlocks(
@@ -438,12 +493,41 @@ export const useProjects = create<ProjectsState>()(
           })),
         })),
 
+      patchBoardItems: (projectId, patches) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            board: p.board.map((i) =>
+              patches[i.id] ? ({ ...i, ...patches[i.id] } as BoardItem) : i,
+            ),
+          })),
+        })),
+
+      addBoardItems: (projectId, items) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            board: [...p.board, ...items],
+          })),
+        })),
+
       removeBoardItem: (projectId, itemId) =>
         set((s) => ({
           projects: withProject(s.projects, projectId, (p) => ({
             ...p,
-            board: p.board.filter((i) => i.id !== itemId),
+            board: dropDangling(p.board.filter((i) => i.id !== itemId)),
           })),
+        })),
+
+      removeBoardItems: (projectId, itemIds) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => {
+            const gone = new Set(itemIds);
+            return {
+              ...p,
+              board: dropDangling(p.board.filter((i) => !gone.has(i.id))),
+            };
+          }),
         })),
 
       raiseBoardItems: (projectId, itemIds) =>
@@ -459,6 +543,119 @@ export const useProjects = create<ProjectsState>()(
               ),
             };
           }),
+        })),
+
+      lowerBoardItems: (projectId, itemIds) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => {
+            const floor = p.board.reduce((m, i) => Math.min(m, i.z), 0);
+            const ids = new Set(itemIds);
+            let n = 1;
+            return {
+              ...p,
+              board: p.board.map((i) =>
+                ids.has(i.id) ? { ...i, z: floor - n++ } : i,
+              ),
+            };
+          }),
+        })),
+
+      groupBoardItems: (projectId, itemIds) => {
+        const groupId = `g_${uid()}`;
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => {
+            const ids = new Set(itemIds);
+            return {
+              ...p,
+              board: p.board.map((i) =>
+                ids.has(i.id) ? { ...i, groupId } : i,
+              ),
+            };
+          }),
+        }));
+        return groupId;
+      },
+
+      ungroupBoardItems: (projectId, itemIds) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => {
+            // Ungrouping one member releases the whole group: a half-dissolved
+            // group is a state nobody asked for.
+            const groups = new Set(
+              p.board
+                .filter((i) => itemIds.includes(i.id) && i.groupId)
+                .map((i) => i.groupId),
+            );
+            return {
+              ...p,
+              board: p.board.map((i) =>
+                i.groupId && groups.has(i.groupId)
+                  ? { ...i, groupId: undefined }
+                  : i,
+              ),
+            };
+          }),
+        })),
+
+      /* ── Board comments ───────────────────────────────── */
+
+      addBoardComment: (projectId, itemId, body, authorId) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            board: p.board.map((i) =>
+              i.id === itemId
+                ? {
+                    ...i,
+                    comments: [
+                      ...(i.comments ?? []),
+                      { id: uid(), authorId, body, at: Date.now() },
+                    ],
+                  }
+                : i,
+            ),
+          })),
+        })),
+
+      toggleBoardReaction: (projectId, itemId, commentId, emoji, userId) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            board: p.board.map((i) =>
+              i.id === itemId
+                ? {
+                    ...i,
+                    comments: (i.comments ?? []).map((c) => {
+                      if (c.id !== commentId) return c;
+                      const had = c.reactions?.[emoji] ?? [];
+                      const next = had.includes(userId)
+                        ? had.filter((u) => u !== userId)
+                        : [...had, userId];
+                      const reactions = { ...c.reactions, [emoji]: next };
+                      if (!next.length) delete reactions[emoji];
+                      return { ...c, reactions };
+                    }),
+                  }
+                : i,
+            ),
+          })),
+        })),
+
+      resolveBoardComment: (projectId, itemId, commentId) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            board: p.board.map((i) =>
+              i.id === itemId
+                ? {
+                    ...i,
+                    comments: (i.comments ?? []).filter(
+                      (c) => c.id !== commentId,
+                    ),
+                  }
+                : i,
+            ),
+          })),
         })),
 
       setViewport: (projectId, viewport) =>

@@ -48,7 +48,13 @@ export type IconName =
   | "quote"
   | "promote"
   | "minus"
-  | "history";
+  | "history"
+  | "frame"
+  | "link"
+  | "lock"
+  | "unlock"
+  | "group"
+  | "map";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   search: (
@@ -169,6 +175,30 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M2.8 8a5.2 5.2 0 1 0 1.6-3.8M2.5 3v2.6h2.6" />
     </>
   ),
+  frame: <path d="M4.5 2v12M11.5 2v12M2 4.5h12M2 11.5h12" />,
+  link: (
+    <path d="M6.5 9.5 9.5 6.5M6.8 4.6 8.2 3.2a2.6 2.6 0 0 1 3.7 3.7l-1.4 1.4M9.2 11.4l-1.4 1.4a2.6 2.6 0 0 1-3.7-3.7l1.4-1.4" />
+  ),
+  lock: (
+    <>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+      <path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7" />
+    </>
+  ),
+  unlock: (
+    <>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+      <path d="M5.5 7V5.2a2.5 2.5 0 0 1 4.9-.6" />
+    </>
+  ),
+  group: (
+    <>
+      <rect x="2.5" y="2.5" width="6" height="6" rx="1" />
+      <path d="M7.5 10.5h5a1 1 0 0 0 1-1v-5" strokeDasharray="2 2" />
+      <rect x="7.5" y="7.5" width="6" height="6" rx="1" />
+    </>
+  ),
+  map: <path d="M2.5 4 6 2.5 10 4.5 13.5 3v9L10 13.5 6 11.5 2.5 13zM6 2.5v9M10 4.5v9" />,
 };
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, "name"> {

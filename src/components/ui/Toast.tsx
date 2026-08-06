@@ -8,7 +8,10 @@ export function Toast() {
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-6 z-[90] flex justify-center px-4 print:hidden"
+      // Above the bottom-centre selection bars, not on top of them: on the
+      // board almost every action both changes the selection and announces
+      // itself, so the two would collide constantly at the same height.
+      className="pointer-events-none fixed inset-x-0 bottom-20 z-[90] flex justify-center px-4 print:hidden"
       role="status"
       aria-live="polite"
     >

@@ -92,17 +92,66 @@ export function blockToText(block: Block, project: Project): string {
   }
 }
 
-/** Board items read as text too, so boards can be asked about. */
+/**
+ * Board items read as text too, so boards can be asked about.
+ *
+ * Structure is part of the meaning on a board: which frame a sticky sits in,
+ * and what points at what. A flat list of note text throws both away, so items
+ * are reported under their frame and connectors are spelled out as arrows.
+ */
 export function boardToText(project: Project): string {
-  return project.board
-    .map((i) => {
-      if (i.kind === "sticky") return `[sticky] ${i.text}`;
-      if (i.kind === "text") return i.text;
-      if (i.kind === "image") return `[image] ${i.alt || "untitled"}`;
-      return `[card] project ${i.projectId}`;
-    })
-    .filter(Boolean)
-    .join("\n\n");
+  const label = (id: string): string => {
+    const i = project.board.find((b) => b.id === id);
+    if (!i) return "?";
+    if (i.kind === "frame") return i.title;
+    if ("text" in i) return i.text.split("\n")[0].slice(0, 40) || "untitled";
+    if (i.kind === "image") return i.alt || "image";
+    return "card";
+  };
+
+  const describe = (i: (typeof project.board)[number]): string => {
+    if (i.kind === "sticky") return `[sticky] ${i.text}`;
+    if (i.kind === "text") return i.text;
+    if (i.kind === "image") return `[image] ${i.alt || "untitled"}`;
+    if (i.kind === "card") return `[card] project ${i.projectId}`;
+    return "";
+  };
+
+  const frames = project.board.filter((i) => i.kind === "frame");
+  const inside = (i: (typeof project.board)[number]) =>
+    frames.find(
+      (f) =>
+        i.kind !== "connector" &&
+        i.kind !== "frame" &&
+        i.x + i.width / 2 > f.x &&
+        i.x + i.width / 2 < f.x + f.width &&
+        i.y + i.height / 2 > f.y &&
+        i.y + i.height / 2 < f.y + f.height,
+    );
+
+  const parts: string[] = [];
+  for (const f of frames) {
+    const children = project.board.filter((i) => inside(i)?.id === f.id);
+    parts.push(
+      `## ${f.title}\n${children.map(describe).filter(Boolean).join("\n")}`.trim(),
+    );
+  }
+  const loose = project.board.filter(
+    (i) => i.kind !== "frame" && i.kind !== "connector" && !inside(i),
+  );
+  parts.push(...loose.map(describe).filter(Boolean));
+
+  const links = project.board
+    .filter((i) => i.kind === "connector")
+    .map((c) =>
+      c.kind === "connector"
+        ? `${label(c.fromId)} →${c.label ? ` ${c.label} →` : ""} ${label(c.toId)}`
+        : "",
+    )
+    .filter(Boolean);
+  if (links.length) parts.push(`## Connections\n${links.join("\n")}`);
+
+  return parts.filter(Boolean).join("\n\n");
 }
 
 const countWords = (s: string) => s.split(/\s+/).filter(Boolean).length;

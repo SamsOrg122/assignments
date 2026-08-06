@@ -100,11 +100,13 @@ export interface SnapResult {
 export function snap(
   moving: Rect,
   others: Rect[],
-  container: { width: number; height: number },
+  /** The frame to centre against, or null on an infinite surface. */
+  container: { width: number; height: number } | null,
   threshold: number,
 ): SnapResult {
   const targetsX = [
-    container.width / 2 - moving.width / 2, // centred in the container
+    // Centred in the container — meaningless on a board, which has no edges.
+    ...(container ? [container.width / 2 - moving.width / 2] : []),
     ...others.flatMap((o) => [
       o.x, // left edges align
       o.x + o.width - moving.width, // right edges align
@@ -112,7 +114,7 @@ export function snap(
     ]),
   ];
   const targetsY = [
-    container.height / 2 - moving.height / 2,
+    ...(container ? [container.height / 2 - moving.height / 2] : []),
     ...others.flatMap((o) => [
       o.y,
       o.y + o.height - moving.height,

@@ -342,7 +342,31 @@ export interface BoardItemBase {
   height: number;
   /** Stacking order. Bumped to the top when an item is grabbed. */
   z: number;
+  /**
+   * Members of the same group select and move as one. A flat id rather than a
+   * tree: nested groups are a power that costs more in confusion than it pays.
+   */
+  groupId?: string;
+  /** Locked items still render and can be commented on, but never move. */
+  locked?: boolean;
+  /** Pinned discussion. Anything on the board can be talked about. */
+  comments?: BoardComment[];
 }
+
+export interface BoardComment {
+  id: string;
+  authorId: string;
+  body: string;
+  at: number;
+  /** Emoji → the people who reacted with it. */
+  reactions?: Record<string, string[]>;
+  resolved?: boolean;
+}
+
+/** The small fixed palette shared by stickies, frames and connectors. */
+export type BoardTone = "neutral" | "accent" | "mint" | "warn";
+
+export const BOARD_TONES: BoardTone[] = ["neutral", "accent", "mint", "warn"];
 
 export interface BoardTextItem extends BoardItemBase {
   kind: "text";
@@ -353,7 +377,7 @@ export interface BoardStickyItem extends BoardItemBase {
   kind: "sticky";
   text: string;
   /** A small fixed set — free colour choice would wreck the palette. */
-  tone: "neutral" | "accent" | "mint" | "warn";
+  tone: BoardTone;
 }
 
 export interface BoardImageItem extends BoardItemBase {
@@ -372,13 +396,50 @@ export interface BoardCardItem extends BoardItemBase {
   projectId: string;
 }
 
+/**
+ * A titled region. Frames always sit behind everything else and carry whatever
+ * is inside them when they move, which is what makes a board readable at a
+ * glance: sections instead of a field of stickies.
+ */
+export interface BoardFrameItem extends BoardItemBase {
+  kind: "frame";
+  title: string;
+  tone: BoardTone;
+}
+
+export type ArrowStyle = "none" | "end" | "both";
+export type ConnectorRoute = "straight" | "elbow" | "curve";
+
+/**
+ * A line between two items. It stores *ids*, never coordinates, so moving
+ * either end re-routes the line instead of breaking it. Geometry (including
+ * which sides to leave from) is derived at render time by `routeConnector`.
+ */
+export interface BoardConnectorItem extends BoardItemBase {
+  kind: "connector";
+  fromId: string;
+  toId: string;
+  label?: string;
+  arrow: ArrowStyle;
+  route: ConnectorRoute;
+  tone: BoardTone;
+  dashed?: boolean;
+}
+
 export type BoardItem =
   | BoardTextItem
   | BoardStickyItem
   | BoardImageItem
-  | BoardCardItem;
+  | BoardCardItem
+  | BoardFrameItem
+  | BoardConnectorItem;
 
 export type BoardItemKind = BoardItem["kind"];
+
+/** Items a connector may attach to, and that a marquee can select by area. */
+export const isPositioned = (
+  i: BoardItem,
+): i is Exclude<BoardItem, BoardConnectorItem> => i.kind !== "connector";
 
 /* ── Project ────────────────────────────────────────────── */
 

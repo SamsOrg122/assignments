@@ -159,10 +159,39 @@ export function createBlock(type: BlockType, source?: TableBlock): Block {
 export function createBoardItem(
   kind: BoardItemKind,
   at: { x: number; y: number },
-  extra?: { projectId?: string; text?: string },
+  extra?: {
+    projectId?: string;
+    text?: string;
+    fromId?: string;
+    toId?: string;
+  },
 ): BoardItem {
   const base = { id: uid(), x: at.x, y: at.y, z: Date.now() };
   switch (kind) {
+    case "frame":
+      return {
+        ...base,
+        kind: "frame",
+        width: 560,
+        height: 420,
+        title: extra?.text ?? "Section",
+        tone: "neutral",
+      };
+    case "connector":
+      // Geometry is derived from the two endpoints every render, so the stored
+      // rect is a formality — it exists only to satisfy the item shape.
+      return {
+        ...base,
+        kind: "connector",
+        width: 0,
+        height: 0,
+        fromId: extra?.fromId ?? "",
+        toId: extra?.toId ?? "",
+        label: extra?.text,
+        arrow: "end",
+        route: "curve",
+        tone: "neutral",
+      };
     case "sticky":
       return {
         ...base,

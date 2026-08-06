@@ -10,6 +10,7 @@
  * tidy would demo nothing.
  */
 
+import { meterMicrophone } from "./level";
 import type { SpeechHandlers, SpeechProvider, SpeechSession } from "./types";
 
 /** Deliberately full of false starts, fillers and run-ons. */
@@ -32,32 +33,9 @@ export const mockSpeechProvider: SpeechProvider = {
   isAvailable: () => true,
 
   async start(handlers: SpeechHandlers): Promise<SpeechSession> {
-    let stream: MediaStream | null = null;
-    let audioContext: AudioContext | null = null;
-    let raf: number | null = null;
-
-    // Open the real microphone for the level meter. If permission is refused
-    // we carry on without it rather than failing the whole session.
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 512;
-      source.connect(analyser);
-      const buffer = new Uint8Array(analyser.frequencyBinCount);
-
-      const tick = () => {
-        analyser.getByteTimeDomainData(buffer);
-        let peak = 0;
-        for (const v of buffer) peak = Math.max(peak, Math.abs(v - 128) / 128);
-        handlers.onLevel?.(peak);
-        raf = requestAnimationFrame(tick);
-      };
-      raf = requestAnimationFrame(tick);
-    } catch {
-      handlers.onLevel?.(0);
-    }
+    // Real microphone level, even though the words are simulated — the bars
+    // should move because you're talking, not because a timer says so.
+    const stopMeter = await meterMicrophone((l) => handlers.onLevel?.(l));
 
     let spoken = "";
     let line = 0;
@@ -85,9 +63,7 @@ export const mockSpeechProvider: SpeechProvider = {
 
     const teardown = () => {
       for (const t of timers) clearTimeout(t);
-      if (raf !== null) cancelAnimationFrame(raf);
-      stream?.getTracks().forEach((t) => t.stop());
-      void audioContext?.close();
+      stopMeter();
     };
 
     return {

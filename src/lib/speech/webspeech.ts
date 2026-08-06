@@ -9,6 +9,7 @@
  * has no batch mode. A server provider fills that in.
  */
 
+import { meterMicrophone } from "./level";
 import type { SpeechHandlers, SpeechProvider, SpeechSession } from "./types";
 
 /* The API is still vendor-prefixed and missing from lib.dom in places. */
@@ -85,14 +86,20 @@ export const webSpeechProvider: SpeechProvider = {
 
     recognition.start();
 
+    // The recognition API reports words, never loudness, so the level meter is
+    // its own microphone tap. Both read the same input device.
+    const stopMeter = await meterMicrophone((l) => handlers.onLevel?.(l));
+
     return {
       stop: () =>
         new Promise<string>((resolve) => {
           settle = resolve;
+          stopMeter();
           recognition.stop();
         }),
       cancel: () => {
         settle = null;
+        stopMeter();
         recognition.abort();
       },
     };

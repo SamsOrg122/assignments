@@ -182,6 +182,7 @@ function PaletteDialog({ seed }: { seed: string }) {
   const notify = useUI((s) => s.notify);
   const openAI = useUI((s) => s.openAI);
   const setShortcutsOpen = useUI((s) => s.setShortcutsOpen);
+  const setVoiceOpen = useUI((s) => s.setVoiceOpen);
 
   const [query, setQuery] = useState(seed);
   const [active, setActive] = useState(0);
@@ -469,6 +470,16 @@ function PaletteDialog({ seed }: { seed: string }) {
         run: () => router.push("/library"),
       },
       {
+        id: "voice:talk",
+        title: "Talk to the assistant",
+        subtitle: "Speak a question; it can read the answer back",
+        group: "AI",
+        icon: "mic",
+        shortcut: "⌘⇧V",
+        keywords: "voice speech microphone dictate say audio speak listen",
+        run: () => setVoiceOpen(true),
+      },
+      {
         id: "settings:shortcuts",
         title: "Keyboard shortcuts",
         subtitle: "Everything bound, grouped by where it works",
@@ -516,6 +527,7 @@ function PaletteDialog({ seed }: { seed: string }) {
     notify,
     openAI,
     setShortcutsOpen,
+    setVoiceOpen,
     router,
     channels,
     openDM,

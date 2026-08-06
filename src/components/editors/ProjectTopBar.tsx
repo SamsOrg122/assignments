@@ -26,6 +26,7 @@ export function ProjectTopBar({
 }) {
   const renameProject = useProjects((s) => s.renameProject);
   const openAI = useUI((s) => s.openAI);
+  const setVoiceOpen = useUI((s) => s.setVoiceOpen);
   const openPalette = useUI((s) => s.openPalette);
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -80,6 +81,17 @@ export function ProjectTopBar({
           <Icon name="sparkle" size={11} />
           AI
           <kbd className="kbd">⌘J</kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() => setVoiceOpen(true)}
+          title="Talk to the assistant (⌘⇧V)"
+          aria-label="Talk to the assistant"
+          className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+        >
+          <Icon name="mic" size={11} />
+          Talk
+          <kbd className="kbd">⌘⇧V</kbd>
         </button>
         <button
           type="button"

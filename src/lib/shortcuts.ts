@@ -30,6 +30,8 @@ export const SHORTCUTS: ShortcutGroup[] = [
     items: [
       { keys: "⌘K", what: "Command palette, and search across everything you've written" },
       { keys: "⌘J", what: "Ask AI about the selection" },
+      { keys: "⌘⇧V", what: "Talk to the assistant — press again to stop" },
+      { keys: "⌘⇧S", what: "Have the assistant read the answer aloud" },
       { keys: "⌘B", what: "Show or hide the sidebar" },
       { keys: "⌘/", what: "This sheet" },
       { keys: "Esc", what: "Close whatever is open" },

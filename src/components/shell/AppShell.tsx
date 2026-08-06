@@ -7,6 +7,7 @@ import { CommandPalette } from "./CommandPalette";
 import { Toast } from "@/components/ui/Toast";
 import { InlineAI } from "@/components/ai/InlineAI";
 import { ShortcutSheet } from "./ShortcutSheet";
+import { VoiceDock } from "@/components/voice/VoiceDock";
 import { surfaceFor } from "@/lib/shortcuts";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
@@ -23,6 +24,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const projectId = params?.projectId ?? null;
   const shortcuts = useUI((s) => s.shortcutsOpen);
   const setShortcuts = useUI((s) => s.setShortcutsOpen);
+  const setVoiceOpen = useUI((s) => s.setVoiceOpen);
 
   // The sidebar overlays the canvas below `lg`, so it starts closed there.
   useEffect(() => {
@@ -47,6 +49,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (e.key === "/") {
         e.preventDefault();
         setShortcuts(!useUI.getState().shortcutsOpen);
+        return;
+      }
+      // ⌘⇧V opens voice mode from anywhere. Once it's open the dock owns the
+      // key, so the same press stops talking rather than reopening.
+      if (e.shiftKey && e.key.toLowerCase() === "v") {
+        if (useUI.getState().voiceOpen) return;
+        e.preventDefault();
+        setVoiceOpen(true);
+        return;
+      }
+      // ⌘⇧S reads the last answer aloud, which means opening voice if it isn't.
+      if (e.shiftKey && e.key.toLowerCase() === "s") {
+        if (useUI.getState().voiceOpen) return;
+        e.preventDefault();
+        setVoiceOpen(true);
         return;
       }
       // ⌘J — ask AI about whatever is selected, wherever the caret is.
@@ -90,7 +107,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [togglePalette, toggleSidebar, openAI, projectId, setShortcuts]);
+  }, [togglePalette, toggleSidebar, openAI, projectId, setShortcuts, setVoiceOpen]);
 
   // Route changes should never leave a modal behind.
   useEffect(() => {
@@ -112,6 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onClose={() => setShortcuts(false)}
         />
       )}
+      <VoiceDock />
       <Toast />
     </div>
   );

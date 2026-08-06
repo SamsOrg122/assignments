@@ -6,6 +6,8 @@ import { Sidebar } from "./Sidebar";
 import { CommandPalette } from "./CommandPalette";
 import { Toast } from "@/components/ui/Toast";
 import { InlineAI } from "@/components/ai/InlineAI";
+import { ShortcutSheet } from "./ShortcutSheet";
+import { surfaceFor } from "@/lib/shortcuts";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
 import { useAppearanceSync } from "@/lib/theme-store";
@@ -19,6 +21,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     useUI();
   const params = useParams<{ projectId?: string }>();
   const projectId = params?.projectId ?? null;
+  const shortcuts = useUI((s) => s.shortcutsOpen);
+  const setShortcuts = useUI((s) => s.setShortcutsOpen);
 
   // The sidebar overlays the canvas below `lg`, so it starts closed there.
   useEffect(() => {
@@ -38,6 +42,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (e.key.toLowerCase() === "b") {
         e.preventDefault();
         toggleSidebar();
+        return;
+      }
+      if (e.key === "/") {
+        e.preventDefault();
+        setShortcuts(!useUI.getState().shortcutsOpen);
         return;
       }
       // ⌘J — ask AI about whatever is selected, wherever the caret is.
@@ -81,7 +90,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [togglePalette, toggleSidebar, openAI, projectId]);
+  }, [togglePalette, toggleSidebar, openAI, projectId, setShortcuts]);
 
   // Route changes should never leave a modal behind.
   useEffect(() => {
@@ -95,6 +104,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
       <CommandPalette />
       <InlineAI />
+      {shortcuts && (
+        <ShortcutSheet
+          surface={surfaceFor(
+            useProjects.getState().projects.find((p) => p.id === projectId)?.kind,
+          )}
+          onClose={() => setShortcuts(false)}
+        />
+      )}
       <Toast />
     </div>
   );

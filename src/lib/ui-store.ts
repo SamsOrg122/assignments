@@ -44,6 +44,8 @@ interface UIState {
    */
   voiceSample: { text: string; projectId: string } | null;
   toast: { id: number; message: string } | null;
+  /** The keyboard reference. Lives here so ⌘K can open it too. */
+  shortcutsOpen: boolean;
 
   /** Bumped on every openAI call, so the popover remounts with fresh state. */
   aiOpenId: number;
@@ -60,6 +62,7 @@ interface UIState {
   setVoiceSample: (sample: { text: string; projectId: string } | null) => void;
   notify: (message: string) => void;
   dismissToast: () => void;
+  setShortcutsOpen: (open: boolean) => void;
 }
 
 let toastSeq = 0;
@@ -74,11 +77,14 @@ export const useUI = create<UIState>()((set, get) => ({
   focusMode: false,
   voiceSample: null,
   toast: null,
+  shortcutsOpen: false,
 
   openPalette: (seed = "") => set({ paletteOpen: true, paletteSeed: seed }),
   closePalette: () => set({ paletteOpen: false, paletteSeed: "" }),
   togglePalette: () =>
     set((s) => ({ paletteOpen: !s.paletteOpen, paletteSeed: "" })),
+
+  setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen, paletteOpen: false }),
 
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),

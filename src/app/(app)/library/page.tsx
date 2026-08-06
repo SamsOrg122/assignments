@@ -24,6 +24,10 @@ import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 import type { Project, ProjectKind } from "@/lib/types";
 import { projectSummary } from "@/lib/summary";
+import {
+  PROJECT_TEMPLATES,
+  type ProjectTemplate,
+} from "@/lib/project-templates";
 
 type Sort = "recent" | "name" | "kind";
 
@@ -35,6 +39,7 @@ export default function LibraryPage() {
 
   const menu = useMenu();
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
+  const [templating, setTemplating] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<ProjectKind | "all">("all");
@@ -86,6 +91,23 @@ export default function LibraryPage() {
 
   const create = (k: ProjectKind) => router.push(`/p/${addProject(k)}`);
 
+  const insertBlock = useProjects((s) => s.insertBlock);
+  const removeBlock = useProjects((s) => s.removeBlock);
+
+  /**
+   * A template replaces the starter block a new project ships with, rather
+   * than landing underneath it — otherwise every templated document opens with
+   * an orphan heading above the structure you asked for.
+   */
+  const createFrom = (template: ProjectTemplate) => {
+    const id = addProject(template.kind, template.name);
+    const project = useProjects.getState().projects.find((p) => p.id === id);
+    for (const block of project?.blocks ?? []) removeBlock(id, block.id);
+    for (const block of template.build(template.name)) insertBlock(id, block);
+    setTemplating(false);
+    router.push(`/p/${id}`);
+  };
+
   return (
     <>
       {menu.node}
@@ -102,9 +124,57 @@ export default function LibraryPage() {
         />
       )}
 
+      {templating && (
+        <Dialog
+          title="Start from a template"
+          description="Each one is a shape with prompts in it. Replace the italics as you go."
+          width={720}
+          onClose={() => setTemplating(false)}
+        >
+          <div className="grid gap-2 sm:grid-cols-2">
+            {PROJECT_TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => createFrom(t)}
+                className="rounded-md border border-line bg-surface p-3 text-left transition-colors duration-150 hover:border-line-strong"
+              >
+                <span className="flex items-center gap-2">
+                  <Icon
+                    name={KINDS[t.kind].icon}
+                    size={12}
+                    className="text-fg-subtle"
+                  />
+                  <span className="text-[13px] font-medium text-fg">{t.name}</span>
+                  <span className="ml-auto font-mono text-[10px] text-fg-subtle">
+                    {KINDS[t.kind].label}
+                  </span>
+                </span>
+                <span className="mt-1 block text-[11.5px] leading-snug text-fg-subtle">
+                  {t.blurb}
+                </span>
+                <span className="mt-2 flex flex-wrap gap-1">
+                  {t.outline.map((section) => (
+                    <span
+                      key={section}
+                      className="rounded-xs border border-line px-1.5 py-0.5 text-[10px] text-fg-muted"
+                    >
+                      {section}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Dialog>
+      )}
+
       <TopBar
         right={
-          <NewProjectButton onCreate={create} />
+          <NewProjectButton
+            onCreate={create}
+            onTemplate={() => setTemplating(true)}
+          />
         }
       >
         <span className="text-[13px] font-medium text-fg">Library</span>
@@ -310,8 +380,10 @@ function FilterChip({
 
 function NewProjectButton({
   onCreate,
+  onTemplate,
 }: {
   onCreate: (kind: ProjectKind) => void;
+  onTemplate: () => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -355,6 +427,27 @@ function NewProjectButton({
                 </span>
               </button>
             ))}
+            <div className="my-1 h-px bg-line" />
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onTemplate();
+              }}
+              className="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors duration-150 hover:bg-surface-2"
+            >
+              <span className="grid size-6 shrink-0 place-items-center rounded-xs border border-line text-fg-muted">
+                <Icon name="board" size={12} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[12.5px] text-fg">
+                  From a template…
+                </span>
+                <span className="block truncate text-[11px] text-fg-subtle">
+                  Thesis chapter, report, pitch, meeting notes
+                </span>
+              </span>
+            </button>
           </div>
         </>
       )}

@@ -181,6 +181,7 @@ function PaletteDialog({ seed }: { seed: string }) {
   const toggleSidebar = useUI((s) => s.toggleSidebar);
   const notify = useUI((s) => s.notify);
   const openAI = useUI((s) => s.openAI);
+  const setShortcutsOpen = useUI((s) => s.setShortcutsOpen);
 
   const [query, setQuery] = useState(seed);
   const [active, setActive] = useState(0);
@@ -468,6 +469,16 @@ function PaletteDialog({ seed }: { seed: string }) {
         run: () => router.push("/library"),
       },
       {
+        id: "settings:shortcuts",
+        title: "Keyboard shortcuts",
+        subtitle: "Everything bound, grouped by where it works",
+        group: "Settings",
+        icon: "type",
+        shortcut: "⌘/",
+        keywords: "keys bindings hotkeys reference cheat sheet help",
+        run: () => setShortcutsOpen(true),
+      },
+      {
         id: "settings:sidebar",
         title: "Toggle sidebar",
         group: "Settings",
@@ -504,6 +515,7 @@ function PaletteDialog({ seed }: { seed: string }) {
     toggleSidebar,
     notify,
     openAI,
+    setShortcutsOpen,
     router,
     channels,
     openDM,

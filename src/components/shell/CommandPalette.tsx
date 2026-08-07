@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { fillImageBlock } from "@/lib/image-block";
+import { linkVerdict, shareLink } from "@/lib/share";
 import { useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
 import { fuzzyMatch, segments } from "@/lib/fuzzy";
@@ -231,6 +232,31 @@ function PaletteDialog({ seed }: { seed: string }) {
           },
         });
       }
+
+      list.push({
+        id: "share:link",
+        title: "Copy a view link",
+        subtitle: "A read-only link to this project, carried inside the URL",
+        group: "Project",
+        icon: "link",
+        keywords: "share send url public read only viewer copy link",
+        run: () => {
+          shareLink(project).then(
+            async (url) => {
+              try {
+                await navigator.clipboard.writeText(url);
+                notify(`View link copied — ${linkVerdict(url).note}`);
+              } catch {
+                // Refused on insecure origins and in some embedded browsers.
+                // The panel in the top bar can select the text for a manual
+                // copy; a palette command has nowhere to put it.
+                notify("Couldn't reach the clipboard — use Share in the top bar.");
+              }
+            },
+            () => notify("That project couldn't be turned into a link."),
+          );
+        },
+      });
 
       const askWith = (seedPrompt?: string) => () =>
         openAI({

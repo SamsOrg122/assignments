@@ -14,6 +14,7 @@ import { TopBar } from "@/components/shell/TopBar";
 import { Avatars } from "@/components/presence/Avatars";
 import { Icon } from "@/components/ui/Icon";
 import { KINDS } from "@/lib/kinds";
+import { ShareMenu } from "@/components/share/ShareMenu";
 
 export function ProjectTopBar({
   project,
@@ -60,6 +61,7 @@ export function ProjectTopBar({
       {tools}
 
       <span className="hidden shrink-0 items-center gap-1.5 md:flex">
+        <ShareMenu project={project} />
         <button
           type="button"
           onClick={() =>

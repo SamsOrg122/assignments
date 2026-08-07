@@ -1,0 +1,153 @@
+"use client";
+
+/**
+ * Reading the link.
+ *
+ * The document is in `location.hash`, so this can only happen in the browser
+ * and only after mount — there is no server render of a shared project, by
+ * construction. Decoding is async (it decompresses), so the page has three
+ * honest states: reading, a document, or a clear reason why not.
+ */
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import type { Project } from "@/lib/types";
+import { decodeShare } from "@/lib/share";
+import { SharedProject } from "@/components/viewer/SharedProject";
+import { Icon } from "@/components/ui/Icon";
+import { KINDS } from "@/lib/kinds";
+
+type State =
+  | { status: "reading" }
+  | { status: "ready"; project: Project }
+  | { status: "empty" }
+  | { status: "broken" };
+
+export function ViewerClient() {
+  const [state, setState] = useState<State>({ status: "reading" });
+
+  useEffect(() => {
+    let live = true;
+    const read = () => {
+      const payload = window.location.hash.slice(1);
+      if (!payload) {
+        setState({ status: "empty" });
+        return;
+      }
+      setState({ status: "reading" });
+      decodeShare(payload).then(
+        (project) => {
+          if (!live) return;
+          setState(project ? { status: "ready", project } : { status: "broken" });
+        },
+        () => live && setState({ status: "broken" }),
+      );
+    };
+
+    read();
+    // Someone pasting a second link into the same tab changes only the
+    // fragment, which is not a navigation — without this the page would keep
+    // showing the first document.
+    window.addEventListener("hashchange", read);
+    return () => {
+      live = false;
+      window.removeEventListener("hashchange", read);
+    };
+  }, []);
+
+  return (
+    <div className="flex h-full flex-col bg-canvas">
+      <header className="flex shrink-0 items-center gap-3 border-b border-line px-4 py-2.5">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-[12.5px] font-medium text-fg transition-opacity hover:opacity-70"
+        >
+          {/* The nav's notched square, so a link opened cold still arrives
+              wearing the same face as the site it came from. */}
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-[17px] shrink-0">
+            <path
+              d="M8 3h8v5h5v8h-5v5H8v-5H3V8h5z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.9}
+              strokeLinejoin="round"
+            />
+          </svg>
+          Assignments
+        </Link>
+
+        {state.status === "ready" && (
+          <>
+            <span aria-hidden="true" className="h-3.5 w-px bg-line" />
+            <Icon
+              name={KINDS[state.project.kind].icon}
+              size={12}
+              className="shrink-0 text-fg-subtle"
+            />
+            <h1 className="min-w-0 truncate text-[13px] font-medium text-fg">
+              {state.project.name}
+            </h1>
+          </>
+        )}
+
+        <span className="ml-auto flex shrink-0 items-center gap-2.5">
+          <span className="hidden rounded-xs border border-line px-1.5 py-0.5 font-mono text-[9.5px] text-fg-subtle sm:inline">
+            READ ONLY
+          </span>
+          <Link
+            href="/library"
+            className="rounded-sm bg-accent px-2.5 py-1 text-[11.5px] font-medium text-white transition-opacity hover:opacity-90"
+          >
+            Make your own
+          </Link>
+        </span>
+      </header>
+
+      {state.status === "reading" && (
+        <div className="grid flex-1 place-items-center" aria-busy="true">
+          <p className="text-[13px] text-fg-subtle">Opening the link…</p>
+        </div>
+      )}
+
+      {state.status === "ready" && <SharedProject project={state.project} />}
+
+      {state.status === "empty" && (
+        <Explain
+          title="Nothing to show"
+          body="This address needs the rest of the link — the part after the # carries the document. Copy the whole link and try again."
+        />
+      )}
+
+      {state.status === "broken" && (
+        <Explain
+          title="That link didn't open"
+          body="The document in it couldn't be read. Links get cut short by some chat apps; ask for it again, or ask the sender for the file instead."
+        />
+      )}
+
+      {state.status === "ready" && (
+        <footer className="shrink-0 border-t border-line px-4 py-2 text-center text-[11px] text-fg-subtle">
+          A read-only copy, carried inside the link itself. Nothing was
+          uploaded, and edits here aren&apos;t possible or saved.
+        </footer>
+      )}
+    </div>
+  );
+}
+
+function Explain({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="grid flex-1 place-items-center px-6">
+      <div className="max-w-[42ch] text-center">
+        <p className="text-[14px] font-medium text-fg">{title}</p>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-fg-muted">{body}</p>
+        <Link
+          href="/"
+          className="mt-4 inline-block text-[12.5px] text-accent transition-opacity hover:opacity-80"
+        >
+          Go to Assignments
+        </Link>
+      </div>
+    </div>
+  );
+}

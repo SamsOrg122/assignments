@@ -80,39 +80,10 @@ export function ChartBlock({
 
   const source = tables.find((t) => t.id === block.sourceId) ?? null;
 
-  const { data, series } = useMemo(() => {
-    if (!source || !block.xColumnId) return { data: [], series: [] };
-
-    const derived = computeFormulas(source.columns, source.rows);
-    const xColumn = source.columns.find((c) => c.id === block.xColumnId);
-    const yColumns = block.yColumnIds
-      .map((id) => source.columns.find((c) => c.id === id))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
-
-    const data = source.rows.map((row, i) => {
-      const point: Record<string, string | number> = {
-        __label:
-          xColumn?.type === "formula"
-            ? String(derived[row.id]?.[xColumn.id] ?? "")
-            : String(row.cells[block.xColumnId!] ?? `Row ${i + 1}`),
-      };
-      for (const c of yColumns) {
-        const raw =
-          c.type === "formula" ? derived[row.id]?.[c.id] : row.cells[c.id];
-        point[c.id] = toNumber(typeof raw === "string" ? raw : (raw ?? null));
-      }
-      return point;
-    });
-
-    return {
-      data,
-      series: yColumns.map((c, i) => ({
-        id: c.id,
-        name: c.name,
-        color: SERIES_COLORS[i % SERIES_COLORS.length],
-      })),
-    };
-  }, [source, block.xColumnId, block.yColumnIds]);
+  const { data, series } = useMemo(
+    () => chartData(source, block),
+    [source, block],
+  );
 
   const plottable = source?.columns.filter(
     (c) => NUMERIC_COLUMN_TYPES.has(c.type),
@@ -263,7 +234,51 @@ export function ChartBlock({
 
 type Series = { id: string; name: string; color: string };
 
-function renderChart(
+/**
+ * A chart's points and series, from a table.
+ *
+ * Pure and exported: the shared read-only viewer draws the same chart from a
+ * project it decoded out of a link, with no store to select from. Two copies
+ * of this maths would be two charts that disagree.
+ */
+export function chartData(
+  source: TableBlock | null,
+  block: Pick<ChartBlockModel, "xColumnId" | "yColumnIds">,
+): { data: Array<Record<string, string | number>>; series: Series[] } {
+  if (!source || !block.xColumnId) return { data: [], series: [] };
+
+  const derived = computeFormulas(source.columns, source.rows);
+  const xColumn = source.columns.find((c) => c.id === block.xColumnId);
+  const yColumns = block.yColumnIds
+    .map((id) => source.columns.find((c) => c.id === id))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c));
+
+  const data = source.rows.map((row, i) => {
+    const point: Record<string, string | number> = {
+      __label:
+        xColumn?.type === "formula"
+          ? String(derived[row.id]?.[xColumn.id] ?? "")
+          : String(row.cells[block.xColumnId!] ?? `Row ${i + 1}`),
+    };
+    for (const c of yColumns) {
+      const raw =
+        c.type === "formula" ? derived[row.id]?.[c.id] : row.cells[c.id];
+      point[c.id] = toNumber(typeof raw === "string" ? raw : (raw ?? null));
+    }
+    return point;
+  });
+
+  return {
+    data,
+    series: yColumns.map((c, i) => ({
+      id: c.id,
+      name: c.name,
+      color: SERIES_COLORS[i % SERIES_COLORS.length],
+    })),
+  };
+}
+
+export function renderChart(
   kind: ChartKind,
   data: Array<Record<string, string | number>>,
   series: Series[],

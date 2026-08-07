@@ -565,7 +565,8 @@ function LayoutPicker({
  * `--slide-*` custom properties the theme sets on the surface, so the same
  * markup renders as Ink, Paper or Signal without a branch.
  */
-function SlideView({
+/** Also the whole of a shared deck — see `components/viewer`. */
+export function SlideView({
   slide,
   index,
   style,

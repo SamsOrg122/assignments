@@ -20,7 +20,7 @@ import type { Block, BoardItem, Collaborator, PeerState, Project } from "../type
 import { useProjects } from "../store";
 import { uid } from "../factories";
 import { pickTransport } from "./transport";
-import type { CollabMessage, CollabTransport } from "./types";
+import type { CollabMessage, CollabTransport, TransportStatus } from "./types";
 
 /** How often a moving pointer is published. 20/s is smooth after CSS easing. */
 const CURSOR_MS = 50;
@@ -53,11 +53,13 @@ interface Participant {
 export interface SessionState {
   /** Everyone else, in the shape the cursor and avatar components want. */
   peers: PeerState[];
-  /** Whether a transport is running at all. */
+  /** A round trip has been proven. Only then is `reach` a fact. */
   live: boolean;
-  /** What this session can actually reach, in words. */
+  /** Still finding out. Neither a promise nor a failure yet. */
+  connecting: boolean;
+  /** What this session has been shown to reach. Null until it is known. */
   reach: string | null;
-  /** Why it isn't live, when it isn't. */
+  /** Why it isn't reaching as far as hoped — a failure, or a downgrade. */
   problem: string | null;
 }
 
@@ -75,10 +77,13 @@ export function useCollabSession({
   enabled: boolean;
 }): SessionState {
   const [peers, setPeers] = useState<PeerState[]>([]);
-  // Which transport we have is a fact about the environment, known before
-  // anything joins — so it is decided once, during render, rather than
-  // discovered in an effect and reported a frame later.
-  const [choice] = useState(pickTransport);
+  // Which transport to *try* is decided once, during render. Whether it works
+  // is not knowable until a message has gone out and come back, so that part
+  // arrives asynchronously — see `TransportStatus`.
+  const [chosen] = useState(pickTransport);
+  const [status, setStatus] = useState<TransportStatus>(
+    chosen ? { state: "connecting" } : { state: "failed", problem: "This browser can't open a live session." },
+  );
 
   const transport = useRef<CollabTransport | null>(null);
   const participants = useRef(new Map<string, Participant>());
@@ -140,10 +145,11 @@ export function useCollabSession({
     // clear, and clearing would be a render pass for no change.
     if (!enabled || !projectId) return;
 
-    const chosen = choice.transport;
     if (!chosen) return;
 
-    chosen.join(projectId, (message) => {
+    chosen.join(
+      projectId,
+      (message) => {
       if (message.from === seat) return;
 
       if (message.kind === "bye") {
@@ -173,8 +179,12 @@ export function useCollabSession({
       // overwrite everything typed since.
       if (message.kind === "resend") sendEverything();
 
-      if (message.kind === "patch") applyPatch(message);
-    });
+        if (message.kind === "patch") applyPatch(message);
+      },
+      // Fired from outside React, when the connection proves itself or gives
+      // up — the sanctioned place for a store like this to call setState.
+      setStatus,
+    );
     transport.current = chosen;
 
     /** Everything we own, for a participant who just arrived. */
@@ -266,7 +276,7 @@ export function useCollabSession({
       roster.clear();
       setPeers([]);
     };
-  }, [enabled, projectId, seat, choice, self, publish, refreshPeers]);
+  }, [enabled, projectId, seat, chosen, self, publish, refreshPeers]);
 
   // Nobody there means nothing to say. A room with no other participant costs
   // one idle channel and no traffic, which is what lets every open project sit
@@ -361,9 +371,15 @@ export function useCollabSession({
 
   return {
     peers,
-    live: Boolean(choice.transport) && enabled,
-    reach: choice.reach,
-    problem: choice.problem,
+    live: status.state === "live" && enabled,
+    connecting: status.state === "connecting" && enabled,
+    reach: status.state === "live" ? status.reach : null,
+    problem:
+      status.state === "failed"
+        ? status.problem
+        : status.state === "live"
+          ? (status.note ?? null)
+          : null,
   };
 }
 

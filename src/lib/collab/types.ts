@@ -17,7 +17,12 @@
 import type { Block, BoardItem, Collaborator } from "../types";
 
 export interface CollabMessage {
-  kind: "hello" | "bye" | "cursor" | "patch" | "resend";
+  /**
+   * `probe` never reaches the session — it is a transport's own message,
+   * sent to itself through the server, and the only proof available that the
+   * round trip works. The transport swallows it on the way back.
+   */
+  kind: "hello" | "bye" | "cursor" | "patch" | "resend" | "probe";
   /** Sender's participant id — a session, not a person. */
   from: string;
   user?: Collaborator;
@@ -36,12 +41,28 @@ export interface CollabMessage {
   at: number;
 }
 
+/**
+ * What a transport has actually managed to do — not what it hoped for.
+ *
+ * `reach` only appears once a round trip has been proven, which is the whole
+ * point of the state existing: a session that says "anyone you send the link
+ * to" while nothing is getting through is worse than one that admits it.
+ */
+export type TransportStatus =
+  | { state: "connecting" }
+  | { state: "live"; reach: string; note?: string }
+  | { state: "failed"; problem: string };
+
 export interface CollabTransport {
   readonly name: string;
-  /** A one-line description of what this transport can actually reach. */
+  /** What this transport reaches *if it connects*. A hope, not a fact. */
   readonly reach: string;
   isAvailable(): boolean;
-  join(room: string, onMessage: (message: CollabMessage) => void): void;
+  join(
+    room: string,
+    onMessage: (message: CollabMessage) => void,
+    onStatus: (status: TransportStatus) => void,
+  ): void;
   send(message: CollabMessage): void;
   leave(): void;
 }

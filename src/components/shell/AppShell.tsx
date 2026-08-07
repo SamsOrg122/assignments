@@ -14,6 +14,7 @@ import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
 import { useAppearanceSync } from "@/lib/theme-store";
 import { useAuthHydrated } from "@/lib/auth/store";
+import { hydrateShared } from "@/lib/collab/shared";
 import type { BlockType } from "@/lib/types";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // without this call it silently starts from defaults on every load, and the
   // account choice would be asked again after each reload.
   useAuthHydrated();
+  // Which projects are live-shared is persisted too, and has the same
+  // skipHydration contract as everything else.
+  useEffect(hydrateShared, []);
 
   const { togglePalette, toggleSidebar, setSidebarOpen, openAI, closeAI, closePalette } =
     useUI();

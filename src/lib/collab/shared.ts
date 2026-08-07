@@ -1,0 +1,56 @@
+"use client";
+
+/**
+ * Which projects are being shared live.
+ *
+ * A session is not free. It holds an event stream open for as long as the
+ * project is on screen, and a browser will only keep about six connections to
+ * one origin over HTTP/1.1 — so a workspace that opened a session for every
+ * project you looked at would, after six tabs, stop being able to load
+ * anything at all. "Always on" was the wrong instinct.
+ *
+ * So the room is opened for exactly the projects you have handed someone an
+ * edit link for. Persisted, because the intent outlives the tab: reloading the
+ * page you shared must not quietly drop the person you shared it with.
+ *
+ * The guest side never consults this — arriving through an edit link *is* the
+ * intent.
+ */
+
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { versioned } from "../persistence/versioned";
+
+interface SharedState {
+  /** Project ids with a live room open. */
+  ids: string[];
+  isShared: (projectId: string) => boolean;
+  startSharing: (projectId: string) => void;
+  stopSharing: (projectId: string) => void;
+}
+
+export const useShared = create<SharedState>()(
+  persist(
+    (set, get) => ({
+      ids: [],
+      isShared: (projectId) => get().ids.includes(projectId),
+      startSharing: (projectId) =>
+        set((s) =>
+          s.ids.includes(projectId) ? s : { ids: [...s.ids, projectId] },
+        ),
+      stopSharing: (projectId) =>
+        set((s) => ({ ids: s.ids.filter((id) => id !== projectId) })),
+    }),
+    {
+      ...versioned<SharedState>("assignments:shared:v1", []),
+      partialize: (s) => ({ ids: s.ids }),
+      // Read at mount like every other store here, so the first client render
+      // agrees with the server's.
+      skipHydration: true,
+    },
+  ),
+);
+
+export function hydrateShared() {
+  void useShared.persist.rehydrate();
+}

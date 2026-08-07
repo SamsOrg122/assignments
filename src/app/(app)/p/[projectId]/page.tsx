@@ -12,6 +12,7 @@ import { useParams } from "next/navigation";
 import { useHydrated, useProjects } from "@/lib/store";
 import { LOCAL_USER, usePresence } from "@/lib/realtime";
 import { useCollabSession } from "@/lib/collab/session";
+import { useShared } from "@/lib/collab/shared";
 import { WritingEditor } from "@/components/editors/WritingEditor";
 import { DeckEditor } from "@/components/editors/DeckEditor";
 import { BoardEditor } from "@/components/editors/BoardEditor";
@@ -36,17 +37,19 @@ export default function ProjectPage() {
   const simulated = usePresence(project ? projectId : null, presenceIds);
 
   /**
-   * The live session for this project, always on.
+   * The live session — open only for a project you have shared.
    *
-   * There is no switch because there is nothing to switch: a room with no one
-   * else in it opens one idle channel and sends nothing until someone joins.
-   * The payoff is that an edit link works the moment it is opened, and that
-   * the same project in two windows is already collaborative.
+   * Not always on. A session holds an event stream for as long as the project
+   * is on screen, and a browser allows about six connections to one origin
+   * over HTTP/1.1; a room per open project would, after six tabs, stop the
+   * app being able to load anything. Sharing is the signal, and it persists,
+   * so reloading the page you shared doesn't drop the person you shared with.
    */
+  const shared = useShared((s) => s.ids.includes(projectId));
   const session = useCollabSession({
-    projectId: project ? projectId : null,
+    projectId: project && shared ? projectId : null,
     self: LOCAL_USER,
-    enabled: Boolean(project),
+    enabled: Boolean(project) && shared,
   });
 
   // Real people first. The simulated provider is off unless the landing demo

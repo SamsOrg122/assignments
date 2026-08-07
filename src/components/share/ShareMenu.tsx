@@ -22,6 +22,7 @@ import {
   type SharePermission,
 } from "@/lib/share";
 import { transportReach } from "@/lib/collab/transport";
+import { useShared } from "@/lib/collab/shared";
 import { useUI } from "@/lib/ui-store";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
@@ -54,9 +55,17 @@ export function ShareMenu({ project }: { project: Project }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const shared = useShared((s) => s.ids.includes(project.id));
+  const startSharing = useShared((s) => s.startSharing);
+  const stopSharing = useShared((s) => s.stopSharing);
+
   const build = useCallback(
     (permission: SharePermission) => {
       setLink(null);
+      // Choosing "can help" is what opens the room. Building the link and
+      // opening the session are the same intent, so they are the same action —
+      // otherwise the first person to follow the link finds nobody there.
+      if (permission === "edit") startSharing(project.id);
       shareLink(project, permission).then(
         (url) => {
           setLink(url);
@@ -65,7 +74,7 @@ export function ShareMenu({ project }: { project: Project }) {
         () => notify("That project couldn't be turned into a link."),
       );
     },
-    [project, notify],
+    [project, notify, startSharing],
   );
 
   const toggle = () => {
@@ -233,26 +242,44 @@ export function ShareMenu({ project }: { project: Project }) {
             ) : (
               <p>
                 {reach
-                  ? `Live changes and pointers travel between ${reach}.`
+                  ? `Live changes and pointers travel to ${reach}.`
                   : "This browser can't open a live session, so the link opens an editable copy instead."}{" "}
                 What they write arrives in your document and is saved with it.
-                The session itself lasts only while you both have it open —
-                nothing is stored between visits until there&apos;s a backend.
+                The session lasts while you both have it open — nothing is
+                stored between visits until there&apos;s an account.
               </p>
             )}
           </div>
 
-          {link && (
-            <a
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2.5 flex items-center gap-1.5 text-[11.5px] text-accent transition-opacity hover:opacity-80"
-            >
-              <Icon name="play" size={10} />
-              {mode === "edit" ? "Open a second window" : "Open the view"}
-            </a>
-          )}
+          <div className="mt-2.5 flex items-center gap-3">
+            {link && (
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-[11.5px] text-accent transition-opacity hover:opacity-80"
+              >
+                <Icon name="play" size={10} />
+                {mode === "edit" ? "Open a second window" : "Open the view"}
+              </a>
+            )}
+
+            {/* The room stays open while the project is on screen, so there
+                has to be a way to close it that isn't "guess". */}
+            {shared && (
+              <button
+                type="button"
+                onClick={() => {
+                  stopSharing(project.id);
+                  notify("Live session closed — old edit links go quiet.");
+                }}
+                className="ml-auto flex items-center gap-1.5 text-[11.5px] text-fg-subtle transition-colors hover:text-danger"
+              >
+                <Icon name="stop" size={10} />
+                Stop sharing
+              </button>
+            )}
+          </div>
         </div>
       )}
     </span>

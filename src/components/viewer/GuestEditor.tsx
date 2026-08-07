@@ -149,12 +149,24 @@ function SessionBar({
           session that silently can't reach the person who sent the link is
           worse than no session, so what it reaches is always on screen.
         */}
-        <span className="text-[11px] text-fg-subtle">
-          {session.problem
-            ? session.problem
-            : others > 0
-              ? `${others} other ${others === 1 ? "person" : "people"} here`
-              : `Waiting — this session reaches ${session.reach ?? "nobody"}.`}
+        {/*
+          Three honest states, never a promise. Connecting says so; a failure
+          or a downgrade says what happened; and an empty room says what it
+          has actually been shown to reach rather than what it hoped for.
+        */}
+        <span
+          className={cn(
+            "text-[11px]",
+            session.problem ? "text-[#d8a33c]" : "text-fg-subtle",
+          )}
+        >
+          {others > 0
+            ? `${others} other ${others === 1 ? "person" : "people"} here`
+            : session.connecting
+              ? "Connecting…"
+              : session.problem
+                ? session.problem
+                : `Waiting — this session reaches ${session.reach ?? "nobody"}.`}
         </span>
         <a
           href="/library"

@@ -27,6 +27,7 @@ src/
   app/
     (marketing)/          / — the public landing page, no app shell
     (app)/                /library · /p/[id] · /chat/[id] · /team · /settings
+    api/collab/[room]/    the live-session relay — SSE down, POST up
     v/                    a shared project — a reader, or a live editing session
   components/
     landing/              hero, product, impact, pricing, estimator, footer
@@ -59,7 +60,7 @@ src/
     export.ts             PDF · Word · web · Markdown, from the model
     share.ts              share links — the document, gzipped, in the fragment
     persistence/          storage health, backup files, and version migrations
-    collab/               live sessions: transport seam, cursors, block sync
+    collab/               live sessions: relay transport, cursors, block sync
     sanitize.ts           allowlist HTML cleaning for anything arriving by link
     images.ts             one pick/drop/paste path, downscaled before storage
     ai/                   askAI seam, stub provider, document + team analyses
@@ -159,18 +160,30 @@ empty workspace — the Library says so where someone would otherwise conclude
 their work is gone, and points at the backup file, which is the one thing that
 does cross.
 
-**A live session is real, and says exactly how far it reaches.** `lib/collab`
-is a transport seam with two implementations: `BroadcastChannel`, which needs
-no server and reaches other windows of the same browser, and Supabase Realtime,
-which reaches other people and switches on with its environment variables. The
-UI reads `reach` and prints it, including the case where Supabase is configured
-but its client library isn't installed — a session that silently can't reach
-the person you shared with is worse than one that says it can't. Sync is
-per-block last-writer-wins with a version stamp, not a CRDT: two people in
-different sections never touch, two people in the same paragraph will overwrite
-each other, and the block you have the caret in is never replaced underneath
-you — a remote version waits for you to click away. That limitation is named in
-`collab/types.ts` rather than discovered.
+**A live session reaches other people, and proves it before it says so.**
+`/api/collab/[room]` is the relay: server-sent events down, a POST up, nothing
+stored and nothing read. `lib/collab` picks the furthest-reaching transport
+available — the relay, else `BroadcastChannel` (same browser only), else
+Supabase Realtime when its environment variables and client library are both
+present. Nothing claims a reach it hasn't demonstrated: the relay sends a probe
+through the server and waits for it to come back, and if it doesn't, the
+session downgrades and says exactly that on screen. A session that silently
+can't reach the person you shared with is worse than one that admits it.
+
+The relay's rooms live in one process's memory. A single long-running
+server — `next start`, a container, a VPS — puts everyone in the same process
+and it works. A platform that spreads requests across instances will put two
+people in two processes that cannot see each other; that case reports itself
+rather than looking like a session where nobody talks, and the fix is the
+Supabase transport. Rooms are opened only for projects you actually shared,
+because a browser allows about six connections per origin and a room per open
+tab would eventually stop the app loading anything at all.
+
+Sync is per-block last-writer-wins with a version stamp, not a CRDT: two people
+in different sections never touch, two people in the same paragraph will
+overwrite each other, and the block you have the caret in is never replaced
+underneath you — a remote version waits for you to click away. That limitation
+is named in `collab/types.ts` rather than discovered.
 
 **Nothing unverified is presented as verified.** Each figure in the config
 carries a `status`, and anything still `"placeholder"` renders with a visible
@@ -341,6 +354,13 @@ local stub that says so, checkout walks the whole flow and answers 501 rather
 than charging, and view links carry their document inside the URL. Setting a
 group switches that group on and changes nothing else — see `lib/db`,
 `lib/billing` and `lib/ai` for the seams and the one-time setup each needs.
+
+Live sessions need one thing from the host: **a single long-running process.**
+`next start`, a container or a VPS is enough, and needs no configuration at
+all. On a platform that autoscales across instances, install
+`@supabase/supabase-js`, set the two Supabase variables and flip `installed` in
+`lib/collab/transport.ts` — the relay's in-memory rooms cannot be shared
+between processes, and the app will tell the user so rather than pretending.
 
 Two things to do before a real launch, both flagged in the code:
 

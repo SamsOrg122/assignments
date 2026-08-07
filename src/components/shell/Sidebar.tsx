@@ -27,6 +27,7 @@ import {
 } from "@/lib/chat";
 import { LOCAL_USER } from "@/lib/realtime";
 import { useAuth } from "@/lib/auth/store";
+import { KeepPromptCompact } from "@/components/account/KeepPrompt";
 import { KINDS } from "@/lib/kinds";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -414,6 +415,12 @@ export function Sidebar() {
               );
             })}
           </ul>
+        </div>
+
+        {/* Asked once, in the column rather than over the canvas — someone
+            deep in a document should still get the question. */}
+        <div className="shrink-0">
+          <KeepPromptCompact />
         </div>
 
         <div className="shrink-0 border-t border-line px-2.5 py-2">

@@ -76,6 +76,7 @@ export function DeckEditor({
   const [elementOpen, setElementOpen] = useState(false);
   const [dropping, setDropping] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
 
   if (!deck) {
     return (
@@ -419,6 +420,7 @@ export function DeckEditor({
             {/* Stage */}
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center overflow-y-auto p-5 sm:p-8">
               <div
+                ref={stageRef}
                 data-stage="true"
                 className={cn(
                   "relative aspect-[16/9] w-full max-w-[860px] overflow-hidden rounded-lg border transition-colors duration-150",
@@ -426,7 +428,8 @@ export function DeckEditor({
                 )}
                 style={{ containerType: "inline-size" }}
                 // Drop a photo anywhere on the slide and it lands as an
-                // object; paste does the same with no aim required.
+                // object. Paste is handled inside the objects layer, which
+                // has to weigh a picture against copied shapes anyway.
                 onDragOver={(e) => {
                   if (!e.dataTransfer.types.includes("Files")) return;
                   e.preventDefault();
@@ -440,12 +443,6 @@ export function DeckEditor({
                   e.preventDefault();
                   void placeImage(file);
                 }}
-                onPaste={(e) => {
-                  const file = imageFrom(e.clipboardData);
-                  if (!file) return;
-                  e.preventDefault();
-                  void placeImage(file);
-                }}
               >
                 <SlideView
                   slide={current}
@@ -455,9 +452,16 @@ export function DeckEditor({
                   onChange={(next) => current && patch(current.id, next)}
                 />
                 {current && (
-                  <div style={deckVars(DECK_THEMES[style.theme], style.scale, style.accent)} className="absolute inset-0">
+                  <div
+                    style={deckVars(DECK_THEMES[style.theme], style.scale, style.accent)}
+                    // Transparent to the pointer, all the way down: the title
+                    // and bullets are underneath this layer and have to stay
+                    // clickable. The objects inside opt back in individually.
+                    className="pointer-events-none absolute inset-0"
+                  >
                     <SlideObjectsEditor
                       slide={current}
+                      stageRef={stageRef}
                       onChange={(objects) => patch(current.id, { objects })}
                     />
                   </div>

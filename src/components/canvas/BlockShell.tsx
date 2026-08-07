@@ -129,7 +129,10 @@ export function BlockShell({
   }, [menuOpen]);
 
   const meta = BLOCK_META[block.type];
-  const titled = block.type !== "text";
+  // Text and images carry no header. A picture already has a caption sitting
+  // under it; a second name floating above every figure is noise, and it makes
+  // a document of images read like a form.
+  const titled = block.type !== "text" && block.type !== "image";
 
   const askAI = () => {
     const rect = rootRef.current?.getBoundingClientRect();

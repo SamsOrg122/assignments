@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { fillImageBlock } from "@/lib/image-block";
 import { useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
 import { fuzzyMatch, segments } from "@/lib/fuzzy";
@@ -141,6 +142,12 @@ export const BLOCK_META: Record<
     hint: "Multi-file editor with preview",
     keywords: "editor javascript html css program run preview",
   },
+  image: {
+    label: "Image",
+    icon: "image",
+    hint: "Drop, paste or pick a picture",
+    keywords: "picture photo figure screenshot jpg png upload drop paste",
+  },
   bibliography: {
     label: "Bibliography",
     icon: "quote",
@@ -220,6 +227,7 @@ function PaletteDialog({ seed }: { seed: string }) {
                 .getElementById(`block-${id}`)
                 ?.scrollIntoView({ behavior: "smooth", block: "center" }),
             );
+            if (type === "image") fillImageBlock(project.id, id, notify);
           },
         });
       }

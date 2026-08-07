@@ -20,6 +20,7 @@ const ORDER: BlockType[] = [
   "table",
   "chart",
   "slides",
+  "image",
   "code",
   "bibliography",
 ];

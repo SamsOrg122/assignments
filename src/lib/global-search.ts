@@ -46,6 +46,13 @@ function* blockTexts(block: Block): Generator<{ where: string; text: string }> {
       for (const file of block.files)
         yield { where: file.name, text: file.content };
       break;
+    case "image": {
+      // A picture is findable by what it's called, not what's in it — so the
+      // caption and the alt text are the only handles search has.
+      const text = [block.caption, block.alt].filter(Boolean).join(" ");
+      if (text) yield { where: "image", text };
+      break;
+    }
     default:
       break;
   }

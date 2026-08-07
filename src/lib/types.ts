@@ -13,6 +13,7 @@ export type BlockType =
   | "chart"
   | "slides"
   | "code"
+  | "image"
   | "bibliography";
 
 export interface BlockBase {
@@ -122,6 +123,32 @@ export function sortsOf(block: TableBlock): SortKey[] {
   return Array.isArray(block.sort) ? block.sort : [block.sort];
 }
 
+/* ── Image ──────────────────────────────────────────────── */
+
+/** Where a picture sits in the column, and how wide it runs. */
+export type ImageAlign = "left" | "centre" | "full";
+/** Edge treatment. Deliberately three, not a border editor. */
+export type ImageFrame = "none" | "line" | "shadow";
+
+export interface ImageBlock extends BlockBase {
+  type: "image";
+  /** Data URL, already downscaled by `prepareImage`. Empty = no picture yet. */
+  src: string;
+  /** Described for screen readers. Defaults to the file name. */
+  alt: string;
+  /** Printed under the picture. */
+  caption?: string;
+  /** Natural pixel size, so the placeholder reserves the right space. */
+  naturalWidth?: number;
+  naturalHeight?: number;
+  /** Rendered width as a percentage of the column, 25–100. */
+  scale?: number;
+  align?: ImageAlign;
+  frame?: ImageFrame;
+  /** Roughly what it costs in storage. Shown so a heavy page is visible. */
+  bytes?: number;
+}
+
 /* ── Chart ──────────────────────────────────────────────── */
 
 export type ChartKind = "line" | "bar" | "area" | "pie";
@@ -152,7 +179,7 @@ export type SlideObjectFill = "accent" | "fg" | "muted" | "surface" | "none";
 
 export interface SlideObject {
   id: string;
-  kind: "text" | "rect" | "ellipse" | "line";
+  kind: "text" | "rect" | "ellipse" | "line" | "image";
   /** Percent of slide width/height, 0–100. */
   x: number;
   y: number;
@@ -170,6 +197,18 @@ export interface SlideObject {
   text?: string;
   /** Text size in cqw units so it scales with the slide. */
   textSize?: number;
+
+  /** Data URL, for the image kind. Already downscaled by `prepareImage`. */
+  src?: string;
+  alt?: string;
+  /**
+   * How the picture meets its box. `cover` crops to fill — the right default
+   * for a photograph placed as a panel; `contain` fits the whole thing in,
+   * which is what a logo or a screenshot needs.
+   */
+  fit?: "cover" | "contain";
+  /** Corner rounding, in percent of the object's shorter side. */
+  radius?: number;
 }
 
 export interface Slide {
@@ -325,6 +364,7 @@ export type Block =
   | ChartBlock
   | SlidesBlock
   | CodeBlock
+  | ImageBlock
   | BibliographyBlock;
 
 /* ── Board ──────────────────────────────────────────────── */

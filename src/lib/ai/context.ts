@@ -83,6 +83,12 @@ export function blockToText(block: Block, project: Project): string {
         .map((f) => `// ${f.name}\n${f.content.slice(0, 1200)}`)
         .join("\n\n");
 
+    case "image":
+      // A model can't see the picture, so give it what a reader would take
+      // from it: what it's called, and what it's said to show.
+      return [block.alt, block.caption].filter(Boolean).join(" — ") ||
+        "an image with no description";
+
     case "bibliography":
       // Rendered from project.sources, so the sources themselves are the
       // content worth handing over.

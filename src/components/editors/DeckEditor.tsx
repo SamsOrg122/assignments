@@ -25,8 +25,10 @@ import {
   SlideObjectsEditor,
   SlideObjectsView,
   balanceObjects,
+  insertImageObject,
   insertObject,
 } from "./SlideObjects";
+import { imageFrom, pickImage, prepareImage } from "@/lib/images";
 import { importPptxFile } from "@/lib/pptx";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
@@ -72,6 +74,7 @@ export function DeckEditor({
   const [styleOpen, setStyleOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [elementOpen, setElementOpen] = useState(false);
+  const [dropping, setDropping] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   if (!deck) {
@@ -135,6 +138,32 @@ export function DeckEditor({
     updateBlock<SlidesBlock>(project.id, deck.id, (b) => ({
       slides: b.slides.map((s) => (s.id === slideId ? { ...s, ...next } : s)),
     }));
+
+  /**
+   * Put a picture on the current slide, however it arrived.
+   *
+   * The store is read fresh rather than closed over: this is called from an
+   * await, and by the time it lands the slide may have gained objects that a
+   * captured array wouldn't know about.
+   */
+  const placeImage = async (file: File | Blob | null) => {
+    if (!current) return;
+    try {
+      const image = file ? await prepareImage(file) : await pickImage();
+      if (!image) return;
+      updateBlock<SlidesBlock>(project.id, deck.id, (b) => ({
+        slides: b.slides.map((s) =>
+          s.id === current.id
+            ? { ...s, objects: insertImageObject(s.objects ?? [], image) }
+            : s,
+        ),
+      }));
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : "That picture couldn't be read.",
+      );
+    }
+  };
 
   const addSlide = () => {
     const fresh: Slide = { id: uid(), title: "New slide", bullets: [""] };
@@ -237,6 +266,17 @@ export function DeckEditor({
                         {label}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setElementOpen(false);
+                        void placeImage(null);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[12px] text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                    >
+                      <Icon name="image" size={11} />
+                      Picture
+                    </button>
                     {(current.objects?.length ?? 0) > 1 && (
                       <>
                         <span className="my-1 block h-px bg-line" />
@@ -379,8 +419,33 @@ export function DeckEditor({
             {/* Stage */}
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center overflow-y-auto p-5 sm:p-8">
               <div
-                className="relative aspect-[16/9] w-full max-w-[860px] overflow-hidden rounded-lg border border-line"
+                data-stage="true"
+                className={cn(
+                  "relative aspect-[16/9] w-full max-w-[860px] overflow-hidden rounded-lg border transition-colors duration-150",
+                  dropping ? "border-accent" : "border-line",
+                )}
                 style={{ containerType: "inline-size" }}
+                // Drop a photo anywhere on the slide and it lands as an
+                // object; paste does the same with no aim required.
+                onDragOver={(e) => {
+                  if (!e.dataTransfer.types.includes("Files")) return;
+                  e.preventDefault();
+                  setDropping(true);
+                }}
+                onDragLeave={() => setDropping(false)}
+                onDrop={(e) => {
+                  const file = imageFrom(e.dataTransfer);
+                  setDropping(false);
+                  if (!file) return;
+                  e.preventDefault();
+                  void placeImage(file);
+                }}
+                onPaste={(e) => {
+                  const file = imageFrom(e.clipboardData);
+                  if (!file) return;
+                  e.preventDefault();
+                  void placeImage(file);
+                }}
               >
                 <SlideView
                   slide={current}

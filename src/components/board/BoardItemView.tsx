@@ -13,6 +13,8 @@
 import { useState } from "react";
 import type { BoardItem, BoardTone, PeerState } from "@/lib/types";
 import { useProjects } from "@/lib/store";
+import { useUI } from "@/lib/ui-store";
+import { prepareImage } from "@/lib/images";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { ProjectCardBody } from "./ProjectCardBody";
@@ -67,6 +69,7 @@ export function BoardItemView({
   onConnectPick?: () => void;
 }) {
   const updateBoardItem = useProjects((s) => s.updateBoardItem);
+  const notify = useUI((s) => s.notify);
   const [editing, setEditing] = useState(false);
   const [thread, setThread] = useState(false);
 
@@ -214,15 +217,23 @@ export function BoardItemView({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  // Read to a data URL so it survives a reload with the rest
-                  // of the persisted document.
-                  const reader = new FileReader();
-                  reader.onload = () =>
-                    updateBoardItem(projectId, item.id, {
-                      src: String(reader.result),
-                      alt: file.name,
-                    });
-                  reader.readAsDataURL(file);
+                  // Through the shared path: a photo straight off a phone is
+                  // several megabytes, and a browser's whole storage quota is
+                  // five to ten. Two of those would break every other write in
+                  // the workspace. `prepareImage` scales it down first.
+                  prepareImage(file).then(
+                    (image) =>
+                      updateBoardItem(projectId, item.id, {
+                        src: image.src,
+                        alt: image.name,
+                      }),
+                    (error: unknown) =>
+                      notify(
+                        error instanceof Error
+                          ? error.message
+                          : "That picture couldn't be read.",
+                      ),
+                  );
                 }}
               />
             </label>

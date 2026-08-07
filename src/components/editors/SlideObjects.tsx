@@ -78,6 +78,35 @@ function ObjectShape({ object: o }: { object: SlideObject }) {
       </div>
     );
 
+  if (o.kind === "image")
+    return (
+      <div
+        className="absolute overflow-hidden"
+        style={{
+          ...base,
+          borderRadius: `${o.radius ?? 0}%`,
+          border: o.border ? "1.5px solid var(--slide-fg)" : undefined,
+          // An empty box beats a broken-image glyph while the picture is
+          // still being chosen.
+          background: o.src
+            ? undefined
+            : "color-mix(in srgb, var(--slide-fg) 8%, transparent)",
+        }}
+      >
+        {o.src && (
+          /* eslint-disable-next-line @next/next/no-img-element -- a data URL
+             off the user's own disk; there is nothing for the optimiser to
+             fetch, and it has to render inside a print/export path too. */
+          <img
+            src={o.src}
+            alt={o.alt ?? ""}
+            className="size-full"
+            style={{ objectFit: o.fit ?? "cover" }}
+          />
+        )}
+      </div>
+    );
+
   if (o.kind === "line")
     return (
       <div className="absolute" style={base}>
@@ -330,7 +359,9 @@ export function SlideObjectsEditor({
 
 export function insertObject(
   objects: SlideObject[],
-  kind: SlideObject["kind"],
+  // Pictures come in through `insertImageObject` — they need a file and their
+  // own proportions, neither of which this can invent.
+  kind: Exclude<SlideObject["kind"], "image">,
 ): SlideObject[] {
   const top = Math.max(0, ...objects.map((o) => o.z));
   const fresh: SlideObject =
@@ -361,6 +392,48 @@ export function insertObject(
             opacity: 0.9,
           };
   return [...objects, fresh];
+}
+
+/** Slide aspect. Percent width and percent height are not the same length. */
+const SLIDE_RATIO = 16 / 9;
+
+/**
+ * Place a picture, at its own proportions.
+ *
+ * Widths and heights on a slide are percentages of two different edges, so a
+ * square photo in a 40×40 box comes out stretched. This solves for the height
+ * that keeps the picture honest, then shrinks the box until it fits the slide
+ * with room to breathe.
+ */
+export function insertImageObject(
+  objects: SlideObject[],
+  image: { src: string; width: number; height: number; name: string },
+): SlideObject[] {
+  const ratio = image.width && image.height ? image.width / image.height : 1.5;
+  let width = 52;
+  let height = (width * SLIDE_RATIO) / ratio;
+  const MAX_HEIGHT = 64;
+  if (height > MAX_HEIGHT) {
+    width = (width * MAX_HEIGHT) / height;
+    height = MAX_HEIGHT;
+  }
+
+  return [
+    ...objects,
+    {
+      id: uid(),
+      kind: "image",
+      x: Math.round((100 - width) / 2),
+      y: Math.round((100 - height) / 2),
+      width: Math.round(width),
+      height: Math.round(height),
+      z: Math.max(0, ...objects.map((o) => o.z)) + 1,
+      src: image.src,
+      alt: image.name.replace(/\.[a-z0-9]+$/i, ""),
+      fit: "cover",
+      radius: 0,
+    },
+  ];
 }
 
 /* ── The adaptive inspector ─────────────────────────────── */
@@ -415,7 +488,33 @@ function ObjectInspector({
         </span>
       </div>
 
-      {/* Fills are roles: the theme inks them, so restyle stays safe. */}
+      {/* A picture supplies its own colour, so the fill row would be a lie.
+          What it needs instead is how it meets its box. */}
+      {o.kind === "image" ? (
+        <div className="flex gap-1">
+          {(
+            [
+              ["cover", "Fill"],
+              ["contain", "Fit"],
+            ] as const
+          ).map(([fit, label]) => (
+            <button
+              key={fit}
+              type="button"
+              aria-pressed={(o.fit ?? "cover") === fit}
+              onClick={() => onPatch({ fit })}
+              className={cn(
+                "h-6 flex-1 rounded-xs border text-[10.5px] transition-colors",
+                (o.fit ?? "cover") === fit
+                  ? "border-accent text-fg"
+                  : "border-line text-fg-subtle hover:border-line-strong",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : (
       <div className="flex gap-1">
         {FILLS.map(([fill, label]) => (
           <button
@@ -440,6 +539,7 @@ function ObjectInspector({
           />
         ))}
       </div>
+      )}
 
       <label className="mt-2 block">
         <span className="mb-0.5 flex justify-between text-[10px] text-fg-subtle">
@@ -508,6 +608,38 @@ function ObjectInspector({
                 className="h-1 w-full cursor-pointer appearance-none rounded-full bg-line-strong accent-[var(--color-accent)]"
               />
             </label>
+          )}
+
+          {o.kind === "image" && (
+            <>
+              <label className="mt-1.5 block">
+                <span className="mb-0.5 flex justify-between text-[10px] text-fg-subtle">
+                  Corners
+                  <span className="font-mono">{o.radius ?? 0}%</span>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={50}
+                  step={1}
+                  value={o.radius ?? 0}
+                  aria-label="Corner rounding"
+                  onChange={(e) => onPatch({ radius: Number(e.target.value) })}
+                  className="h-1 w-full cursor-pointer appearance-none rounded-full bg-line-strong accent-[var(--color-accent)]"
+                />
+              </label>
+              <label className="mt-1.5 block">
+                <span className="mb-0.5 block text-[10px] text-fg-subtle">
+                  Alt text
+                </span>
+                <input
+                  value={o.alt ?? ""}
+                  placeholder="Describe the picture"
+                  onChange={(e) => onPatch({ alt: e.target.value })}
+                  className="w-full rounded-xs border border-line bg-transparent px-1.5 py-1 font-mono text-[10px] text-fg-muted outline-none focus:border-line-strong"
+                />
+              </label>
+            </>
           )}
 
           {o.kind !== "line" && (

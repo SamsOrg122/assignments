@@ -89,6 +89,22 @@ function bodyHtml(project: Project): string {
         );
         break;
 
+      case "image":
+        // Data URLs survive PDF, HTML and Word alike — an exported document
+        // that lost its figures would be the wrong kind of portable.
+        if (block.src)
+          parts.push(
+            `<figure class="figure figure-${block.align ?? "centre"}">` +
+              `<img src="${block.src}" alt="${esc(block.alt)}" style="width:${
+                block.align === "full" ? 100 : (block.scale ?? 100)
+              }%" />` +
+              (block.caption
+                ? `<figcaption>${esc(block.caption)}</figcaption>`
+                : "") +
+              `</figure>`,
+          );
+        break;
+
       case "bibliography": {
         const cited = new Set<string>();
         for (const b of project.blocks)
@@ -150,6 +166,10 @@ const PRINT_CSS = `
   pre { background: #f4f4f4; padding: 10px; overflow-x: auto; font-size: 9.5pt; }
   .reference { padding-left: 2em; text-indent: -2em; margin-bottom: .5em; }
   .citation { white-space: nowrap; }
+  figure { margin: 1.2em 0; page-break-inside: avoid; }
+  figure img { max-width: 100%; height: auto; }
+  .figure-centre { text-align: center; }
+  figcaption { font-size: 10pt; color: #555; margin-top: .4em; }
 `;
 
 function wrapDocument(project: Project, extraHead = ""): string {
@@ -167,6 +187,14 @@ ${bodyHtml(project)}
 function toMarkdown(project: Project): string {
   const html = bodyHtml(project);
   return html
+    // Images first: the data URL has to survive the tag-stripping pass below,
+    // and it goes in verbatim — a Markdown file that dropped its figures
+    // wouldn't be the same document.
+    .replace(
+      /<img\s+src="([^"]*)"\s+alt="([^"]*)"[^>]*\/?>/gi,
+      (_m, src, alt) => `\n![${alt}](${src})\n`,
+    )
+    .replace(/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/gi, (_m, t) => `\n*${htmlToText(t)}*\n`)
     .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, (_m, t) => `\n# ${htmlToText(t)}\n`)
     .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, (_m, t) => `\n## ${htmlToText(t)}\n`)
     .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, (_m, t) => `\n### ${htmlToText(t)}\n`)

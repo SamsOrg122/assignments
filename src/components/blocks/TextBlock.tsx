@@ -12,6 +12,9 @@ import { Icon } from "@/components/ui/Icon";
 import { SlashMenu } from "@/components/canvas/SlashMenu";
 import { CitePicker } from "@/components/sources/CitePicker";
 import { Citation } from "./citation-extension";
+import { imageFrom, prepareImage } from "@/lib/images";
+import { fillImageBlock } from "@/lib/image-block";
+import { createImageBlock } from "@/lib/factories";
 
 interface Props {
   projectId: string;
@@ -31,6 +34,7 @@ interface SlashState {
 export function TextBlock({ projectId, block, proseClassName }: Props) {
   const updateBlock = useProjects((s) => s.updateBlock);
   const addBlock = useProjects((s) => s.addBlock);
+  const insertBlock = useProjects((s) => s.insertBlock);
   const openAI = useUI((s) => s.openAI);
   const setVoiceSample = useUI((s) => s.setVoiceSample);
   const voiceSample = useUI((s) => s.voiceSample);
@@ -44,6 +48,43 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // Guards the effect that pushes external edits back into the editor.
   const lastSaved = useRef(block.html);
+
+  /**
+   * Declared above the editor because `editorProps` is captured once, at
+   * creation — a handler defined later would be captured as `undefined`.
+   */
+  const pasteImage = useCallback(
+    async (file: File) => {
+      try {
+        const image = await prepareImage(file);
+        const fresh = createImageBlock();
+        insertBlock(
+          projectId,
+          {
+            ...fresh,
+            src: image.src,
+            alt: image.name.replace(/\.[a-z0-9]+$/i, ""),
+            naturalWidth: image.width,
+            naturalHeight: image.height,
+            bytes: image.bytes,
+          },
+          block.id,
+        );
+        requestAnimationFrame(() =>
+          document
+            .getElementById(`block-${fresh.id}`)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        );
+      } catch (error) {
+        notify(
+          error instanceof Error
+            ? error.message
+            : "That picture couldn't be read.",
+        );
+      }
+    },
+    [insertBlock, projectId, block.id, notify],
+  );
 
   const editor = useEditor({
     // The editor can't render on the server; Next would flag the mismatch.
@@ -62,6 +103,20 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     editorProps: {
       attributes: {
         class: `prose-canvas min-h-[1.75em] focus:outline-none ${proseClassName ?? ""}`,
+      },
+      /**
+       * A pasted screenshot becomes an image block right after this one.
+       *
+       * ProseMirror would otherwise drop the file on the floor — nothing in
+       * the schema accepts it — and the paste would appear to do nothing at
+       * all, which is the single most confusing failure a paste can have.
+       */
+      handlePaste: (_view, event) => {
+        const file = imageFrom(event.clipboardData);
+        if (!file) return false;
+        event.preventDefault();
+        void pasteImage(file);
+        return true;
       },
     },
     onUpdate({ editor }) {
@@ -166,8 +221,13 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
           .getElementById(`block-${id}`)
           ?.scrollIntoView({ behavior: "smooth", block: "center" }),
       );
+
+      // "/image" goes straight to the file picker. The whole point of the
+      // block is two clicks, and making someone click the empty frame they
+      // just asked for would be a third.
+      if (type === "image") fillImageBlock(projectId, id, notify);
     },
-    [editor, slash, addBlock, projectId, block.id],
+    [editor, slash, addBlock, notify, projectId, block.id],
   );
 
   /** Mark the selection as the voice to match, or match it to the mark. */

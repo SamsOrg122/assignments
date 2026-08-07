@@ -45,6 +45,7 @@ import {
 } from "@/lib/geometry";
 import { routeConnector } from "@/lib/board-routing";
 import { uid } from "@/lib/factories";
+import { imageFrom, prepareImage } from "@/lib/images";
 import { stampTemplate, type BoardTemplate } from "@/lib/board-templates";
 import { ProjectTopBar } from "./ProjectTopBar";
 import { BoardItemView, type Grip } from "@/components/board/BoardItemView";
@@ -112,6 +113,7 @@ export function BoardEditor({
     [],
   );
   const [mapOn, setMapOn] = useState(true);
+  const [dropping, setDropping] = useState(false);
   const [surfaceSize, setSurfaceSize] = useState({ width: 0, height: 0 });
   const [marquee, setMarquee] = useState<{
     x0: number;
@@ -911,6 +913,48 @@ export function BoardEditor({
     [addAt, centreWorld],
   );
 
+  /**
+   * Drop or paste a picture straight onto the board.
+   *
+   * It lands where the pointer let go, at its own proportions — a photo that
+   * arrives letterboxed into a default rectangle is a photo you now have to
+   * fix. The tile is created first and filled in after, so the board shows
+   * something the moment the file is accepted rather than after the decode.
+   */
+  const placeImage = useCallback(
+    async (file: File | Blob, world: { x: number; y: number }) => {
+      try {
+        const image = await prepareImage(file);
+        const ratio =
+          image.width && image.height ? image.width / image.height : 1.4;
+        const width = 340;
+        const height = Math.round(width / ratio);
+        const id = addBoardItem(
+          project.id,
+          "image",
+          {
+            x: Math.round(world.x - width / 2),
+            y: Math.round(world.y - height / 2),
+          },
+        );
+        updateBoardItem(project.id, id, {
+          src: image.src,
+          alt: image.name,
+          width,
+          height,
+        });
+        setSelection([id]);
+      } catch (error) {
+        notify(
+          error instanceof Error
+            ? error.message
+            : "That picture couldn't be read.",
+        );
+      }
+    },
+    [addBoardItem, updateBoardItem, project.id, notify],
+  );
+
   const duplicate = useCallback(
     (ids: string[]) => {
       const copies: BoardItem[] = [];
@@ -1014,8 +1058,29 @@ export function BoardEditor({
         else setSelection([]);
       }
     };
+    // ⌘V with a picture on the clipboard drops it in the middle of the view.
+    // On the window rather than the surface: a board has no text cursor to
+    // aim with, so there's nothing sensible to focus first.
+    const onPaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA"
+      )
+        return;
+      const file = imageFrom(e.clipboardData);
+      if (!file) return;
+      e.preventDefault();
+      void placeImage(file, centreWorld());
+    };
+
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("paste", onPaste);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("paste", onPaste);
+    };
     // Every action is listed rather than suppressed: the handler is rebound on
     // each render, which costs one add/removeEventListener pair and removes a
     // whole family of stale-closure bugs (nudging a selection that has since
@@ -1036,6 +1101,8 @@ export function BoardEditor({
     ungroupBoardItems,
     removeBoardItems,
     notify,
+    placeImage,
+    centreWorld,
   ]);
 
   const peersByItem = useMemo(() => {
@@ -1129,6 +1196,24 @@ export function BoardEditor({
           ref={surfaceRef}
           data-surface="true"
           onPointerDown={onSurfacePointerDown}
+          onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes("Files")) return;
+            e.preventDefault();
+            setDropping(true);
+          }}
+          onDragLeave={(e) => {
+            // Dragging over a child fires a leave on the surface; only a
+            // pointer that has actually left the box should clear the state.
+            if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+            setDropping(false);
+          }}
+          onDrop={(e) => {
+            const file = imageFrom(e.dataTransfer);
+            setDropping(false);
+            if (!file) return;
+            e.preventDefault();
+            void placeImage(file, toWorld(e.clientX, e.clientY));
+          }}
           onContextMenu={(e) => {
             if (
               e.target !== e.currentTarget &&
@@ -1147,6 +1232,17 @@ export function BoardEditor({
             backgroundPosition: `${view.x}px ${view.y}px`,
           }}
         >
+          {dropping && (
+            <div
+              aria-hidden="true"
+              className="anim-fade pointer-events-none absolute inset-3 z-40 grid place-items-center rounded-lg border border-dashed border-accent bg-accent/5"
+            >
+              <span className="rounded-sm border border-line-strong bg-surface px-2.5 py-1.5 text-[12px] text-fg-muted">
+                Drop to place the picture
+              </span>
+            </div>
+          )}
+
           <div
             className="absolute top-0 left-0 origin-top-left"
             style={{

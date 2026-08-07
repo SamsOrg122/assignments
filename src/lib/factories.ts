@@ -9,6 +9,7 @@ import {
   type ChartBlock,
   type CodeBlock,
   type Column,
+  type ImageBlock,
   type Project,
   type ProjectKind,
   type Row,
@@ -132,6 +133,23 @@ export function createCodeBlock(): CodeBlock {
   };
 }
 
+/**
+ * An empty picture frame. The block exists before the file does, so the drop
+ * target is a real thing you can aim at — and so "/image" then a drag lands the
+ * picture without a dialog in between.
+ */
+export function createImageBlock(): ImageBlock {
+  return {
+    id: uid(),
+    type: "image",
+    src: "",
+    alt: "",
+    scale: 100,
+    align: "centre",
+    frame: "none",
+  };
+}
+
 export function createBlock(type: BlockType, source?: TableBlock): Block {
   switch (type) {
     case "text":
@@ -144,6 +162,8 @@ export function createBlock(type: BlockType, source?: TableBlock): Block {
       return createSlidesBlock();
     case "code":
       return createCodeBlock();
+    case "image":
+      return createImageBlock();
     case "bibliography":
       return {
         id: uid(),

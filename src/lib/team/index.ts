@@ -9,7 +9,8 @@
  */
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { versioned } from "../persistence/versioned";
 import { useEffect, useSyncExternalStore } from "react";
 import { uid } from "../factories";
 import { LOCAL_USER } from "../realtime";
@@ -234,8 +235,7 @@ export const useTeam = create<TeamState>()(
         }),
     }),
     {
-      name: "assignments:team:v1",
-      storage: createJSONStorage(() => localStorage),
+      ...versioned<TeamState>("assignments:team:v1", []),
       partialize: (s) => ({
         workspace: s.workspace,
         knowledge: s.knowledge,

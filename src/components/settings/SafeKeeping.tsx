@@ -13,7 +13,13 @@
  * makes someone press it.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   BackupError,
   describeBackup,
@@ -27,6 +33,12 @@ import {
   type PersistenceState,
   type StorageUsage,
 } from "@/lib/persistence";
+import {
+  forgetRescued,
+  noRescued,
+  rescuedPayloads,
+  subscribeRescued,
+} from "@/lib/persistence/versioned";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
 import { cn } from "@/lib/cn";
@@ -49,6 +61,84 @@ const STATE_COPY: Record<PersistenceState, { label: string; body: string }> = {
       "This browser won't say whether your work is safe from being cleared. Keep a backup file.",
   },
 };
+
+/**
+ * Anything the app could not read, kept rather than deleted.
+ *
+ * Normally there is nothing here and this renders nothing. When there is, it
+ * means a stored payload was damaged or a migration failed — and the one thing
+ * that must not happen next is the bytes quietly disappearing. They are
+ * offered back as a file, which a later version, or a person with a text
+ * editor, can still do something with.
+ */
+function Rescued() {
+  const notify = useUI((s) => s.notify);
+  // Read through an external store, not during render: localStorage is absent
+  // on the server, and a render that consults it disagrees with the markup
+  // React already sent.
+  const items = useSyncExternalStore(
+    subscribeRescued,
+    rescuedPayloads,
+    noRescued,
+  );
+  if (!items.length) return null;
+
+  return (
+    <div className="rounded-md border border-warn/40 bg-warn/[0.07] p-3.5">
+      <p className="text-[13px] text-fg">
+        {items.length} piece{items.length === 1 ? "" : "s"} of unreadable data
+        kept aside
+      </p>
+      <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-muted">
+        Something stored here couldn&apos;t be read — a damaged payload, or an
+        upgrade that didn&apos;t finish. It was copied instead of deleted. Save
+        it somewhere before you clear it; a later version may be able to open
+        it.
+      </p>
+      <ul className="mt-2.5 space-y-1.5">
+        {items.map((item) => (
+          <li
+            key={item.key}
+            className="flex flex-wrap items-center gap-2 font-mono text-[10.5px] text-fg-subtle"
+          >
+            <span className="text-fg-muted">{item.source}</span>
+            <span>{formatBytes(item.bytes)}</span>
+            <span>{new Date(item.at).toLocaleString()}</span>
+            <button
+              type="button"
+              onClick={() => {
+                const raw = localStorage.getItem(item.key) ?? "";
+                const url = URL.createObjectURL(
+                  new Blob([raw], { type: "application/json" }),
+                );
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${item.source.replace(/[:]/g, "-")}-${item.at}.json`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }}
+              className="rounded-xs border border-line px-1.5 py-0.5 text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                forgetRescued(item.key);
+                notify("Discarded");
+              }}
+              className="rounded-xs border border-line px-1.5 py-0.5 text-fg-subtle transition-colors hover:border-danger/60 hover:text-danger"
+            >
+              Discard
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export function SafeKeeping() {
   const notify = useUI((s) => s.notify);
@@ -210,8 +300,11 @@ export function SafeKeeping() {
       <p className="font-mono text-[10px] leading-relaxed text-fg-subtle">
         One file holds every project, board, chat and setting. It never leaves
         this device, and it opens in any browser — which is how work moves
-        between machines until accounts exist.
+        between machines, between browsers, and between two addresses of this
+        app, until accounts exist.
       </p>
+
+      <Rescued />
 
       {error && <p className="text-[12px] text-danger">{error}</p>}
 

@@ -219,6 +219,7 @@ export default function SettingsPage() {
           </Section>
 
           <Section
+            id="keeping"
             title="Keeping your work"
             hint="There is no account yet, so this browser is the only thing holding it. Here is exactly how safe that is."
           >

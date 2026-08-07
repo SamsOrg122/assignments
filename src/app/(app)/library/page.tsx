@@ -305,6 +305,29 @@ export default function LibraryPage() {
                     ⌘K → &ldquo;sample workspace&rdquo; fills this with an
                     example you can pull apart
                   </p>
+
+                  {/*
+                    The other reason a Library is empty: this is not the
+                    address the work was made at. Browser storage belongs to
+                    one exact origin, so a new deployment URL — a preview
+                    build, a domain change — starts blank however much is
+                    saved somewhere else. There is no way to read across that
+                    line, so the honest move is to say so and point at the
+                    file that does cross it.
+                  */}
+                  <p className="mx-auto mt-5 max-w-[52ch] border-t border-line pt-5 text-[12px] leading-relaxed text-fg-subtle">
+                    Expecting to find work here? Projects are stored per web
+                    address, so a different link to this app — a preview build,
+                    a new domain — opens its own empty workspace. Nothing is
+                    lost: export a backup at the old address and{" "}
+                    <Link
+                      href="/settings#keeping"
+                      className="text-accent transition-opacity hover:opacity-80"
+                    >
+                      restore it here
+                    </Link>
+                    .
+                  </p>
                 </>
               )}
             </div>

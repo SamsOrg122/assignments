@@ -10,7 +10,8 @@
  */
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { versioned } from "../persistence/versioned";
 import { useEffect, useSyncExternalStore } from "react";
 import { uid } from "../factories";
 import { LOCAL_USER } from "../realtime";
@@ -390,8 +391,7 @@ export const useChat = create<ChatState>()(
       setTyping: (channelId, typing) => provider.setTyping(channelId, typing),
     }),
     {
-      name: "assignments:chat:v1",
-      storage: createJSONStorage(() => localStorage),
+      ...versioned<ChatState>("assignments:chat:v1", []),
       partialize: (s) => ({
         channels: s.channels,
         messages: s.messages,

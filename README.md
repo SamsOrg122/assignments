@@ -58,6 +58,7 @@ src/
     sources/              resolveSource seam, parsers, four citation styles
     export.ts             PDF · Word · web · Markdown, from the model
     share.ts              share links — the document, gzipped, in the fragment
+    persistence/          storage health, backup files, and version migrations
     collab/               live sessions: transport seam, cursors, block sync
     sanitize.ts           allowlist HTML cleaning for anything arriving by link
     images.ts             one pick/drop/paste path, downscaled before storage
@@ -136,6 +137,27 @@ padlock it hasn't earned. Anything arriving by link is treated as hostile —
 `lib/sanitize` rebuilds the markup from an allowlist and `decodeShare` rebuilds
 the project field by field, because rendering a stranger's HTML on our origin
 next to the recipient's localStorage is a stored-XSS hole.
+
+**Shipping an update must not delete anybody's work.** There are two one-line
+ways to do exactly that, and `lib/persistence/versioned.ts` closes both:
+renaming a storage key orphans every workspace, and adding `version: 1` to a
+`persist` config without a `migrate` makes zustand *discard* the stored payload
+outright. So keys never change again — the `:v1` in them is just a name — and
+versioning happens inside the payload. A version is the length of its
+migration list, which makes it impossible to bump one and forget the step.
+Three rules, all of them "keep the data": a payload from a *newer* version than
+the running build is kept as-is, because rolling a deployment back must not
+cost a day's work; a migration that throws stops where it broke instead of
+losing the document; and a payload that isn't even valid JSON is copied to a
+rescue key and treated as absent, so the app opens empty *with the bytes still
+recoverable* rather than failing to start. Settings offers anything rescued
+back as a file.
+
+Browser storage still belongs to one exact web address, and nothing in a page
+can read across that line. So a preview build or a new domain opens its own
+empty workspace — the Library says so where someone would otherwise conclude
+their work is gone, and points at the backup file, which is the one thing that
+does cross.
 
 **A live session is real, and says exactly how far it reaches.** `lib/collab`
 is a transport seam with two implementations: `BroadcastChannel`, which needs

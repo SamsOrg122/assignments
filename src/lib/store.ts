@@ -17,6 +17,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { versioned, type Migration } from "./persistence/versioned";
 import {
   DEFAULT_TYPOGRAPHY,
   type Block,
@@ -235,6 +236,57 @@ interface ProjectsState {
    */
   openSandbox: (project: Project) => void;
 }
+
+/**
+ * How stored workspaces are carried forward, one step per released change.
+ *
+ * Append only. Never reorder, never delete, never edit a step that has
+ * shipped: someone two versions behind has to walk the same path everyone
+ * else did. A step takes the whole persisted payload and returns it upgraded,
+ * and must be written to survive a payload that is *older than it expects* —
+ * missing fields are normal, and the answer is a default, never a throw.
+ *
+ * Additive changes — the image block, the image slide object, the picture
+ * fields — need no step at all: an older document simply has none of them,
+ * and every reader already treats them as optional. A step is only needed
+ * when the *meaning* of something changes.
+ */
+const PROJECT_MIGRATIONS: Migration[] = [
+  /**
+   * 0 → 1. Make every project structurally complete.
+   *
+   * Documents written by early versions can be missing `board`, `blocks` or
+   * `glyph` entirely, and a dozen readers index straight into them. It has
+   * been survivable so far because nothing iterated the wrong one, which is a
+   * property nobody checks when adding a feature. Normalising once, here, is
+   * cheaper than a `?? []` in every caller forever — and this step is also the
+   * proof that the migration path itself works, rather than a mechanism that
+   * has never run.
+   *
+   * Written to tolerate anything: a payload it doesn't recognise passes
+   * through unchanged rather than throwing, because throwing is how a
+   * migration loses a workspace.
+   */
+  (state) => {
+    if (!state || typeof state !== "object") return state;
+    const shape = state as { projects?: unknown };
+    if (!Array.isArray(shape.projects)) return state;
+
+    return {
+      ...shape,
+      projects: shape.projects.map((raw) => {
+        if (!raw || typeof raw !== "object") return raw;
+        const project = raw as Partial<Project>;
+        return {
+          ...project,
+          glyph: typeof project.glyph === "string" ? project.glyph : "◇",
+          blocks: Array.isArray(project.blocks) ? project.blocks : [],
+          board: Array.isArray(project.board) ? project.board : [],
+        };
+      }),
+    };
+  },
+];
 
 /** Apply a change to one project and stamp `updatedAt` in a single pass. */
 function withProject(
@@ -1090,8 +1142,10 @@ export const useProjects = create<ProjectsState>()(
       },
     }),
     {
-      name: "assignments:projects:v1",
-      storage: createJSONStorage(() => localStorage),
+      // Versioned in the payload, never in the key — see `persistence/
+      // versioned.ts` for why a renamed key or a bumped version without a
+      // migration is how an update deletes somebody's thesis.
+      ...versioned<ProjectsState>("assignments:projects:v1", PROJECT_MIGRATIONS),
       // Persist content only; actions are re-created on every load.
       partialize: (s) => ({ projects: s.projects }),
       // Rehydrate manually after mount. Reading localStorage during module

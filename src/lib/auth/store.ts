@@ -15,7 +15,8 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { versioned } from "../persistence/versioned";
 import { initialsFor, type Identity } from "./index";
 import { LOCAL_USER } from "../realtime";
 
@@ -72,8 +73,7 @@ export const useAuth = create<AuthState>()(
         })),
     }),
     {
-      name: "assignments:identity:v1",
-      storage: createJSONStorage(() => localStorage),
+      ...versioned<AuthState>("assignments:identity:v1", []),
       skipHydration: true,
     },
   ),

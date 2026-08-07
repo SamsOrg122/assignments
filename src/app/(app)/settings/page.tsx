@@ -30,6 +30,7 @@ import { chatProviderName } from "@/lib/chat";
 import { TopBar } from "@/components/shell/TopBar";
 import { Icon } from "@/components/ui/Icon";
 import { SafeKeeping } from "@/components/settings/SafeKeeping";
+import { AccountPanel } from "@/components/account/AccountPanel";
 import { cn } from "@/lib/cn";
 
 /**
@@ -210,6 +211,14 @@ export default function SettingsPage() {
           </Section>
 
           <Section
+            id="account"
+            title="Your account"
+            hint="Two ways to keep your work, and you pick. Neither one is a trial version of the other."
+          >
+            <AccountPanel />
+          </Section>
+
+          <Section
             title="Keeping your work"
             hint="There is no account yet, so this browser is the only thing holding it. Here is exactly how safe that is."
           >
@@ -241,16 +250,19 @@ export default function SettingsPage() {
 }
 
 function Section({
+  id,
   title,
   hint,
   children,
 }: {
+  /** Set where something links straight to this section. */
+  id?: string;
   title: string;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-10">
+    <section id={id} className="mb-10 scroll-mt-20">
       <h2 className="text-[15px] font-medium tracking-[-0.01em] text-fg">
         {title}
       </h2>

@@ -12,11 +12,16 @@ import { surfaceFor } from "@/lib/shortcuts";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
 import { useAppearanceSync } from "@/lib/theme-store";
+import { useAuthHydrated } from "@/lib/auth/store";
 import type { BlockType } from "@/lib/types";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   // Keeps <html data-*> in step with stored preferences.
   useAppearanceSync();
+  // The identity store persists with `skipHydration`, like every other one —
+  // without this call it silently starts from defaults on every load, and the
+  // account choice would be asked again after each reload.
+  useAuthHydrated();
 
   const { togglePalette, toggleSidebar, setSidebarOpen, openAI, closeAI, closePalette } =
     useUI();

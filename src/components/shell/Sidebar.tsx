@@ -26,11 +26,13 @@ import {
   useChatHydrated,
 } from "@/lib/chat";
 import { LOCAL_USER } from "@/lib/realtime";
+import { useAuth } from "@/lib/auth/store";
 import { KINDS } from "@/lib/kinds";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
 
 export function Sidebar() {
+  const identity = useAuth((s) => s.identity);
   const projects = useProjects((s) => s.projects);
   const addProject = useProjects((s) => s.addProject);
   const params = useParams<{ projectId?: string; channelId?: string[] }>();
@@ -415,6 +417,29 @@ export function Sidebar() {
         </div>
 
         <div className="shrink-0 border-t border-line px-2.5 py-2">
+          {/* Who you are, and where the work is kept. Its own row rather than
+              a line in Settings: "am I signed in" is a question people ask of
+              the chrome, not of a settings page. */}
+          <Link
+            href="/settings#account"
+            onClick={closeOnMobile}
+            className={cn(
+              "mb-1 flex items-center gap-2 rounded-md px-2 transition-colors duration-150",
+              "py-[var(--ui-row-y)]",
+              "text-fg-muted hover:bg-surface hover:text-fg",
+            )}
+          >
+            <span className="grid size-[18px] shrink-0 place-items-center rounded-full bg-surface-3 font-mono text-[8.5px] text-fg">
+              {identity.initials}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[13px]">
+              {identity.name}
+            </span>
+            <span className="shrink-0 font-mono text-[9.5px] text-fg-subtle">
+              {identity.kept === "account" ? "synced" : "this device"}
+            </span>
+          </Link>
+
           <NavLink
             href="/settings"
             icon="settings"

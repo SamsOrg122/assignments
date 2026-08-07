@@ -6,7 +6,8 @@
 
 import type { Project } from "./types";
 
-const SEED_TS = 1767225600000; // 2026-01-01T00:00:00Z — fixed, so SSR is stable.
+/** Fixed, so SSR is stable — and so "has this been touched" is answerable. */
+export const SEED_TS = 1767225600000; // 2026-01-01T00:00:00Z
 
 export const SEED_PROJECTS: Project[] = [
   /**

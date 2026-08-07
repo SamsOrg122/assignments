@@ -24,6 +24,7 @@ import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 import type { Project, ProjectKind } from "@/lib/types";
 import { projectSummary } from "@/lib/summary";
+import { KeepPrompt } from "@/components/account/KeepPrompt";
 import {
   PROJECT_TEMPLATES,
   type ProjectTemplate,
@@ -189,6 +190,8 @@ export default function LibraryPage() {
               <span className="text-fg-subtle"> Thinking lives on a Board.</span>
             </h1>
           </div>
+
+          <KeepPrompt />
 
           {/* Search + filters */}
           <div className="mb-4 flex flex-col gap-3">

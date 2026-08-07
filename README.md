@@ -16,8 +16,9 @@ npm install
 npm run dev     # http://localhost:3000
 ```
 
-No login, no setup. The workspace seeds five sample projects on first run and
-persists to `localStorage` from then on (⌘K → "Reset workspace" restores them).
+No login, no setup. The workspace starts empty and persists to `localStorage`
+from the first edit (⌘K → "Load the sample workspace" fills it with examples;
+`/library?demo=1` does the same in memory, leaving storage untouched).
 
 ## Structure
 
@@ -26,6 +27,7 @@ src/
   app/
     (marketing)/          / — the public landing page, no app shell
     (app)/                /library · /p/[id] · /chat/[id] · /team · /settings
+    v/                    a shared project, read-only — no shell, no stores
   components/
     landing/              hero, product, impact, pricing, estimator, footer
     shell/                sidebar, top bar, ⌘K command palette
@@ -55,6 +57,9 @@ src/
     chat/                 ChatProvider seam + simulated transport
     sources/              resolveSource seam, parsers, four citation styles
     export.ts             PDF · Word · web · Markdown, from the model
+    share.ts              view links — the document, gzipped, in the fragment
+    sanitize.ts           allowlist HTML cleaning for anything arriving by link
+    images.ts             one pick/drop/paste path, downscaled before storage
     ai/                   askAI seam, stub provider, document + team analyses
     speech/               transcribe seam — Web Speech + simulated fallback
     realtime/             RealtimeProvider seam + simulated presence
@@ -274,6 +279,34 @@ map, so a Yjs provider forwarding `awareness.getStates()` drops in behind
 `setRealtimeProvider()` without touching a component. The shipped provider
 simulates peers.
 
+## Deploying
+
+The repository's default branch is what production builds from; `vercel.json`
+pins the framework and nothing else, because there is nothing else to pin.
+
+```bash
+npm run build && npm start   # exactly what production runs
+```
+
+Every environment variable in `.env.example` is optional. With none of them
+set the app is complete and honest: work lives in the browser, the AI is a
+local stub that says so, checkout walks the whole flow and answers 501 rather
+than charging, and view links carry their document inside the URL. Setting a
+group switches that group on and changes nothing else — see `lib/db`,
+`lib/billing` and `lib/ai` for the seams and the one-time setup each needs.
+
+Two things to do before a real launch, both flagged in the code:
+
+- **Bring the storefront visuals in-house.** `next.config.ts` still allows a
+  CloudFront host for the three generated images. Download them into
+  `public/visuals/`, point the slots at local paths, and delete the
+  `remotePatterns` block — a landing page shouldn't depend on someone else's
+  CDN.
+- **Confirm the impact figures.** Anything still marked `"placeholder"` in
+  `lib/impact/config.ts` renders with a visible *provisional* marker. Flip a
+  `status` to `"confirmed"` once it is true and the markers disappear on their
+  own.
+
 ## Keys
 
 | | |
@@ -286,7 +319,8 @@ simulates peers.
 | `⌘⇧C` | cite a source at the caret (paste a link to add and cite in one) |
 | `P` | promote the board selection into a Library project |
 | `⌘0` | fit the board to its content |
-| shift-drag | marquee-select on a board |
+| shift-drag | marquee-select on a board, or on a slide |
+| `⌘D` | duplicate the selected slide objects |
 
 ## Stack
 

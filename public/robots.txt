@@ -1,2 +1,7 @@
 User-agent: *
 Allow: /
+
+# A shared project lives in the URL fragment, which a crawler never receives —
+# so /v is always an empty page to anything indexing it. Kept out of the index
+# so that empty page never becomes a search result for someone's project name.
+Disallow: /v

@@ -171,6 +171,7 @@ function PaletteDialog({ seed }: { seed: string }) {
   const duplicateProject = useProjects((s) => s.duplicateProject);
   const deleteProject = useProjects((s) => s.deleteProject);
   const resetWorkspace = useProjects((s) => s.resetWorkspace);
+  const loadSamples = useProjects((s) => s.loadSamples);
 
   const channels = useChat((s) => s.channels);
   const openDM = useChat((s) => s.openDM);
@@ -499,6 +500,19 @@ function PaletteDialog({ seed }: { seed: string }) {
         run: toggleSidebar,
       },
       {
+        id: "settings:samples",
+        title: "Load the sample workspace",
+        subtitle: "A thesis, a board, a deck and a review — replaces what's here",
+        group: "Settings",
+        icon: "board",
+        keywords: "demo example seed sample content try explore",
+        run: () => {
+          loadSamples();
+          notify("Sample workspace loaded");
+          router.push("/library");
+        },
+      },
+      {
         id: "settings:reset",
         title: "Reset workspace",
         subtitle: "Restore the sample projects — discards local changes",
@@ -523,6 +537,7 @@ function PaletteDialog({ seed }: { seed: string }) {
     duplicateProject,
     deleteProject,
     resetWorkspace,
+    loadSamples,
     toggleSidebar,
     notify,
     openAI,

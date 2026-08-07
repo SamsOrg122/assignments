@@ -9,7 +9,12 @@ import type { Project } from "./types";
 /** Fixed, so SSR is stable — and so "has this been touched" is answerable. */
 export const SEED_TS = 1767225600000; // 2026-01-01T00:00:00Z
 
-export const SEED_PROJECTS: Project[] = [
+/**
+ * Sample content, kept for the landing page's live demo and for anyone who
+ * asks for it from the command palette. It is *not* what a new workspace
+ * starts with — see `SEED_PROJECTS` below.
+ */
+export const DEMO_PROJECTS: Project[] = [
   /**
    * A thesis-shaped document. The prose deliberately drifts between
    * "respondent" and "participant", and the conclusion overreaches what the
@@ -448,3 +453,16 @@ btn.addEventListener("click", () => {
     ],
   },
 ];
+
+/**
+ * What a new workspace actually contains: nothing.
+ *
+ * A first run full of somebody else's thesis is a demo wearing the product's
+ * clothes. Every project here would have to be deleted before the tool could
+ * be used, and until it was, nothing on screen would be true. The empty states
+ * do the explaining instead.
+ *
+ * The samples are still one command away — ⌘K → "Load the sample workspace" —
+ * and the landing page's demo frame loads them on its own.
+ */
+export const SEED_PROJECTS: Project[] = [];

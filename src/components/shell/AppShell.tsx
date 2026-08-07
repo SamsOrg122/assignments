@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { CommandPalette } from "./CommandPalette";
@@ -8,6 +8,7 @@ import { Toast } from "@/components/ui/Toast";
 import { InlineAI } from "@/components/ai/InlineAI";
 import { ShortcutSheet } from "./ShortcutSheet";
 import { VoiceDock } from "@/components/voice/VoiceDock";
+import { DemoBootstrap } from "./DemoBootstrap";
 import { surfaceFor } from "@/lib/shortcuts";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
@@ -124,6 +125,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-full">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      {/* Reads ?demo=1, so it needs a Suspense boundary of its own. */}
+      <Suspense fallback={null}>
+        <DemoBootstrap />
+      </Suspense>
       <CommandPalette />
       <InlineAI />
       {shortcuts && (

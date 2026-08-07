@@ -84,7 +84,8 @@ export function LiveDemo() {
         <div className="relative h-[clamp(440px,64vh,720px)] bg-canvas">
           {mounted ? (
             <iframe
-              src="/library"
+              // The app ships empty; the demo frame asks for the samples.
+              src="/library?demo=1"
               title="Assignments, running live"
               loading="lazy"
               onLoad={() => setReady(true)}

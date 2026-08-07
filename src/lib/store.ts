@@ -46,7 +46,7 @@ import {
   emptyRow,
   uid,
 } from "./factories";
-import { SEED_PROJECTS } from "./seed";
+import { DEMO_PROJECTS, SEED_PROJECTS } from "./seed";
 import { formatInline } from "./sources/format";
 
 interface ProjectsState {
@@ -214,8 +214,14 @@ interface ProjectsState {
     appendRows?: Row[],
   ) => void;
 
-  /** Wipe local state back to the shipped seed. Used by ⌘K → Reset workspace. */
+  /** Wipe local state back to the shipped seed — which is now empty. */
   resetWorkspace: () => void;
+  /**
+   * Replace everything with the sample workspace. Kept as an explicit action
+   * rather than a first-run default: a new user should meet their own empty
+   * Library, not somebody else's thesis.
+   */
+  loadSamples: () => void;
 }
 
 /** Apply a change to one project and stamp `updatedAt` in a single pass. */
@@ -1057,6 +1063,8 @@ export const useProjects = create<ProjectsState>()(
         })),
 
       resetWorkspace: () => set({ projects: SEED_PROJECTS }),
+
+      loadSamples: () => set({ projects: DEMO_PROJECTS }),
     }),
     {
       name: "assignments:projects:v1",

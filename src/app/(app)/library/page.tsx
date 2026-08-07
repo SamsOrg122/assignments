@@ -261,17 +261,51 @@ export default function LibraryPage() {
           {/* Rows */}
           {rows.length === 0 ? (
             <div className="hairline rounded-lg bg-surface px-6 py-14 text-center">
-              <p className="text-[13.5px] text-fg-muted">
-                {query ? `Nothing matches “${query}”.` : "Nothing here yet."}
-              </p>
-              {!query && (
-                <button
-                  type="button"
-                  onClick={() => create("doc")}
-                  className="mt-3 text-[13px] text-accent transition-opacity hover:opacity-80"
-                >
-                  Start writing
-                </button>
+              {query ? (
+                <p className="text-[13.5px] text-fg-muted">
+                  Nothing matches &ldquo;{query}&rdquo;.
+                </p>
+              ) : (
+                <>
+                  {/* A first run is empty on purpose. This is the moment to
+                      say what the thing is, since there is nothing else on
+                      screen doing it. */}
+                  <p className="display text-[19px] text-fg">
+                    Nothing here yet.
+                  </p>
+                  <p className="mx-auto mt-2 max-w-[46ch] text-[13px] leading-relaxed text-fg-muted">
+                    A document, a deck, a spreadsheet and an infinite board are
+                    the same project here — start with whichever one you are
+                    actually doing.
+                  </p>
+                  <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => create("doc")}
+                      className="rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+                    >
+                      Start writing
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => create("board")}
+                      className="rounded-sm border border-line px-3 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                    >
+                      Open a board
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTemplating(true)}
+                      className="rounded-sm border border-line px-3 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                    >
+                      From a template
+                    </button>
+                  </div>
+                  <p className="mt-6 font-mono text-[10.5px] text-fg-subtle">
+                    ⌘K → &ldquo;sample workspace&rdquo; fills this with an
+                    example you can pull apart
+                  </p>
+                </>
               )}
             </div>
           ) : (

@@ -1,6 +1,12 @@
 /**
  * Simulated multiplayer.
  *
+ * Off by default. Cursors belonging to people who don't exist are the most
+ * convincing lie a product can tell about itself, and a workspace of one
+ * should look like a workspace of one. `setSimulatedPeers(true)` turns it on
+ * for the landing page's demo frame, where the whole point is showing what
+ * multiplayer looks like.
+ *
  * Peers wander on a smoothed path toward a moving target rather than jumping
  * between random points — jitter is what makes fake cursors read as fake. Every
  * peer independently drifts, pauses, picks up a block to "edit", and puts it
@@ -17,6 +23,13 @@ export const PEERS: Collaborator[] = [
 ];
 
 const ACTIVITIES = ["editing", "reviewing", "commenting on"];
+
+let simulate = false;
+
+/** Turned on only by the demo bootstrap. */
+export function setSimulatedPeers(on: boolean) {
+  simulate = on;
+}
 
 interface Sim {
   user: Collaborator;
@@ -102,10 +115,17 @@ export function createMockProvider(): RealtimeProvider {
     name: "mock",
 
     connect() {
+      connected = true;
+      if (!simulate) {
+        // Connected, and alone. That is the truth for anyone who hasn't
+        // invited someone, and it is what they should see.
+        sims = [];
+        emit();
+        return;
+      }
       // A fresh room each time, so switching projects re-seeds positions.
       const count = 2 + Math.floor(Math.random() * (PEERS.length - 1));
       sims = PEERS.slice(0, count).map(newSim);
-      connected = true;
       emit();
       if (raf === null && typeof requestAnimationFrame === "function")
         raf = requestAnimationFrame(tick);

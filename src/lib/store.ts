@@ -222,6 +222,18 @@ interface ProjectsState {
    * Library, not somebody else's thesis.
    */
   loadSamples: () => void;
+
+  /**
+   * Take over this tab with a project that arrived by link.
+   *
+   * Persistence is detached *first*: a shared project must never be written
+   * into the recipient's own workspace, and their existing work must never be
+   * overwritten by a document a stranger sent them. After this call the store
+   * is memory-only for the life of the tab — which is why the shared view
+   * links back into the app with a real page load rather than a client
+   * navigation.
+   */
+  openSandbox: (project: Project) => void;
 }
 
 /** Apply a change to one project and stamp `updatedAt` in a single pass. */
@@ -1065,6 +1077,17 @@ export const useProjects = create<ProjectsState>()(
       resetWorkspace: () => set({ projects: SEED_PROJECTS }),
 
       loadSamples: () => set({ projects: DEMO_PROJECTS }),
+
+      openSandbox: (project) => {
+        useProjects.persist.setOptions({
+          storage: createJSONStorage(() => ({
+            getItem: () => null,
+            setItem: () => {},
+            removeItem: () => {},
+          })),
+        });
+        set({ projects: [project] });
+      },
     }),
     {
       name: "assignments:projects:v1",

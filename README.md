@@ -27,7 +27,7 @@ src/
   app/
     (marketing)/          / — the public landing page, no app shell
     (app)/                /library · /p/[id] · /chat/[id] · /team · /settings
-    v/                    a shared project, read-only — no shell, no stores
+    v/                    a shared project — a reader, or a live editing session
   components/
     landing/              hero, product, impact, pricing, estimator, footer
     shell/                sidebar, top bar, ⌘K command palette
@@ -57,7 +57,8 @@ src/
     chat/                 ChatProvider seam + simulated transport
     sources/              resolveSource seam, parsers, four citation styles
     export.ts             PDF · Word · web · Markdown, from the model
-    share.ts              view links — the document, gzipped, in the fragment
+    share.ts              share links — the document, gzipped, in the fragment
+    collab/               live sessions: transport seam, cursors, block sync
     sanitize.ts           allowlist HTML cleaning for anything arriving by link
     images.ts             one pick/drop/paste path, downscaled before storage
     ai/                   askAI seam, stub provider, document + team analyses
@@ -124,6 +125,30 @@ price, share and euro→tree rate on it
 resolves from `lib/impact/config.ts`; there is no arithmetic in a component
 that isn't layout. The estimator is pure front-end maths against that config
 and swaps for real billing behind `estimate()`.
+
+**Sharing is two links, and the difference is what the app opens.** *Can view*
+gives a reader; *can help* gives the real editor in a live session — both
+pointers on screen, changes flowing both ways. The document travels inside the
+link's fragment, which browsers never send to a server, so nothing is uploaded
+and a "view" link is a statement of intent rather than a lock: the recipient
+holds every word either way, and the panel says so rather than drawing a
+padlock it hasn't earned. Anything arriving by link is treated as hostile —
+`lib/sanitize` rebuilds the markup from an allowlist and `decodeShare` rebuilds
+the project field by field, because rendering a stranger's HTML on our origin
+next to the recipient's localStorage is a stored-XSS hole.
+
+**A live session is real, and says exactly how far it reaches.** `lib/collab`
+is a transport seam with two implementations: `BroadcastChannel`, which needs
+no server and reaches other windows of the same browser, and Supabase Realtime,
+which reaches other people and switches on with its environment variables. The
+UI reads `reach` and prints it, including the case where Supabase is configured
+but its client library isn't installed — a session that silently can't reach
+the person you shared with is worse than one that says it can't. Sync is
+per-block last-writer-wins with a version stamp, not a CRDT: two people in
+different sections never touch, two people in the same paragraph will overwrite
+each other, and the block you have the caret in is never replaced underneath
+you — a remote version waits for you to click away. That limitation is named in
+`collab/types.ts` rather than discovered.
 
 **Nothing unverified is presented as verified.** Each figure in the config
 carries a `status`, and anything still `"placeholder"` renders with a visible
@@ -320,6 +345,7 @@ Two things to do before a real launch, both flagged in the code:
 | `P` | promote the board selection into a Library project |
 | `⌘0` | fit the board to its content |
 | shift-drag | marquee-select on a board, or on a slide |
+| Share | two links per project: *can view*, or *can help* — live, with cursors |
 | `⌘D` | duplicate the selected slide objects |
 
 ## Stack

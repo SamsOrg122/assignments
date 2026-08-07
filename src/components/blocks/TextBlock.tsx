@@ -48,6 +48,10 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // Guards the effect that pushes external edits back into the editor.
   const lastSaved = useRef(block.html);
+  /** A collaborator's version, waiting for the caret to leave. */
+  const held = useRef<{ html: string; at: number } | null>(null);
+  /** When the local user last typed, so a stale held version can be dropped. */
+  const typedAt = useRef(0);
 
   /**
    * Declared above the editor because `editorProps` is captured once, at
@@ -122,6 +126,7 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     onUpdate({ editor }) {
       const html = editor.getHTML();
       lastSaved.current = html;
+      typedAt.current = Date.now();
       // Typing shouldn't write through to the store on every keystroke —
       // every bound chart would re-render on each character.
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -144,12 +149,53 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     [projectId, block.id, updateBlock],
   );
 
-  /* Pull in edits made elsewhere (an accepted AI change, say). */
+  /* Pull in edits made elsewhere (an accepted AI change, or a collaborator). */
   useEffect(() => {
     if (!editor || block.html === lastSaved.current) return;
+
+    /**
+     * Never while the caret is in here.
+     *
+     * `setContent` rebuilds the document from scratch, so any position held
+     * across it is meaningless the moment the incoming text is a different
+     * length — restore the old offset and the next keystroke lands inside an
+     * old word, which is how two people helping each other produce
+     * "A reply from the sender.tten by the sender".
+     *
+     * There is no honest way around that without a CRDT, so the rule is the
+     * predictable one instead: the block you are typing in is yours until you
+     * leave it. Changes to every *other* block land immediately, and pointers
+     * never wait — which is almost all of what watching someone work looks
+     * like.
+     */
+    if (editor.isFocused) {
+      held.current = { html: block.html, at: Date.now() };
+      return;
+    }
+
     lastSaved.current = block.html;
+    held.current = null;
     editor.commands.setContent(block.html, { emitUpdate: false });
   }, [block.html, editor]);
+
+  /* Apply what waited, when the caret leaves. */
+  useEffect(() => {
+    if (!editor) return;
+    const onBlur = () => {
+      const waiting = held.current;
+      held.current = null;
+      if (!waiting) return;
+      // If I typed after their version arrived, mine is newer and has already
+      // been published — applying theirs now would delete what I just wrote.
+      if (typedAt.current > waiting.at) return;
+      lastSaved.current = waiting.html;
+      editor.commands.setContent(waiting.html, { emitUpdate: false });
+    };
+    editor.on("blur", onBlur);
+    return () => {
+      editor.off("blur", onBlur);
+    };
+  }, [editor]);
 
   /* Track the slash query and the selection toolbar off editor transactions. */
   useEffect(() => {

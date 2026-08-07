@@ -10,7 +10,8 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useHydrated, useProjects } from "@/lib/store";
-import { usePresence } from "@/lib/realtime";
+import { LOCAL_USER, usePresence } from "@/lib/realtime";
+import { useCollabSession } from "@/lib/collab/session";
 import { WritingEditor } from "@/components/editors/WritingEditor";
 import { DeckEditor } from "@/components/editors/DeckEditor";
 import { BoardEditor } from "@/components/editors/BoardEditor";
@@ -32,7 +33,26 @@ export default function ProjectPage() {
       : project.blocks.map((b) => b.id);
   }, [project]);
 
-  const peers = usePresence(project ? projectId : null, presenceIds);
+  const simulated = usePresence(project ? projectId : null, presenceIds);
+
+  /**
+   * The live session for this project, always on.
+   *
+   * There is no switch because there is nothing to switch: a room with no one
+   * else in it opens one idle channel and sends nothing until someone joins.
+   * The payoff is that an edit link works the moment it is opened, and that
+   * the same project in two windows is already collaborative.
+   */
+  const session = useCollabSession({
+    projectId: project ? projectId : null,
+    self: LOCAL_USER,
+    enabled: Boolean(project),
+  });
+
+  // Real people first. The simulated provider is off unless the landing demo
+  // turned it on, so in practice this is one list or the other, never a
+  // confusing mixture of someone real and someone invented.
+  const peers = session.peers.length ? session.peers : simulated;
 
   if (!project) {
     // Locally-created projects only exist after rehydration; claiming "not

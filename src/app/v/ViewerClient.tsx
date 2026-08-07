@@ -7,19 +7,24 @@
  * and only after mount — there is no server render of a shared project, by
  * construction. Decoding is async (it decompresses), so the page has three
  * honest states: reading, a document, or a clear reason why not.
+ *
+ * The link also carries what the sender offered. A view link opens a reader; an
+ * edit link opens the real editor in a live session, where the two of you see
+ * each other's pointer and each other's changes.
  */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Project } from "@/lib/types";
-import { decodeShare } from "@/lib/share";
+import { decodeShare, type SharePermission } from "@/lib/share";
 import { SharedProject } from "@/components/viewer/SharedProject";
+import { GuestEditor } from "@/components/viewer/GuestEditor";
 import { Icon } from "@/components/ui/Icon";
 import { KINDS } from "@/lib/kinds";
 
 type State =
   | { status: "reading" }
-  | { status: "ready"; project: Project }
+  | { status: "ready"; project: Project; permission: SharePermission }
   | { status: "empty" }
   | { status: "broken" };
 
@@ -36,9 +41,17 @@ export function ViewerClient() {
       }
       setState({ status: "reading" });
       decodeShare(payload).then(
-        (project) => {
+        (decoded) => {
           if (!live) return;
-          setState(project ? { status: "ready", project } : { status: "broken" });
+          setState(
+            decoded
+              ? {
+                  status: "ready",
+                  project: decoded.project,
+                  permission: decoded.permission,
+                }
+              : { status: "broken" },
+          );
         },
         () => live && setState({ status: "broken" }),
       );
@@ -54,6 +67,12 @@ export function ViewerClient() {
       window.removeEventListener("hashchange", read);
     };
   }, []);
+
+  // The editor mode takes over the whole page: it brings its own top bar,
+  // its own header and a live session, and stacking this page's chrome on top
+  // of that would be two headers saying different things.
+  if (state.status === "ready" && state.permission === "edit")
+    return <GuestEditor project={state.project} />;
 
   return (
     <div className="flex h-full flex-col bg-canvas">

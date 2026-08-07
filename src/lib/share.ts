@@ -21,7 +21,25 @@
 import type { Block, BoardItem, Project, SlideObject } from "./types";
 import { sanitizeHtml, safeImageSrc } from "./sanitize";
 
-/** Payload format tag. `1z` is gzipped, `1p` is plain — both base64url. */
+/**
+ * What the sender is offering.
+ *
+ * Worth being precise about, because it is not access control and pretending
+ * otherwise would be dishonest: the document travels inside the link, so a
+ * "view" recipient already holds every word of it and could always read it in
+ * a text editor. The permission decides what the *app* opens — a reader, or a
+ * live session you can type into — and it is a statement of intent, the same
+ * way a shared folder marked "read only" is. Real enforcement needs the
+ * document to live on a server, which is the same line every other seam here
+ * draws.
+ */
+export type SharePermission = "view" | "edit";
+
+/**
+ * Payload tag: permission, then format. `v1z` is a view link, gzipped; `e1p`
+ * an edit link, uncompressed. A bare `1z` from an earlier link still reads as
+ * a view link rather than failing.
+ */
 const GZIP = "1z";
 const PLAIN = "1p";
 
@@ -77,17 +95,21 @@ async function through(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> 
  * payload is still correct, just longer, and says so in its own tag rather
  * than being guessed at on the way back in.
  */
-export async function encodeShare(project: Project): Promise<string> {
+export async function encodeShare(
+  project: Project,
+  permission: SharePermission = "view",
+): Promise<string> {
   const json = JSON.stringify(stripForShare(project));
   const bytes = new TextEncoder().encode(json);
+  const mark = permission === "edit" ? "e" : "v";
 
   if (typeof CompressionStream === "undefined")
-    return `${PLAIN}.${toBase64Url(bytes)}`;
+    return `${mark}${PLAIN}.${toBase64Url(bytes)}`;
 
   const stream = new Blob([bytes as BlobPart])
     .stream()
     .pipeThrough(new CompressionStream("gzip"));
-  return `${GZIP}.${toBase64Url(await through(stream))}`;
+  return `${mark}${GZIP}.${toBase64Url(await through(stream))}`;
 }
 
 /**
@@ -108,10 +130,12 @@ function bare(item: BoardItem): BoardItem {
   return copy;
 }
 
-export async function shareLink(project: Project): Promise<string> {
-  const payload = await encodeShare(project);
-  const origin =
-    typeof window === "undefined" ? "" : window.location.origin;
+export async function shareLink(
+  project: Project,
+  permission: SharePermission = "view",
+): Promise<string> {
+  const payload = await encodeShare(project, permission);
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
   return `${origin}/v#${payload}`;
 }
 
@@ -153,23 +177,31 @@ export function linkVerdict(url: string): LinkVerdict {
  * have to be images. Whatever survives is a `Project` by construction rather
  * than by assertion.
  */
-export async function decodeShare(payload: string): Promise<Project | null> {
+export interface DecodedShare {
+  project: Project;
+  permission: SharePermission;
+}
+
+export async function decodeShare(payload: string): Promise<DecodedShare | null> {
   const dot = payload.indexOf(".");
   if (dot < 0) return null;
   const tag = payload.slice(0, dot);
   const body = payload.slice(dot + 1);
 
+  const permission: SharePermission = tag.startsWith("e") ? "edit" : "view";
+  const format = tag.replace(/^[ve]/, "");
+
   let bytes: Uint8Array;
   try {
     bytes = fromBase64Url(body);
-    if (tag === GZIP) {
+    if (format === GZIP) {
       if (typeof DecompressionStream === "undefined") return null;
       bytes = await through(
         new Blob([bytes as BlobPart])
           .stream()
           .pipeThrough(new DecompressionStream("gzip")),
       );
-    } else if (tag !== PLAIN) {
+    } else if (format !== PLAIN) {
       return null;
     }
   } catch {
@@ -177,7 +209,8 @@ export async function decodeShare(payload: string): Promise<Project | null> {
   }
 
   try {
-    return validate(JSON.parse(new TextDecoder().decode(bytes)));
+    const project = validate(JSON.parse(new TextDecoder().decode(bytes)));
+    return project ? { project, permission } : null;
   } catch {
     return null;
   }

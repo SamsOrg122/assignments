@@ -1,11 +1,15 @@
 -- Assignments — database schema.
 --
--- Not yet in use. The app runs entirely in the browser today; this is the
--- shape it syncs into when it stops. It is checked in rather than improvised
--- later because the decisions below are the ones that are expensive to change
--- afterwards, and they should be arguable now.
+-- What `lib/db/supabase.ts` is written against. Run it once against a new
+-- project, then turn on anonymous sign-ins in Authentication → Providers: the
+-- free plan has no sign-up, so an anonymous auth user is the normal case here
+-- rather than an edge case.
 --
 --   psql "$DATABASE_URL" -f supabase/schema.sql
+--
+-- With no Supabase variables set the app never calls any of this — it keeps
+-- work in the browser instead, which is a supported way to run it and not a
+-- degraded one.
 --
 -- Three decisions worth defending:
 --
@@ -247,3 +251,48 @@ create trigger projects_touch before update on public.projects
 drop trigger if exists workspaces_touch on public.workspaces;
 create trigger workspaces_touch before update on public.workspaces
   for each row execute function public.touch_updated_at();
+
+-- Every auth user gets a profile, including anonymous ones.
+--
+-- `workspaces.owner_id` references `profiles`, so without this the very first
+-- write after an anonymous sign-in fails on a foreign key — and it would fail
+-- in a way that reads like a permissions problem. Doing it in the database
+-- rather than in the client also means it cannot be skipped by a code path
+-- that forgets.
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.profiles (id, display_name, is_anonymous)
+  values (
+    new.id,
+    nullif(new.raw_user_meta_data ->> 'display_name', ''),
+    new.email is null
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- The owner is a member of their own workspace.
+--
+-- The policies already grant the owner access directly, so this is not what
+-- makes their own work readable. It is what makes `is_member` agree with
+-- reality, so the team surfaces list the owner instead of an empty workspace
+-- that somebody is nevertheless editing.
+create or replace function public.add_owner_as_member()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.workspace_members (workspace_id, user_id, role)
+  values (new.id, new.owner_id, 'owner')
+  on conflict do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists workspaces_owner_member on public.workspaces;
+create trigger workspaces_owner_member after insert on public.workspaces
+  for each row execute function public.add_owner_as_member();

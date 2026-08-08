@@ -30,8 +30,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
+# …except the example, which holds names and comments and never a value. It is
+# the list of what to set in a host's dashboard, so keeping it out of the repo
+# would leave that list nowhere.
+!.env.example
 
 # vercel
 .vercel

@@ -1,14 +1,11 @@
+"use client";
+
 /**
  * The Supabase backend.
  *
- * Written against `supabase/schema.sql` and deliberately not wired up: the
- * client library is not a dependency yet, so this file describes the calls
- * rather than making them. That is a real distinction and it is marked in one
- * place — `isAvailable()` returns false — instead of being spread through the
- * app as `if (supabase)` checks.
- *
- * Turning it on is four steps, listed in `index.ts`. The only code change is
- * the import at the top of this file and deleting `NOT_WIRED`.
+ * Written against `supabase/schema.sql`. It switches itself on when the two
+ * public environment variables are present and reports unavailable otherwise —
+ * one place that knows, rather than `if (supabase)` spread through the app.
  *
  * The anonymous path is the interesting one. Supabase's anonymous sign-in
  * issues a real `auth.users` row with no email, so every policy in the schema
@@ -16,14 +13,14 @@
  * free plan needs. `claim()` upgrades that same user with an email, so the
  * work made before signing up is already theirs and nothing has to be
  * migrated.
+ *
+ * Every method here fails loudly rather than silently returning empty. A sync
+ * layer that quietly reports "no projects" when the network is down is how a
+ * local copy gets overwritten with nothing.
  */
 
+import { supabase } from "./client";
 import type { Database, RemoteProject, Session } from "./index";
-
-const NOT_WIRED =
-  "Supabase isn't wired up yet. Install @supabase/supabase-js, set " +
-  "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then follow " +
-  "the note at the top of lib/db/index.ts.";
 
 /** The row shape `schema.sql` produces, before it is mapped to the app's. */
 interface ProjectRow {
@@ -83,53 +80,142 @@ function flatten(project: RemoteProject): string {
 }
 
 /**
- * The adapter. Every method documents the query it will make, so the shape can
- * be reviewed against the schema before any of it runs against real data.
+ * A workspace to hang projects off.
+ *
+ * The schema requires one, and someone who never signs up still needs
+ * somewhere for their work to live — so the first call creates a personal
+ * workspace for the anonymous user and every later call finds it. Cached for
+ * the tab because it never changes within one.
  */
+let workspaceId: string | null = null;
+
+async function ensureWorkspace(client: NonNullable<ReturnType<typeof supabase>>, ownerId: string) {
+  if (workspaceId) return workspaceId;
+
+  const existing = await client
+    .from("workspaces")
+    .select("id")
+    .eq("owner_id", ownerId)
+    .limit(1)
+    .maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  if (existing.data) {
+    workspaceId = existing.data.id as string;
+    return workspaceId;
+  }
+
+  const created = await client
+    .from("workspaces")
+    .insert({ owner_id: ownerId, name: "My workspace" })
+    .select("id")
+    .single();
+  if (created.error) throw new Error(created.error.message);
+  workspaceId = created.data.id as string;
+  return workspaceId;
+}
+
+/** The adapter. Every call maps one-for-one onto `supabase/schema.sql`. */
 export const supabaseDatabase: Database = {
   name: "supabase",
 
-  // The single place that knows this isn't connected. Flip by deleting the
-  // line below once the client is installed and configured.
-  isAvailable: () => false,
+  isAvailable: () => supabase() !== null,
 
   async session(): Promise<Session | null> {
-    // const { data } = await client.auth.getSession();
-    // if (data.session) return { userId: …, anonymous: !data.session.user.email };
-    // const { data: created } = await client.auth.signInAnonymously();
-    // return { userId: created.user!.id, anonymous: true };
-    throw new Error(NOT_WIRED);
+    const client = supabase();
+    if (!client) return null;
+
+    const { data } = await client.auth.getSession();
+    if (data.session?.user)
+      return {
+        userId: data.session.user.id,
+        anonymous: !data.session.user.email,
+      };
+
+    // No session yet: sign in anonymously. This is the free plan's normal
+    // state, not a fallback — see the note at the top.
+    const created = await client.auth.signInAnonymously();
+    if (created.error) throw new Error(created.error.message);
+    if (!created.data.user) throw new Error("Supabase returned no user.");
+
+    // `on_auth_user_created` in schema.sql already made this row. Writing it
+    // again costs one round trip and covers a project set up before that
+    // trigger existed, where the alternative is a foreign key error on the
+    // first save that reads like a permissions problem.
+    await client
+      .from("profiles")
+      .upsert(
+        { id: created.data.user.id, is_anonymous: true },
+        { onConflict: "id", ignoreDuplicates: true },
+      );
+
+    return { userId: created.data.user.id, anonymous: true };
   },
 
   async list(): Promise<RemoteProject[]> {
-    // client.from("projects").select("*").is("deleted_at", null)
-    //       .order("updated_at", { ascending: false })
-    throw new Error(NOT_WIRED);
+    const client = supabase();
+    if (!client) throw new Error("Supabase isn't configured.");
+    const { data, error } = await client
+      .from("projects")
+      .select("*")
+      .is("deleted_at", null)
+      .order("updated_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(rowToProject);
   },
 
-  async get(): Promise<RemoteProject | null> {
-    // client.from("projects").select("*").eq("id", id).maybeSingle()
-    throw new Error(NOT_WIRED);
+  async get(id: string): Promise<RemoteProject | null> {
+    const client = supabase();
+    if (!client) throw new Error("Supabase isn't configured.");
+    const { data, error } = await client
+      .from("projects")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? rowToProject(data) : null;
   },
 
-  async put(): Promise<void> {
-    // client.from("projects").upsert(projectToRow(project, ws, owner))
-    // Conflict handling is last-write-wins on `revision` until there is a
-    // CRDT; the store already holds a complete document, so a losing write
-    // costs one document rather than a merge conflict.
-    throw new Error(NOT_WIRED);
+  async put(project: RemoteProject): Promise<void> {
+    const client = supabase();
+    if (!client) throw new Error("Supabase isn't configured.");
+    const session = await supabaseDatabase.session();
+    if (!session) throw new Error("No session to write as.");
+    const workspace = await ensureWorkspace(client, session.userId);
+
+    // Last-write-wins on `revision` until there is a CRDT. The store holds a
+    // complete document, so a losing write costs one document rather than a
+    // merge conflict — and `revision` makes that visible instead of silent.
+    const { error } = await client
+      .from("projects")
+      .upsert(projectToRow(project, workspace, session.userId));
+    if (error) throw new Error(error.message);
   },
 
-  async remove(): Promise<void> {
-    // Soft delete: set deleted_at. Hard deletes make "restore" impossible and
-    // make sync between two devices ambiguous — the second device cannot tell
-    // "deleted" from "never seen".
-    throw new Error(NOT_WIRED);
+  async remove(id: string): Promise<void> {
+    const client = supabase();
+    if (!client) throw new Error("Supabase isn't configured.");
+    // Soft delete. A hard delete makes "restore" impossible and makes sync
+    // between two devices ambiguous — the second device cannot tell "deleted"
+    // from "never seen".
+    const { error } = await client
+      .from("projects")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
   },
 
-  async claim(): Promise<void> {
-    // client.auth.updateUser({ email }) — same user id, so every project made
-    // anonymously is already owned by the account that comes out.
-    throw new Error(NOT_WIRED);
+  async claim(email: string): Promise<void> {
+    const client = supabase();
+    if (!client) throw new Error("Supabase isn't configured.");
+    // Same user id comes out, so every project made anonymously is already
+    // owned by the account this produces. Nothing is migrated.
+    const { error } = await client.auth.updateUser({ email });
+    if (error) throw new Error(error.message);
+    const { data } = await client.auth.getUser();
+    if (data.user)
+      await client
+        .from("profiles")
+        .update({ is_anonymous: false })
+        .eq("id", data.user.id);
   },
 };

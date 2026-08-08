@@ -21,8 +21,9 @@
  * this file can produce, so it is designed to be impossible.
  */
 
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { CollabMessage, CollabTransport, TransportStatus } from "./types";
-import { isRemoteConfigured } from "../db";
+import { supabase } from "../db/client";
 
 /** How long the relay gets to prove itself before we fall back. */
 const PROBE_MS = 5_000;
@@ -207,21 +208,19 @@ class BroadcastTransport implements CollabTransport {
 /**
  * Supabase Realtime, behind the same environment variables as the database.
  *
- * The relay above is enough for one server. This is what replaces it when the
- * app runs on several — serverless, autoscaled — where two people can land in
- * two processes whose in-memory rooms will never meet.
+ * Preferred over the relay whenever it is configured, because the relay's
+ * rooms live in one process's memory: on a platform that spreads requests
+ * across instances — serverless, autoscaled, which is where this deploys —
+ * two people can land in two processes whose rooms will never meet. A hosted
+ * pub/sub has no such edge.
  */
 class SupabaseTransport implements CollabTransport {
   readonly name = "supabase";
   readonly reach = "anyone you send the link to";
-  private channel: { send: (a: unknown) => void; unsubscribe: () => void } | null =
-    null;
-
-  /** True once `@supabase/supabase-js` is a dependency of this app. */
-  static readonly installed = false;
+  private channel: RealtimeChannel | null = null;
 
   isAvailable() {
-    return isRemoteConfigured() && SupabaseTransport.installed;
+    return supabase() !== null;
   }
 
   join(
@@ -229,30 +228,40 @@ class SupabaseTransport implements CollabTransport {
     onMessage: (message: CollabMessage) => void,
     onStatus: (status: TransportStatus) => void,
   ) {
-    void room;
-    void onMessage;
-    void onStatus;
-    // FOUNDER: with @supabase/supabase-js installed, flip `installed` above
-    // and this becomes
-    //
-    //   const client = createClient(URL, ANON_KEY);
-    //   this.channel = client.channel(`collab:${room}`, {
-    //     config: { broadcast: { self: false } },
-    //   });
-    //   this.channel
-    //     .on("broadcast", { event: "m" }, ({ payload }) => onMessage(payload))
-    //     .subscribe((s) =>
-    //       s === "SUBSCRIBED" && onStatus({ state: "live", reach: this.reach }));
-    //
-    // Nothing above this class changes.
+    const client = supabase();
+    if (!client) {
+      onStatus({ state: "failed", problem: "Supabase isn't configured." });
+      return;
+    }
+    this.leave();
+
+    this.channel = client.channel(`collab:${room}`, {
+      // The server would otherwise echo our own messages back, and every
+      // session would see itself as a second participant.
+      config: { broadcast: { self: false } },
+    });
+
+    this.channel
+      .on("broadcast", { event: "m" }, ({ payload }) =>
+        onMessage(payload as CollabMessage),
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED")
+          onStatus({ state: "live", reach: this.reach });
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT")
+          onStatus({
+            state: "failed",
+            problem: "Couldn't reach the realtime service.",
+          });
+      });
   }
 
   send(message: CollabMessage) {
-    this.channel?.send({ type: "broadcast", event: "m", payload: message });
+    void this.channel?.send({ type: "broadcast", event: "m", payload: message });
   }
 
   leave() {
-    this.channel?.unsubscribe();
+    if (this.channel) void this.channel.unsubscribe();
     this.channel = null;
   }
 }
@@ -265,8 +274,10 @@ class SupabaseTransport implements CollabTransport {
  * does, and it silently kills a live session that looked fine.
  */
 export function pickTransport(): CollabTransport | null {
-  const supabase = new SupabaseTransport();
-  if (supabase.isAvailable()) return supabase;
+  // Not named `supabase` — that is the client factory imported above, and
+  // shadowing it here would quietly disable it for anything added later.
+  const hosted = new SupabaseTransport();
+  if (hosted.isAvailable()) return hosted;
 
   const relay = new RelayTransport();
   if (relay.isAvailable()) return relay;

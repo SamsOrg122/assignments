@@ -65,7 +65,9 @@ src/
     kit/                  your own fonts, pictures and saved pieces
     sanitize.ts           allowlist HTML cleaning for anything arriving by link
     images.ts             one pick/drop/paste path, downscaled before storage
-    ai/                   askAI seam, stub provider, document + team analyses
+    ai/                   askAI seam, local + OpenRouter providers, analyses
+    ai/openrouter/        models, tools, prompt — the document as function calls
+    db/                   Supabase adapter, with a local store behind the same API
     speech/               transcribe seam — Web Speech + simulated fallback
     realtime/             RealtimeProvider seam + simulated presence
 ```
@@ -360,10 +362,22 @@ defers execution until after hydration bootstraps.
 **AI is a seam, not a feature.** Everything the UI knows is
 `askAI(prompt, context)` returning a stream of chunks, plus an optional
 structured `AIChange` the user accepts or rejects — the model never writes to
-the document directly. `lib/ai/mock.ts` does no inference but operates on your
-real content (least-squares forecasts, extractive summaries), so the
-interaction is the shape it will be with a model behind it. Swap it with
-`setAIProvider()`.
+the document directly.
+
+Two providers sit behind that seam. `lib/ai/mock.ts` does no inference but
+operates on your real content (least-squares forecasts, extractive summaries),
+and it is what runs when no key is set — a working local assistant, not a
+placeholder. `lib/ai/openrouter/` is the real one: the browser posts to
+`/api/ai`, the route holds the key and streams back NDJSON frames, and the
+document is exposed to the model as **tools** rather than as text to overwrite.
+Every tool call is validated against the context the request carried before it
+becomes a change, so a hallucinated block or row id is dropped rather than
+previewed as if it were real. Models are configured as a *list*: a request
+walks it until one answers, and a model that fails is demoted for a minute.
+
+The app asks the server once, on load, whether a key is configured — a
+server-only variable is invisible to the browser, and guessing would let
+Settings claim a model it doesn't have.
 
 **Realtime is a seam too.** `RealtimeProvider` is modelled on a CRDT awareness
 map, so a Yjs provider forwarding `awareness.getStates()` drops in behind
@@ -379,19 +393,42 @@ pins the framework and nothing else, because there is nothing else to pin.
 npm run build && npm start   # exactly what production runs
 ```
 
-Every environment variable in `.env.example` is optional. With none of them
-set the app is complete and honest: work lives in the browser, the AI is a
-local stub that says so, checkout walks the whole flow and answers 501 rather
-than charging, and view links carry their document inside the URL. Setting a
-group switches that group on and changes nothing else — see `lib/db`,
-`lib/billing` and `lib/ai` for the seams and the one-time setup each needs.
+Every environment variable is optional. With none of them set the app is
+complete and honest: work lives in the browser, the AI is a local stub that
+says so, checkout walks the whole flow and answers 501 rather than charging,
+and view links carry their document inside the URL. Setting a group switches
+that group on and changes nothing else.
+
+### Environment
+
+| Variable | Where | What it switches on |
+|---|---|---|
+| `OPENROUTER_API_KEY` | server | The real assistant. Without it, the local stub. |
+| `OPENROUTER_MODELS` | server | Rotation order. Optional — there's a default list. |
+| `OPENROUTER_APP_URL` | server | Attribution in OpenRouter's dashboard. Optional. |
+| `NEXT_PUBLIC_SUPABASE_URL` | browser | Accounts, sync, and hosted live sessions. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser | Same pair — both or neither. |
+| `SUPABASE_SERVICE_ROLE_KEY` | server | Only for jobs that must bypass RLS. Not needed to launch. |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | browser | Checkout. |
+| `STRIPE_SECRET_KEY` | server | Checkout. |
+| `STRIPE_WEBHOOK_SECRET` | server | Subscription webhooks. |
+
+`NEXT_PUBLIC_` variables are compiled into the browser bundle and are public by
+definition; everything else stays on the server. `OPENROUTER_API_KEY` is the
+one people get wrong: the browser posts to `/api/ai` and the key never leaves
+the server, so there is deliberately no public variant of it.
+
+Supabase needs two one-time steps before the variables do anything: run
+`supabase/schema.sql` against the project, and turn on anonymous sign-ins —
+that is what lets the free plan keep work without a login.
 
 Live sessions need one thing from the host: **a single long-running process.**
 `next start`, a container or a VPS is enough, and needs no configuration at
-all. On a platform that autoscales across instances, install
-`@supabase/supabase-js`, set the two Supabase variables and flip `installed` in
-`lib/collab/transport.ts` — the relay's in-memory rooms cannot be shared
-between processes, and the app will tell the user so rather than pretending.
+all. On a platform that autoscales across instances — Vercel included — set the
+two Supabase variables: the built-in relay keeps its rooms in memory, so two
+people served by different instances would never meet. With Supabase
+configured the session runs over Realtime instead, and without it the app says
+so rather than pretending.
 
 Two things to do before a real launch, both flagged in the code:
 

@@ -9,7 +9,7 @@
  * always survive.
  */
 
-import type { Block, Project } from "../types";
+import { DEFAULT_DECK_STYLE, type Block, type Project } from "../types";
 import type { KnowledgeEntry, TeamFile, Workspace } from "../team/types";
 import { computeFormulas } from "../formula";
 import { CONTEXT_CHAR_BUDGET, type AIContext } from "./types";
@@ -162,6 +162,37 @@ export function boardToText(project: Project): string {
 
 const countWords = (s: string) => s.split(/\s+/).filter(Boolean).length;
 
+/** Row ids beyond this are omitted; the text rendering still carries the data. */
+const ROW_ID_CAP = 200;
+
+/**
+ * The ids a change needs to address this block.
+ *
+ * Only for the block types whose changes are addressed by id — everything
+ * else contributes nothing and stays out of the payload.
+ */
+function handles(block: Block): Partial<AIContext["blocks"][number]> {
+  if (block.type === "table")
+    return {
+      columns: block.columns.map((c) => ({
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        formula: c.formula,
+      })),
+      rowIds: block.rows.slice(0, ROW_ID_CAP).map((r) => r.id),
+      moreRows: Math.max(0, block.rows.length - ROW_ID_CAP) || undefined,
+    };
+
+  if (block.type === "slides")
+    return {
+      slideIds: block.slides.map((s) => s.id),
+      deckStyle: block.style ?? DEFAULT_DECK_STYLE,
+    };
+
+  return {};
+}
+
 /**
  * Trim to the character budget by shrinking the *middle* blocks first. An
  * opening and a conclusion are what cross-document questions compare, so they
@@ -266,6 +297,7 @@ export function buildContext(
             headingLevel: heading?.level,
             text,
             words: b.type === "text" ? countWords(text) : 0,
+            ...handles(b),
           };
         });
 

@@ -268,11 +268,27 @@ function AIPopover({ target }: { target: AITarget }) {
         setCells(projectId, change.blockId, change.cells);
         break;
 
-      case "set-slides":
+      case "set-slides": {
+        // A rewrite that keeps a slide's id keeps that slide. Anything drawn
+        // on it lives in `objects`, which a text-level rewrite has no way to
+        // express — reordering a deck must not silently wipe the free-form
+        // layer, so it is carried across unless the change replaces it.
+        const deck = projects
+          .find((p) => p.id === projectId)
+          ?.blocks.find(
+            (b): b is SlidesBlock => b.id === change.blockId && b.type === "slides",
+          );
+        const before = new Map((deck?.slides ?? []).map((s) => [s.id, s]));
         updateBlock<SlidesBlock>(projectId, change.blockId, {
-          slides: change.slides,
+          slides: change.slides.map((s) => {
+            const kept = before.get(s.id);
+            return kept?.objects?.length && !s.objects
+              ? { ...s, objects: kept.objects }
+              : s;
+          }),
         });
         break;
+      }
 
       case "set-deck-style":
         updateBlock<SlidesBlock>(projectId, change.blockId, {

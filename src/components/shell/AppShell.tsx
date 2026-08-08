@@ -15,6 +15,7 @@ import { useProjects } from "@/lib/store";
 import { useAppearanceSync } from "@/lib/theme-store";
 import { useAuthHydrated } from "@/lib/auth/store";
 import { hydrateShared } from "@/lib/collab/shared";
+import { connectAI } from "@/lib/ai";
 import { useKitFonts } from "@/lib/kit/use-kit-fonts";
 import type { BlockType } from "@/lib/types";
 
@@ -28,6 +29,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Which projects are live-shared is persisted too, and has the same
   // skipHydration contract as everything else.
   useEffect(hydrateShared, []);
+  // Asks the server once whether a model is configured. Until it answers — and
+  // for good if it says no — the local assistant is what runs.
+  useEffect(connectAI, []);
   useKitFonts();
 
   const { togglePalette, toggleSidebar, setSidebarOpen, openAI, closeAI, closePalette } =

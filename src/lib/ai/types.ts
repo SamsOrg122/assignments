@@ -12,6 +12,7 @@ import type {
   BoardItem,
   CellValue,
   Column,
+  ColumnType,
   DeckStyle,
   ProjectKind,
   Slide,
@@ -44,6 +45,36 @@ export interface AIContext {
     /** Plain-text rendering of the block's content. */
     text: string;
     words: number;
+
+    /*
+     * Structural handles.
+     *
+     * A change addresses cells, rows and slides *by id*, so a provider that
+     * only ever sees the flattened text cannot produce a valid one. The local
+     * stub reads the live blocks instead and never needed these; a model
+     * behind an HTTP call has no such option, and inventing plausible ids is
+     * exactly the failure worth designing out.
+     */
+
+    /** Columns of a table block, in display order. */
+    columns?: Array<{
+      id: string;
+      name: string;
+      type: ColumnType;
+      formula?: string;
+    }>;
+    /**
+     * Row ids in the same order the rows appear in `text`, so line *n* of the
+     * rendering is `rowIds[n]`. Capped — a thousand ids would eat the context
+     * budget the document needs.
+     */
+    rowIds?: string[];
+    /** Rows beyond the cap, if any. */
+    moreRows?: number;
+    /** Slide ids, in deck order. */
+    slideIds?: string[];
+    /** The deck's current style, so a partial restyle merges instead of resetting. */
+    deckStyle?: DeckStyle;
   }>;
 
   /** Everything else in the library, summarised. */

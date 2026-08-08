@@ -25,6 +25,7 @@
 
 import type { Project } from "../types";
 import { STORAGE_KEYS } from "../persistence";
+import { supabaseDatabase } from "./supabase";
 
 /** A row as the sync layer sees it — the document plus what it needs to merge. */
 export interface RemoteProject {
@@ -150,7 +151,9 @@ export const isRemoteConfigured = (): boolean =>
 
 export function getDatabase(): Database {
   if (override) return override;
-  return localDatabase;
+  // Configured and reachable wins; otherwise the browser, which is not a
+  // fallback but the real storage layer for anyone who never signs in.
+  return supabaseDatabase.isAvailable() ? supabaseDatabase : localDatabase;
 }
 
 export const backendName = (): string => getDatabase().name;

@@ -22,7 +22,7 @@ import {
 } from "@/lib/theme-store";
 import { useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
-import { getAIProviderName } from "@/lib/ai";
+import { getAIProviderName, subscribeAIProvider } from "@/lib/ai";
 import { getRealtimeProviderName } from "@/lib/realtime";
 import { speechProviderName } from "@/lib/speech";
 import { sourceResolverName } from "@/lib/sources";
@@ -45,9 +45,22 @@ const useIsClient = () =>
     () => false,
   );
 
+/**
+ * The AI provider is the one row here that changes after first paint: the app
+ * asks the server whether a model is configured, and the answer arrives a beat
+ * later. Reading it once would leave this permanently saying "local".
+ */
+const useAIProviderName = () =>
+  useSyncExternalStore(
+    subscribeAIProvider,
+    getAIProviderName,
+    () => "…",
+  );
+
 export default function SettingsPage() {
   const a = useAppearance();
   const isClient = useIsClient();
+  const aiProvider = useAIProviderName();
   const resetWorkspace = useProjects((s) => s.resetWorkspace);
   const notify = useUI((s) => s.notify);
   const router = useRouter();
@@ -185,7 +198,7 @@ export default function SettingsPage() {
           >
             <ProviderRow
               name="AI"
-              value={isClient ? getAIProviderName() : "…"}
+              value={aiProvider}
               detail="askAI(prompt, context) — streaming, accept/reject"
             />
             <ProviderRow

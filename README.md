@@ -36,7 +36,8 @@ src/
     chat/                 message list, composer, threads, team assistant
     board/                board items, live project cards, promote dialog
     canvas/               block canvas, block chrome, / menu
-    blocks/               text · table · chart · slides · code
+    blocks/               text · table · chart · slides · code · image
+    slides/               the deck: stage, tools, layouts — shared everywhere
     ai/                   inline AI popover (streaming, accept/reject)
     presence/             peer cursors, avatars
     ui/                   icons, toast
@@ -219,6 +220,14 @@ sheet keeps ~27 in the DOM), rectangle selection, spreadsheet keyboarding
 formula grammar, multi-key sort, filters, colour rules and a frozen first
 column. The strip above the grid is a row count until a cell is selected —
 then it's the formula bar. No ribbon.
+
+**A block inside a document is the same program as the editor for it.** A
+slides block used to be a second, much thinner implementation — no theme, no
+layouts, no free-form layer, no pictures — and the only thing making it thinner
+was that it had been written twice. `components/slides` now holds one deck: one
+hook that owns the operations, one stage that draws and edits a slide, one row
+of tools. The presenting editor adds a filmstrip, a `.pptx` import and Present
+around it; the in-document block adds nothing and loses nothing.
 
 **Slides carry a free-form layer.** Text, shapes and lines in percent
 coordinates over the structured content, with snap guides, arrow-key nudge and

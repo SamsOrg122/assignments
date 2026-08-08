@@ -23,7 +23,7 @@ import { proseVars } from "@/lib/doc-presets";
 import { routeConnector } from "@/lib/board-routing";
 import { bounds } from "@/lib/geometry";
 import { chartData, renderChart } from "@/components/blocks/ChartBlock";
-import { SlideView } from "@/components/editors/DeckEditor";
+import { SlideView } from "@/components/slides/SlideView";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 

@@ -10,49 +10,30 @@
  */
 
 import { useMemo, useRef, useState } from "react";
-import type {
-  DeckStyle,
-  PeerState,
-  Project,
-  Slide,
-  SlideLayout,
-  SlidesBlock,
-} from "@/lib/types";
-import { DEFAULT_DECK_STYLE } from "@/lib/types";
-import { DECK_THEMES, deckVars } from "@/lib/deck-themes";
-import { DeckStylePanel } from "./DeckStylePanel";
+import type { PeerState, Project, SlidesBlock } from "@/lib/types";
+import { SlideView } from "@/components/slides/SlideView";
 import {
-  SlideObjectsEditor,
-  SlideObjectsView,
-  balanceObjects,
-  insertImageObject,
-  insertObject,
-} from "./SlideObjects";
-import { imageFrom, pickImage, prepareImage } from "@/lib/images";
+  DeckTools,
+  SlideBar,
+  SlideStage,
+  SpeakerNote,
+  useDeck,
+} from "@/components/slides/DeckWorkbench";
 import { importPptxFile } from "@/lib/pptx";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
-import { uid } from "@/lib/factories";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { ProjectTopBar } from "./ProjectTopBar";
 
+
 /**
- * Layout is inferred from the slide's own shape rather than stored, so a slide
- * restyles itself as you edit it and there's no state to get out of sync.
+ * The presenting editor: a deck, plus what only a whole project has.
+ *
+ * Split in two so the deck hook can be called unconditionally. Finding the
+ * slides block can fail — a Deck project with no deck in it — and a hook after
+ * that check would be a hook that sometimes doesn't run.
  */
-type Layout = "title" | "statement" | "bullets" | "split";
-
-function layoutOf(slide: Slide, index: number): Layout {
-  // An author's choice always beats the guess.
-  if (slide.layout && slide.layout !== "auto") return slide.layout;
-  const bullets = slide.bullets.filter((b) => b.trim());
-  if (index === 0 && bullets.length <= 1) return "title";
-  if (bullets.length === 0) return "statement";
-  if (bullets.length === 1 && bullets[0].length > 90) return "statement";
-  return bullets.length > 4 ? "split" : "bullets";
-}
-
 export function DeckEditor({
   project,
   peers,
@@ -60,25 +41,13 @@ export function DeckEditor({
   project: Project;
   peers: PeerState[];
 }) {
-  const updateBlock = useProjects((s) => s.updateBlock);
   const addBlock = useProjects((s) => s.addBlock);
-
-  const deck = useMemo(
+  const block = useMemo(
     () => project.blocks.find((b): b is SlidesBlock => b.type === "slides"),
     [project.blocks],
   );
 
-  const notify = useUI((s) => s.notify);
-  const [index, setIndex] = useState(0);
-  const [presenting, setPresenting] = useState(false);
-  const [styleOpen, setStyleOpen] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [elementOpen, setElementOpen] = useState(false);
-  const [dropping, setDropping] = useState(false);
-  const importRef = useRef<HTMLInputElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-
-  if (!deck) {
+  if (!block)
     return (
       <>
         <ProjectTopBar project={project} peers={peers} />
@@ -98,18 +67,27 @@ export function DeckEditor({
         </main>
       </>
     );
-  }
 
-  const slides = deck.slides;
-  const clamped = Math.min(index, Math.max(slides.length - 1, 0));
-  const current = slides[clamped];
+  return <DeckStage project={project} peers={peers} block={block} />;
+}
 
-  const style = deck.style ?? DEFAULT_DECK_STYLE;
+function DeckStage({
+  project,
+  peers,
+  block,
+}: {
+  project: Project;
+  peers: PeerState[];
+  block: SlidesBlock;
+}) {
+  const updateBlock = useProjects((s) => s.updateBlock);
+  const notify = useUI((s) => s.notify);
+  const deck = useDeck(project.id, block);
+  const { slides, style, index: clamped, current, setIndex, addSlide, removeSlide } = deck;
 
-  const setStyle = (next: Partial<DeckStyle>) =>
-    updateBlock<SlidesBlock>(project.id, deck.id, (b) => ({
-      style: { ...DEFAULT_DECK_STYLE, ...b.style, ...next },
-    }));
+  const [presenting, setPresenting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
 
   /** Append an imported deck rather than replacing what's here. */
   const importDeck = async (file: File | undefined) => {
@@ -117,7 +95,7 @@ export function DeckEditor({
     setImporting(true);
     try {
       const imported = await importPptxFile(file);
-      updateBlock<SlidesBlock>(project.id, deck.id, (b) => ({
+      updateBlock<SlidesBlock>(project.id, block.id, (b) => ({
         slides: [...b.slides, ...imported.slides],
       }));
       setIndex(slides.length);
@@ -135,54 +113,6 @@ export function DeckEditor({
     }
   };
 
-  const patch = (slideId: string, next: Partial<Slide>) =>
-    updateBlock<SlidesBlock>(project.id, deck.id, (b) => ({
-      slides: b.slides.map((s) => (s.id === slideId ? { ...s, ...next } : s)),
-    }));
-
-  /**
-   * Put a picture on the current slide, however it arrived.
-   *
-   * The store is read fresh rather than closed over: this is called from an
-   * await, and by the time it lands the slide may have gained objects that a
-   * captured array wouldn't know about.
-   */
-  const placeImage = async (file: File | Blob | null) => {
-    if (!current) return;
-    try {
-      const image = file ? await prepareImage(file) : await pickImage();
-      if (!image) return;
-      updateBlock<SlidesBlock>(project.id, deck.id, (b) => ({
-        slides: b.slides.map((s) =>
-          s.id === current.id
-            ? { ...s, objects: insertImageObject(s.objects ?? [], image) }
-            : s,
-        ),
-      }));
-    } catch (error) {
-      notify(
-        error instanceof Error ? error.message : "That picture couldn't be read.",
-      );
-    }
-  };
-
-  const addSlide = () => {
-    const fresh: Slide = { id: uid(), title: "New slide", bullets: [""] };
-    updateBlock<SlidesBlock>(project.id, deck.id, (b) => ({
-      slides: [
-        ...b.slides.slice(0, clamped + 1),
-        fresh,
-        ...b.slides.slice(clamped + 1),
-      ],
-    }));
-    setIndex(clamped + 1);
-  };
-
-  const removeSlide = (id: string) =>
-    updateBlock<SlidesBlock>(project.id, deck.id, (b) => ({
-      slides: b.slides.length > 1 ? b.slides.filter((s) => s.id !== id) : b.slides,
-    }));
-
   return (
     <>
       {!presenting && (
@@ -194,111 +124,7 @@ export function DeckEditor({
             // and a scroll container here would clip the panels that anchor
             // to these buttons.
             <span className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={addSlide}
-                className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
-              >
-                <Icon name="plus" size={11} />
-                <span className="hidden sm:inline">Slide</span>
-              </button>
-              <span className="relative">
-                <button
-                  type="button"
-                  onClick={() => setStyleOpen((v) => !v)}
-                  aria-pressed={styleOpen}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-sm border px-2 py-1.5 text-[11.5px] transition-colors duration-150",
-                    styleOpen
-                      ? "border-line-strong bg-surface-2 text-fg"
-                      : "border-line text-fg-subtle hover:border-line-strong hover:text-fg",
-                  )}
-                >
-                  <Icon name="type" size={11} />
-                  <span className="hidden sm:inline">
-                    {DECK_THEMES[style.theme].label}
-                  </span>
-                </button>
-                {styleOpen && (
-                  <DeckStylePanel
-                    style={style}
-                    onChange={setStyle}
-                    onClose={() => setStyleOpen(false)}
-                  />
-                )}
-              </span>
-
-              <span className="relative">
-                <button
-                  type="button"
-                  onClick={() => setElementOpen((v) => !v)}
-                  aria-pressed={elementOpen}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-sm border px-2 py-1.5 text-[11.5px] transition-colors duration-150",
-                    elementOpen
-                      ? "border-line-strong bg-surface-2 text-fg"
-                      : "border-line text-fg-subtle hover:border-line-strong hover:text-fg",
-                  )}
-                >
-                  <Icon name="board" size={11} />
-                  <span className="hidden sm:inline">Element</span>
-                </button>
-                {elementOpen && current && (
-                  <div className="anim-pop absolute top-full right-0 z-40 mt-1.5 w-[168px] rounded-md border border-line-strong bg-surface p-1.5 shadow-[0_24px_70px_-12px_rgba(0,0,0,0.75)]">
-                    {(
-                      [
-                        ["text", "Text"],
-                        ["rect", "Rectangle"],
-                        ["ellipse", "Ellipse"],
-                        ["line", "Line"],
-                      ] as const
-                    ).map(([kind, label]) => (
-                      <button
-                        key={kind}
-                        type="button"
-                        onClick={() => {
-                          patch(current.id, {
-                            objects: insertObject(current.objects ?? [], kind),
-                          });
-                          setElementOpen(false);
-                        }}
-                        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[12px] text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                      >
-                        {label}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setElementOpen(false);
-                        void placeImage(null);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[12px] text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                    >
-                      <Icon name="image" size={11} />
-                      Picture
-                    </button>
-                    {(current.objects?.length ?? 0) > 1 && (
-                      <>
-                        <span className="my-1 block h-px bg-line" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            patch(current.id, {
-                              objects: balanceObjects(current.objects ?? []),
-                            });
-                            setElementOpen(false);
-                          }}
-                          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[12px] text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                        >
-                          <Icon name="grip" size={11} />
-                          Balance layout
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </span>
+              <DeckTools deck={deck} />
 
               <button
                 type="button"
@@ -419,416 +245,18 @@ export function DeckEditor({
 
             {/* Stage */}
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center overflow-y-auto p-5 sm:p-8">
-              <div
-                ref={stageRef}
-                data-stage="true"
-                className={cn(
-                  "relative aspect-[16/9] w-full max-w-[860px] overflow-hidden rounded-lg border transition-colors duration-150",
-                  dropping ? "border-accent" : "border-line",
-                )}
-                style={{ containerType: "inline-size" }}
-                // Drop a photo anywhere on the slide and it lands as an
-                // object. Paste is handled inside the objects layer, which
-                // has to weigh a picture against copied shapes anyway.
-                onDragOver={(e) => {
-                  if (!e.dataTransfer.types.includes("Files")) return;
-                  e.preventDefault();
-                  setDropping(true);
-                }}
-                onDragLeave={() => setDropping(false)}
-                onDrop={(e) => {
-                  const file = imageFrom(e.dataTransfer);
-                  setDropping(false);
-                  if (!file) return;
-                  e.preventDefault();
-                  void placeImage(file);
-                }}
-              >
-                <SlideView
-                  slide={current}
-                  index={clamped}
-                  style={style}
-                  hideObjects
-                  onChange={(next) => current && patch(current.id, next)}
-                />
-                {current && (
-                  <div
-                    style={deckVars(DECK_THEMES[style.theme], style.scale, style.accent)}
-                    // Transparent to the pointer, all the way down: the title
-                    // and bullets are underneath this layer and have to stay
-                    // clickable. The objects inside opt back in individually.
-                    className="pointer-events-none absolute inset-0"
-                  >
-                    <SlideObjectsEditor
-                      slide={current}
-                      stageRef={stageRef}
-                      onChange={(objects) => patch(current.id, { objects })}
-                    />
-                  </div>
-                )}
+              <div className="w-full max-w-[860px]">
+                <SlideStage deck={deck} />
               </div>
 
-              <div className="mt-3 flex w-full max-w-[860px] items-center gap-2">
-                {current && (
-                  <LayoutPicker
-                    value={current.layout ?? "auto"}
-                    inferred={layoutOf(current, clamped)}
-                    onChange={(layout) => patch(current.id, { layout })}
-                  />
-                )}
-                <span className="h-px flex-1 bg-line" />
-                <button
-                  type="button"
-                  onClick={() => setIndex((i) => Math.max(i - 1, 0))}
-                  disabled={clamped === 0}
-                  aria-label="Previous slide"
-                  className="rounded-sm border border-line p-1.5 text-fg-subtle transition-colors enabled:hover:text-fg disabled:opacity-30"
-                >
-                  <Icon name="chevron-left" size={12} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setIndex((i) => Math.min(i + 1, slides.length - 1))
-                  }
-                  disabled={clamped >= slides.length - 1}
-                  aria-label="Next slide"
-                  className="rounded-sm border border-line p-1.5 text-fg-subtle transition-colors enabled:hover:text-fg disabled:opacity-30"
-                >
-                  <Icon name="chevron-right" size={12} />
-                </button>
+              <div className="mt-3 w-full max-w-[860px] space-y-2">
+                <SlideBar deck={deck} />
+                <SpeakerNote deck={deck} />
               </div>
-
-              {current && (
-                <input
-                  value={current.note ?? ""}
-                  onChange={(e) => patch(current.id, { note: e.target.value })}
-                  placeholder="Speaker note…"
-                  className="mt-2 w-full max-w-[860px] rounded-sm border border-line bg-surface px-2.5 py-1.5 font-mono text-[11px] text-fg-muted outline-none placeholder:text-fg-subtle focus:border-accent"
-                />
-              )}
             </div>
           </>
         )}
       </main>
     </>
-  );
-}
-
-const LAYOUT_LABELS: Record<SlideLayout, string> = {
-  auto: "Automatic",
-  title: "Title",
-  statement: "Statement",
-  bullets: "Bullets",
-  split: "Two columns",
-};
-
-/**
- * Per-slide layout. "Automatic" is the default and stays honest — it shows
- * which layout the content is currently implying, so overriding is a decision
- * rather than a guess.
- */
-function LayoutPicker({
-  value,
-  inferred,
-  onChange,
-}: {
-  value: SlideLayout;
-  inferred: Layout;
-  onChange: (layout: SlideLayout) => void;
-}) {
-  return (
-    <label className="flex items-center gap-1.5">
-      <span className="text-[11.5px] text-fg-subtle">Layout</span>
-      <select
-        value={value}
-        aria-label="Slide layout"
-        onChange={(e) => onChange(e.target.value as SlideLayout)}
-        className="rounded-sm border border-line bg-surface px-1.5 py-1 text-[11.5px] text-fg-muted outline-none transition-colors hover:border-line-strong focus:border-accent"
-      >
-        {(Object.keys(LAYOUT_LABELS) as SlideLayout[]).map((key) => (
-          <option key={key} value={key}>
-            {key === "auto"
-              ? `Automatic — ${LAYOUT_LABELS[inferred]}`
-              : LAYOUT_LABELS[key]}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-/**
- * One slide, rendered with the layout its content implies and the deck's theme.
- *
- * Nothing here reads a colour or a face directly — every value comes from the
- * `--slide-*` custom properties the theme sets on the surface, so the same
- * markup renders as Ink, Paper or Signal without a branch.
- */
-/** Also the whole of a shared deck — see `components/viewer`. */
-export function SlideView({
-  slide,
-  index,
-  style,
-  onChange,
-  readOnly = false,
-  hideObjects = false,
-}: {
-  slide?: Slide;
-  index: number;
-  style: DeckStyle;
-  onChange?: (next: Partial<Slide>) => void;
-  readOnly?: boolean;
-  /** The stage hides the static layer — the editor renders it interactively. */
-  hideObjects?: boolean;
-}) {
-  const theme = DECK_THEMES[style.theme] ?? DECK_THEMES.ink;
-  const vars = deckVars(theme, style.scale, style.accent);
-
-  if (!slide)
-    return <div className="size-full" style={{ background: theme.bg }} />;
-
-  const layout = layoutOf(slide, index);
-  const bullets = slide.bullets;
-  const centred = style.align === "centre";
-
-  const setBullets = (next: string[]) => onChange?.({ bullets: next });
-
-  /** Scale folds into the clamp so the whole deck moves together. */
-  const size = (min: number, fluid: string, max: number) =>
-    `calc(clamp(${min}px, ${fluid}, ${max}px) * var(--slide-scale))`;
-
-  const Title = (
-    <Field
-      value={slide.title}
-      readOnly={readOnly}
-      onChange={(title) => onChange?.({ title })}
-      placeholder="Slide title"
-      className={cn(
-        "w-full bg-transparent outline-none",
-        centred && "text-center",
-      )}
-      style={{
-        color: "var(--slide-fg)",
-        fontFamily: "var(--slide-title-family)",
-        fontWeight: "var(--slide-title-weight)" as unknown as number,
-        letterSpacing: "var(--slide-title-tracking)",
-        fontSize:
-          layout === "title"
-            ? size(28, "5.2cqw", 60)
-            : size(20, "3.2cqw", 34),
-        lineHeight: layout === "title" ? 1.05 : 1.12,
-      }}
-    />
-  );
-
-  const Rule = style.rule ? (
-    <span
-      className={cn(
-        "block h-px shrink-0",
-        centred ? "mx-auto w-[12%]" : "w-[18%]",
-      )}
-      style={{ background: "var(--slide-accent)" }}
-    />
-  ) : null;
-
-  const Bullets = (
-    <ul
-      className={cn(
-        "space-y-[0.55em]",
-        layout === "split" ? "columns-2 gap-8 [&>li]:break-inside-avoid" : "",
-      )}
-    >
-      {bullets.map((b, i) => (
-        <li
-          key={i}
-          className={cn(
-            "flex items-start gap-[0.6em]",
-            centred && layout !== "split" && "justify-center",
-          )}
-        >
-          <span
-            aria-hidden="true"
-            className="mt-[0.62em] size-[0.28em] shrink-0 rounded-full"
-            style={{ background: "var(--slide-accent)" }}
-          />
-          <Field
-            value={b}
-            readOnly={readOnly}
-            placeholder="A point…"
-            onChange={(v) => setBullets(bullets.map((x, j) => (j === i ? v : x)))}
-            onEnter={() =>
-              setBullets([...bullets.slice(0, i + 1), "", ...bullets.slice(i + 1)])
-            }
-            onEmptyBackspace={() =>
-              bullets.length > 1 &&
-              setBullets(bullets.filter((_, j) => j !== i))
-            }
-            className={cn(
-              "w-full bg-transparent leading-relaxed outline-none",
-              centred && layout !== "split" && "text-center",
-            )}
-            style={{
-              color: "var(--slide-muted)",
-              fontSize: size(12, "1.9cqw", 20),
-            }}
-          />
-        </li>
-      ))}
-    </ul>
-  );
-
-  const chrome =
-    style.numbers || style.footer?.trim() ? (
-      <div
-        className="pointer-events-none absolute inset-x-[7cqw] bottom-[3.5cqh] flex items-center justify-between"
-        style={{
-          color: "var(--slide-muted)",
-          fontSize: size(7, "0.95cqw", 11),
-        }}
-      >
-        <span className="truncate">{style.footer?.trim() ?? ""}</span>
-        {style.numbers && <span className="tabular-nums">{index + 1}</span>}
-      </div>
-    ) : null;
-
-  return (
-    <div
-      className={cn(
-        "relative flex size-full flex-col justify-center px-[7cqw] py-[6cqh]",
-        centred && "items-center",
-      )}
-      style={{ ...vars, background: "var(--slide-bg)", containerType: "size" }}
-    >
-      <SlideSurface background={style.background} />
-      {!hideObjects && <SlideObjectsView objects={slide.objects} />}
-      {layout === "title" ? (
-        <div className={cn("w-full", centred && "text-center")}>
-          {Title}
-          <div className={cn("mt-[2.5cqh]", centred ? "mx-auto max-w-[74%]" : "max-w-[62%]")}>
-            {Bullets}
-          </div>
-          {Rule && <div className="mt-[4cqh]">{Rule}</div>}
-        </div>
-      ) : layout === "statement" ? (
-        <div className={cn("w-full", centred ? "max-w-[80%]" : "max-w-[86%]")}>
-          {Title}
-          {Rule && <div className="mt-[2.5cqh]">{Rule}</div>}
-          <div className="mt-[3cqh]">{Bullets}</div>
-        </div>
-      ) : (
-        <div className="w-full">
-          {Title}
-          <span
-            className="my-[3cqh] block h-px w-full"
-            style={{
-              background: style.rule
-                ? "var(--slide-accent)"
-                : "var(--slide-line)",
-              opacity: style.rule ? 0.9 : 1,
-            }}
-          />
-          <div className={cn(centred ? "mx-auto max-w-[92%]" : "max-w-[92%]")}>
-            {Bullets}
-          </div>
-        </div>
-      )}
-      {chrome}
-    </div>
-  );
-}
-
-/**
- * The slide's surface treatment.
- *
- * Drawn from the theme's own accent and ink, so a texture can never introduce
- * a colour the theme didn't choose. Absolutely positioned behind everything
- * and non-interactive — a background that can take a click is a bug.
- */
-function SlideSurface({ background }: { background?: DeckStyle["background"] }) {
-  if (!background || background === "flat") return null;
-
-  if (background === "grid")
-    return (
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            "linear-gradient(var(--slide-line) 1px, transparent 1px), linear-gradient(90deg, var(--slide-line) 1px, transparent 1px)",
-          backgroundSize: "6cqw 6cqw",
-          opacity: 0.5,
-        }}
-      />
-    );
-
-  if (background === "glow")
-    return (
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(70% 90% at 12% 0%, color-mix(in srgb, var(--slide-accent) 20%, transparent), transparent 62%)",
-        }}
-      />
-    );
-
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0"
-      style={{
-        backgroundImage:
-          "radial-gradient(120% 90% at 50% -20%, color-mix(in srgb, var(--slide-fg) 7%, transparent), transparent 60%)",
-      }}
-    />
-  );
-}
-
-function Field({
-  value,
-  onChange,
-  onEnter,
-  onEmptyBackspace,
-  placeholder,
-  className,
-  style,
-  readOnly,
-}: {
-  value: string;
-  onChange?: (value: string) => void;
-  onEnter?: () => void;
-  onEmptyBackspace?: () => void;
-  placeholder?: string;
-  className?: string;
-  style?: React.CSSProperties;
-  readOnly?: boolean;
-}) {
-  if (readOnly)
-    return (
-      <div className={className} style={style}>
-        {value || <span className="opacity-40">{placeholder}</span>}
-      </div>
-    );
-
-  return (
-    <input
-      value={value}
-      onChange={(e) => onChange?.(e.target.value)}
-      placeholder={placeholder}
-      aria-label={placeholder}
-      style={style}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && onEnter) {
-          e.preventDefault();
-          onEnter();
-        } else if (e.key === "Backspace" && value === "" && onEmptyBackspace) {
-          e.preventDefault();
-          onEmptyBackspace();
-        }
-      }}
-      className={cn(className, "placeholder:opacity-40")}
-    />
   );
 }

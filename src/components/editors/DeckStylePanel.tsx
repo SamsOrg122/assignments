@@ -207,6 +207,10 @@ function ThemeSwatch({
       onClick={onPick}
       aria-pressed={active}
       title={theme.hint}
+      // Without this the accessible name is the whole preview swatch read
+      // aloud — "Title Supporting line Editorial" — which is not the name of
+      // anything a person would say.
+      aria-label={theme.label}
       className={cn(
         "overflow-hidden rounded-sm border text-left transition-colors duration-150",
         active ? "border-accent" : "border-line hover:border-line-strong",

@@ -34,6 +34,8 @@ import {
 } from "@/components/editors/SlideObjects";
 import { DeckStylePanel } from "@/components/editors/DeckStylePanel";
 import { LayoutPicker, SlideView, layoutOf } from "./SlideView";
+import { addPiece, useKit, type KitImage, type KitPiece } from "@/lib/kit";
+import { imageObject, kitImage } from "@/lib/kit/insert";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 
@@ -183,7 +185,7 @@ export function SlideStage({ deck, className }: { deck: Deck; className?: string
       />
       {current && (
         <div
-          style={deckVars(DECK_THEMES[style.theme], style.scale, style.accent)}
+          style={deckVars(DECK_THEMES[style.theme], style.scale, style.accent, style.font)}
           className="pointer-events-none absolute inset-0"
         >
           <SlideObjectsEditor
@@ -216,13 +218,29 @@ const ELEMENTS = [
 export function DeckTools({
   deck,
   compact = false,
+  onInsertSlide,
 }: {
   deck: Deck;
   compact?: boolean;
+  /** A saved slide was chosen from the kit. */
+  onInsertSlide?: (piece: KitPiece) => void;
 }) {
   const [styleOpen, setStyleOpen] = useState(false);
   const [elementOpen, setElementOpen] = useState(false);
   const { current, style, patch, setStyle, addSlide, placeImage } = deck;
+
+  // Selected whole and filtered here: a filter inside the selector hands
+  // React a new array every render, which zustand reads as a change.
+  const assets = useKit((s) => s.assets);
+  const kitPictures = useMemo(
+    () => assets.filter((a): a is KitImage => a.kind === "image"),
+    [assets],
+  );
+  const kitSlides = useMemo(
+    () =>
+      assets.filter((a): a is KitPiece => a.kind === "piece" && a.of === "slide"),
+    [assets],
+  );
 
   const button = cn(
     "flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg",
@@ -311,6 +329,67 @@ export function DeckTools({
               <Icon name="image" size={11} />
               Picture
             </button>
+
+            {/* The kit, reachable from where elements are added rather than
+                from a panel of its own — a saved slide and a rectangle are the
+                same kind of answer to "put something here". */}
+            {kitPictures.length > 0 && (
+              <>
+                <span className="my-1 block h-px bg-line" />
+                {kitPictures.map((picture) => (
+                  <button
+                    key={picture.id}
+                    type="button"
+                    onClick={() => {
+                      setElementOpen(false);
+                      void kitImage(
+                        picture.id,
+                        picture.name,
+                        picture.width,
+                        picture.height,
+                      ).then((image) => {
+                        if (!image) return;
+                        patch(current.id, {
+                          objects: [
+                            ...(current.objects ?? []),
+                            imageObject(
+                              image.src,
+                              image.width,
+                              image.height,
+                              picture.name,
+                            ),
+                          ],
+                        });
+                      });
+                    }}
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[12px] text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                  >
+                    <Icon name="group" size={11} />
+                    <span className="truncate">{picture.name}</span>
+                  </button>
+                ))}
+              </>
+            )}
+
+            {kitSlides.length > 0 && (
+              <>
+                <span className="my-1 block h-px bg-line" />
+                {kitSlides.map((piece) => (
+                  <button
+                    key={piece.id}
+                    type="button"
+                    onClick={() => {
+                      setElementOpen(false);
+                      onInsertSlide?.(piece);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[12px] text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                  >
+                    <Icon name="slides" size={11} />
+                    <span className="truncate">{piece.name}</span>
+                  </button>
+                ))}
+              </>
+            )}
             {(current.objects?.length ?? 0) > 1 && (
               <>
                 <span className="my-1 block h-px bg-line" />
@@ -339,6 +418,7 @@ export function DeckTools({
 /** Layout, position in the deck, and the way through it. */
 export function SlideBar({ deck }: { deck: Deck }) {
   const { current, slides, index, setIndex, patch, removeSlide } = deck;
+  const notify = useUI((s) => s.notify);
 
   return (
     <div className="flex w-full items-center gap-2">
@@ -370,6 +450,19 @@ export function SlideBar({ deck }: { deck: Deck }) {
         className="rounded-sm border border-line p-1.5 text-fg-subtle transition-colors enabled:hover:text-fg disabled:opacity-30"
       >
         <Icon name="chevron-right" size={12} />
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          if (!current) return;
+          addPiece("slide", current, current.title || "Slide");
+          notify("Slide saved to your kit");
+        }}
+        aria-label="Save this slide to your kit"
+        title="Save this slide to your kit"
+        className="rounded-sm border border-line p-1.5 text-fg-subtle transition-colors hover:border-line-strong hover:text-fg"
+      >
+        <Icon name="group" size={12} />
       </button>
       <button
         type="button"

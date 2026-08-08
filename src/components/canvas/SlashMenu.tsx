@@ -11,7 +11,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fuzzyMatch } from "@/lib/fuzzy";
 import { cn } from "@/lib/cn";
-import { Icon } from "@/components/ui/Icon";
+import { Icon, type IconName } from "@/components/ui/Icon";
+import { useKit, type KitPiece } from "@/lib/kit";
 import { BLOCK_META } from "@/components/shell/CommandPalette";
 import type { BlockType } from "@/lib/types";
 
@@ -30,27 +31,70 @@ export function SlashMenu({
   x,
   y,
   onSelect,
+  onSelectPiece,
   onClose,
 }: {
   query: string;
   x: number;
   y: number;
   onSelect: (type: BlockType) => void;
+  /** A saved piece was chosen instead of a block type. */
+  onSelectPiece?: (piece: KitPiece) => void;
   onClose: () => void;
 }) {
   const [active, setActive] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
 
+  const assets = useKit((s) => s.assets);
+
   const items = useMemo(() => {
-    const scored = ORDER.map((type) => {
+    const scored: Array<{
+      key: string;
+      label: string;
+      hint: string;
+      icon: IconName;
+      score: number;
+      type?: BlockType;
+      piece?: KitPiece;
+    }> = [];
+
+    for (const type of ORDER) {
       const meta = BLOCK_META[type];
       const hit =
         fuzzyMatch(query, meta.label) ??
         fuzzyMatch(query, `${meta.label} ${meta.keywords} ${meta.hint}`);
-      return hit ? { type, meta, score: hit.score } : null;
-    }).filter((r): r is NonNullable<typeof r> => r !== null);
+      if (hit)
+        scored.push({
+          key: type,
+          label: meta.label,
+          hint: meta.hint,
+          icon: meta.icon,
+          score: hit.score,
+          type,
+        });
+    }
+
+    // Saved pieces rank against the block types rather than sitting in their
+    // own section: at the caret, "the thing I saved last week" and "a table"
+    // are the same kind of answer to the same question.
+    for (const asset of assets) {
+      if (asset.kind !== "piece" || asset.of !== "block") continue;
+      const hit =
+        fuzzyMatch(query, asset.name) ??
+        fuzzyMatch(query, `${asset.name} kit piece saved`);
+      if (hit)
+        scored.push({
+          key: asset.id,
+          label: asset.name,
+          hint: "From your kit",
+          icon: "group",
+          score: hit.score,
+          piece: asset,
+        });
+    }
+
     return scored.sort((a, b) => b.score - a.score);
-  }, [query]);
+  }, [query, assets]);
 
   // Adjusting state during render (React's documented alternative to a
   // reset-in-effect) — the highlight snaps back to the top as the query
@@ -77,7 +121,8 @@ export function SlashMenu({
       } else if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
         const hit = items[active];
-        if (hit) onSelect(hit.type);
+        if (hit?.piece) onSelectPiece?.(hit.piece);
+        else if (hit?.type) onSelect(hit.type);
       } else if (e.key === "Escape") {
         e.preventDefault();
         onClose();
@@ -86,7 +131,7 @@ export function SlashMenu({
     // Capture, so the editor's own keymap doesn't swallow Enter first.
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [items, active, onSelect, onClose]);
+  }, [items, active, onSelect, onSelectPiece, onClose]);
 
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
@@ -121,24 +166,26 @@ export function SlashMenu({
     >
       {items.map((item, i) => (
         <button
-          key={item.type}
+          key={item.key}
           type="button"
           role="option"
           aria-selected={i === active}
           onMouseMove={() => setActive(i)}
-          onClick={() => onSelect(item.type)}
+          onClick={() =>
+            item.piece ? onSelectPiece?.(item.piece) : onSelect(item.type!)
+          }
           className={cn(
             "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors duration-100",
             i === active ? "bg-surface-2" : "hover:bg-surface-2/60",
           )}
         >
           <span className="grid size-6 shrink-0 place-items-center rounded-xs border border-line text-fg-muted">
-            <Icon name={item.meta.icon} size={12} />
+            <Icon name={item.icon} size={12} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[12.5px] text-fg">{item.meta.label}</span>
+            <span className="block text-[12.5px] text-fg">{item.label}</span>
             <span className="block truncate text-[11px] text-fg-subtle">
-              {item.meta.hint}
+              {item.hint}
             </span>
           </span>
         </button>

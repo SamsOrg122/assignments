@@ -8,7 +8,7 @@
  * adjust things that can't make it ugly.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   DECK_ACCENTS,
   DECK_THEMES,
@@ -16,6 +16,7 @@ import {
   deckVars,
 } from "@/lib/deck-themes";
 import { DEFAULT_DECK_STYLE, type DeckStyle, type DeckThemeName } from "@/lib/types";
+import { useKit, type KitFont } from "@/lib/kit";
 import { cn } from "@/lib/cn";
 
 export function DeckStylePanel({
@@ -28,6 +29,13 @@ export function DeckStylePanel({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Selected whole and filtered here — a filter inside the selector returns a
+  // new array every render, which zustand reads as a change.
+  const assets = useKit((s) => s.assets);
+  const kitFonts = useMemo(
+    () => assets.filter((a): a is KitFont => a.kind === "font"),
+    [assets],
+  );
 
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
@@ -117,6 +125,39 @@ export function DeckStylePanel({
           }
         />
       </Control>
+
+      {kitFonts.length > 0 && (
+        <Control label="Your fonts">
+          <div className="flex flex-wrap gap-1">
+            {/*
+              A theme pairs a display face with the UI sans on purpose. Bringing
+              your own replaces both — see `DeckStyle.font`. Picking the same
+              one again clears it, so there is always a way back to the theme.
+            */}
+            {kitFonts.map((font) => (
+              <button
+                key={font.id}
+                type="button"
+                aria-pressed={style.font === font.family}
+                onClick={() =>
+                  onChange({
+                    font: style.font === font.family ? undefined : font.family,
+                  })
+                }
+                style={{ fontFamily: `"${font.family}"` }}
+                className={cn(
+                  "rounded-sm border px-2 py-1 text-[12px] transition-colors duration-150",
+                  style.font === font.family
+                    ? "border-accent text-fg"
+                    : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
+                )}
+              >
+                {font.name}
+              </button>
+            ))}
+          </div>
+        </Control>
+      )}
 
       <Control label="Type size">
         <input

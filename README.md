@@ -26,7 +26,7 @@ from the first edit (⌘K → "Load the sample workspace" fills it with examples
 src/
   app/
     (marketing)/          / — the public landing page, no app shell
-    (app)/                /library · /p/[id] · /chat/[id] · /team · /settings
+    (app)/                /library · /p/[id] · /chat/[id] · /kit · /team · /settings
     api/collab/[room]/    the live-session relay — SSE down, POST up
     v/                    a shared project — a reader, or a live editing session
   components/
@@ -62,6 +62,7 @@ src/
     share.ts              share links — the document, gzipped, in the fragment
     persistence/          storage health, backup files, and version migrations
     collab/               live sessions: relay transport, cursors, block sync
+    kit/                  your own fonts, pictures and saved pieces
     sanitize.ts           allowlist HTML cleaning for anything arriving by link
     images.ts             one pick/drop/paste path, downscaled before storage
     ai/                   askAI seam, stub provider, document + team analyses
@@ -220,6 +221,27 @@ sheet keeps ~27 in the DOM), rectangle selection, spreadsheet keyboarding
 formula grammar, multi-key sort, filters, colour rules and a frozen first
 column. The strip above the grid is a row count until a cell is selected —
 then it's the formula bar. No ribbon.
+
+**The kit is your own things, usable everywhere.** Fonts you brought, pictures
+you keep reaching for, and *pieces* — any block or slide saved and droppable
+into any other project. Not called a Library: that word already means the list
+of your projects, and two of them would make every sentence ambiguous.
+
+Two decisions shape it. Using a piece **copies** it, deeply, with fresh ids —
+a live reference is right for a chart reading a table in the same project and
+wrong across projects, where what you want is a starting point, and where
+deleting from the shelf must never gut an essay you handed in. And the heavy
+parts live in **IndexedDB**, not localStorage: a single woff2 is 30–200 KB
+against a 5–10 MB quota shared with every document, so two typefaces would push
+somebody's thesis out of the browser. Only the description of each asset stays
+in the ordinary store — and the backup file carries the bytes too, because a
+backup that restored the *names* of your fonts would be the worst kind of
+half-working.
+
+Fonts are handed back to the browser on every load. `FontFace` registrations
+don't survive a reload, so without that a document set in a face you imported
+would quietly fall back after every refresh — which reads as the font having
+been lost rather than merely not loaded yet.
 
 **A block inside a document is the same program as the editor for it.** A
 slides block used to be a second, much thinner implementation — no theme, no
@@ -397,6 +419,7 @@ Two things to do before a real launch, both flagged in the code:
 | `⌘0` | fit the board to its content |
 | shift-drag | marquee-select on a board, or on a slide |
 | Share | two links per project: *can view*, or *can help* — live, with cursors |
+| Kit | fonts, pictures and saved pieces — insert with `/` or ⌘K |
 | `⌘D` | duplicate the selected slide objects |
 
 ## Stack

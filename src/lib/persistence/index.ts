@@ -29,7 +29,18 @@ export const STORAGE_KEYS = [
   "assignments:chat:v1",
   "assignments:team:v1",
   "assignments:appearance:v1",
+  "assignments:kit:v1",
 ] as const;
+
+/**
+ * Where the kit's fonts and pictures ride in the backup file.
+ *
+ * They live in IndexedDB rather than localStorage — a font is far too big for
+ * the shared quota — so they are not covered by `STORAGE_KEYS`, and a backup
+ * that carried the *list* of your fonts without the fonts themselves would be
+ * the worst kind of half-working.
+ */
+export const BACKUP_BLOBS = "kitBlobs";
 
 export const BACKUP_FORMAT = "assignments.backup";
 export const BACKUP_VERSION = 1;
@@ -41,6 +52,8 @@ export interface Backup {
   exportedAt: number;
   /** Raw persisted store payloads, keyed exactly as localStorage holds them. */
   data: Record<string, string>;
+  /** The kit's binary assets, keyed by asset id. Absent in older files. */
+  [BACKUP_BLOBS]?: Record<string, string>;
 }
 
 /* ── 1. Persistent storage ──────────────────────────────── */
@@ -119,6 +132,7 @@ export function formatBytes(bytes: number): string {
 export function buildBackup(
   now: number,
   live: Record<string, string> = {},
+  blobs: Record<string, string> = {},
 ): Backup {
   const data: Record<string, string> = {};
   for (const key of STORAGE_KEYS) {
@@ -130,6 +144,7 @@ export function buildBackup(
     version: BACKUP_VERSION,
     exportedAt: now,
     data,
+    [BACKUP_BLOBS]: blobs,
   };
 }
 
@@ -138,13 +153,20 @@ export function backupFilename(now: Date): string {
   return `assignments-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.json`;
 }
 
-/** Download everything as one file. Nothing leaves the device. */
-export function exportWorkspace(live?: Record<string, string>): {
-  bytes: number;
-  filename: string;
-} {
+/**
+ * Download everything as one file. Nothing leaves the device.
+ *
+ * Async now, because the kit's fonts and pictures have to be read out of
+ * IndexedDB first. A backup that skipped them to stay synchronous would lose a
+ * typeface the moment somebody changed browser, which is the one thing this
+ * file exists to prevent.
+ */
+export async function exportWorkspace(
+  live?: Record<string, string>,
+  blobs?: Record<string, string>,
+): Promise<{ bytes: number; filename: string }> {
   const now = new Date();
-  const backup = buildBackup(now.getTime(), live);
+  const backup = buildBackup(now.getTime(), live, blobs);
   const text = JSON.stringify(backup);
   const blob = new Blob([text], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -226,4 +248,9 @@ export function restoreBackup(backup: Backup) {
   for (const [key, value] of Object.entries(backup.data))
     if ((STORAGE_KEYS as readonly string[]).includes(key))
       localStorage.setItem(key, value);
+}
+
+/** The kit's binary assets out of a backup, if it carried any. */
+export function backupBlobs(backup: Backup): Record<string, string> {
+  return backup[BACKUP_BLOBS] ?? {};
 }

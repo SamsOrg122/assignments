@@ -1,0 +1,345 @@
+"use client";
+
+/**
+ * The kit: fonts, pictures and saved pieces, usable in every project.
+ *
+ * Deliberately not called a Library — that word already means the list of your
+ * projects here, and two of them would make every sentence ambiguous.
+ */
+
+import { useEffect, useRef, useState } from "react";
+import { TopBar } from "@/components/shell/TopBar";
+import {
+  KitError,
+  addFont,
+  addImage,
+  assetData,
+  formatBytes,
+  removeAsset,
+  useKit,
+  type KitAsset,
+  type KitFont,
+} from "@/lib/kit";
+import { pickImage } from "@/lib/images";
+import { useUI } from "@/lib/ui-store";
+import { BLOCK_META } from "@/components/shell/CommandPalette";
+import { cn } from "@/lib/cn";
+import { Icon } from "@/components/ui/Icon";
+
+export default function KitPage() {
+  const assets = useKit((s) => s.assets);
+  const rename = useKit((s) => s.rename);
+  const notify = useUI((s) => s.notify);
+  const [busy, setBusy] = useState(false);
+  const fontRef = useRef<HTMLInputElement>(null);
+
+  const fonts = assets.filter((a) => a.kind === "font");
+  const images = assets.filter((a) => a.kind === "image");
+  const pieces = assets.filter((a) => a.kind === "piece");
+  const total = assets.reduce((n, a) => n + a.bytes, 0);
+
+  const guard = async (work: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await work();
+    } catch (error) {
+      notify(
+        error instanceof KitError || error instanceof Error
+          ? error.message
+          : "That couldn't be added.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <TopBar>
+        <Icon name="board" size={13} className="shrink-0 text-fg-subtle" />
+        <span className="text-[13px] font-medium text-fg">Kit</span>
+        {total > 0 && (
+          <span className="ml-auto font-mono text-[10.5px] text-fg-subtle">
+            {formatBytes(total)}
+          </span>
+        )}
+      </TopBar>
+
+      <main className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-[860px] px-5 py-8 sm:px-8">
+          <h1 className="display text-[22px] text-fg">Your kit</h1>
+          <p className="mt-1.5 max-w-[62ch] text-[13px] leading-relaxed text-fg-muted">
+            Things you bring once and use everywhere — a typeface, a logo, a
+            table you rebuild every term. Anything here can be dropped into a
+            document, a deck or a board.
+          </p>
+          {/*
+            The rule worth stating up front, because it decides whether people
+            trust the shelf: using something copies it. Nothing you insert
+            stays wired to this page.
+          */}
+          <p className="mt-2 max-w-[62ch] text-[12px] leading-relaxed text-fg-subtle">
+            Using a piece copies it into the project. Editing it there
+            doesn&apos;t change what&apos;s here, and clearing this shelf never
+            touches work you&apos;ve already handed in.
+          </p>
+
+          <Section
+            title="Fonts"
+            hint="Loaded into the browser and offered wherever a face is chosen."
+            action={
+              <>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => fontRef.current?.click()}
+                  className="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors hover:border-line-strong hover:text-fg disabled:opacity-40"
+                >
+                  <Icon name="plus" size={11} />
+                  Add a font
+                </button>
+                <input
+                  ref={fontRef}
+                  type="file"
+                  accept=".woff2,.woff,.ttf,.otf"
+                  className="sr-only"
+                  aria-label="Choose a font file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file)
+                      void guard(async () => {
+                        const font = await addFont(file);
+                        notify(`${font.name} is ready to use`);
+                      });
+                  }}
+                />
+              </>
+            }
+          >
+            {fonts.length === 0 ? (
+              <Empty>
+                No fonts yet. A `.woff2` is the one to look for — the same file
+                a website would use, and a tenth the size of a `.ttf`.
+              </Empty>
+            ) : (
+              <ul className="space-y-1.5">
+                {fonts.map((font) => (
+                  <li
+                    key={font.id}
+                    className="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface px-3 py-2.5"
+                  >
+                    <span
+                      className="min-w-0 flex-1 truncate text-[20px] text-fg"
+                      style={{ fontFamily: `"${(font as KitFont).family}"` }}
+                    >
+                      {font.name}
+                    </span>
+                    <NameField asset={font} onRename={rename} />
+                    <Meta asset={font} />
+                    <Remove asset={font} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
+          <Section
+            title="Pictures"
+            hint="Downscaled on the way in, like every other picture here."
+            action={
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  void guard(async () => {
+                    const image = await pickImage();
+                    if (!image) return;
+                    await addImage(image);
+                    notify(`${image.name} added to your kit`);
+                  })
+                }
+                className="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors hover:border-line-strong hover:text-fg disabled:opacity-40"
+              >
+                <Icon name="plus" size={11} />
+                Add a picture
+              </button>
+            }
+          >
+            {images.length === 0 ? (
+              <Empty>
+                Nothing yet. A logo or a letterhead is what this is for — the
+                picture you would otherwise go looking for every time.
+              </Empty>
+            ) : (
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {images.map((asset) => (
+                  <li
+                    key={asset.id}
+                    className="overflow-hidden rounded-md border border-line bg-surface"
+                  >
+                    <Thumbnail id={asset.id} alt={asset.name} />
+                    <div className="flex items-center gap-2 px-2 py-1.5">
+                      <NameField asset={asset} onRename={rename} grow />
+                      <Remove asset={asset} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
+          <Section
+            title="Pieces"
+            hint="Saved from a project. Insert one from the / menu or ⌘K."
+          >
+            {pieces.length === 0 ? (
+              <Empty>
+                Nothing saved yet. In any project, open a block&apos;s menu and
+                choose <em>Save to kit</em> — a rubric, a costing table, a cover
+                slide.
+              </Empty>
+            ) : (
+              <ul className="space-y-1.5">
+                {pieces.map((asset) => (
+                  <li
+                    key={asset.id}
+                    className="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface px-3 py-2.5"
+                  >
+                    <Icon
+                      name={
+                        asset.kind === "piece" && asset.of === "slide"
+                          ? "slides"
+                          : BLOCK_META[
+                              (asset.kind === "piece" &&
+                              "type" in asset.payload
+                                ? asset.payload.type
+                                : "text") as keyof typeof BLOCK_META
+                            ].icon
+                      }
+                      size={13}
+                      className="shrink-0 text-fg-subtle"
+                    />
+                    <NameField asset={asset} onRename={rename} grow />
+                    <Meta asset={asset} />
+                    <Remove asset={asset} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+        </div>
+      </main>
+    </>
+  );
+}
+
+/* ── Pieces of the page ─────────────────────────────────── */
+
+function Section({
+  title,
+  hint,
+  action,
+  children,
+}: {
+  title: string;
+  hint: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mt-8">
+      <div className="mb-2.5 flex flex-wrap items-end gap-x-3 gap-y-1.5">
+        <h2 className="text-[14px] font-medium text-fg">{title}</h2>
+        <p className="min-w-0 flex-1 text-[12px] text-fg-subtle">{hint}</p>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="rounded-md border border-dashed border-line px-4 py-6 text-center text-[12.5px] leading-relaxed text-fg-subtle">
+      {children}
+    </p>
+  );
+}
+
+function NameField({
+  asset,
+  onRename,
+  grow = false,
+}: {
+  asset: KitAsset;
+  onRename: (id: string, name: string) => void;
+  grow?: boolean;
+}) {
+  return (
+    <input
+      value={asset.name}
+      onChange={(e) => onRename(asset.id, e.target.value)}
+      aria-label={`Name of ${asset.name}`}
+      className={cn(
+        "min-w-0 rounded-xs bg-transparent px-1 py-0.5 text-[12.5px] text-fg-muted outline-none transition-colors hover:bg-surface-2 focus:bg-surface-2 focus:text-fg",
+        grow ? "flex-1" : "w-[16ch]",
+      )}
+    />
+  );
+}
+
+function Meta({ asset }: { asset: KitAsset }) {
+  return (
+    <span className="shrink-0 font-mono text-[10px] text-fg-subtle">
+      {formatBytes(asset.bytes)}
+    </span>
+  );
+}
+
+function Remove({ asset }: { asset: KitAsset }) {
+  const notify = useUI((s) => s.notify);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void removeAsset(asset.id);
+        notify(`${asset.name} removed — projects using it are untouched`);
+      }}
+      aria-label={`Remove ${asset.name}`}
+      className="shrink-0 rounded-xs p-1 text-fg-subtle transition-colors hover:text-danger"
+    >
+      <Icon name="trash" size={12} />
+    </button>
+  );
+}
+
+/**
+ * A picture's bytes live in IndexedDB, so they arrive after a round trip. Read
+ * through an effect rather than during render — it is an external system, and
+ * the server has none of this.
+ */
+function Thumbnail({ id, alt }: { id: string; alt: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    assetData(id).then(
+      (data) => live && setSrc(data),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [id]);
+
+  return (
+    <span className="block aspect-[4/3] w-full bg-canvas">
+      {src && (
+        /* eslint-disable-next-line @next/next/no-img-element -- a data URL
+           out of the browser's own store; there is nothing to fetch. */
+        <img src={src} alt={alt} className="size-full object-contain" />
+      )}
+    </span>
+  );
+}

@@ -12,8 +12,9 @@
  * Word gives you a dropdown of five line spacings. These are real numbers.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useProjects } from "@/lib/store";
+import { useKit, type KitFont } from "@/lib/kit";
 import { DEFAULT_TYPOGRAPHY, type Paper, type Typography } from "@/lib/types";
 import { DOC_PRESETS, matchPreset, type DocPreset } from "@/lib/doc-presets";
 import { cn } from "@/lib/cn";
@@ -43,6 +44,17 @@ export function TypographyPanel({
   onClose: () => void;
 }) {
   const setTypography = useProjects((s) => s.setTypography);
+  // Faces brought in through the kit sit beside the three built-ins rather
+  // than in a separate panel: choosing a face is one decision.
+  //
+  // Selected whole and filtered here: zustand compares snapshots by identity,
+  // so filtering *inside* the selector would hand React a new array on every
+  // render and spin.
+  const assets = useKit((s) => s.assets);
+  const kitFonts = useMemo(
+    () => assets.filter((a): a is KitFont => a.kind === "font"),
+    [assets],
+  );
   const ref = useRef<HTMLDivElement>(null);
   const [detail, setDetail] = useState(false);
 
@@ -118,15 +130,48 @@ export function TypographyPanel({
 
       <Field label="Face">
         <Segmented
-          value={t.family}
+          value={t.fontFamily ? "" : t.family}
           options={[
             ["serif", "Serif"],
             ["sans", "Sans"],
             ["mono", "Mono"],
           ]}
-          onChange={(family) => set({ family: family as Typography["family"] })}
+          onChange={(family) =>
+            // Choosing a built-in face clears a kit font — otherwise the
+            // choice would appear to do nothing, because the kit font wins.
+            set({ family: family as Typography["family"], fontFamily: undefined })
+          }
         />
       </Field>
+
+      {kitFonts.length > 0 && (
+        <Field label="Your fonts">
+          <div className="flex flex-wrap gap-1">
+            {kitFonts.map((font) => (
+              <button
+                key={font.id}
+                type="button"
+                aria-pressed={t.fontFamily === font.family}
+                onClick={() =>
+                  set({
+                    fontFamily:
+                      t.fontFamily === font.family ? undefined : font.family,
+                  })
+                }
+                style={{ fontFamily: `"${font.family}"` }}
+                className={cn(
+                  "rounded-sm border px-2 py-1 text-[12px] transition-colors duration-150",
+                  t.fontFamily === font.family
+                    ? "border-accent text-fg"
+                    : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
+                )}
+              >
+                {font.name}
+              </button>
+            ))}
+          </div>
+        </Field>
+      )}
 
       <Field label="Paragraphs">
         <Segmented

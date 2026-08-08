@@ -19,6 +19,7 @@ import {
   SpeakerNote,
   useDeck,
 } from "@/components/slides/DeckWorkbench";
+import { insertSlidePiece } from "@/lib/kit/insert";
 import { importPptxFile } from "@/lib/pptx";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
@@ -124,7 +125,12 @@ function DeckStage({
             // and a scroll container here would clip the panels that anchor
             // to these buttons.
             <span className="flex shrink-0 items-center gap-1">
-              <DeckTools deck={deck} />
+              <DeckTools
+                deck={deck}
+                onInsertSlide={(piece) =>
+                  insertSlidePiece(project.id, block.id, piece, deck.index)
+                }
+              />
 
               <button
                 type="button"

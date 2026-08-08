@@ -99,7 +99,7 @@ export function SlideView({
   hideObjects?: boolean;
 }) {
   const theme = DECK_THEMES[style.theme] ?? DECK_THEMES.ink;
-  const vars = deckVars(theme, style.scale, style.accent);
+  const vars = deckVars(theme, style.scale, style.accent, style.font);
 
   if (!slide)
     return <div className="size-full" style={{ background: theme.bg }} />;
@@ -186,6 +186,8 @@ export function SlideView({
             )}
             style={{
               color: "var(--slide-muted)",
+              // Falls back to the theme's body face unless a kit font is set.
+              fontFamily: "var(--slide-body-family, inherit)",
               fontSize: size(12, "1.9cqw", 20),
             }}
           />

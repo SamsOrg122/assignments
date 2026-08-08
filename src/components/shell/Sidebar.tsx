@@ -250,6 +250,13 @@ export function Sidebar() {
             onNavigate={closeOnMobile}
           />
           <NavLink
+            href="/kit"
+            icon="group"
+            label="Kit"
+            active={pathname === "/kit"}
+            onNavigate={closeOnMobile}
+          />
+          <NavLink
             href="/team"
             icon="board"
             label="Team"

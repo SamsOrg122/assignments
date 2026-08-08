@@ -14,6 +14,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { fillImageBlock } from "@/lib/image-block";
 import { linkVerdict, shareLink } from "@/lib/share";
+import { useKit } from "@/lib/kit";
+import { insertPiece, kitImage } from "@/lib/kit/insert";
+import { createImageBlock } from "@/lib/factories";
 import { useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
 import { fuzzyMatch, segments } from "@/lib/fuzzy";
@@ -174,6 +177,7 @@ function PaletteDialog({ seed }: { seed: string }) {
   const projectId = params?.projectId ?? null;
 
   const projects = useProjects((s) => s.projects);
+  const kitAssets = useKit((s) => s.assets);
   const addProject = useProjects((s) => s.addProject);
   const addBlock = useProjects((s) => s.addBlock);
   const duplicateProject = useProjects((s) => s.duplicateProject);
@@ -229,6 +233,69 @@ function PaletteDialog({ seed }: { seed: string }) {
                 ?.scrollIntoView({ behavior: "smooth", block: "center" }),
             );
             if (type === "image") fillImageBlock(project.id, id, notify);
+          },
+        });
+      }
+
+      /**
+       * The kit, offered where everything else is offered.
+       *
+       * Not a separate "insert from kit" dialog: a saved piece is another
+       * thing you can add to a document, and it should rank against the block
+       * types by the same fuzzy search as everything else.
+       */
+      for (const piece of kitAssets) {
+        if (piece.kind !== "piece" || piece.of !== "block") continue;
+        list.push({
+          id: `kit:${piece.id}`,
+          title: `Insert ${piece.name}`,
+          subtitle: "From your kit — inserted as a copy",
+          group: "Insert",
+          icon: "group",
+          keywords: "kit piece saved reuse component template insert",
+          run: () => {
+            const id = insertPiece(project.id, piece);
+            notify(`${piece.name} inserted`);
+            if (id)
+              requestAnimationFrame(() =>
+                document
+                  .getElementById(`block-${id}`)
+                  ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+              );
+          },
+        });
+      }
+
+      for (const picture of kitAssets) {
+        if (picture.kind !== "image") continue;
+        list.push({
+          id: `kit:${picture.id}`,
+          title: `Insert ${picture.name}`,
+          subtitle: "A picture from your kit",
+          group: "Insert",
+          icon: "image",
+          keywords: "kit picture image logo saved insert",
+          run: () => {
+            void kitImage(
+              picture.id,
+              picture.name,
+              picture.width,
+              picture.height,
+            ).then((image) => {
+              if (!image) {
+                notify("That picture couldn't be read back.");
+                return;
+              }
+              const block = createImageBlock();
+              useProjects.getState().insertBlock(project.id, {
+                ...block,
+                src: image.src,
+                alt: image.name,
+                naturalWidth: image.width,
+                naturalHeight: image.height,
+              });
+              notify(`${picture.name} inserted`);
+            });
           },
         });
       }
@@ -566,6 +633,7 @@ function PaletteDialog({ seed }: { seed: string }) {
     project,
     projects,
     projectId,
+    kitAssets,
     addBlock,
     addProject,
     duplicateProject,

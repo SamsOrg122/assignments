@@ -255,6 +255,15 @@ export interface DeckStyle {
   background?: "flat" | "grain" | "glow" | "grid";
   /** How one slide gives way to the next while presenting. */
   transition?: "none" | "fade" | "rise";
+  /**
+   * A face from the kit, used for titles *and* body.
+   *
+   * The themes deliberately pair a display face with the UI sans, because a
+   * body face chosen badly is unreadable from the back of a room. Bringing
+   * your own overrides both — if someone has gone and found their school's
+   * typeface, applying it to half the slide is not what they meant.
+   */
+  font?: string;
 }
 
 export const DEFAULT_DECK_STYLE: DeckStyle = {
@@ -510,6 +519,14 @@ export interface Typography {
   letterSpacing: number;
   fontSize: number;
   family: "sans" | "serif" | "mono";
+  /**
+   * A face brought in through the kit, overriding `family`.
+   *
+   * Additive rather than another member of `family`: presets compare on
+   * `family`, and an older document simply doesn't have this — which is
+   * exactly the shape of change that needs no migration.
+   */
+  fontFamily?: string;
   /** Vertical page padding, in px. */
   margin: number;
 

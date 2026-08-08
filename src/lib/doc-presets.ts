@@ -150,6 +150,10 @@ export function matchPreset(t: Typography): DocPreset | undefined {
 /** The custom properties a document's typography resolves to. */
 export function proseVars(t: Typography): React.CSSProperties {
   return {
+    // Only set when a kit face is chosen; otherwise the `prose-serif` /
+    // `prose-mono` classes own this property and an empty string here would
+    // beat them.
+    ...(t.fontFamily ? { "--prose-family": `"${t.fontFamily}"` } : {}),
     "--prose-size": `${t.fontSize}px`,
     "--prose-leading": String(t.lineHeight),
     "--prose-tracking": `${t.letterSpacing}em`,

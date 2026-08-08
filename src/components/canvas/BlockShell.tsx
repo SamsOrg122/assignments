@@ -10,6 +10,7 @@ import { useMenu, type MenuItem } from "@/components/ui/Menu";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { BLOCK_META } from "@/components/shell/CommandPalette";
+import { addPiece } from "@/lib/kit";
 
 /**
  * Chrome around every block: drag handle, gutter actions, block-level presence.
@@ -37,6 +38,7 @@ export function BlockShell({
   const openAI = useUI((s) => s.openAI);
   const setFocusedBlock = useUI((s) => s.setFocusedBlock);
   const focusedBlockId = useUI((s) => s.focusedBlockId);
+  const notify = useUI((s) => s.notify);
 
   const context = useMenu();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -90,6 +92,12 @@ export function BlockShell({
         icon: "copy",
         onSelect: () => duplicateBlock(projectId, block.id),
       },
+      {
+        kind: "item",
+        label: "Save to kit",
+        icon: "group",
+        onSelect: saveToKit,
+      },
       { kind: "separator" },
       {
         kind: "item",
@@ -133,6 +141,18 @@ export function BlockShell({
   // under it; a second name floating above every figure is noise, and it makes
   // a document of images read like a form.
   const titled = block.type !== "text" && block.type !== "image";
+
+  /**
+   * Keep this block on the shelf, to drop into anything later.
+   *
+   * Named after the block rather than asked about: a dialog here would make
+   * saving a decision, and the point of a shelf is that putting something on
+   * it is cheap. The name is editable on the Kit page.
+   */
+  const saveToKit = () => {
+    addPiece("block", block, block.title ?? meta.label);
+    notify(`Saved to your kit — insert it with / or ⌘K`);
+  };
 
   const askAI = () => {
     const rect = rootRef.current?.getBoundingClientRect();
@@ -229,6 +249,14 @@ export function BlockShell({
             label="Duplicate"
             onClick={() => {
               duplicateBlock(projectId, block.id);
+              setMenuOpen(false);
+            }}
+          />
+          <MenuItem
+            icon="group"
+            label="Save to kit"
+            onClick={() => {
+              saveToKit();
               setMenuOpen(false);
             }}
           />
@@ -351,7 +379,7 @@ function MenuItem({
   onClick,
   danger,
 }: {
-  icon: "sparkle" | "copy" | "trash";
+  icon: "sparkle" | "copy" | "trash" | "group";
   label: string;
   onClick: () => void;
   danger?: boolean;

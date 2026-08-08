@@ -14,6 +14,8 @@ import { CitePicker } from "@/components/sources/CitePicker";
 import { Citation } from "./citation-extension";
 import { imageFrom, prepareImage } from "@/lib/images";
 import { fillImageBlock } from "@/lib/image-block";
+import { insertPiece } from "@/lib/kit/insert";
+import type { KitPiece } from "@/lib/kit";
 import { createImageBlock } from "@/lib/factories";
 
 interface Props {
@@ -246,6 +248,28 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
 
   const closeSlash = useCallback(() => setSlash(null), []);
 
+  /** A saved piece, dropped in right after this block. */
+  const pickPiece = useCallback(
+    (piece: KitPiece) => {
+      if (!editor || !slash) return;
+      editor
+        .chain()
+        .focus()
+        .deleteRange({ from: slash.from, to: editor.state.selection.from })
+        .run();
+      setSlash(null);
+      const id = insertPiece(projectId, piece, block.id);
+      notify(`${piece.name} inserted`);
+      if (id)
+        requestAnimationFrame(() =>
+          document
+            .getElementById(`block-${id}`)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        );
+    },
+    [editor, slash, projectId, block.id, notify],
+  );
+
   const pickBlock = useCallback(
     (type: BlockType) => {
       if (!editor || !slash) return;
@@ -396,6 +420,7 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
           x={slash.x}
           y={slash.y}
           onSelect={pickBlock}
+          onSelectPiece={pickPiece}
           onClose={closeSlash}
         />
       )}

@@ -18,6 +18,7 @@ import {
   SpeakerNote,
   useDeck,
 } from "@/components/slides/DeckWorkbench";
+import { insertSlidePiece } from "@/lib/kit/insert";
 
 export function SlidesBlock({
   projectId,
@@ -31,7 +32,13 @@ export function SlidesBlock({
   return (
     <div className="rounded-md border border-line bg-surface p-2.5">
       <div className="mb-2 flex flex-wrap items-center gap-1">
-        <DeckTools deck={deck} compact />
+        <DeckTools
+          deck={deck}
+          compact
+          onInsertSlide={(piece) =>
+            insertSlidePiece(projectId, block.id, piece, deck.index)
+          }
+        />
       </div>
 
       {/* Capped by height rather than width: a document column is narrow, and

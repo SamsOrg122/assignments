@@ -22,6 +22,7 @@ import {
 } from "react";
 import {
   BackupError,
+  backupBlobs,
   describeBackup,
   estimate,
   exportWorkspace,
@@ -39,6 +40,7 @@ import {
   rescuedPayloads,
   subscribeRescued,
 } from "@/lib/persistence/versioned";
+import { allBlobs, replaceBlobs } from "@/lib/kit/blobs";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
 import { cn } from "@/lib/cn";
@@ -258,14 +260,23 @@ export function SafeKeeping() {
             // workspace nobody has edited yet has nothing stored. Hand the
             // live state over in the same envelope the middleware writes, so
             // the file is complete either way.
-            const { filename } = exportWorkspace({
-              "assignments:projects:v1": JSON.stringify({
-                state: { projects: useProjects.getState().projects },
-                version: 0,
-              }),
-            });
-            notify(`Saved ${filename}`);
-            refresh();
+            void allBlobs()
+              .catch(() => ({}))
+              .then((blobs) =>
+                exportWorkspace(
+                  {
+                    "assignments:projects:v1": JSON.stringify({
+                      state: { projects: useProjects.getState().projects },
+                      version: 0,
+                    }),
+                  },
+                  blobs,
+                ),
+              )
+              .then(({ filename }) => {
+                notify(`Saved ${filename}`);
+                refresh();
+              });
           }}
           className="flex items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
         >
@@ -323,7 +334,15 @@ export function SafeKeeping() {
             <button
               type="button"
               onClick={() => {
-                restoreBackup(parseBackup(pending.text));
+                const backup = parseBackup(pending.text);
+                restoreBackup(backup);
+                // The kit's fonts and pictures live in IndexedDB, so they are
+                // replaced separately — and the reload waits for them, or the
+                // page would come back with a shelf full of broken entries.
+                void replaceBlobs(backupBlobs(backup))
+                  .catch(() => {})
+                  .then(() => window.location.reload());
+                return;
                 // The stores read localStorage once, at mount, so a router
                 // navigation would leave them showing the replaced workspace.
                 // A full reload is the honest way to adopt a wholesale

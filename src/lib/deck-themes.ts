@@ -121,6 +121,7 @@ export function deckVars(
   theme: DeckTheme,
   scale: number,
   accent?: string,
+  font?: string,
 ): React.CSSProperties {
   return {
     "--slide-bg": theme.bg,
@@ -128,7 +129,9 @@ export function deckVars(
     "--slide-muted": theme.muted,
     "--slide-accent": accent || theme.accent,
     "--slide-line": theme.line,
-    "--slide-title-family": theme.titleFamily,
+    "--slide-title-family": font ? `"${font}"` : theme.titleFamily,
+    // Body follows the chosen face too — see `DeckStyle.font`.
+    ...(font ? { "--slide-body-family": `"${font}"` } : {}),
     "--slide-title-weight": String(theme.titleWeight),
     "--slide-title-tracking": theme.titleTracking,
     "--slide-scale": String(scale),

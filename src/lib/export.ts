@@ -19,6 +19,7 @@ import { htmlToText } from "./ai/context";
 import { computeFormulas } from "./formula";
 import { collectNotes, renderMarkers } from "./notes";
 import { anchorHeadings, headings } from "./toc";
+import { DEFAULT_PAGE, pageCss, textWidth } from "./page";
 import { figureFor, figureLabels, renderRefs } from "./figures";
 import type { Project } from "./types";
 
@@ -203,15 +204,24 @@ function esc(s: string): string {
 
 /* ── Targets ────────────────────────────────────────────── */
 
-/** Print styling that survives the transition to paper. */
-const PRINT_CSS = `
-  @page { margin: 2.4cm; }
+/**
+ * Print styling that survives the transition to paper.
+ *
+ * `@page` is generated from the project's own setup, so "A4, 2.5 cm margins"
+ * is a setting rather than a hope. The measure follows the margins instead of
+ * a fixed `40em`, which used to leave a wide margin *inside* the margin and
+ * quietly make every page narrower than the one that was asked for.
+ */
+const printCss = (project: Project) => {
+  const page = { ...DEFAULT_PAGE, ...project.page };
+  return `
+  ${pageCss(page)}
   body {
     font-family: Georgia, "Times New Roman", serif;
     font-size: 12pt;
     line-height: 1.7;
     color: #111;
-    max-width: 40em;
+    max-width: ${textWidth(page)}mm;
     margin: 0 auto;
   }
   h1 { font-size: 20pt; line-height: 1.2; margin: 0 0 .6em; }
@@ -244,13 +254,14 @@ const PRINT_CSS = `
   .toc-l3 { padding-left: 2.4em; font-size: 11pt; }
   sup a { text-decoration: none; }
 `;
+};
 
 function wrapDocument(project: Project, extraHead = ""): string {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8" />
 <title>${esc(project.name)}</title>
 ${extraHead}
-<style>${PRINT_CSS}</style>
+<style>${printCss(project)}</style>
 </head><body>
 ${bodyHtml(project)}
 </body></html>`;

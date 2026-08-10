@@ -609,6 +609,9 @@ export interface Project {
   sources?: Source[];
   citationStyle?: CitationStyle;
 
+  /** How the document sits on paper. See `lib/page.ts`. */
+  page?: import("./page").PageSetup;
+
   /**
    * Where notes are printed. The screen always lists them at the end — it has
    * no pages to put them at the foot of — so this only decides what an

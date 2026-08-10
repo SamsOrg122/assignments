@@ -257,6 +257,9 @@ function validate(input: unknown): Project | null {
       "apa",
     ),
     notePlacement: oneOf(raw.notePlacement, ["foot", "end"] as const, "foot"),
+    // Page setup is plain numbers and short strings; nothing here reaches the
+    // DOM as markup, and `pageCss` clamps what it emits.
+    page: raw.page ? (obj(raw.page) as never) : undefined,
     wordGoal: typeof raw.wordGoal === "number" ? raw.wordGoal : undefined,
     sectionGoals: obj(raw.sectionGoals) as Record<string, number>,
   };

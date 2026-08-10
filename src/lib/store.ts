@@ -47,6 +47,7 @@ import {
   emptyRow,
   uid,
 } from "./factories";
+import { DEFAULT_PAGE } from "./page";
 import { DEMO_PROJECTS, SEED_PROJECTS } from "./seed";
 import { formatInline } from "./sources/format";
 
@@ -72,6 +73,8 @@ interface ProjectsState {
   setCitationStyle: (projectId: string, style: CitationStyle) => void;
   /** Whether notes print at the foot of the page or all together at the end. */
   setNotePlacement: (projectId: string, placement: "foot" | "end") => void;
+  /** Paper size, margins, header and footer. */
+  setPage: (projectId: string, patch: Partial<import("./page").PageSetup>) => void;
   /**
    * Re-derive every in-text citation label from its source. Called whenever the
    * style changes or a source is edited, so markers can never go stale.
@@ -459,6 +462,14 @@ export const useProjects = create<ProjectsState>()(
         }));
         get().refreshCitations(projectId);
       },
+
+      setPage: (projectId, patch) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            page: { ...DEFAULT_PAGE, ...p.page, ...patch },
+          })),
+        })),
 
       setNotePlacement: (projectId, notePlacement) =>
         set((s) => ({

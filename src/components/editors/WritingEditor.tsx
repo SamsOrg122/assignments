@@ -20,6 +20,7 @@ import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { ProjectTopBar } from "./ProjectTopBar";
 import { TypographyPanel } from "./TypographyPanel";
+import { PagePanel } from "./PagePanel";
 import { FindReplace } from "./FindReplace";
 import { DictationBar } from "./DictationBar";
 import { Canvas } from "@/components/canvas/Canvas";
@@ -42,6 +43,7 @@ export function WritingEditor({
   const openAI = useUI((s) => s.openAI);
 
   const [typeOpen, setTypeOpen] = useState(false);
+  const [pageOpen, setPageOpen] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(false);
   const [dictating, setDictating] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -120,6 +122,21 @@ export function WritingEditor({
                 active={dictating}
                 onClick={() => setDictating((v) => !v)}
               />
+              <span className="relative">
+                <IconToggle
+                  icon="file"
+                  label="Page setup"
+                  active={pageOpen}
+                  onClick={() => setPageOpen((v) => !v)}
+                />
+                {pageOpen && (
+                  <PagePanel
+                    projectId={project.id}
+                    page={project.page}
+                    onClose={() => setPageOpen(false)}
+                  />
+                )}
+              </span>
               <span className="relative">
                 <IconToggle
                   icon="type"

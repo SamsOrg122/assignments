@@ -16,15 +16,13 @@
  * the local option as a demo; here they're two supported answers, and the
  * screen says what each one actually costs you.
  *
- * ─────────────────────────────────────────────────────────────────────────
- * FOUNDER: accounts need the Supabase steps in `lib/db/index.ts`. Until those
- * environment variables exist, `signUp` and `signIn` return `unavailable` with
- * a plain reason, and the UI shows the device option as the only working one.
- * The forms, validation and flow are already real, so switching it on is
- * configuration rather than a rewrite.
- * ─────────────────────────────────────────────────────────────────────────
+ * Accounts need the Supabase steps in `lib/db/index.ts`. Without those
+ * environment variables `signUp` and `signIn` return `unavailable` with a
+ * plain reason — a distinct outcome from being rejected — and the UI shows the
+ * device option as the only working one.
  */
 
+import { supabase } from "../db/client";
 import { isRemoteConfigured } from "../db";
 
 export interface Identity {
@@ -42,7 +40,13 @@ export interface Identity {
 }
 
 export type AuthOutcome =
-  | { ok: true; identity: Identity }
+  /**
+   * `note` is for the thing that is neither success nor failure: the account
+   * exists but the address has to be confirmed by email before it can be
+   * signed in with. Saying "Signed in" and leaving them to discover that
+   * later is the kind of small lie that costs a user their work.
+   */
+  | { ok: true; identity: Identity; note?: string }
   /** The flow ran and the backend said no — bad password, taken email. */
   | { ok: false; reason: string }
   /** Accounts aren't switched on. Distinct from a rejection, deliberately. */
@@ -106,12 +110,29 @@ const deviceAuth: AuthProvider = {
 
 /* ── The Supabase provider ──────────────────────────────── */
 
+const NOT_CONFIGURED = {
+  ok: false as const,
+  reason:
+    "Accounts need NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. " +
+    "Your work is safe on this device meanwhile.",
+  unavailable: true as const,
+};
+
+/** An account identity. The display name is the caller's to keep. */
+const identityFor = (id: string, email: string): Identity => {
+  const name = email.split("@")[0] ?? "You";
+  return { id, name, initials: initialsFor(name), email, kept: "account" };
+};
+
 /**
- * Written against the schema, unavailable until configured. The interesting
- * case is the *upgrade*: someone who has been working anonymously already has
- * an `auth.users` row, so signing up calls `updateUser({ email, password })`
- * rather than creating a second identity — which is why every project they
- * made before signing up is already theirs afterwards.
+ * The interesting case is the *upgrade*.
+ *
+ * Someone who has been working anonymously already has an `auth.users` row, so
+ * signing up calls `updateUser({ email, password })` rather than creating a
+ * second identity — the user id never changes, which is why every project they
+ * made before signing up is already theirs afterwards and nothing has to be
+ * migrated. Creating a fresh account instead would strand the anonymous work
+ * under an identity nobody can ever sign in as.
  */
 const supabaseAuth: AuthProvider = {
   name: "supabase",
@@ -120,28 +141,66 @@ const supabaseAuth: AuthProvider = {
   async signUp(email, password) {
     const problem = checkCredentials(email, password);
     if (problem) return { ok: false, reason: problem };
-    // const { data, error } = await client.auth.updateUser({ email, password });
-    // …falling back to signUp() when there is no anonymous session to upgrade.
+    const client = supabase();
+    if (!client) return NOT_CONFIGURED;
+
+    const { data: current } = await client.auth.getSession();
+    const anonymous = current.session?.user;
+
+    if (anonymous && !anonymous.email) {
+      const { data, error } = await client.auth.updateUser({ email, password });
+      if (error) return { ok: false, reason: error.message };
+      const user = data.user;
+      // With email confirmations on — Supabase's default — the address moves to
+      // `new_email` and stays there until the link is clicked. The account is
+      // real either way; it just cannot be signed into from another machine
+      // yet, and that is the whole point of having made one.
+      const pending = !user.email && Boolean(user.new_email);
+      return {
+        ok: true,
+        identity: identityFor(user.id, email),
+        ...(pending
+          ? {
+              note: `Check ${email} and click the link to finish. Until you do, this account only works in this browser.`,
+            }
+          : {}),
+      };
+    }
+
+    const { data, error } = await client.auth.signUp({ email, password });
+    if (error) return { ok: false, reason: error.message };
+    if (!data.user) return { ok: false, reason: "No account came back." };
     return {
-      ok: false,
-      reason: "Supabase is configured but the client isn't installed yet.",
-      unavailable: true,
+      ok: true,
+      identity: identityFor(data.user.id, email),
+      ...(data.session
+        ? {}
+        : { note: `Check ${email} and click the link to finish signing up.` }),
     };
   },
 
   async signIn(email, password) {
     const problem = checkCredentials(email, password);
     if (problem) return { ok: false, reason: problem };
-    // const { data, error } = await client.auth.signInWithPassword({ email, password });
-    return {
-      ok: false,
-      reason: "Supabase is configured but the client isn't installed yet.",
-      unavailable: true,
-    };
+    const client = supabase();
+    if (!client) return NOT_CONFIGURED;
+
+    // Signing in swaps this browser's identity. Anything made anonymously
+    // stays on the server under the anonymous user rather than being deleted,
+    // but it will not appear under the account — so this is the path for
+    // someone who *has* an account, and `signUp` is the path for someone whose
+    // work is here and wants to keep it.
+    const { data, error } = await client.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) return { ok: false, reason: error.message };
+    if (!data.user) return { ok: false, reason: "No account came back." };
+    return { ok: true, identity: identityFor(data.user.id, email) };
   },
 
   async signOut() {
-    // await client.auth.signOut();
+    await supabase()?.auth.signOut();
   },
 };
 

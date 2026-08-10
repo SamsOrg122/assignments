@@ -39,7 +39,17 @@ export const rowToProject = (row: ProjectRow): RemoteProject => ({
   kind: row.kind,
   content: row.content,
   revision: row.revision,
-  updatedAt: Date.parse(row.updated_at),
+  /*
+   * When the *document* was last edited, not when the row was last written.
+   *
+   * These differ by however long the push took, and the gap is not harmless:
+   * sync compares this against the local project's `updatedAt`, so taking the
+   * row's timestamp makes every push look newer than the copy it came from.
+   * The client then adopts its own document back, which counts as a change,
+   * which schedules another push — a loop that never settles and rewrites the
+   * row forever. `content.updatedAt` is the same clock the local copy uses.
+   */
+  updatedAt: row.content?.updatedAt ?? Date.parse(row.updated_at),
   deletedAt: row.deleted_at ? Date.parse(row.deleted_at) : null,
 });
 
@@ -51,6 +61,7 @@ export const projectToRow = (
   workspace_id: string;
   owner_id: string;
   search_text: string;
+  deleted_at: null;
 } => ({
   id: project.id,
   workspace_id: workspaceId,
@@ -59,6 +70,11 @@ export const projectToRow = (
   kind: project.kind,
   content: project.content,
   revision: project.revision,
+  // Writing a project un-deletes it. Editing something on one machine after
+  // deleting it on another is a decision to keep it, and the alternative is an
+  // upsert that leaves the tombstone in place so the edit is thrown away on
+  // the next pull.
+  deleted_at: null,
   // Flattened client-side on purpose — see the note in schema.sql. Extracting
   // prose from nested blocks in SQL would duplicate logic that already exists
   // in TypeScript and would drift from it.
@@ -154,10 +170,16 @@ export const supabaseDatabase: Database = {
   async list(): Promise<RemoteProject[]> {
     const client = supabase();
     if (!client) throw new Error("Supabase isn't configured.");
+    // Soft-deleted rows come back too, carrying `deletedAt`.
+    //
+    // Filtering them out here would leave sync to infer a deletion from a row
+    // being *absent*, and absence has more than one cause: a session that
+    // changed, a policy that no longer matches, a project restored from a
+    // backup. Every one of those would read as "deleted everywhere" and take
+    // the local copy with it. A tombstone says what an absence only implies.
     const { data, error } = await client
       .from("projects")
       .select("*")
-      .is("deleted_at", null)
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
     return (data ?? []).map(rowToProject);

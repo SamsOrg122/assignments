@@ -8,19 +8,21 @@
  * app never imports Supabase — it imports `getDatabase()`, which hands back
  * whichever backend is configured.
  *
- * Right now that is always the browser. `supabase.ts` is written and ready and
- * will be selected automatically the moment the two environment variables
- * exist; nothing in a component changes when it does.
+ * `supabase.ts` is selected automatically the moment the two public
+ * environment variables exist; nothing in a component changes when it does.
+ * Without them the browser backend is not a fallback — it is the real storage
+ * layer for anyone who never signs in, and it is what the free plan promises.
  *
- * ─────────────────────────────────────────────────────────────────────────
- * FOUNDER, to switch this on:
+ * To switch the database on:
  *   1. Create a Supabase project and run `supabase/schema.sql` against it.
  *   2. Turn on anonymous sign-ins (Authentication → Providers → Anonymous).
  *      This is what lets the free plan keep work without a login.
  *   3. Put NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in the
- *      environment, and `npm install @supabase/supabase-js`.
- *   4. Nothing else. `backendName()` will start saying "supabase".
- * ─────────────────────────────────────────────────────────────────────────
+ *      environment.
+ *
+ * Nothing here writes on its own. `sync.ts` drives it, and the rules it plays
+ * by are written down there — they are the part worth reading before changing
+ * anything, because the failures they prevent all end in lost work.
  */
 
 import type { Project } from "../types";

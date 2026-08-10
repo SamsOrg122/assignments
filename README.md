@@ -68,6 +68,7 @@ src/
     ai/                   askAI seam, local + OpenRouter providers, analyses
     ai/openrouter/        models, tools, prompt — the document as function calls
     db/                   Supabase adapter, with a local store behind the same API
+    db/sync.ts            carrying work between browsers, and the rules it obeys
     speech/               transcribe seam — Web Speech + simulated fallback
     realtime/             RealtimeProvider seam + simulated presence
 ```
@@ -378,6 +379,16 @@ walks it until one answers, and a model that fails is demoted for a minute.
 The app asks the server once, on load, whether a key is configured — a
 server-only variable is invisible to the browser, and guessing would let
 Settings claim a model it doesn't have.
+
+**Sync is deliberately not a CRDT.** One project is one document and the newer
+`updatedAt` wins — the laptop-then-phone case, not two people in the same
+paragraph, which is what a *live session* is for and a different mechanism
+entirely. What matters is the failure modes, and `db/sync.ts` is written around
+three of them: a pull never deletes a project it has not seen before, a failed
+pull cancels the push, and a deletion is a tombstone rather than an absence.
+That last one is the important one — a row can go missing because a session
+changed or a policy stopped matching, and treating "missing" as "deleted" would
+take the local copy with it.
 
 **Realtime is a seam too.** `RealtimeProvider` is modelled on a CRDT awareness
 map, so a Yjs provider forwarding `awareness.getStates()` drops in behind

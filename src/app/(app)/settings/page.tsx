@@ -23,6 +23,8 @@ import {
 import { useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
 import { getAIProviderName, subscribeAIProvider } from "@/lib/ai";
+import { backendName } from "@/lib/db";
+import { subscribeSync, syncStatus } from "@/lib/db/sync";
 import { getRealtimeProviderName } from "@/lib/realtime";
 import { speechProviderName } from "@/lib/speech";
 import { sourceResolverName } from "@/lib/sources";
@@ -57,10 +59,27 @@ const useAIProviderName = () =>
     () => "…",
   );
 
+/** Whether work is actually reaching the account, in one line. */
+function useSyncLine(): string {
+  const status = useSyncExternalStore(
+    subscribeSync,
+    syncStatus,
+    () => ({ state: "off" }) as ReturnType<typeof syncStatus>,
+  );
+  if (status.state === "off") return "this browser only — no database configured";
+  if (status.state === "working")
+    return status.at ? "syncing…" : "connecting…";
+  if (status.state === "error") return `stopped: ${status.problem}`;
+  return status.at
+    ? `last synced ${new Date(status.at).toLocaleTimeString()}`
+    : "connected";
+}
+
 export default function SettingsPage() {
   const a = useAppearance();
   const isClient = useIsClient();
   const aiProvider = useAIProviderName();
+  const sync = useSyncLine();
   const resetWorkspace = useProjects((s) => s.resetWorkspace);
   const notify = useUI((s) => s.notify);
   const router = useRouter();
@@ -200,6 +219,11 @@ export default function SettingsPage() {
               name="AI"
               value={aiProvider}
               detail="askAI(prompt, context) — streaming, accept/reject"
+            />
+            <ProviderRow
+              name="Storage"
+              value={isClient ? backendName() : "…"}
+              detail={sync}
             />
             <ProviderRow
               name="Speech"

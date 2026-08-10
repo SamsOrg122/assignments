@@ -62,10 +62,19 @@ export function AccountPanel() {
     setBusy(false);
     setOutcome(result);
     if (result.ok) {
-      signedIn(result.identity);
-      notify("Signed in");
-      setMode("choose");
+      // The display name was theirs before the account was, and it is what
+      // other people already see next to their comments. An email local-part
+      // is not an upgrade on it.
+      signedIn({
+        ...result.identity,
+        name: identity.name,
+        initials: identity.initials,
+      });
+      notify(result.note ?? "Signed in");
       setPassword("");
+      // A note is the one thing worth staying on this screen for — it is
+      // usually "go and click the link in your email".
+      if (!result.note) setMode("choose");
     }
   };
 
@@ -254,6 +263,12 @@ export function AccountPanel() {
               />
             </label>
           </div>
+
+          {outcome?.ok && outcome.note && (
+            <p className="mt-3 rounded-sm border border-accent/35 bg-accent-soft p-2.5 text-[12.5px] leading-relaxed text-fg-muted">
+              {outcome.note}
+            </p>
+          )}
 
           {outcome && !outcome.ok && (
             <p

@@ -16,6 +16,7 @@ import { useAppearanceSync } from "@/lib/theme-store";
 import { useAuthHydrated } from "@/lib/auth/store";
 import { hydrateShared } from "@/lib/collab/shared";
 import { connectAI } from "@/lib/ai";
+import { useSync } from "@/lib/db/sync";
 import { useKitFonts } from "@/lib/kit/use-kit-fonts";
 import type { BlockType } from "@/lib/types";
 
@@ -32,6 +33,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Asks the server once whether a model is configured. Until it answers — and
   // for good if it says no — the local assistant is what runs.
   useEffect(connectAI, []);
+  // Pushes work to the account and pulls other machines' changes down. A no-op
+  // with no database configured, which is the normal case.
+  useSync();
   useKitFonts();
 
   const { togglePalette, toggleSidebar, setSidebarOpen, openAI, closeAI, closePalette } =

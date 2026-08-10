@@ -22,6 +22,15 @@ export interface BlockBase {
   type: BlockType;
   /** Optional human label, shown in the gutter and in the ⌘K "jump to" list. */
   title?: string;
+  /**
+   * Pinned discussion, in the same shape a board item uses.
+   *
+   * On the block rather than on a range of text: a comment anchored to a
+   * character offset is a comment that ends up attached to the wrong sentence
+   * the first time somebody edits above it, and there is no honest way to keep
+   * it in place without a CRDT. A block is a thing that survives editing.
+   */
+  comments?: BoardComment[];
 }
 
 /* ── Text ───────────────────────────────────────────────── */

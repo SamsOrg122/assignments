@@ -134,6 +134,26 @@ interface ProjectsState {
     emoji: string,
     userId: string,
   ) => void;
+  /** Discussion pinned to a block. Same shape as the board's. */
+  addBlockComment: (
+    projectId: string,
+    blockId: string,
+    body: string,
+    authorId: string,
+  ) => void;
+  toggleBlockReaction: (
+    projectId: string,
+    blockId: string,
+    commentId: string,
+    emoji: string,
+    userId: string,
+  ) => void;
+  resolveBlockComment: (
+    projectId: string,
+    blockId: string,
+    commentId: string,
+  ) => void;
+
   resolveBoardComment: (
     projectId: string,
     itemId: string,
@@ -734,6 +754,66 @@ export const useProjects = create<ProjectsState>()(
                     ),
                   }
                 : i,
+            ),
+          })),
+        })),
+
+      addBlockComment: (projectId, blockId, body, authorId) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            blocks: p.blocks.map((b) =>
+              b.id === blockId
+                ? {
+                    ...b,
+                    comments: [
+                      ...(b.comments ?? []),
+                      { id: uid(), authorId, body, at: Date.now() },
+                    ],
+                  }
+                : b,
+            ),
+          })),
+        })),
+
+      toggleBlockReaction: (projectId, blockId, commentId, emoji, userId) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            blocks: p.blocks.map((b) =>
+              b.id === blockId
+                ? {
+                    ...b,
+                    comments: (b.comments ?? []).map((c) => {
+                      if (c.id !== commentId) return c;
+                      const had = c.reactions?.[emoji] ?? [];
+                      const next = had.includes(userId)
+                        ? had.filter((u) => u !== userId)
+                        : [...had, userId];
+                      const reactions = { ...c.reactions, [emoji]: next };
+                      if (!next.length) delete reactions[emoji];
+                      return { ...c, reactions };
+                    }),
+                  }
+                : b,
+            ),
+          })),
+        })),
+
+      // Resolving removes it. A resolved thread nobody can find again is a
+      // resolved thread; keeping it would turn every document into an archive
+      // of settled arguments.
+      resolveBlockComment: (projectId, blockId, commentId) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            blocks: p.blocks.map((b) =>
+              b.id === blockId
+                ? {
+                    ...b,
+                    comments: (b.comments ?? []).filter((c) => c.id !== commentId),
+                  }
+                : b,
             ),
           })),
         })),

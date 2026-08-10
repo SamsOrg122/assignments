@@ -10,6 +10,7 @@ import { useMenu, type MenuItem } from "@/components/ui/Menu";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { BLOCK_META } from "@/components/shell/CommandPalette";
+import { BlockComments } from "./BlockComments";
 import { addPiece } from "@/lib/kit";
 
 /**
@@ -42,6 +43,7 @@ export function BlockShell({
 
   const context = useMenu();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -229,6 +231,20 @@ export function BlockShell({
           <Icon name="dots" size={13} />
         </button>
       </div>
+      )}
+
+      {/* Discussion, on the other side of the column so it never fights the
+          drag handle for the same few pixels. */}
+      {!minimal && (
+        <div className="absolute top-0 -right-8 hidden lg:block print:hidden">
+          <BlockComments
+            projectId={projectId}
+            blockId={block.id}
+            comments={block.comments ?? []}
+            open={commentsOpen}
+            onOpenChange={setCommentsOpen}
+          />
+        </div>
       )}
 
       {menuOpen && (

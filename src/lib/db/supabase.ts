@@ -100,13 +100,20 @@ function flatten(project: RemoteProject): string {
  *
  * The schema requires one, and someone who never signs up still needs
  * somewhere for their work to live — so the first call creates a personal
- * workspace for the anonymous user and every later call finds it. Cached for
- * the tab because it never changes within one.
+ * workspace for the anonymous user and every later call finds it.
+ *
+ * Keyed by owner, not cached in a single variable. Two people share a laptop
+ * more often than anyone designing this remembers: sign out, sign in as
+ * somebody else, and a cache that survived the switch would file the second
+ * person's documents into the first person's workspace — where the first
+ * person can read them, because they own it. The identity is part of the
+ * question, so it is part of the key.
  */
-let workspaceId: string | null = null;
+const workspaces = new Map<string, string>();
 
 async function ensureWorkspace(client: NonNullable<ReturnType<typeof supabase>>, ownerId: string) {
-  if (workspaceId) return workspaceId;
+  const known = workspaces.get(ownerId);
+  if (known) return known;
 
   const existing = await client
     .from("workspaces")
@@ -116,8 +123,8 @@ async function ensureWorkspace(client: NonNullable<ReturnType<typeof supabase>>,
     .maybeSingle();
   if (existing.error) throw new Error(existing.error.message);
   if (existing.data) {
-    workspaceId = existing.data.id as string;
-    return workspaceId;
+    workspaces.set(ownerId, existing.data.id as string);
+    return existing.data.id as string;
   }
 
   const created = await client
@@ -126,8 +133,8 @@ async function ensureWorkspace(client: NonNullable<ReturnType<typeof supabase>>,
     .select("id")
     .single();
   if (created.error) throw new Error(created.error.message);
-  workspaceId = created.data.id as string;
-  return workspaceId;
+  workspaces.set(ownerId, created.data.id as string);
+  return created.data.id as string;
 }
 
 /** The adapter. Every call maps one-for-one onto `supabase/schema.sql`. */

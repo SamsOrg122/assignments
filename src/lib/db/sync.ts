@@ -35,7 +35,7 @@ import { getDatabase, isRemoteConfigured, toRemote } from "./index";
 
 /* ── What the UI can say about it ───────────────────────── */
 
-export type SyncState = "off" | "working" | "synced" | "error";
+export type SyncState = "off" | "working" | "synced" | "error" | "paused";
 
 export interface SyncStatus {
   state: SyncState;
@@ -72,6 +72,16 @@ export function subscribeSync(fn: () => void) {
 /* ── Tombstones ─────────────────────────────────────────── */
 
 interface Memory {
+  /**
+   * Whose work this browser is holding.
+   *
+   * Everything below — which projects are synced, which are buried — is only
+   * meaningful against one identity. Signing in as somebody else on the same
+   * laptop does not make their account the owner of what is already here, and
+   * carrying on regardless would file one person's documents into another
+   * person's workspace.
+   */
+  owner: string | null;
   /** Project id → when it was deleted here. */
   graves: Record<string, number>;
   /**
@@ -87,13 +97,19 @@ interface Memory {
   forget: (id: string) => void;
   remember: (id: string, updatedAt: number) => void;
   drop: (id: string) => void;
+  /** Take ownership — used on the first sync, and after signing out. */
+  claim: (owner: string | null) => void;
 }
 
 const useMemory = create<Memory>()(
   persist(
     (set) => ({
+      owner: null,
       graves: {},
       synced: {},
+      // Clearing the ledger with it: what was synced, and what was deleted,
+      // were facts about the previous account and are not true of the next.
+      claim: (owner) => set({ owner, synced: {}, graves: {} }),
       bury: (id) => set((s) => ({ graves: { ...s.graves, [id]: Date.now() } })),
       forget: (id) =>
         set((s) => {
@@ -137,7 +153,25 @@ async function reconcile(): Promise<void> {
     // An identity first: every row is written against a user, anonymous or
     // not, and without one the writes below fail on row level security in a
     // way that reads like a network problem.
-    await db.session();
+    const session = await db.session();
+
+    if (session) {
+      const owner = useMemory.getState().owner;
+      if (owner === null) useMemory.getState().claim(session.userId);
+      else if (owner !== session.userId) {
+        // Somebody else is signed in on a browser holding work that isn't
+        // theirs. Stop — completely. Pushing would copy it into their account,
+        // pulling would mix two people's libraries, and deleting would be
+        // unforgivable. Signing out clears this; nothing here is lost meanwhile.
+        setStatus({
+          state: "paused",
+          at: status.at,
+          problem:
+            "This browser holds work from another account. Sign out to sync as the account you're now signed in to.",
+        });
+        return;
+      }
+    }
 
     const remote = await db.list();
     // Tombstones travel with the list. A row that is *absent* is never treated
@@ -305,3 +339,15 @@ export function useSync() {
 
 /** Force a round trip — the "Sync now" button. */
 export const syncNow = () => reconcile();
+
+/**
+ * Let the next identity take over this browser's work.
+ *
+ * Called on sign-out. What is here stays here, and the anonymous session that
+ * follows adopts it — which is exactly what "signing out leaves everything on
+ * this device" has to mean if the promise is to survive contact with sync.
+ */
+export function handOver() {
+  useMemory.getState().claim(null);
+  void reconcile();
+}

@@ -26,6 +26,7 @@ import {
   type AuthOutcome,
 } from "@/lib/auth";
 import { useAuth } from "@/lib/auth/store";
+import { handOver } from "@/lib/db/sync";
 import { useUI } from "@/lib/ui-store";
 import { cn } from "@/lib/cn";
 
@@ -116,6 +117,10 @@ export function AccountPanel() {
             onClick={async () => {
               await signOut();
               signedOut();
+              // Hands this browser's work to whatever identity comes next —
+              // otherwise sync sees an account mismatch and stops, and the
+              // promise below would quietly stop being true.
+              handOver();
               notify("Signed out — your work stays in this browser");
             }}
             className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"

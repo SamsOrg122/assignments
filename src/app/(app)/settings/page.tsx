@@ -69,6 +69,7 @@ function useSyncLine(): string {
   if (status.state === "off") return "this browser only — no database configured";
   if (status.state === "working")
     return status.at ? "syncing…" : "connecting…";
+  if (status.state === "paused") return `paused: ${status.problem}`;
   if (status.state === "error") return `stopped: ${status.problem}`;
   return status.at
     ? `last synced ${new Date(status.at).toLocaleTimeString()}`

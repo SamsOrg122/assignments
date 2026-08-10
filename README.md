@@ -390,6 +390,15 @@ That last one is the important one — a row can go missing because a session
 changed or a policy stopped matching, and treating "missing" as "deleted" would
 take the local copy with it.
 
+Identity is part of it. The browser records whose work it is holding, and if
+the signed-in user changes underneath — two people on one laptop, an expired
+token — sync stops rather than pushing one person's documents into the other's
+account. `schema.sql` refuses the same write independently: the row-level
+policy asks whether you belong to the *workspace*, not whether you own the row,
+so a client bug cannot file documents into a stranger's library. Both halves
+were verified, the second by running the schema against a real Postgres with a
+stand-in `auth` schema.
+
 **Realtime is a seam too.** `RealtimeProvider` is modelled on a CRDT awareness
 map, so a Yjs provider forwarding `awareness.getStates()` drops in behind
 `setRealtimeProvider()` without touching a component. The shipped provider

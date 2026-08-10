@@ -212,10 +212,39 @@ create policy members_managed_by_owner on public.workspace_members
             where w.id = workspace_id and w.owner_id = auth.uid())
   );
 
+-- Owner of the workspace, whether or not the membership row exists. Kept
+-- separate from `is_member` so a workspace created before the membership
+-- trigger existed does not lock its own owner out.
+create or replace function public.owns_workspace(ws uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.workspaces w
+    where w.id = ws and w.owner_id = auth.uid()
+  );
+$$;
+
 drop policy if exists projects_member on public.projects;
 create policy projects_member on public.projects
+  -- Reading: anything in a workspace you belong to, plus anything you own.
+  -- The second half matters after a workspace hand-over.
   for all using (public.is_member(workspace_id) or owner_id = auth.uid())
-  with check (public.is_member(workspace_id) or owner_id = auth.uid());
+  -- Writing: the *workspace* decides, not the row. Allowing `owner_id =
+  -- auth.uid()` here would let anyone file their own documents into a stranger's
+  -- workspace — and the stranger, being a member, would then read them. A
+  -- client bug is enough to do it by accident; this is the backstop.
+  with check (public.is_member(workspace_id) or public.owns_workspace(workspace_id));
+
+-- Owners of workspaces made before the membership trigger existed. Without
+-- this they are not members of their own workspace, and the write policy above
+-- would fall back to the ownership clause on every single query.
+insert into public.workspace_members (workspace_id, user_id, role)
+select w.id, w.owner_id, 'owner' from public.workspaces w
+on conflict do nothing;
 
 -- Read-only to the client. Only the service role writes these.
 drop policy if exists subscriptions_read on public.subscriptions;
@@ -233,6 +262,37 @@ create policy usage_read on public.usage_events
 drop policy if exists impact_public_read on public.impact_ledger;
 create policy impact_public_read on public.impact_ledger
   for select using (true);
+
+-- ── Privileges ────────────────────────────────────────────────────────────
+
+-- Policies decide who may see a row; grants decide who may reach the table at
+-- all. A stock Supabase project sets default privileges that cover this, so
+-- normally these are belt and braces — but a project whose defaults have been
+-- changed, or a self-hosted Postgres, would apply every policy above to roles
+-- that get "permission denied" before a policy is ever consulted. Writes stay
+-- shut on the read-only tables because there is no policy permitting them, not
+-- because the grant is missing.
+
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    grant usage on schema public to authenticated;
+    grant select, insert, update, delete
+      on public.profiles, public.workspaces, public.workspace_members,
+         public.projects
+      to authenticated;
+    grant select
+      on public.subscriptions, public.usage_events, public.impact_ledger
+      to authenticated;
+  end if;
+
+  -- The ledger is deliberately readable by everyone; nothing else is.
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    grant usage on schema public to anon;
+    grant select on public.impact_ledger to anon;
+  end if;
+end
+$$;
 
 -- ── Housekeeping ──────────────────────────────────────────────────────────
 

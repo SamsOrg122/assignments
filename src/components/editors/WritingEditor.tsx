@@ -49,6 +49,48 @@ export function WritingEditor({
   const [typeOpen, setTypeOpen] = useState(false);
   const [pageOpen, setPageOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
+  const insertBlock = useProjects((s) => s.insertBlock);
+  const notify = useUI((s) => s.notify);
+
+  /**
+   * Append what came out of the Word file, rather than replacing what is here.
+   * An import that silently overwrote a draft would be unforgivable, and
+   * appending is undoable by deleting blocks.
+   */
+  const importDocx = async (file: File | undefined) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const { importDocxFile } = await import("@/lib/docx/read");
+      const imported = await importDocxFile(file);
+      let after = project.blocks[project.blocks.length - 1]?.id;
+      for (const block of imported.blocks) {
+        after = insertBlock(project.id, block, after);
+      }
+      const carried = [
+        `${imported.blocks.length} block${imported.blocks.length === 1 ? "" : "s"}`,
+        imported.notes ? `${imported.notes} note${imported.notes === 1 ? "" : "s"}` : "",
+        imported.proposed
+          ? `${imported.proposed} proposed change${imported.proposed === 1 ? "" : "s"}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(", ");
+      notify(
+        `Imported ${carried}` +
+          (imported.skipped.length
+            ? ` — ${imported.skipped.join(", ")} not carried over`
+            : ""),
+      );
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Could not read that file");
+    } finally {
+      setImporting(false);
+      if (importRef.current) importRef.current.value = "";
+    }
+  };
   const [outlineOpen, setOutlineOpen] = useState(false);
   const [dictating, setDictating] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -165,6 +207,20 @@ export function WritingEditor({
                   />
                 )}
               </span>
+              <IconToggle
+                icon="download"
+                label={importing ? "Reading the Word file…" : "Import .docx"}
+                active={importing}
+                onClick={() => importRef.current?.click()}
+              />
+              <input
+                ref={importRef}
+                type="file"
+                accept=".docx"
+                className="sr-only"
+                aria-label="Import a Word file"
+                onChange={(e) => void importDocx(e.target.files?.[0])}
+              />
               <IconToggle
                 icon="check"
                 label={suggestMode ? "Suggesting — typing proposes" : "Suggest changes"}

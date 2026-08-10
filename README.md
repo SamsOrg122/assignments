@@ -59,6 +59,12 @@ src/
     chat/                 ChatProvider seam + simulated transport
     sources/              resolveSource seam, parsers, four citation styles
     export.ts             PDF · Word · web · Markdown, from the model
+    docx/                 real OOXML out, and .docx back in
+    notes.ts              footnotes and endnotes, numbered where they are shown
+    toc.ts                the headings, for a contents page that cannot go stale
+    figures.ts            figure and table numbers, and what points at them
+    page.ts               paper, margins, headers — and what a browser can't print
+    math.ts               equations: KaTeX on screen, MathML in a file
     share.ts              share links — the document, gzipped, in the fragment
     persistence/          storage health, backup files, and version migrations
     collab/               live sessions: relay transport, cursors, block sync
@@ -379,6 +385,16 @@ walks it until one answers, and a model that fails is demoted for a minute.
 The app asks the server once, on load, whether a key is configured — a
 server-only variable is invisible to the browser, and guessing would let
 Settings claim a model it doesn't have.
+
+**The word-processor things that make a thesis hand-in-able.** Footnotes,
+a contents page, numbered figures with cross-references that follow them,
+comments on blocks, suggesting as a third share mode, page setup, spelling in
+the document's own language, and equations. Two rules run through all of them:
+nothing derived is stored — note numbers, figure numbers, the contents page and
+the rendering of an equation are all computed where they are shown, because a
+stored copy is one that can disagree — and where a browser genuinely cannot do
+something (footnotes at the foot of a page, running headers, page numbers), the
+UI says so and the `.docx` export carries it instead.
 
 **Sync is deliberately not a CRDT.** One project is one document and the newer
 `updatedAt` wins — the laptop-then-phone case, not two people in the same

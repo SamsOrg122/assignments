@@ -364,16 +364,26 @@ function PaletteDialog({ seed }: { seed: string }) {
         });
       }
 
-      for (const format of ["pdf", "doc", "html", "markdown"] as ExportFormat[]) {
+      // Ordered by what somebody should reach for. `.docx` first, because it
+      // is the one that carries footnotes, tracked changes and page setup.
+      for (const format of [
+        "docx",
+        "pdf",
+        "html",
+        "markdown",
+        "doc",
+      ] as ExportFormat[]) {
         list.push({
           id: `export:${format}`,
           title: `Export to ${EXPORT_LABELS[format]}`,
           subtitle:
-            format === "doc"
-              ? "Word-compatible HTML — opens in Word, keeps formatting"
-              : format === "pdf"
-                ? "Prints the document, not the app"
-                : undefined,
+            format === "docx"
+              ? "Real Word — footnotes, tracked changes, headers and page numbers"
+              : format === "doc"
+                ? "Word-compatible HTML, for anything that can't open .docx"
+                : format === "pdf"
+                  ? "Prints the document, not the app"
+                  : undefined,
           group: "Export",
           icon: "download",
           // Per-format keywords only: putting "word" on every entry made

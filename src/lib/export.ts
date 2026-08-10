@@ -7,11 +7,10 @@
  * rather than scraped from the DOM, so what you get doesn't depend on what
  * happened to be on screen or which panels were open.
  *
- * A note on Word: this produces Word-compatible HTML (`.doc`), not OOXML
- * (`.docx`). Word opens it correctly and keeps headings, emphasis, lists,
- * tables and citations — which is what a supervisor asking for "a Word file"
- * actually needs. Real `.docx` means a ZIP of OOXML parts and belongs behind
- * this same `exportProject` call when it lands; nothing above here changes.
+ * Word twice, on purpose. `.docx` is real OOXML — footnotes Word lays out on
+ * the page, tracked changes it can review, a header with a page field — and is
+ * what anyone should pick. `.doc` is the older Word-flavoured HTML, kept
+ * because it opens in things that are not Word and in very old ones that are.
  */
 
 import { formatReference, sortSources } from "./sources";
@@ -22,13 +21,15 @@ import { anchorHeadings, headings } from "./toc";
 import { DEFAULT_PAGE, pageCss, textWidth } from "./page";
 import { figureFor, figureLabels, renderRefs } from "./figures";
 import { renderMathIn } from "./math";
+import { buildDocx } from "./docx/write";
 import type { Project } from "./types";
 
-export type ExportFormat = "pdf" | "doc" | "html" | "markdown";
+export type ExportFormat = "pdf" | "docx" | "doc" | "html" | "markdown";
 
 export const EXPORT_LABELS: Record<ExportFormat, string> = {
   pdf: "PDF",
-  doc: "Word (.doc)",
+  docx: "Word (.docx)",
+  doc: "Word (.doc, old)",
   html: "Web page",
   markdown: "Markdown",
 };
@@ -299,8 +300,12 @@ function toMarkdown(project: Project): string {
     .trim();
 }
 
-function download(filename: string, content: string, mime: string) {
-  const blob = new Blob([content], { type: mime });
+function download(
+  filename: string,
+  content: string | Uint8Array,
+  mime: string,
+) {
+  const blob = new Blob([content as BlobPart], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -334,6 +339,14 @@ export function exportProject(project: Project, format: ExportFormat): void {
       setTimeout(() => win.print(), 350);
       return;
     }
+
+    case "docx":
+      download(
+        `${name}.docx`,
+        buildDocx(project),
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      );
+      return;
 
     case "doc":
       download(

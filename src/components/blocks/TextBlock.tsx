@@ -30,6 +30,7 @@ import { insertPiece } from "@/lib/kit/insert";
 import type { KitPiece } from "@/lib/kit";
 import { createImageBlock } from "@/lib/factories";
 import { countMarkers } from "@/lib/notes";
+import { DEFAULT_LANGUAGE } from "@/lib/dictionary";
 import { figureLabels } from "@/lib/figures";
 
 interface Props {
@@ -56,6 +57,10 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
   const voiceSample = useUI((s) => s.voiceSample);
   const notify = useUI((s) => s.notify);
   const suggestMode = useUI((s) => s.suggestMode);
+  const language = useProjects(
+    (s) =>
+      s.projects.find((p) => p.id === projectId)?.language ?? DEFAULT_LANGUAGE,
+  );
 
   const [slash, setSlash] = useState<SlashState | null>(null);
   const [cite, setCite] = useState<{ x: number; y: number } | null>(null);
@@ -166,6 +171,12 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     editorProps: {
       attributes: {
         class: `prose-canvas min-h-[1.75em] focus:outline-none ${proseClassName ?? ""}`,
+        // The browser's own dictionary, pointed at the right language. This is
+        // the whole of "spell check" that a web app can honestly offer — there
+        // is no API to add a word to it, so the personal dictionary lives
+        // alongside rather than inside.
+        lang: language,
+        spellcheck: "true",
       },
       /**
        * A pasted screenshot becomes an image block right after this one.
@@ -274,6 +285,12 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
         .setMeta("addToHistory", false),
     );
   }, [editor, labelsJson]);
+
+  /* `editorProps` is captured once, so changing the document's language later
+     has to reach the element directly. */
+  useEffect(() => {
+    editor?.view.dom.setAttribute("lang", language);
+  }, [editor, language]);
 
   /* Suggesting is a mode of the editor, carried in as a transaction so undo
      and the keymap both see the same one source. */

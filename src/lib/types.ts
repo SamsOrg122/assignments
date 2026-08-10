@@ -609,6 +609,13 @@ export interface Project {
   sources?: Source[];
   citationStyle?: CitationStyle;
 
+  /**
+   * BCP-47 tag driving the browser's spellchecker, and what the assistant is
+   * told the document is written in. Absent means the browser guesses, which
+   * it does badly for anything that is not English.
+   */
+  language?: string;
+
   /** How the document sits on paper. See `lib/page.ts`. */
   page?: import("./page").PageSetup;
 

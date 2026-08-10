@@ -24,6 +24,7 @@ import {
   type PageSetup,
   type PaperSize,
 } from "@/lib/page";
+import { DEFAULT_LANGUAGE, LANGUAGES } from "@/lib/dictionary";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 
@@ -52,6 +53,10 @@ export function PagePanel({
   onClose: () => void;
 }) {
   const setPage = useProjects((s) => s.setPage);
+  const setLanguage = useProjects((s) => s.setLanguage);
+  const language = useProjects(
+    (s) => s.projects.find((p) => p.id === projectId)?.language ?? DEFAULT_LANGUAGE,
+  );
   const current = { ...DEFAULT_PAGE, ...page };
   const set = (patch: Partial<PageSetup>) => setPage(projectId, patch);
 
@@ -157,6 +162,26 @@ export function PagePanel({
       </p>
 
       <div className="my-2.5 h-px bg-line" />
+
+      <Row label="Language">
+        <input
+          list="assignments-languages"
+          value={language}
+          onChange={(e) => setLanguage(projectId, e.target.value.trim())}
+          aria-label="Document language"
+          className="w-full rounded-sm border border-line bg-surface-2 px-1.5 py-1 text-[12px] text-fg outline-none focus:border-accent"
+        />
+        <datalist id="assignments-languages">
+          {LANGUAGES.map((l) => (
+            <option key={l.tag} value={l.tag}>
+              {l.label}
+            </option>
+          ))}
+        </datalist>
+      </Row>
+      <p className="mb-2.5 font-mono text-[9.5px] text-fg-subtle">
+        drives the browser&rsquo;s spellchecker
+      </p>
 
       <Row label="Numbers">
         <select

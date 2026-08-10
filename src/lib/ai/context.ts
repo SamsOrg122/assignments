@@ -12,6 +12,7 @@
 import { DEFAULT_DECK_STYLE, type Block, type Project } from "../types";
 import type { KnowledgeEntry, TeamFile, Workspace } from "../team/types";
 import { computeFormulas } from "../formula";
+import { knownWords } from "../dictionary";
 import { collectNotes, stripMarkers } from "../notes";
 import { CONTEXT_CHAR_BUDGET, type AIContext } from "./types";
 
@@ -339,6 +340,8 @@ export function buildContext(
       ? { items: project.board, selection: boardSelection ?? [] }
       : undefined,
     team,
+    language: project.language,
+    known: knownWords(),
     words: blocks.reduce((n, b) => n + b.words, 0),
     wordGoal: project.wordGoal,
   };

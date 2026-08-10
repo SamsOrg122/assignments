@@ -32,6 +32,7 @@ import { chatProviderName } from "@/lib/chat";
 import { TopBar } from "@/components/shell/TopBar";
 import { Icon } from "@/components/ui/Icon";
 import { SafeKeeping } from "@/components/settings/SafeKeeping";
+import { Dictionary } from "@/components/settings/Dictionary";
 import { AccountPanel } from "@/components/account/AccountPanel";
 import { cn } from "@/lib/cn";
 
@@ -254,6 +255,13 @@ export default function SettingsPage() {
             hint="Two ways to keep your work, and you pick. Neither one is a trial version of the other."
           >
             <AccountPanel />
+          </Section>
+
+          <Section
+            title="Your words"
+            hint="Names, terms and spellings that are deliberate."
+          >
+            <Dictionary />
           </Section>
 
           <Section

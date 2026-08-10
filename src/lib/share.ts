@@ -264,6 +264,7 @@ function validate(input: unknown): Project | null {
     // Page setup is plain numbers and short strings; nothing here reaches the
     // DOM as markup, and `pageCss` clamps what it emits.
     page: raw.page ? (obj(raw.page) as never) : undefined,
+    language: raw.language === undefined ? undefined : str(raw.language).slice(0, 20),
     wordGoal: typeof raw.wordGoal === "number" ? raw.wordGoal : undefined,
     sectionGoals: obj(raw.sectionGoals) as Record<string, number>,
   };

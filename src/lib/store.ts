@@ -73,6 +73,8 @@ interface ProjectsState {
   setCitationStyle: (projectId: string, style: CitationStyle) => void;
   /** Whether notes print at the foot of the page or all together at the end. */
   setNotePlacement: (projectId: string, placement: "foot" | "end") => void;
+  /** What language the document is written in. */
+  setLanguage: (projectId: string, language: string) => void;
   /** Paper size, margins, header and footer. */
   setPage: (projectId: string, patch: Partial<import("./page").PageSetup>) => void;
   /**
@@ -462,6 +464,11 @@ export const useProjects = create<ProjectsState>()(
         }));
         get().refreshCitations(projectId);
       },
+
+      setLanguage: (projectId, language) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({ ...p, language })),
+        })),
 
       setPage: (projectId, patch) =>
         set((s) => ({

@@ -94,6 +94,10 @@ export function renderContext(context: AIContext): string {
       bullet("Name", context.projectName) +
       bullet("Type", context.projectKind) +
       bullet("Words", context.words) +
+      bullet("Written in", context.language) +
+      (context.known?.length
+        ? `Deliberate spellings — never offer to correct these: ${context.known.join(", ")}\n`
+        : "") +
       bullet("Word goal", context.wordGoal),
   );
 

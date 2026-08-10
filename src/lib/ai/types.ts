@@ -142,6 +142,15 @@ export interface AIContext {
     focusFiles?: string[];
   };
 
+  /** What the document is written in, so an answer arrives in that language. */
+  language?: string;
+  /**
+   * Words the author has said are deliberate. Surnames, variable names, a
+   * Dutch term in an English document — the assistant should stop offering to
+   * "fix" them.
+   */
+  known?: string[];
+
   /** Total words in the project, and the target if one is set. */
   words: number;
   wordGoal?: number;

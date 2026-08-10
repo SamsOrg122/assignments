@@ -942,6 +942,22 @@
   color: inherit;
   text-decoration: none;
 }
+/* Cross-references. The words live in `data-label`, which a decoration keeps
+   current, so there is exactly one number on screen and it is never stale. */
+.prose-canvas .xref::after {
+  content: attr(data-label);
+}
+.prose-canvas .xref,
+.prose-canvas .xref-static {
+  color: var(--color-accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+.prose-canvas .xref-missing::after,
+.prose-canvas .xref-missing {
+  color: var(--color-danger);
+}
+
 .ProseMirror .footnote-ref.ProseMirror-selectednode::after {
   background: var(--color-accent-soft);
   border-radius: var(--radius-xs);

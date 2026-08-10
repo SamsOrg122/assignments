@@ -22,6 +22,7 @@ import { formatReference, sortSources } from "@/lib/sources";
 import { proseVars } from "@/lib/doc-presets";
 import { collectNotes, renderMarkers } from "@/lib/notes";
 import { headings } from "@/lib/toc";
+import { figureFor, figureLabels, renderRefs } from "@/lib/figures";
 import { routeConnector } from "@/lib/board-routing";
 import { bounds } from "@/lib/geometry";
 import { chartData, renderChart } from "@/components/blocks/ChartBlock";
@@ -131,7 +132,10 @@ function ReadOnlyBlock({
         <div
           className={cn("prose-canvas", face)}
           dangerouslySetInnerHTML={{
-            __html: renderMarkers(block.html, collectNotes(project.blocks)),
+            __html: renderRefs(
+              renderMarkers(block.html, collectNotes(project.blocks)),
+              figureLabels(project.blocks),
+            ),
           }}
         />
       );
@@ -159,14 +163,16 @@ function ReadOnlyBlock({
               width: block.align === "full" ? "100%" : `${block.scale ?? 100}%`,
             }}
           />
-          {block.caption && (
+          {(figureFor(project.blocks, block.id) || block.caption) && (
             <figcaption
               className={cn(
                 "mt-2 w-full text-[12px] text-fg-subtle",
                 block.align !== "left" && "text-center",
               )}
             >
-              {block.caption}
+              {[figureFor(project.blocks, block.id)?.label, block.caption]
+                .filter(Boolean)
+                .join(". ")}
             </figcaption>
           )}
         </figure>

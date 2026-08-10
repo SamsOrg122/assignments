@@ -13,6 +13,8 @@ import { SlashMenu } from "@/components/canvas/SlashMenu";
 import { CitePicker } from "@/components/sources/CitePicker";
 import { Citation } from "./citation-extension";
 import { Footnote, footnoteBase } from "./footnote-extension";
+import { Reference, referenceLabels } from "./reference-extension";
+import { RefPicker } from "./RefPicker";
 import { NotePopover } from "./NotePopover";
 import { uid } from "@/lib/factories";
 import { imageFrom, prepareImage } from "@/lib/images";
@@ -21,6 +23,7 @@ import { insertPiece } from "@/lib/kit/insert";
 import type { KitPiece } from "@/lib/kit";
 import { createImageBlock } from "@/lib/factories";
 import { countMarkers } from "@/lib/notes";
+import { figureLabels } from "@/lib/figures";
 
 interface Props {
   projectId: string;
@@ -55,6 +58,7 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     text: string;
     pos: number | null;
   } | null>(null);
+  const [ref, setRef] = useState<{ x: number; y: number } | null>(null);
   const [toolbar, setToolbar] = useState<{ x: number; y: number } | null>(null);
 
   /**
@@ -74,6 +78,18 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     }
     return n;
   });
+  /**
+   * What every figure in the project is called right now.
+   *
+   * Serialised to a string in the selector: zustand compares snapshots by
+   * identity, and a fresh object each render would re-render this block on
+   * every keystroke anywhere in the document.
+   */
+  const labelsJson = useProjects((s) => {
+    const project = s.projects.find((p) => p.id === projectId);
+    return JSON.stringify(figureLabels(project?.blocks ?? []));
+  });
+
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // Guards the effect that pushes external edits back into the editor.
@@ -133,6 +149,7 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
       }),
       Citation,
       Footnote,
+      Reference,
     ],
     content: block.html,
     editorProps: {
@@ -235,6 +252,17 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
         .setMeta("addToHistory", false),
     );
   }, [editor, noteBase]);
+
+  /* Figure numbers change when a picture is added anywhere above; the labels
+     ride in the same way, so every reference re-renders with the new number. */
+  useEffect(() => {
+    if (!editor) return;
+    editor.view.dispatch(
+      editor.state.tr
+        .setMeta(referenceLabels, JSON.parse(labelsJson))
+        .setMeta("addToHistory", false),
+    );
+  }, [editor, labelsJson]);
 
   /* Apply what waited, when the caret leaves. */
   useEffect(() => {
@@ -426,6 +454,13 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
             setCite({ x: coords.left, y: coords.bottom + 6 });
             return;
           }
+          // ⌘⇧R — refer to a figure or table.
+          if (e.key.toLowerCase() === "r" && e.shiftKey && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            const coords = editor.view.coordsAtPos(editor.state.selection.from);
+            setRef({ x: coords.left, y: coords.bottom + 6 });
+            return;
+          }
           // ⌘⇧N — a note at the caret.
           if (e.key.toLowerCase() === "n" && e.shiftKey && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
@@ -471,6 +506,27 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
                 attrs: { sourceId: source.id, label },
               })
               // A citation is nearly always followed by more prose.
+              .insertContent(" ")
+              .run();
+          }}
+        />
+      )}
+
+      {ref && (
+        <RefPicker
+          projectId={projectId}
+          x={ref.x}
+          y={ref.y}
+          onClose={() => setRef(null)}
+          onInsert={(figure) => {
+            setRef(null);
+            editor
+              .chain()
+              .focus()
+              .insertContent({
+                type: "reference",
+                attrs: { targetId: figure.blockId, label: figure.label },
+              })
               .insertContent(" ")
               .run();
           }}

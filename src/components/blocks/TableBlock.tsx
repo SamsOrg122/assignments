@@ -43,6 +43,7 @@ import {
 import { uid } from "@/lib/factories";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import { FigureCaption } from "./FigureCaption";
 
 interface Props {
   projectId: string;
@@ -378,7 +379,13 @@ export function TableBlock({ projectId, block }: Props) {
   const focusRow = sel ? rows[sel.focus.r] : null;
 
   return (
-    <div className="overflow-hidden rounded-md border border-line bg-surface">
+    <div>
+      <FigureCaption
+        projectId={projectId}
+        block={block}
+        placeholder="What this table shows"
+      />
+      <div className="overflow-hidden rounded-md border border-line bg-surface">
       {/* ── The quiet strip: only counts, filters, and the formula bar ── */}
       <div className="flex min-h-[30px] items-center gap-2 border-b border-line px-2 py-1">
         {focusColumn && focusRow ? (
@@ -694,6 +701,7 @@ export function TableBlock({ projectId, block }: Props) {
         <Icon name="plus" size={11} />
         Add row
       </button>
+    </div>
     </div>
   );
 }

@@ -36,6 +36,7 @@ import { computeFormulas, toNumber } from "@/lib/formula";
 import { NUMERIC_COLUMN_TYPES } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import { FigureCaption } from "./FigureCaption";
 
 /** Accent first, then neutrals — a chart shouldn't be the loudest thing here. */
 const SERIES_COLORS = [
@@ -127,7 +128,13 @@ export function ChartBlock({
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-line bg-surface">
+    <div>
+      <FigureCaption
+        projectId={projectId}
+        block={block}
+        placeholder="What this chart shows"
+      />
+      <div className="overflow-hidden rounded-md border border-line bg-surface">
       {/* Binding controls — quiet until you look for them. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-3 py-2">
         <Field label="Source">
@@ -228,6 +235,7 @@ export function ChartBlock({
         )}
       </div>
 
+    </div>
     </div>
   );
 }

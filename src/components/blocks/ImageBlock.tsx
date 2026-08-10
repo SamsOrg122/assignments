@@ -15,6 +15,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { ImageAlign, ImageBlock as ImageBlockModel, ImageFrame } from "@/lib/types";
 import { useProjects } from "@/lib/store";
+import { figureFor } from "@/lib/figures";
 import { useUI } from "@/lib/ui-store";
 import { formatImageSize, imageFrom, pickImage, prepareImage } from "@/lib/images";
 import { cn } from "@/lib/cn";
@@ -44,6 +45,14 @@ export function ImageBlock({
   block: ImageBlockModel;
 }) {
   const updateBlock = useProjects((s) => s.updateBlock);
+  /** "Figure 3", or nothing while the frame is still empty. */
+  const number = useProjects(
+    (s) =>
+      figureFor(
+        s.projects.find((p) => p.id === projectId)?.blocks ?? [],
+        block.id,
+      )?.label ?? "",
+  );
   const notify = useUI((s) => s.notify);
   const [busy, setBusy] = useState(false);
   const [over, setOver] = useState(false);
@@ -279,20 +288,34 @@ export function ImageBlock({
         </div>
       </div>
 
-      <input
-        value={block.caption ?? ""}
-        onChange={(e) => patch({ caption: e.target.value })}
-        placeholder="Add a caption"
-        aria-label="Picture caption"
+      {/* The number is rendered beside the caption rather than typed into it,
+          so it stays right when a picture is inserted above this one. */}
+      <div
         className={cn(
-          "mt-2 w-full bg-transparent text-[12px] text-fg-subtle outline-none placeholder:text-fg-subtle/60 focus:text-fg-muted",
-          align === "centre" && "text-center",
-          // A caption that only appears when there's something to read, or
-          // when you're looking for it.
-          !block.caption &&
-            "opacity-0 transition-opacity duration-150 group-hover/image:opacity-100 focus:opacity-100 print:hidden",
+          "mt-2 flex w-full items-baseline gap-1.5",
+          align === "centre" && "justify-center",
         )}
-      />
+      >
+        {number && (
+          <span className="shrink-0 text-[12px] font-medium text-fg-muted">
+            {number}.
+          </span>
+        )}
+        <input
+          value={block.caption ?? ""}
+          onChange={(e) => patch({ caption: e.target.value })}
+          placeholder="Add a caption"
+          aria-label="Picture caption"
+          className={cn(
+            "min-w-0 flex-1 bg-transparent text-[12px] text-fg-subtle outline-none placeholder:text-fg-subtle/60 focus:text-fg-muted",
+            align === "centre" && !block.caption && "text-center",
+            // A caption that only appears when there's something to read, or
+            // when you're looking for it.
+            !block.caption &&
+              "opacity-0 transition-opacity duration-150 group-hover/image:opacity-100 focus:opacity-100 print:hidden",
+          )}
+        />
+      </div>
 
       {/* Alt text and weight, out of the way but not hidden: one is what a
           screen reader says, the other is why the workspace got heavy. */}

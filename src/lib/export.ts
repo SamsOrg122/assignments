@@ -19,6 +19,7 @@ import { htmlToText } from "./ai/context";
 import { computeFormulas } from "./formula";
 import { collectNotes, renderMarkers } from "./notes";
 import { anchorHeadings, headings } from "./toc";
+import { figureFor, figureLabels, renderRefs } from "./figures";
 import type { Project } from "./types";
 
 export type ExportFormat = "pdf" | "doc" | "html" | "markdown";
@@ -37,6 +38,7 @@ function bodyHtml(project: Project): string {
   const style = project.citationStyle ?? "apa";
   const notes = collectNotes(project.blocks);
   const heads = headings(project.blocks);
+  const labels = figureLabels(project.blocks);
   const parts: string[] = [];
 
   for (const block of project.blocks) {
@@ -44,7 +46,9 @@ function bodyHtml(project: Project): string {
       case "text":
         // Markers become numbered anchors here: the number is a decoration on
         // screen, and an exported file has no editor to decorate it.
-        parts.push(anchorHeadings(renderMarkers(block.html, notes), block.id));
+        parts.push(
+          anchorHeadings(renderRefs(renderMarkers(block.html, notes), labels), block.id),
+        );
         break;
 
       case "toc": {
@@ -80,8 +84,11 @@ function bodyHtml(project: Project): string {
                 .join("")}</tr>`,
           )
           .join("");
+        const caption = figureFor(project.blocks, block.id);
         parts.push(
-          `<table><caption>${esc(block.title ?? "Table")}</caption><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`,
+          `<table id="block-${block.id}"><caption>${
+            caption ? `${esc(caption.label)}. ` : ""
+          }${esc(block.title ?? "")}</caption><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`,
         );
         break;
       }
@@ -116,13 +123,17 @@ function bodyHtml(project: Project): string {
         // that lost its figures would be the wrong kind of portable.
         if (block.src)
           parts.push(
-            `<figure class="figure figure-${block.align ?? "centre"}">` +
+            `<figure id="block-${block.id}" class="figure figure-${block.align ?? "centre"}">` +
               `<img src="${block.src}" alt="${esc(block.alt)}" style="width:${
                 block.align === "full" ? 100 : (block.scale ?? 100)
               }%" />` +
-              (block.caption
-                ? `<figcaption>${esc(block.caption)}</figcaption>`
-                : "") +
+              (() => {
+                const figure = figureFor(project.blocks, block.id);
+                const words = [figure ? `${figure.label}.` : "", block.caption ?? ""]
+                  .filter(Boolean)
+                  .join(" ");
+                return words ? `<figcaption>${esc(words)}</figcaption>` : "";
+              })() +
               `</figure>`,
           );
         break;
@@ -151,7 +162,9 @@ function bodyHtml(project: Project): string {
       case "chart":
         // Charts are canvas-rendered; a caption beats a blank rectangle.
         parts.push(
-          `<p><em>[${esc(block.title ?? "Chart")} — ${esc(block.kind)} chart]</em></p>`,
+          `<p id="block-${block.id}"><em>[${esc(
+            figureFor(project.blocks, block.id)?.label ?? "Chart",
+          )}. ${esc(block.title ?? "")} — ${esc(block.kind)} chart]</em></p>`,
         );
         break;
     }
@@ -225,6 +238,8 @@ const PRINT_CSS = `
   .toc ol { list-style: none; padding: 0; margin: 0; }
   .toc li { margin-bottom: .2em; }
   .toc a { color: inherit; text-decoration: none; }
+  .xref-static { color: inherit; text-decoration: none; }
+  .xref-missing { color: #b00; }
   .toc-l2 { padding-left: 1.2em; }
   .toc-l3 { padding-left: 2.4em; font-size: 11pt; }
   sup a { text-decoration: none; }

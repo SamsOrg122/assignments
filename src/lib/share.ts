@@ -256,6 +256,7 @@ function validate(input: unknown): Project | null {
       ["apa", "mla", "chicago", "harvard"] as const,
       "apa",
     ),
+    notePlacement: oneOf(raw.notePlacement, ["foot", "end"] as const, "foot"),
     wordGoal: typeof raw.wordGoal === "number" ? raw.wordGoal : undefined,
     sectionGoals: obj(raw.sectionGoals) as Record<string, number>,
   };

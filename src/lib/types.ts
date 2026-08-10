@@ -585,6 +585,13 @@ export interface Project {
   sources?: Source[];
   citationStyle?: CitationStyle;
 
+  /**
+   * Where notes are printed. The screen always lists them at the end — it has
+   * no pages to put them at the foot of — so this only decides what an
+   * exported file does.
+   */
+  notePlacement?: "foot" | "end";
+
   /** Scrubbable history. Newest last. */
   history?: Snapshot[];
   /**

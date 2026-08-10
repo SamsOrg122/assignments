@@ -17,6 +17,7 @@
 import { formatReference, sortSources } from "./sources";
 import { htmlToText } from "./ai/context";
 import { computeFormulas } from "./formula";
+import { collectNotes, renderMarkers } from "./notes";
 import type { Project } from "./types";
 
 export type ExportFormat = "pdf" | "doc" | "html" | "markdown";
@@ -33,12 +34,16 @@ export const EXPORT_LABELS: Record<ExportFormat, string> = {
 /** Every block as HTML, in document order. */
 function bodyHtml(project: Project): string {
   const style = project.citationStyle ?? "apa";
+  const notes = collectNotes(project.blocks);
   const parts: string[] = [];
 
   for (const block of project.blocks) {
     switch (block.type) {
       case "text":
-        parts.push(block.html);
+        // Markers become numbered anchors here: the CSS counter that numbers
+        // them on screen belongs to a stylesheet the exported file does not
+        // have, so the number has to be in the markup.
+        parts.push(renderMarkers(block.html, notes));
         break;
 
       case "table": {
@@ -135,6 +140,30 @@ function bodyHtml(project: Project): string {
     }
   }
 
+  /*
+   * The notes themselves, at the end.
+   *
+   * "Footnotes" and "endnotes" differ by where they are printed, and a browser
+   * cannot print at the foot of a page — `float: footnote` is in the CSS spec
+   * and in no shipping engine. So both settings produce a list at the end
+   * here, and the heading says which it is rather than pretending. The Word
+   * export is where the distinction becomes real, because OOXML has footnotes
+   * the word processor lays out itself.
+   */
+  if (notes.length)
+    parts.push(
+      `<section class="notes"><h2>${
+        project.notePlacement === "end" ? "Endnotes" : "Notes"
+      }</h2><ol>` +
+        notes
+          .map(
+            (n) =>
+              `<li id="note-${n.id}">${esc(n.text)} <a href="#noteref-${n.id}" class="note-back">↩</a></li>`,
+          )
+          .join("") +
+        `</ol></section>`,
+    );
+
   return parts.join("\n");
 }
 
@@ -170,6 +199,11 @@ const PRINT_CSS = `
   figure img { max-width: 100%; height: auto; }
   .figure-centre { text-align: center; }
   figcaption { font-size: 10pt; color: #555; margin-top: .4em; }
+  .notes { border-top: 1px solid #999; margin-top: 2em; padding-top: .8em; font-size: 10pt; }
+  .notes h2 { font-size: 11pt; margin: 0 0 .5em; }
+  .notes li { margin-bottom: .35em; }
+  .note-back { text-decoration: none; color: #777; }
+  sup a { text-decoration: none; }
 `;
 
 function wrapDocument(project: Project, extraHead = ""): string {

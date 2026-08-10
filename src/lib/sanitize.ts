@@ -31,6 +31,10 @@ const ATTRS: Record<string, Set<string>> = {
   a: new Set(["href", "title"]),
   img: new Set(["src", "alt", "width", "height"]),
   span: new Set(["data-citation"]),
+  // A note's text rides on its marker. Dropping these would let a document
+  // survive a share link with every note number intact and every note gone —
+  // the failure would only show up when somebody printed it.
+  sup: new Set(["data-footnote", "data-note", "title", "class", "id"]),
   th: new Set(["colspan", "rowspan"]),
   td: new Set(["colspan", "rowspan"]),
 };

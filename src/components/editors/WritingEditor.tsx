@@ -25,6 +25,7 @@ import { DictationBar } from "./DictationBar";
 import { Canvas } from "@/components/canvas/Canvas";
 import { SourcesPanel } from "@/components/sources/SourcesPanel";
 import { VersionTimeline } from "./VersionTimeline";
+import { NotesList } from "./NotesList";
 
 export function WritingEditor({
   project,
@@ -225,11 +226,14 @@ export function WritingEditor({
             </header>
           )}
 
+          {/* `data-notes-root` resets the note counter once, here, so numbering
+              runs across every block rather than restarting in each one. */}
           <div
             className="prose-shell"
             style={proseVars(type)}
             data-family={type.family}
             data-indent={type.firstLineIndent ? "true" : undefined}
+            data-notes-root
           >
             <Canvas
               project={project}
@@ -243,6 +247,7 @@ export function WritingEditor({
               }
               minimal={focusMode}
             />
+            {!focusMode && <NotesList project={project} />}
           </div>
         </div>
 

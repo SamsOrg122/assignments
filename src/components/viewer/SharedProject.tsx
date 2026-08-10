@@ -20,6 +20,7 @@ import { DEFAULT_DECK_STYLE, DEFAULT_TYPOGRAPHY, sortsOf } from "@/lib/types";
 import { computeFormulas } from "@/lib/formula";
 import { formatReference, sortSources } from "@/lib/sources";
 import { proseVars } from "@/lib/doc-presets";
+import { collectNotes, renderMarkers } from "@/lib/notes";
 import { routeConnector } from "@/lib/board-routing";
 import { bounds } from "@/lib/geometry";
 import { chartData, renderChart } from "@/components/blocks/ChartBlock";
@@ -58,15 +59,49 @@ function SharedDocument({ project }: { project: Project }) {
           style={proseVars(type)}
           data-family={type.family}
           data-indent={type.firstLineIndent ? "true" : undefined}
+          data-notes-root
         >
           <div className="flex flex-col gap-6">
             {project.blocks.map((b) => (
               <ReadOnlyBlock key={b.id} block={b} project={project} />
             ))}
           </div>
+          <SharedNotes project={project} />
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * The notes, for a reader.
+ *
+ * Not the editor's `NotesList`: that one lets you switch between footnotes and
+ * endnotes, and a reader has nothing to switch. Same numbering, same order.
+ */
+function SharedNotes({ project }: { project: Project }) {
+  const notes = collectNotes(project.blocks);
+  if (!notes.length) return null;
+  return (
+    <section className="mt-10 border-t border-line pt-5" aria-label="Notes">
+      <h2 className="mb-3 text-[12px] tracking-wide text-fg-muted uppercase">
+        Notes
+      </h2>
+      <ol className="space-y-1.5">
+        {notes.map((note) => (
+          <li
+            key={note.id}
+            id={`note-${note.id}`}
+            className="flex gap-2.5 text-[12.5px] leading-relaxed text-fg-muted"
+          >
+            <span className="shrink-0 font-mono text-[11px] text-fg-subtle">
+              {note.number}.
+            </span>
+            <span className="min-w-0">{note.text}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -90,9 +125,13 @@ function ReadOnlyBlock({
         // Sanitised at the boundary, in `decodeShare` — by the time a document
         // reaches this component its markup has already been rebuilt from an
         // allowlist, so there is nothing left here to be careful about.
+        // The numbers come from `renderMarkers` rather than the editor's
+        // decoration, which does not exist here — a reader has no editor.
         <div
           className={cn("prose-canvas", face)}
-          dangerouslySetInnerHTML={{ __html: block.html }}
+          dangerouslySetInnerHTML={{
+            __html: renderMarkers(block.html, collectNotes(project.blocks)),
+          }}
         />
       );
 

@@ -12,6 +12,7 @@
 import { DEFAULT_DECK_STYLE, type Block, type Project } from "../types";
 import type { KnowledgeEntry, TeamFile, Workspace } from "../team/types";
 import { computeFormulas } from "../formula";
+import { collectNotes, stripMarkers } from "../notes";
 import { CONTEXT_CHAR_BUDGET, type AIContext } from "./types";
 
 /** Strip HTML to text without a DOM, so this is safe on the server too. */
@@ -46,8 +47,18 @@ export function blockHeading(
 /** One block, as text a language model can read. */
 export function blockToText(block: Block, project: Project): string {
   switch (block.type) {
-    case "text":
-      return htmlToText(block.html);
+    case "text": {
+      // Note text lives in an attribute, so tag-stripping alone would hand the
+      // model a document with the notes silently missing — and then have it
+      // confidently say the argument is unsupported.
+      const notes = collectNotes([block]);
+      const body = htmlToText(stripMarkers(block.html));
+      return notes.length
+        ? `${body}\n\nNotes in this block:\n${notes
+            .map((n, i) => `[${i + 1}] ${n.text}`)
+            .join("\n")}`
+        : body;
+    }
 
     case "table": {
       const derived = computeFormulas(block.columns, block.rows);

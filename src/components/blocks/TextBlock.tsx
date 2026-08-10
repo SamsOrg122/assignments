@@ -12,11 +12,15 @@ import { Icon } from "@/components/ui/Icon";
 import { SlashMenu } from "@/components/canvas/SlashMenu";
 import { CitePicker } from "@/components/sources/CitePicker";
 import { Citation } from "./citation-extension";
+import { Footnote, footnoteBase } from "./footnote-extension";
+import { NotePopover } from "./NotePopover";
+import { uid } from "@/lib/factories";
 import { imageFrom, prepareImage } from "@/lib/images";
 import { fillImageBlock } from "@/lib/image-block";
 import { insertPiece } from "@/lib/kit/insert";
 import type { KitPiece } from "@/lib/kit";
 import { createImageBlock } from "@/lib/factories";
+import { countMarkers } from "@/lib/notes";
 
 interface Props {
   projectId: string;
@@ -44,8 +48,32 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
 
   const [slash, setSlash] = useState<SlashState | null>(null);
   const [cite, setCite] = useState<{ x: number; y: number } | null>(null);
+  /** `pos` is null for a note being written for the first time. */
+  const [note, setNote] = useState<{
+    x: number;
+    y: number;
+    text: string;
+    pos: number | null;
+  } | null>(null);
   const [toolbar, setToolbar] = useState<{ x: number; y: number } | null>(null);
 
+  /**
+   * How many notes stand in front of this block.
+   *
+   * Each block is its own editor, so none of them can see the others' notes.
+   * This is the one number that has to cross the boundary for the sequence to
+   * read as one document.
+   */
+  const noteBase = useProjects((s) => {
+    const project = s.projects.find((p) => p.id === projectId);
+    if (!project) return 0;
+    let n = 0;
+    for (const b of project.blocks) {
+      if (b.id === block.id) break;
+      if (b.type === "text") n += countMarkers(b.html);
+    }
+    return n;
+  });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // Guards the effect that pushes external edits back into the editor.
@@ -104,6 +132,7 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
         placeholder: "Write something, or press / for a block",
       }),
       Citation,
+      Footnote,
     ],
     content: block.html,
     editorProps: {
@@ -122,6 +151,22 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
         if (!file) return false;
         event.preventDefault();
         void pasteImage(file);
+        return true;
+      },
+      /**
+       * Clicking a note number opens the note. The alternative — select the
+       * marker, find a menu — is how footnotes become write-only.
+       */
+      handleClickOn: (_view, _pos, node, nodePos, event) => {
+        if (node.type.name !== "footnote") return false;
+        event.preventDefault();
+        const rect = (event.target as HTMLElement).getBoundingClientRect();
+        setNote({
+          x: rect.left,
+          y: rect.bottom + 6,
+          text: String(node.attrs.text ?? ""),
+          pos: nodePos,
+        });
         return true;
       },
     },
@@ -179,6 +224,17 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     held.current = null;
     editor.commands.setContent(block.html, { emitUpdate: false });
   }, [block.html, editor]);
+
+  /* A note added in an earlier block renumbers this one's. The count goes in
+     as a transaction, so the numbering decorations recompute themselves. */
+  useEffect(() => {
+    if (!editor) return;
+    editor.view.dispatch(
+      editor.state.tr
+        .setMeta(footnoteBase, noteBase)
+        .setMeta("addToHistory", false),
+    );
+  }, [editor, noteBase]);
 
   /* Apply what waited, when the caret leaves. */
   useEffect(() => {
@@ -370,6 +426,13 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
             setCite({ x: coords.left, y: coords.bottom + 6 });
             return;
           }
+          // ⌘⇧N — a note at the caret.
+          if (e.key.toLowerCase() === "n" && e.shiftKey && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            const coords = editor.view.coordsAtPos(editor.state.selection.from);
+            setNote({ x: coords.left, y: coords.bottom + 6, text: "", pos: null });
+            return;
+          }
           if (e.key === "/") {
             const { $from, empty, from } = editor.state.selection;
             // Only at the start of an empty block — mid-sentence slashes are
@@ -411,6 +474,57 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
               .insertContent(" ")
               .run();
           }}
+        />
+      )}
+
+      {note && (
+        <NotePopover
+          x={note.x}
+          y={note.y}
+          initial={note.text}
+          onClose={() => setNote(null)}
+          onSave={(text) => {
+            setNote(null);
+            if (note.pos === null) {
+              editor
+                .chain()
+                .focus()
+                .insertContent({
+                  type: "footnote",
+                  attrs: { noteId: uid(), text },
+                })
+                .run();
+              return;
+            }
+            const at = note.pos;
+            editor
+              .chain()
+              .focus()
+              .command(({ tr }) => {
+                const existing = tr.doc.nodeAt(at);
+                if (!existing) return false;
+                tr.setNodeMarkup(at, undefined, { ...existing.attrs, text });
+                return true;
+              })
+              .run();
+          }}
+          onRemove={
+            note.pos === null
+              ? undefined
+              : () => {
+                  const at = note.pos!;
+                  setNote(null);
+                  editor
+                    .chain()
+                    .focus()
+                    // An atom is one position wide, marker and note together.
+                    .command(({ tr }) => {
+                      tr.delete(at, at + 1);
+                      return true;
+                    })
+                    .run();
+                }
+          }
         />
       )}
 

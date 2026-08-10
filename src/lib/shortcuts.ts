@@ -44,6 +44,7 @@ export const SHORTCUTS: ShortcutGroup[] = [
       { keys: "/", what: "Insert a block — table, chart, slides, code" },
       { keys: "⌘F", what: "Find and replace in this project" },
       { keys: "⌘B / ⌘I", what: "Bold, italic" },
+      { keys: "⌘⇧N", what: "Add a note at the caret — click the number to edit it" },
       { keys: "⌘⇧F", what: "Focus mode" },
       { keys: "⌘Z", what: "Undo" },
     ],

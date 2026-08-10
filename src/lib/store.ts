@@ -70,6 +70,8 @@ interface ProjectsState {
   updateSource: (projectId: string, sourceId: string, patch: Partial<Source>) => void;
   removeSource: (projectId: string, sourceId: string) => void;
   setCitationStyle: (projectId: string, style: CitationStyle) => void;
+  /** Whether notes print at the foot of the page or all together at the end. */
+  setNotePlacement: (projectId: string, placement: "foot" | "end") => void;
   /**
    * Re-derive every in-text citation label from its source. Called whenever the
    * style changes or a source is edited, so markers can never go stale.
@@ -437,6 +439,14 @@ export const useProjects = create<ProjectsState>()(
         }));
         get().refreshCitations(projectId);
       },
+
+      setNotePlacement: (projectId, notePlacement) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            notePlacement,
+          })),
+        })),
 
       refreshCitations: (projectId) =>
         set((s) => ({

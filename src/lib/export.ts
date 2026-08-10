@@ -21,6 +21,7 @@ import { collectNotes, renderMarkers } from "./notes";
 import { anchorHeadings, headings } from "./toc";
 import { DEFAULT_PAGE, pageCss, textWidth } from "./page";
 import { figureFor, figureLabels, renderRefs } from "./figures";
+import { renderMathIn } from "./math";
 import type { Project } from "./types";
 
 export type ExportFormat = "pdf" | "doc" | "html" | "markdown";
@@ -48,7 +49,13 @@ function bodyHtml(project: Project): string {
         // Markers become numbered anchors here: the number is a decoration on
         // screen, and an exported file has no editor to decorate it.
         parts.push(
-          anchorHeadings(renderRefs(renderMarkers(block.html, notes), labels), block.id),
+          anchorHeadings(
+            renderMathIn(
+              renderRefs(renderMarkers(block.html, notes), labels),
+              true,
+            ),
+            block.id,
+          ),
         );
         break;
 

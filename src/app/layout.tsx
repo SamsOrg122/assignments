@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
+// KaTeX ships its own stylesheet and fonts; Next bundles both from here, so an
+// equation renders offline and nothing is fetched from a CDN.
+import "katex/dist/katex.min.css";
 import { APPEARANCE_BOOT_SCRIPT } from "@/lib/appearance";
 
 export const metadata: Metadata = {

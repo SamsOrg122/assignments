@@ -942,6 +942,27 @@
   color: inherit;
   text-decoration: none;
 }
+/* Equations. KaTeX brings its own type; these are only about how one sits in
+   a line of prose, and how a broken one reads. */
+.prose-canvas .math {
+  cursor: pointer;
+}
+.prose-canvas .math-display {
+  display: block;
+  margin: 0.9em 0;
+  text-align: center;
+}
+.prose-canvas .math-broken,
+.math-broken {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--color-danger);
+  border-bottom: 1px dotted var(--color-danger);
+}
+.math-preview .katex-display {
+  margin: 0;
+}
+
 /*
  * Proposed changes.
  *

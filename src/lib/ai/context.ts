@@ -14,6 +14,7 @@ import type { KnowledgeEntry, TeamFile, Workspace } from "../team/types";
 import { computeFormulas } from "../formula";
 import { knownWords } from "../dictionary";
 import { collectNotes, stripMarkers } from "../notes";
+import { mathToText } from "../math";
 import { CONTEXT_CHAR_BUDGET, type AIContext } from "./types";
 
 /** Strip HTML to text without a DOM, so this is safe on the server too. */
@@ -53,7 +54,9 @@ export function blockToText(block: Block, project: Project): string {
       // model a document with the notes silently missing — and then have it
       // confidently say the argument is unsupported.
       const notes = collectNotes([block]);
-      const body = htmlToText(stripMarkers(block.html));
+      // Equations reach the model as their LaTeX. Stripping tags alone would
+      // hand it a sentence with a hole where the maths was.
+      const body = htmlToText(mathToText(stripMarkers(block.html)));
       return notes.length
         ? `${body}\n\nNotes in this block:\n${notes
             .map((n, i) => `[${i + 1}] ${n.text}`)

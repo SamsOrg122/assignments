@@ -23,6 +23,7 @@ import { proseVars } from "@/lib/doc-presets";
 import { collectNotes, renderMarkers } from "@/lib/notes";
 import { headings } from "@/lib/toc";
 import { figureFor, figureLabels, renderRefs } from "@/lib/figures";
+import { renderMathIn } from "@/lib/math";
 import { routeConnector } from "@/lib/board-routing";
 import { bounds } from "@/lib/geometry";
 import { chartData, renderChart } from "@/components/blocks/ChartBlock";
@@ -132,9 +133,11 @@ function ReadOnlyBlock({
         <div
           className={cn("prose-canvas", face)}
           dangerouslySetInnerHTML={{
-            __html: renderRefs(
-              renderMarkers(block.html, collectNotes(project.blocks)),
-              figureLabels(project.blocks),
+            __html: renderMathIn(
+              renderRefs(
+                renderMarkers(block.html, collectNotes(project.blocks)),
+                figureLabels(project.blocks),
+              ),
             ),
           }}
         />

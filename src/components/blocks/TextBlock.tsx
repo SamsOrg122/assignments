@@ -23,6 +23,8 @@ import {
 import { LOCAL_USER } from "@/lib/realtime";
 import { RefPicker } from "./RefPicker";
 import { NotePopover } from "./NotePopover";
+import { MathNode } from "./math-extension";
+import { MathPopover } from "./MathPopover";
 import { uid } from "@/lib/factories";
 import { imageFrom, prepareImage } from "@/lib/images";
 import { fillImageBlock } from "@/lib/image-block";
@@ -72,6 +74,14 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     pos: number | null;
   } | null>(null);
   const [ref, setRef] = useState<{ x: number; y: number } | null>(null);
+  /** `pos` is null while the equation is being written for the first time. */
+  const [math, setMath] = useState<{
+    x: number;
+    y: number;
+    latex: string;
+    display: boolean;
+    pos: number | null;
+  } | null>(null);
   const [toolbar, setToolbar] = useState<{ x: number; y: number } | null>(null);
 
   /**
@@ -163,6 +173,7 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
       Citation,
       Footnote,
       Reference,
+      MathNode,
       SuggestInsert,
       SuggestDelete,
       Suggesting,
@@ -475,6 +486,28 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     <div ref={containerRef} className="relative px-1">
       <EditorContent
         editor={editor}
+        /*
+         * Equations are opened from here rather than through ProseMirror's own
+         * click handling: the node view owns its DOM, so a click lands inside
+         * KaTeX's markup and the editor is not always the one told about it.
+         * Asking the DOM which node was clicked is the version that always
+         * works.
+         */
+        onClick={(e) => {
+          const host = (e.target as HTMLElement | null)?.closest?.("[data-math]");
+          if (!(host instanceof HTMLElement)) return;
+          const pos = editor.view.posAtDOM(host, 0);
+          const node = editor.state.doc.nodeAt(pos);
+          if (!node || node.type.name !== "math") return;
+          const box = host.getBoundingClientRect();
+          setMath({
+            x: box.left,
+            y: box.bottom + 6,
+            latex: String(node.attrs.latex ?? ""),
+            display: Boolean(node.attrs.display),
+            pos,
+          });
+        }}
         onKeyDown={(e) => {
           if (slash) {
             // While the menu is open it owns the arrows and Enter.
@@ -498,6 +531,19 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
             e.preventDefault();
             const coords = editor.view.coordsAtPos(editor.state.selection.from);
             setRef({ x: coords.left, y: coords.bottom + 6 });
+            return;
+          }
+          // ⌘⇧M — an equation at the caret.
+          if (e.key.toLowerCase() === "m" && e.shiftKey && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            const coords = editor.view.coordsAtPos(editor.state.selection.from);
+            setMath({
+              x: coords.left,
+              y: coords.bottom + 6,
+              latex: "",
+              display: false,
+              pos: null,
+            });
             return;
           }
           // ⌘⇧N — a note at the caret.
@@ -569,6 +615,55 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
               .insertContent(" ")
               .run();
           }}
+        />
+      )}
+
+      {math && (
+        <MathPopover
+          x={math.x}
+          y={math.y}
+          initial={math.latex}
+          initialDisplay={math.display}
+          onClose={() => setMath(null)}
+          onSave={(latex, display) => {
+            const at = math.pos;
+            setMath(null);
+            if (at === null) {
+              editor
+                .chain()
+                .focus()
+                .insertContent({ type: "math", attrs: { latex, display } })
+                .insertContent(" ")
+                .run();
+              return;
+            }
+            editor
+              .chain()
+              .focus()
+              .command(({ tr }) => {
+                const existing = tr.doc.nodeAt(at);
+                if (!existing) return false;
+                tr.setNodeMarkup(at, undefined, { latex, display });
+                return true;
+              })
+              .run();
+          }}
+          onRemove={
+            math.pos === null
+              ? undefined
+              : () => {
+                  const at = math.pos!;
+                  setMath(null);
+                  editor
+                    .chain()
+                    .focus()
+                    .command(({ tr }) => {
+                      tr.delete(at, at + 1);
+                      return true;
+                    })
+                    .run();
+                }
+          }
         />
       )}
 

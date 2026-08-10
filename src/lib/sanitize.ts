@@ -37,7 +37,7 @@ const ATTRS: Record<string, Set<string>> = {
   // every note number intact and every note gone — the sort of failure that
   // only surfaces when somebody prints it.
   sup: new Set(["data-footnote", "data-note", "title", "class", "id", "data-n"]),
-  span: new Set(["data-citation", "data-ref", "data-label", "class"]),
+  span: new Set(["data-citation", "data-ref", "data-label", "data-math", "data-display", "class"]),
   ins: new Set(["data-suggest", "data-by", "class"]),
   del: new Set(["data-suggest", "data-by", "class"]),
   th: new Set(["colspan", "rowspan"]),

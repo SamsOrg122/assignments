@@ -14,7 +14,8 @@ export type BlockType =
   | "slides"
   | "code"
   | "image"
-  | "bibliography";
+  | "bibliography"
+  | "toc";
 
 export interface BlockBase {
   id: string;
@@ -367,6 +368,19 @@ export interface Snapshot {
   blocks: Block[];
 }
 
+/**
+ * A contents page, derived from the document's headings every time it renders.
+ *
+ * It is a block rather than a fixed strip at the top because *where* it sits
+ * is part of the document — after the title page, before the introduction, and
+ * in an appendix sometimes twice.
+ */
+export interface TocBlock extends BlockBase {
+  type: "toc";
+  /** Deepest heading level listed. Default 3 — everything. */
+  depth?: number;
+}
+
 export type Block =
   | TextBlock
   | TableBlock
@@ -374,7 +388,8 @@ export type Block =
   | SlidesBlock
   | CodeBlock
   | ImageBlock
-  | BibliographyBlock;
+  | BibliographyBlock
+  | TocBlock;
 
 /* ── Board ──────────────────────────────────────────────── */
 

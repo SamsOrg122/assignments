@@ -106,6 +106,11 @@ export function blockToText(block: Block, project: Project): string {
       return (project.sources ?? [])
         .map((s) => `${s.authors.map((a) => a.family).join(", ")} — ${s.title}`)
         .join("\n");
+
+    case "toc":
+      // Derived from the headings the model can already see. Repeating them
+      // would spend context on saying the same thing twice.
+      return "[contents page — built from the headings below]";
   }
 }
 

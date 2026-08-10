@@ -18,6 +18,7 @@ import { formatReference, sortSources } from "./sources";
 import { htmlToText } from "./ai/context";
 import { computeFormulas } from "./formula";
 import { collectNotes, renderMarkers } from "./notes";
+import { anchorHeadings, headings } from "./toc";
 import type { Project } from "./types";
 
 export type ExportFormat = "pdf" | "doc" | "html" | "markdown";
@@ -35,16 +36,32 @@ export const EXPORT_LABELS: Record<ExportFormat, string> = {
 function bodyHtml(project: Project): string {
   const style = project.citationStyle ?? "apa";
   const notes = collectNotes(project.blocks);
+  const heads = headings(project.blocks);
   const parts: string[] = [];
 
   for (const block of project.blocks) {
     switch (block.type) {
       case "text":
-        // Markers become numbered anchors here: the CSS counter that numbers
-        // them on screen belongs to a stylesheet the exported file does not
-        // have, so the number has to be in the markup.
-        parts.push(renderMarkers(block.html, notes));
+        // Markers become numbered anchors here: the number is a decoration on
+        // screen, and an exported file has no editor to decorate it.
+        parts.push(anchorHeadings(renderMarkers(block.html, notes), block.id));
         break;
+
+      case "toc": {
+        const entries = heads.filter((h) => h.level <= (block.depth ?? 3));
+        if (!entries.length) break;
+        parts.push(
+          `<nav class="toc"><h2>${esc(block.title ?? "Contents")}</h2><ol>` +
+            entries
+              .map(
+                (h) =>
+                  `<li class="toc-l${h.level}"><a href="#${h.id}">${esc(h.text)}</a></li>`,
+              )
+              .join("") +
+            `</ol></nav>`,
+        );
+        break;
+      }
 
       case "table": {
         const derived = computeFormulas(block.columns, block.rows);
@@ -203,6 +220,13 @@ const PRINT_CSS = `
   .notes h2 { font-size: 11pt; margin: 0 0 .5em; }
   .notes li { margin-bottom: .35em; }
   .note-back { text-decoration: none; color: #777; }
+  .toc { margin: 1.5em 0 2em; page-break-after: avoid; }
+  .toc h2 { font-size: 13pt; margin: 0 0 .5em; }
+  .toc ol { list-style: none; padding: 0; margin: 0; }
+  .toc li { margin-bottom: .2em; }
+  .toc a { color: inherit; text-decoration: none; }
+  .toc-l2 { padding-left: 1.2em; }
+  .toc-l3 { padding-left: 2.4em; font-size: 11pt; }
   sup a { text-decoration: none; }
 `;
 

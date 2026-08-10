@@ -30,6 +30,7 @@ import { SlidesBlock } from "@/components/blocks/SlidesBlock";
 import { CodeBlock } from "@/components/blocks/CodeBlock";
 import { ImageBlock } from "@/components/blocks/ImageBlock";
 import { BibliographyBlock } from "@/components/blocks/BibliographyBlock";
+import { TocBlock } from "@/components/blocks/TocBlock";
 import { Icon } from "@/components/ui/Icon";
 import { BLOCK_META } from "@/components/shell/CommandPalette";
 import { imageFrom, prepareImage } from "@/lib/images";
@@ -44,6 +45,7 @@ const ADDABLE: BlockType[] = [
   "slides",
   "image",
   "code",
+  "toc",
   "bibliography",
 ];
 
@@ -292,5 +294,7 @@ function BlockBody({
       return <ImageBlock projectId={projectId} block={block} />;
     case "bibliography":
       return <BibliographyBlock projectId={projectId} block={block} />;
+    case "toc":
+      return <TocBlock projectId={projectId} block={block} />;
   }
 }

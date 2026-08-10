@@ -21,6 +21,7 @@ import { computeFormulas } from "@/lib/formula";
 import { formatReference, sortSources } from "@/lib/sources";
 import { proseVars } from "@/lib/doc-presets";
 import { collectNotes, renderMarkers } from "@/lib/notes";
+import { headings } from "@/lib/toc";
 import { routeConnector } from "@/lib/board-routing";
 import { bounds } from "@/lib/geometry";
 import { chartData, renderChart } from "@/components/blocks/ChartBlock";
@@ -241,6 +242,34 @@ function ReadOnlyBlock({
             />
           ))}
         </div>
+      );
+    }
+
+    case "toc": {
+      const entries = headings(project.blocks).filter(
+        (h) => h.level <= (block.depth ?? 3),
+      );
+      if (!entries.length) return null;
+      return (
+        <nav className="rounded-md border border-line bg-surface px-4 py-3.5">
+          <h2 className="mb-2.5 text-[12px] tracking-wide text-fg-muted uppercase">
+            {block.title ?? "Contents"}
+          </h2>
+          <ol className="space-y-0.5">
+            {entries.map((entry) => (
+              <li
+                key={entry.id}
+                style={{ paddingLeft: `${(entry.level - 1) * 16}px` }}
+                className={cn(
+                  "text-[13px]",
+                  entry.level === 1 ? "font-medium text-fg" : "text-fg-muted",
+                )}
+              >
+                {entry.text}
+              </li>
+            ))}
+          </ol>
+        </nav>
       );
     }
   }

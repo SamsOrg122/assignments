@@ -158,6 +158,12 @@ export const BLOCK_META: Record<
     hint: "Auto-formatted from your sources",
     keywords: "references works cited sources citations apa mla chicago harvard",
   },
+  toc: {
+    label: "Contents",
+    icon: "list",
+    hint: "Built from your headings, always current",
+    keywords: "table of contents toc outline index headings navigation",
+  },
 };
 
 /**

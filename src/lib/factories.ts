@@ -171,6 +171,8 @@ export function createBlock(type: BlockType, source?: TableBlock): Block {
         title: "References",
         scope: "all",
       };
+    case "toc":
+      return { id: uid(), type: "toc", title: "Contents", depth: 3 };
   }
 }
 

@@ -23,6 +23,7 @@ const ORDER: BlockType[] = [
   "slides",
   "image",
   "code",
+  "toc",
   "bibliography",
 ];
 

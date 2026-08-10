@@ -54,7 +54,8 @@ export type IconName =
   | "lock"
   | "unlock"
   | "group"
-  | "map";
+  | "map"
+  | "list";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   search: (
@@ -64,6 +65,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   plus: <path d="M8 3.5v9M3.5 8h9" />,
+  list: (
+    <>
+      <path d="M6 4.5h7.5M6 8h7.5M6 11.5h5" />
+      <path d="M3 4.5h.01M3 8h.01M3 11.5h.01" />
+    </>
+  ),
   text: <path d="M4 4h8M8 4v8M6.5 12h3" />,
   table: (
     <>

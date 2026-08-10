@@ -10,7 +10,7 @@ import {
 import { IMPACT, percent } from "@/lib/impact/config";
 
 export const metadata: Metadata = {
-  title: "Terms, privacy and cookies — Assignments",
+  title: "Terms, privacy and cookies",
   description:
     "What we do with your work and your data, in plain words. A draft, not yet reviewed by a lawyer.",
 };

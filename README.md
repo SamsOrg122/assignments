@@ -1,4 +1,4 @@
-# Assignments
+# Tougather
 
 `/` is the public landing page. The app lives at `/library`.
 

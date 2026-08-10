@@ -20,7 +20,7 @@ import {
 const SHARE = percent(IMPACT.shareOfRevenue.value);
 
 export const metadata: Metadata = {
-  title: `Better for the future — ${SHARE} of revenue | Assignments`,
+  title: `Better for the future — ${SHARE} of revenue`,
   description:
     `Where ${SHARE} of every euro goes, what the other ${percent(1 - IMPACT.shareOfRevenue.value)} pays for, ` +
     `and which of these numbers are confirmed rather than intended.`,

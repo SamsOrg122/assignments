@@ -27,7 +27,7 @@ export function Hero() {
         </h1>
 
         <p className="mt-6 max-w-[54ch] text-[clamp(16px,2vw,19px)] leading-relaxed text-fg-muted text-pretty">
-          Assignments is an AI-native workspace for entrepreneurs and students.
+          Tougather is an AI-native workspace for entrepreneurs and students.
           Write a thesis, build a deck, sketch on an infinite board, keep your
           team&apos;s files and memory in one place — without four subscriptions and
           six tabs.

@@ -3,8 +3,8 @@
 /**
  * The banner at the top of the page: one photograph, one word over it.
  *
- * The word is the whole idea. It says "Assignments", then becomes the things
- * Assignments replaces — Documents, Presentations, Spreadsheets, Whiteboards —
+ * The word is the whole idea. It says "Tougather", then becomes the things
+ * Tougather replaces — Documents, Presentations, Spreadsheets, Whiteboards —
  * and comes back. Nobody reads a feature list at the top of a landing page;
  * they will watch a word change four times.
  *
@@ -28,7 +28,7 @@ import { useReducedMotion } from "@/lib/use-reduced-motion";
  * "and all of it is this".
  */
 const WORDS: Array<{ word: string; mark: MarkShape }> = [
-  { word: "Assignments", mark: "notch" },
+  { word: "Tougather", mark: "notch" },
   { word: "Documents", mark: "circle" },
   { word: "Presentations", mark: "square" },
   { word: "Spreadsheets", mark: "triangle" },
@@ -130,7 +130,7 @@ export function HeroBanner() {
         {/* One accessible name for the whole thing, whatever the letters are
             doing — a screen reader should hear the product, not a slot
             machine. */}
-        <p className="sr-only">Assignments</p>
+        <p className="sr-only">Tougather</p>
 
         <span
           aria-hidden="true"

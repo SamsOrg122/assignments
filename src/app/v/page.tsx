@@ -11,7 +11,7 @@ import { ViewerClient } from "./ViewerClient";
  */
 export const metadata: Metadata = {
   title: "Shared view",
-  description: "A project shared from Assignments, read-only.",
+  description: "A project shared from Tougather, read-only.",
   // Nothing to index: the page is empty without the fragment it was sent with.
   robots: { index: false, follow: false },
 };

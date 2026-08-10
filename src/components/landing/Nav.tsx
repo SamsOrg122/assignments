@@ -74,7 +74,7 @@ export function Nav() {
             />
           </svg>
           <span className="nav-wordmark text-[17px] leading-none tracking-[-0.01em]">
-            Assignments
+            Tougather
           </span>
         </Link>
 
@@ -103,7 +103,7 @@ export function Nav() {
             href="/library"
             className="hidden rounded-sm px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:text-fg sm:block"
           >
-            Open Assignments
+            Open Tougather
           </Link>
           <Link
             href="/library"

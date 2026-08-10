@@ -21,6 +21,9 @@
  * the first time they change browser.
  */
 
+// Named before the rebrand, and deliberately unchanged: this is the address
+// of everybody's stored fonts and pictures, not a label anyone reads. A new
+// name would open an empty database. See `lib/persistence/index.ts`.
 const DB = "assignments";
 const STORE = "kit";
 const VERSION = 1;

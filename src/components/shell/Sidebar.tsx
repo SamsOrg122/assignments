@@ -207,9 +207,9 @@ export function Sidebar() {
               aria-hidden="true"
               className="grid size-5 place-items-center rounded-[5px] bg-fg text-[11px] font-semibold text-canvas"
             >
-              A
+              T
             </span>
-            Assignments
+            Tougather
           </Link>
           <button
             type="button"

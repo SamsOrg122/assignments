@@ -23,7 +23,15 @@
  * server is the promise being made to the free plan.
  */
 
-/** Every store that owns a slice of the workspace. Order is irrelevant. */
+/**
+ * Every store that owns a slice of the workspace. Order is irrelevant.
+ *
+ * The `assignments:` prefix is the product's old name and it stays. These are
+ * *addresses*, not labels: renaming them would point the app at empty slots
+ * and every existing user would open Tougather to find their work gone. The
+ * same goes for the IndexedDB database in `lib/kit/blobs.ts` and for
+ * `BACKUP_FORMAT` below. A rebrand is not worth a single lost thesis.
+ */
 export const STORAGE_KEYS = [
   "assignments:projects:v1",
   "assignments:chat:v1",
@@ -42,6 +50,10 @@ export const STORAGE_KEYS = [
  */
 export const BACKUP_BLOBS = "kitBlobs";
 
+/**
+ * Stamped into every backup file ever exported. Changing it would make each
+ * one unreadable by the app that wrote it — see the note on STORAGE_KEYS.
+ */
 export const BACKUP_FORMAT = "assignments.backup";
 export const BACKUP_VERSION = 1;
 
@@ -150,7 +162,7 @@ export function buildBackup(
 
 export function backupFilename(now: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `assignments-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.json`;
+  return `tougather-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.json`;
 }
 
 /**
@@ -208,10 +220,10 @@ export function parseBackup(text: string): Backup {
 
   const backup = parsed as Partial<Backup>;
   if (backup?.format !== BACKUP_FORMAT)
-    throw new BackupError("That isn't an Assignments backup file.");
+    throw new BackupError("That isn't a Tougather backup file.");
   if (typeof backup.version !== "number" || backup.version > BACKUP_VERSION)
     throw new BackupError(
-      "That backup was made by a newer version of Assignments.",
+      "That backup was made by a newer version of Tougather.",
     );
   if (!backup.data || typeof backup.data !== "object")
     throw new BackupError("That backup is empty or damaged.");

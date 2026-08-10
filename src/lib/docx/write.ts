@@ -271,7 +271,7 @@ export function buildDocx(project: Project): Uint8Array {
   const notes = new Map(noteList.map((n) => [n.id, n.number]));
   const media = mediaFrom(project);
   const stamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
-  const ctx: InlineContext = { notes, media, author: "Assignments", stamp };
+  const ctx: InlineContext = { notes, media, author: "Tougather", stamp };
   const style = project.citationStyle ?? "apa";
 
   const body: string[] = [];

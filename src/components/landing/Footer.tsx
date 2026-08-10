@@ -35,7 +35,7 @@ const COLUMNS: Array<{ title: string; links: FooterLink[] }> = [
       { label: "Overview", href: "/#product" },
       { label: "Features", href: "/#features" },
       { label: "Pricing", href: "/pricing" },
-      { label: "Open Assignments", href: "/library" },
+      { label: "Open Tougather", href: "/library" },
     ],
   },
   {
@@ -71,9 +71,9 @@ export function Footer() {
                 aria-hidden="true"
                 className="grid size-6 place-items-center rounded-sm bg-fg text-[11px] font-semibold text-canvas"
               >
-                A
+                T
               </span>
-              Assignments
+              Tougather
             </Link>
             <p className="mt-3 max-w-[38ch] text-[13px] leading-relaxed text-fg-muted text-pretty">
               Everything you make, in one place — and{" "}
@@ -125,7 +125,7 @@ export function Footer() {
 
         <div className="mt-12 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[11.5px] text-fg-subtle">
-            © {new Date().getFullYear()} Assignments.
+            © {new Date().getFullYear()} Tougather · tougather.com
           </p>
           <p className="max-w-[62ch] text-[11.5px] leading-relaxed text-fg-subtle text-pretty">
             Figures marked provisional on this page are working assumptions, not

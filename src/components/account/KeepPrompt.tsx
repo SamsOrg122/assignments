@@ -46,7 +46,7 @@ export function KeepPrompt() {
         <span className="text-fg">
           This is saved in this browser only.
         </span>{" "}
-        Open Assignments on another computer — or in a different browser here —
+        Open Tougather on another computer — or in a different browser here —
         and none of it will be there. An account is what carries it across.
       </p>
       <span className="flex shrink-0 items-center gap-2">

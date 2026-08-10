@@ -229,7 +229,7 @@ export const CAUSES: Cause[] = [
     id: "access",
     name: "Study access",
     unit: { one: "student-month", many: "student-months" },
-    blurb: "Assignments, free, for students who cannot pay for their tools.",
+    blurb: "Tougather, free, for students who cannot pay for their tools.",
     costPerUnit: {
       value: { low: 1.2, high: 1.2 },
       status: "confirmed",

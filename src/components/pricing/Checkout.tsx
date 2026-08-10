@@ -73,7 +73,7 @@ export function Checkout() {
             href="/library"
             className="rounded-md bg-accent px-3 py-2 text-[13px] font-medium text-on-accent transition-[filter] hover:brightness-110"
           >
-            Open Assignments free
+            Open Tougather free
           </Link>
         </div>
       </div>

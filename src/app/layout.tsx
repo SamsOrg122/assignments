@@ -8,9 +8,17 @@ import "katex/dist/katex.min.css";
 import { APPEARANCE_BOOT_SCRIPT } from "@/lib/appearance";
 
 export const metadata: Metadata = {
+  /*
+   * Without this, Next resolves Open Graph and canonical URLs against
+   * localhost and every link preview a shared page produces points at a
+   * machine nobody else can reach.
+   */
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://tougather.com",
+  ),
   title: {
-    default: "Assignments — everything, in one",
-    template: "%s · Assignments",
+    default: "Tougather — everything, in one",
+    template: "%s · Tougather",
   },
   description:
     "A beautiful, AI-native workspace for entrepreneurs and students. Write, present, draw and organise in one place — and a fixed share of every euro is set aside for planting trees.",

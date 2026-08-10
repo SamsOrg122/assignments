@@ -117,7 +117,7 @@ export async function POST(request: Request) {
               Authorization: `Bearer ${key}`,
               "Content-Type": "application/json",
               ...(referer ? { "HTTP-Referer": referer } : {}),
-              "X-Title": "Assignments",
+              "X-Title": "Tougather",
             },
             body: JSON.stringify({
               model,

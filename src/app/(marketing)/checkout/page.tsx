@@ -6,7 +6,7 @@ import { Section } from "@/components/landing/primitives";
 import { Checkout } from "@/components/pricing/Checkout";
 
 export const metadata: Metadata = {
-  title: "Checkout — Assignments",
+  title: "Checkout",
   robots: { index: false },
 };
 

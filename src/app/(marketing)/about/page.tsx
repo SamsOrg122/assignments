@@ -3,7 +3,7 @@ import Link from "next/link";
 import { H2, NotYet, P, PageShell } from "@/components/landing/PageShell";
 
 export const metadata: Metadata = {
-  title: "About — Assignments",
+  title: "About",
   description:
     "Why a single workspace instead of four, and what this company is and is not.",
 };

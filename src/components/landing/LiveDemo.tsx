@@ -69,7 +69,7 @@ export function LiveDemo() {
           <span className="mx-auto hidden max-w-[280px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-sm border border-line bg-black/25 px-2.5 py-1 sm:flex">
             <Icon name="focus" size={9} className="shrink-0 text-fg-subtle" />
             <span className="truncate font-mono text-[10.5px] text-fg-subtle">
-              assignments/library
+              tougather.com/library
             </span>
           </span>
 
@@ -86,7 +86,7 @@ export function LiveDemo() {
             <iframe
               // The app ships empty; the demo frame asks for the samples.
               src="/library?demo=1"
-              title="Assignments, running live"
+              title="Tougather, running live"
               loading="lazy"
               onLoad={() => setReady(true)}
               className={cn(

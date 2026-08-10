@@ -1,4 +1,4 @@
--- Assignments — database schema.
+-- Tougather — database schema.
 --
 -- What `lib/db/supabase.ts` is written against. Run it once against a new
 -- project, then turn on anonymous sign-ins in Authentication → Providers: the

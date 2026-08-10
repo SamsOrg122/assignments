@@ -353,7 +353,7 @@ export function exportProject(project: Project, format: ExportFormat): void {
         `${name}.doc`,
         wrapDocument(
           project,
-          `<meta name="ProgId" content="Word.Document" /><meta name="Generator" content="Assignments" />`,
+          `<meta name="ProgId" content="Word.Document" /><meta name="Generator" content="Tougather" />`,
         ),
         "application/msword",
       );

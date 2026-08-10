@@ -165,13 +165,13 @@ export function PagePanel({
 
       <Row label="Language">
         <input
-          list="assignments-languages"
+          list="tougather-languages"
           value={language}
           onChange={(e) => setLanguage(projectId, e.target.value.trim())}
           aria-label="Document language"
           className="w-full rounded-sm border border-line bg-surface-2 px-1.5 py-1 text-[12px] text-fg outline-none focus:border-accent"
         />
-        <datalist id="assignments-languages">
+        <datalist id="tougather-languages">
           {LANGUAGES.map((l) => (
             <option key={l.tag} value={l.tag}>
               {l.label}

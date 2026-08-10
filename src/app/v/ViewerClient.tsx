@@ -100,7 +100,7 @@ export function ViewerClient() {
               strokeLinejoin="round"
             />
           </svg>
-          Assignments
+          Tougather
         </Link>
 
         {state.status === "ready" && (
@@ -172,7 +172,7 @@ function Explain({ title, body }: { title: string; body: string }) {
           href="/"
           className="mt-4 inline-block text-[12.5px] text-accent transition-opacity hover:opacity-80"
         >
-          Go to Assignments
+          Go to Tougather
         </Link>
       </div>
     </div>

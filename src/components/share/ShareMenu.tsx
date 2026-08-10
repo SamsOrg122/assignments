@@ -38,6 +38,12 @@ const MODES: Array<{
     blurb: (name) => `Opens ${name} as a reader. Nothing to change, nothing to break.`,
   },
   {
+    value: "suggest",
+    label: "Can suggest",
+    blurb: (name) =>
+      `Opens ${name} with suggesting on: what they type is proposed, and you decide what to keep.`,
+  },
+  {
     value: "edit",
     label: "Can help",
     blurb: (name) =>
@@ -65,7 +71,7 @@ export function ShareMenu({ project }: { project: Project }) {
       // Choosing "can help" is what opens the room. Building the link and
       // opening the session are the same intent, so they are the same action —
       // otherwise the first person to follow the link finds nobody there.
-      if (permission === "edit") startSharing(project.id);
+      if (permission === "edit" || permission === "suggest") startSharing(project.id);
       shareLink(project, permission).then(
         (url) => {
           setLink(url);
@@ -186,7 +192,13 @@ export function ShareMenu({ project }: { project: Project }) {
               ref={inputRef}
               readOnly
               value={link ?? "Building the link…"}
-              aria-label={mode === "edit" ? "Edit link" : "View link"}
+              aria-label={
+                mode === "edit"
+                  ? "Edit link"
+                  : mode === "suggest"
+                    ? "Suggest link"
+                    : "View link"
+              }
               onFocus={(e) => e.currentTarget.select()}
               className="min-w-0 flex-1 rounded-sm border border-line bg-canvas px-2 py-1.5 font-mono text-[10.5px] text-fg-muted outline-none focus:border-line-strong"
             />

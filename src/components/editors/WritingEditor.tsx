@@ -21,6 +21,8 @@ import { Icon } from "@/components/ui/Icon";
 import { ProjectTopBar } from "./ProjectTopBar";
 import { TypographyPanel } from "./TypographyPanel";
 import { PagePanel } from "./PagePanel";
+import { SuggestionsPanel } from "./SuggestionsPanel";
+import { countSuggestions } from "@/lib/suggestions";
 import { FindReplace } from "./FindReplace";
 import { DictationBar } from "./DictationBar";
 import { Canvas } from "@/components/canvas/Canvas";
@@ -41,9 +43,12 @@ export function WritingEditor({
   const focusMode = useUI((s) => s.focusMode);
   const setFocusMode = useUI((s) => s.setFocusMode);
   const openAI = useUI((s) => s.openAI);
+  const suggestMode = useUI((s) => s.suggestMode);
+  const setSuggestMode = useUI((s) => s.setSuggestMode);
 
   const [typeOpen, setTypeOpen] = useState(false);
   const [pageOpen, setPageOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(false);
   const [dictating, setDictating] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -53,6 +58,14 @@ export function WritingEditor({
   const type = project.typography ?? DEFAULT_TYPOGRAPHY;
   const words = useMemo(() => projectWordCount(project), [project]);
   const sections = useMemo(() => outline(project.blocks), [project.blocks]);
+  const proposed = useMemo(
+    () =>
+      project.blocks.reduce(
+        (n, b) => n + (b.type === "text" ? countSuggestions(b.html) : 0),
+        0,
+      ),
+    [project.blocks],
+  );
 
   const progress = project.wordGoal
     ? Math.min(1, words / project.wordGoal)
@@ -152,6 +165,25 @@ export function WritingEditor({
                   />
                 )}
               </span>
+              <IconToggle
+                icon="check"
+                label={suggestMode ? "Suggesting — typing proposes" : "Suggest changes"}
+                active={suggestMode}
+                onClick={() => {
+                  setSuggestMode(!suggestMode);
+                  if (!suggestMode) setReviewOpen(true);
+                }}
+              />
+              <IconToggle
+                icon="users"
+                label={
+                  proposed
+                    ? `Review ${proposed} proposed change${proposed === 1 ? "" : "s"}`
+                    : "Review proposed changes"
+                }
+                active={reviewOpen}
+                onClick={() => setReviewOpen((v) => !v)}
+              />
               <IconToggle
                 icon="focus"
                 label="Focus mode"
@@ -267,6 +299,10 @@ export function WritingEditor({
             {!focusMode && <NotesList project={project} />}
           </div>
         </div>
+
+        {reviewOpen && !focusMode && (
+          <SuggestionsPanel project={project} onClose={() => setReviewOpen(false)} />
+        )}
 
         {outlineOpen && !focusMode && (
           <OutlinePanel

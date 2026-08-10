@@ -71,8 +71,16 @@ export function ViewerClient() {
   // The editor mode takes over the whole page: it brings its own top bar,
   // its own header and a live session, and stacking this page's chrome on top
   // of that would be two headers saying different things.
-  if (state.status === "ready" && state.permission === "edit")
-    return <GuestEditor project={state.project} />;
+  if (
+    state.status === "ready" &&
+    (state.permission === "edit" || state.permission === "suggest")
+  )
+    return (
+      <GuestEditor
+        project={state.project}
+        suggesting={state.permission === "suggest"}
+      />
+    );
 
   return (
     <div className="flex h-full flex-col bg-canvas">

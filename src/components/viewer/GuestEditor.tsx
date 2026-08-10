@@ -18,6 +18,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Project } from "@/lib/types";
 import { useProjects } from "@/lib/store";
+import { useUI } from "@/lib/ui-store";
 import { useCollabSession } from "@/lib/collab/session";
 import { WritingEditor } from "@/components/editors/WritingEditor";
 import { DeckEditor } from "@/components/editors/DeckEditor";
@@ -32,7 +33,14 @@ import { cn } from "@/lib/cn";
 /** Who the guest is to everyone else. Named, not anonymous — see below. */
 const GUEST_COLORS = ["#26a17b", "#c46be0", "#d8a33c", "#e0685b"];
 
-export function GuestEditor({ project }: { project: Project }) {
+export function GuestEditor({
+  project,
+  suggesting = false,
+}: {
+  project: Project;
+  /** A "can suggest" link. Typing proposes; the author decides. */
+  suggesting?: boolean;
+}) {
   const [name, setName] = useState<string | null>(null);
 
   // Loading the sandbox is a write to an external system, so it belongs in an
@@ -41,6 +49,13 @@ export function GuestEditor({ project }: { project: Project }) {
   useEffect(() => {
     useProjects.getState().openSandbox(project);
   }, [project]);
+
+  // The link decided this, so it is set once rather than offered as a toggle
+  // the guest could quietly turn off.
+  useEffect(() => {
+    useUI.getState().setSuggestMode(suggesting);
+    return () => useUI.getState().setSuggestMode(false);
+  }, [suggesting]);
 
   const live = useProjects((s) => s.projects.find((p) => p.id === project.id));
   const ready = Boolean(live);

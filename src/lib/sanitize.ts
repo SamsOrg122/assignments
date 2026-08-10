@@ -24,17 +24,22 @@ const ALLOWED = new Set([
   "ul", "ol", "li", "blockquote", "hr",
   "table", "thead", "tbody", "tr", "th", "td", "caption",
   "span", "figure", "figcaption", "img", "a", "sup", "sub", "mark",
+  // Proposed changes, so a document under review survives a share link.
+  "ins", "del",
 ]);
 
 /** Attributes, per element. Everything else — every `on*` — is discarded. */
 const ATTRS: Record<string, Set<string>> = {
   a: new Set(["href", "title"]),
   img: new Set(["src", "alt", "width", "height"]),
-  span: new Set(["data-citation"]),
-  // A note's text rides on its marker. Dropping these would let a document
-  // survive a share link with every note number intact and every note gone —
-  // the failure would only show up when somebody printed it.
-  sup: new Set(["data-footnote", "data-note", "title", "class", "id"]),
+  // A note's text rides on its marker, and a cross-reference's words ride on
+  // its span. Dropping these would let a document survive a share link with
+  // every note number intact and every note gone — the sort of failure that
+  // only surfaces when somebody prints it.
+  sup: new Set(["data-footnote", "data-note", "title", "class", "id", "data-n"]),
+  span: new Set(["data-citation", "data-ref", "data-label", "class"]),
+  ins: new Set(["data-suggest", "data-by", "class"]),
+  del: new Set(["data-suggest", "data-by", "class"]),
   th: new Set(["colspan", "rowspan"]),
   td: new Set(["colspan", "rowspan"]),
 };

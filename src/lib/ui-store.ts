@@ -39,6 +39,12 @@ interface UIState {
   /** Distraction-free writing. Strips the shell down to the page. */
   focusMode: boolean;
   /**
+   * Typing proposes instead of writing. Session state, not document state: it
+   * is about how *you* are working right now, and it would be wrong for it to
+   * follow the document to somebody else's screen.
+   */
+  suggestMode: boolean;
+  /**
    * A passage the user marked as "this is the voice". Held here rather than in
    * the document because it's a working preference, not content.
    */
@@ -61,6 +67,7 @@ interface UIState {
   closeAI: () => void;
   setFocusedBlock: (blockId: string | null) => void;
   setFocusMode: (on: boolean) => void;
+  setSuggestMode: (on: boolean) => void;
   setVoiceSample: (sample: { text: string; projectId: string } | null) => void;
   notify: (message: string) => void;
   dismissToast: () => void;
@@ -78,6 +85,7 @@ export const useUI = create<UIState>()((set, get) => ({
   aiOpenId: 0,
   focusedBlockId: null,
   focusMode: false,
+  suggestMode: false,
   voiceSample: null,
   toast: null,
   shortcutsOpen: false,
@@ -103,6 +111,7 @@ export const useUI = create<UIState>()((set, get) => ({
 
   setFocusedBlock: (focusedBlockId) => set({ focusedBlockId }),
   setFocusMode: (focusMode) => set({ focusMode }),
+  setSuggestMode: (suggestMode) => set({ suggestMode }),
   setVoiceSample: (voiceSample) => set({ voiceSample }),
 
   notify: (message) => {

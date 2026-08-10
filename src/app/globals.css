@@ -942,6 +942,28 @@
   color: inherit;
   text-decoration: none;
 }
+/*
+ * Proposed changes.
+ *
+ * Green for what would be added, struck red for what would go. Colour is not
+ * the only signal — the underline and the strike carry it too — because a
+ * reviewer who cannot distinguish the two hues still has to be able to read
+ * the proposal.
+ */
+.prose-canvas ins.suggest-insert {
+  text-decoration: underline;
+  text-decoration-color: var(--color-leaf);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  background: var(--color-leaf-soft);
+  color: inherit;
+}
+.prose-canvas del.suggest-delete {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-danger);
+  opacity: 0.62;
+}
+
 /* Cross-references. The words live in `data-label`, which a decoration keeps
    current, so there is exactly one number on screen and it is never stale. */
 .prose-canvas .xref::after {

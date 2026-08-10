@@ -14,6 +14,13 @@ import { CitePicker } from "@/components/sources/CitePicker";
 import { Citation } from "./citation-extension";
 import { Footnote, footnoteBase } from "./footnote-extension";
 import { Reference, referenceLabels } from "./reference-extension";
+import {
+  SuggestDelete,
+  SuggestInsert,
+  Suggesting,
+  suggesting,
+} from "./suggestion-extension";
+import { LOCAL_USER } from "@/lib/realtime";
 import { RefPicker } from "./RefPicker";
 import { NotePopover } from "./NotePopover";
 import { uid } from "@/lib/factories";
@@ -48,6 +55,7 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
   const setVoiceSample = useUI((s) => s.setVoiceSample);
   const voiceSample = useUI((s) => s.voiceSample);
   const notify = useUI((s) => s.notify);
+  const suggestMode = useUI((s) => s.suggestMode);
 
   const [slash, setSlash] = useState<SlashState | null>(null);
   const [cite, setCite] = useState<{ x: number; y: number } | null>(null);
@@ -150,6 +158,9 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
       Citation,
       Footnote,
       Reference,
+      SuggestInsert,
+      SuggestDelete,
+      Suggesting,
     ],
     content: block.html,
     editorProps: {
@@ -239,8 +250,8 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
 
     lastSaved.current = block.html;
     held.current = null;
-    editor.commands.setContent(block.html, { emitUpdate: false });
-  }, [block.html, editor]);
+    replaceContent(editor, block.html, suggestMode);
+  }, [block.html, editor, suggestMode]);
 
   /* A note added in an earlier block renumbers this one's. The count goes in
      as a transaction, so the numbering decorations recompute themselves. */
@@ -264,6 +275,17 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     );
   }, [editor, labelsJson]);
 
+  /* Suggesting is a mode of the editor, carried in as a transaction so undo
+     and the keymap both see the same one source. */
+  useEffect(() => {
+    if (!editor) return;
+    editor.view.dispatch(
+      editor.state.tr
+        .setMeta(suggesting, { on: suggestMode, by: LOCAL_USER.id })
+        .setMeta("addToHistory", false),
+    );
+  }, [editor, suggestMode]);
+
   /* Apply what waited, when the caret leaves. */
   useEffect(() => {
     if (!editor) return;
@@ -275,13 +297,13 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
       // been published — applying theirs now would delete what I just wrote.
       if (typedAt.current > waiting.at) return;
       lastSaved.current = waiting.html;
-      editor.commands.setContent(waiting.html, { emitUpdate: false });
+      replaceContent(editor, waiting.html, suggestMode);
     };
     editor.on("blur", onBlur);
     return () => {
       editor.off("blur", onBlur);
     };
-  }, [editor]);
+  }, [editor, suggestMode]);
 
   /* Track the slash query and the selection toolbar off editor transactions. */
   useEffect(() => {
@@ -595,6 +617,29 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Swap the whole document in without it counting as somebody typing.
+ *
+ * `setContent` is one enormous insertion as far as ProseMirror is concerned,
+ * and the suggesting plugin marks insertions — so applying a collaborator's
+ * version, or the result of accepting a proposal, would mark the *entire
+ * block* as a new suggestion. Pausing the mode across the swap is the only
+ * honest way to tell the two apart: one is a person writing, the other is the
+ * document being replaced.
+ */
+function replaceContent(editor: Editor, html: string, suggestMode: boolean) {
+  const by = LOCAL_USER.id;
+  editor.view.dispatch(
+    editor.state.tr.setMeta(suggesting, { on: false, by }).setMeta("addToHistory", false),
+  );
+  editor.commands.setContent(html, { emitUpdate: false });
+  editor.view.dispatch(
+    editor.state.tr
+      .setMeta(suggesting, { on: suggestMode, by })
+      .setMeta("addToHistory", false),
   );
 }
 

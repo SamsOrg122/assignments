@@ -33,7 +33,7 @@ import { sanitizeHtml, safeImageSrc } from "./sanitize";
  * document to live on a server, which is the same line every other seam here
  * draws.
  */
-export type SharePermission = "view" | "edit";
+export type SharePermission = "view" | "edit" | "suggest";
 
 /**
  * Payload tag: permission, then format. `v1z` is a view link, gzipped; `e1p`
@@ -101,7 +101,7 @@ export async function encodeShare(
 ): Promise<string> {
   const json = JSON.stringify(stripForShare(project));
   const bytes = new TextEncoder().encode(json);
-  const mark = permission === "edit" ? "e" : "v";
+  const mark = permission === "edit" ? "e" : permission === "suggest" ? "s" : "v";
 
   if (typeof CompressionStream === "undefined")
     return `${mark}${PLAIN}.${toBase64Url(bytes)}`;
@@ -188,8 +188,12 @@ export async function decodeShare(payload: string): Promise<DecodedShare | null>
   const tag = payload.slice(0, dot);
   const body = payload.slice(dot + 1);
 
-  const permission: SharePermission = tag.startsWith("e") ? "edit" : "view";
-  const format = tag.replace(/^[ve]/, "");
+  const permission: SharePermission = tag.startsWith("e")
+    ? "edit"
+    : tag.startsWith("s")
+      ? "suggest"
+      : "view";
+  const format = tag.replace(/^[ves]/, "");
 
   let bytes: Uint8Array;
   try {

@@ -173,6 +173,18 @@ export function createBlock(type: BlockType, source?: TableBlock): Block {
       };
     case "toc":
       return { id: uid(), type: "toc", title: "Contents", depth: 3 };
+    case "form":
+      return {
+        id: uid(),
+        type: "form",
+        title: "Untitled form",
+        // One question to start, because an empty form has nothing to click
+        // and the first thing anybody does is rename this one anyway.
+        fields: [
+          { id: uid(), label: "Your name", kind: "short", required: true },
+        ],
+        thanks: "Thanks — your answer has been recorded.",
+      };
   }
 }
 

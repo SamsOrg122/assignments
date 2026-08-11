@@ -25,6 +25,7 @@ const ORDER: BlockType[] = [
   "code",
   "toc",
   "bibliography",
+  "form",
 ];
 
 export function SlashMenu({

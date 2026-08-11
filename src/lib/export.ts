@@ -60,6 +60,29 @@ function bodyHtml(project: Project): string {
         );
         break;
 
+      case "form": {
+        // The questions, as a printed questionnaire. Not the answers: those
+        // belong to the people who gave them, and an export is a document
+        // somebody is about to email to a supervisor.
+        parts.push(
+          `<section class="form"><h2>${esc(block.title ?? "Form")}</h2>` +
+            (block.intro ? `<p>${esc(block.intro)}</p>` : "") +
+            "<ol>" +
+            block.fields
+              .map(
+                (f) =>
+                  `<li>${esc(f.label)}${f.required ? " *" : ""}${
+                    f.options?.length
+                      ? ` <em>(${f.options.map(esc).join(", ")})</em>`
+                      : ""
+                  }</li>`,
+              )
+              .join("") +
+            "</ol></section>",
+        );
+        break;
+      }
+
       case "toc": {
         const entries = heads.filter((h) => h.level <= (block.depth ?? 3));
         if (!entries.length) break;

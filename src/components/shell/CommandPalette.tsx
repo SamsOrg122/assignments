@@ -164,6 +164,12 @@ export const BLOCK_META: Record<
     hint: "Built from your headings, always current",
     keywords: "table of contents toc outline index headings navigation",
   },
+  form: {
+    label: "Form",
+    icon: "list",
+    hint: "Questions, and the answers in a table",
+    keywords: "form survey questionnaire poll questions responses collect data",
+  },
 };
 
 /**

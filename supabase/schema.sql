@@ -144,6 +144,33 @@ create table if not exists public.usage_events (
 
 create index if not exists usage_workspace_idx on public.usage_events(workspace_id, created_at desc);
 
+-- ── Forms ─────────────────────────────────────────────────────────────────
+
+-- Answers to a form.
+--
+-- The questions are not here on purpose: they travel inside the link, so a
+-- form works with no account and nothing to provision. Only the answers need
+-- a server, because a browser cannot receive anything from somebody else's
+-- browser.
+--
+-- `form_id` is the form block's id, which the link carries. `owner_id` is who
+-- the answers belong to, which the link also carries — and the honest caveat
+-- is that a determined person could file answers against a form id they were
+-- given. They cannot read anybody's answers, which is the property that
+-- matters; spoofed *inserts* are the same exposure any public form has.
+create table if not exists public.form_responses (
+  id           uuid primary key default gen_random_uuid(),
+  form_id      text not null,
+  owner_id     uuid references public.profiles(id) on delete cascade,
+  -- The whole response, keyed by field id. JSON because the shape is the
+  -- form's, and a form changes between Tuesday and Thursday.
+  answers      jsonb not null,
+  submitted_at timestamptz not null default now()
+);
+
+create index if not exists form_responses_idx
+  on public.form_responses(form_id, submitted_at);
+
 -- ── Impact ────────────────────────────────────────────────────────────────
 
 -- The commitment, as rows rather than as a sentence on a landing page. Every
@@ -175,6 +202,7 @@ alter table public.workspace_members enable row level security;
 alter table public.projects          enable row level security;
 alter table public.subscriptions     enable row level security;
 alter table public.usage_events      enable row level security;
+alter table public.form_responses    enable row level security;
 alter table public.impact_ledger     enable row level security;
 
 -- Membership, as a function, so the policies below read as English and the
@@ -247,6 +275,24 @@ select w.id, w.owner_id, 'owner' from public.workspaces w
 on conflict do nothing;
 
 -- Read-only to the client. Only the service role writes these.
+-- Anybody may answer a form. That is what a form is: refusing an insert from
+-- someone without an account would mean every respondent needed one, which is
+-- the opposite of the point.
+drop policy if exists form_responses_insert on public.form_responses;
+create policy form_responses_insert on public.form_responses
+  for insert with check (true);
+
+-- Only the owner reads them back. Nobody else — not other respondents, not
+-- other members of the owner's workspace, because a survey answer is given to
+-- one person and sharing a workspace is not consent.
+drop policy if exists form_responses_read on public.form_responses;
+create policy form_responses_read on public.form_responses
+  for select using (owner_id = auth.uid());
+
+drop policy if exists form_responses_delete on public.form_responses;
+create policy form_responses_delete on public.form_responses
+  for delete using (owner_id = auth.uid());
+
 drop policy if exists subscriptions_read on public.subscriptions;
 create policy subscriptions_read on public.subscriptions
   for select using (public.is_member(workspace_id));
@@ -279,7 +325,7 @@ begin
     grant usage on schema public to authenticated;
     grant select, insert, update, delete
       on public.profiles, public.workspaces, public.workspace_members,
-         public.projects
+         public.projects, public.form_responses
       to authenticated;
     grant select
       on public.subscriptions, public.usage_events, public.impact_ledger

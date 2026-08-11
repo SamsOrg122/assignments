@@ -31,6 +31,7 @@ import { CodeBlock } from "@/components/blocks/CodeBlock";
 import { ImageBlock } from "@/components/blocks/ImageBlock";
 import { BibliographyBlock } from "@/components/blocks/BibliographyBlock";
 import { TocBlock } from "@/components/blocks/TocBlock";
+import { FormBlock } from "@/components/blocks/FormBlock";
 import { Icon } from "@/components/ui/Icon";
 import { BLOCK_META } from "@/components/shell/CommandPalette";
 import { imageFrom, prepareImage } from "@/lib/images";
@@ -47,6 +48,7 @@ const ADDABLE: BlockType[] = [
   "code",
   "toc",
   "bibliography",
+  "form",
 ];
 
 export function Canvas({
@@ -296,5 +298,7 @@ function BlockBody({
       return <BibliographyBlock projectId={projectId} block={block} />;
     case "toc":
       return <TocBlock projectId={projectId} block={block} />;
+    case "form":
+      return <FormBlock projectId={projectId} block={block} />;
   }
 }

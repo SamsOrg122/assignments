@@ -262,6 +262,7 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T)
 const KINDS = ["doc", "notes", "deck", "board", "code", "design"] as const;
 const BLOCK_TYPES = [
   "text", "table", "chart", "slides", "code", "image", "bibliography", "toc",
+  "form",
 ] as const;
 const ITEM_KINDS = [
   "text", "sticky", "image", "card", "frame", "connector",

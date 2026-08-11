@@ -15,7 +15,8 @@ export type BlockType =
   | "code"
   | "image"
   | "bibliography"
-  | "toc";
+  | "toc"
+  | "form";
 
 export interface BlockBase {
   id: string;
@@ -194,6 +195,50 @@ export interface ImageBlock extends BlockBase {
   frame?: ImageFrame;
   /** Roughly what it costs in storage. Shown so a heavy page is visible. */
   bytes?: number;
+}
+
+/* ── Form ───────────────────────────────────────────────── */
+
+export type FormFieldKind =
+  | "short"
+  | "long"
+  | "number"
+  | "date"
+  | "choice"
+  | "checkboxes"
+  | "scale"
+  | "email";
+
+export interface FormField {
+  id: string;
+  label: string;
+  kind: FormFieldKind;
+  /** A sentence under the question, where one is needed. */
+  help?: string;
+  required?: boolean;
+  /** For `choice` and `checkboxes`. */
+  options?: string[];
+  /** Bounds: a number's range, a checkbox list's minimum, a text length cap. */
+  min?: number;
+  max?: number;
+}
+
+/**
+ * A form, and where its answers come back to.
+ *
+ * The questions live here and travel inside the link; the answers live in the
+ * database, because a browser cannot receive anything from somebody else's
+ * browser. See `lib/forms.ts` for why that split is the whole design.
+ */
+export interface FormBlock extends BlockBase {
+  type: "form";
+  fields: FormField[];
+  /** Shown above the questions on the fill-in page. */
+  intro?: string;
+  /** What the respondent sees after sending. */
+  thanks?: string;
+  /** Whether the link still accepts answers. */
+  closed?: boolean;
 }
 
 /* ── Chart ──────────────────────────────────────────────── */
@@ -435,7 +480,8 @@ export type Block =
   | CodeBlock
   | ImageBlock
   | BibliographyBlock
-  | TocBlock;
+  | TocBlock
+  | FormBlock;
 
 /* ── Board ──────────────────────────────────────────────── */
 

@@ -254,6 +254,38 @@ function ReadOnlyBlock({
       );
     }
 
+    case "form":
+      return (
+        <section className="rounded-md border border-line bg-surface px-4 py-3.5">
+          <h2 className="mb-2 text-[14px] font-medium text-fg">
+            {block.title ?? "Form"}
+          </h2>
+          {block.intro && (
+            <p className="mb-2.5 text-[13px] leading-relaxed text-fg-muted">
+              {block.intro}
+            </p>
+          )}
+          <ol className="space-y-1">
+            {block.fields.map((field, i) => (
+              <li key={field.id} className="text-[13px] text-fg-muted">
+                <span className="mr-1.5 font-mono text-[10px] text-fg-subtle">
+                  {i + 1}
+                </span>
+                {field.label}
+                {field.required && <span className="text-danger"> *</span>}
+              </li>
+            ))}
+          </ol>
+          {/* A copied document is a copy: its form link and its answers are
+              not in it, and pretending otherwise would send someone hunting
+              for a button that cannot exist here. */}
+          <p className="mt-2.5 text-[11.5px] text-fg-subtle">
+            The questions only — answering happens through the form&apos;s own
+            link.
+          </p>
+        </section>
+      );
+
     case "toc": {
       const entries = headings(project.blocks).filter(
         (h) => h.level <= (block.depth ?? 3),

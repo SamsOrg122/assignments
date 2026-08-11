@@ -115,6 +115,16 @@ export function blockToText(block: Block, project: Project): string {
       // Derived from the headings the model can already see. Repeating them
       // would spend context on saying the same thing twice.
       return "[contents page — built from the headings below]";
+    case "form":
+      // The questions, not the answers: answers live in the database and are
+      // other people's, and quietly feeding them to a model is not something
+      // anybody agreed to when they filled the form in.
+      return [
+        `Form: ${block.title ?? "Untitled"}`,
+        ...block.fields.map(
+          (f) => `- ${f.label}${f.required ? " (required)" : ""}`,
+        ),
+      ].join("\n");
   }
 }
 

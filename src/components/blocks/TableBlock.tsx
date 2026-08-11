@@ -32,7 +32,9 @@ import type {
 } from "@/lib/types";
 import { NUMERIC_COLUMN_TYPES, sortsOf } from "@/lib/types";
 import { useProjects } from "@/lib/store";
-import { checkFormula, computeFormulas, FORMULA_ERROR } from "@/lib/formula";
+import { checkFormula, computeFormulas, isErrorText } from "@/lib/formula";
+import { sheetsOf } from "@/lib/workbook";
+import { checkTable, failureMap } from "@/lib/validation";
 import {
   displayCell,
   formatTone,
@@ -44,6 +46,8 @@ import { uid } from "@/lib/factories";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { FigureCaption } from "./FigureCaption";
+import { describePivot, pivotTable } from "@/lib/sheet/pivot";
+import { SheetActions, SheetTabs } from "./SheetTabs";
 
 interface Props {
   projectId: string;
@@ -80,7 +84,18 @@ interface CellPos {
   c: number;
 }
 
-export function TableBlock({ projectId, block }: Props) {
+/**
+ * A table is one of two things, and they cannot share a body: a grid you edit,
+ * or a summary derived from another table on every render. Choosing here — in
+ * a component that runs no hooks of its own — is what keeps the grid's hooks
+ * unconditional.
+ */
+export function TableBlock(props: Props) {
+  if (props.block.pivot) return <PivotView {...props} />;
+  return <TableGrid {...props} />;
+}
+
+function TableGrid({ projectId, block }: Props) {
   const setCell = useProjects((s) => s.setCell);
   const setCells = useProjects((s) => s.setCells);
   const addRow = useProjects((s) => s.addRow);
@@ -99,9 +114,25 @@ export function TableBlock({ projectId, block }: Props) {
   const gridRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
+  // Every table in the project is a sheet of one workbook, so a formula here
+  // can reach `[Costs]![Amount]` and `Costs!B2:B40`. Recomputed when any of
+  // them changes, because that is exactly when a cross-sheet total goes stale.
+  const blocks = useProjects((s) => s.projects.find((p) => p.id === projectId)?.blocks);
+  const names = useProjects((s) => s.projects.find((p) => p.id === projectId)?.names);
+  const workbook = useMemo(
+    () => ({ sheets: sheetsOf(blocks ?? []), names: names ?? [] }),
+    [blocks, names],
+  );
+
   const derived = useMemo(
-    () => computeFormulas(block.columns, block.rows),
-    [block.columns, block.rows],
+    () => computeFormulas(block.columns, block.rows, workbook, block.id),
+    [block.columns, block.rows, block.id, workbook],
+  );
+
+  /** Cells that break their column's rule, marked rather than refused. */
+  const failures = useMemo(
+    () => failureMap(checkTable(block.columns, block.rows, workbook, block.id)),
+    [block.columns, block.rows, block.id, workbook],
   );
 
   const rows = useMemo(() => viewRows(block, derived), [block, derived]);
@@ -366,7 +397,7 @@ export function TableBlock({ projectId, block }: Props) {
       let seen = 0;
       for (const r of rows) {
         const raw = readCell(r, c, derived);
-        if (raw === null || raw === "" || raw === FORMULA_ERROR) continue;
+        if (raw === null || raw === "" || isErrorText(raw)) continue;
         sum += typeof raw === "number" ? raw : Number(raw) || 0;
         seen++;
       }
@@ -423,6 +454,7 @@ export function TableBlock({ projectId, block }: Props) {
               ? `Rules · ${filters.length + formats.length}`
               : "Rules"}
           </button>
+          <SheetActions projectId={projectId} block={block} />
           <button
             type="button"
             onClick={() => setFreeze(projectId, block.id, !block.freeze)}
@@ -437,6 +469,8 @@ export function TableBlock({ projectId, block }: Props) {
           </button>
         </span>
       </div>
+
+      <SheetTabs projectId={projectId} blockId={block.id} />
 
       {dataOpen && (
         <DataRulesPanel
@@ -588,12 +622,19 @@ export function TableBlock({ projectId, block }: Props) {
                     const isEditing =
                       editing?.r === r && editing.c === c;
                     const tone = formatTone(formats, column, raw);
+                    // A cell that breaks its column's rule is marked, never
+                    // refused: the value stays, and the sentence explaining it
+                    // is on the cell rather than in a dialog that has to be
+                    // dismissed before you can look at what you typed.
+                    const broken = failures[row.id]?.[column.id];
 
                     return (
                       <td
                         key={column.id}
                         role="gridcell"
                         aria-selected={inRect(r, c) || undefined}
+                        aria-invalid={broken ? true : undefined}
+                        title={broken}
                         onPointerDown={(e) => {
                           if (e.button !== 0) return;
                           dragging.current = true;
@@ -618,6 +659,8 @@ export function TableBlock({ projectId, block }: Props) {
                           block.freeze && c === 0 && "sticky left-0 z-[5] bg-surface",
                           tone && TONE_CLASS[tone],
                           inRect(r, c) && "bg-accent-soft",
+                          broken &&
+                            "bg-danger/[0.07] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-danger/60",
                           active && "outline-1 -outline-offset-1 outline-accent",
                         )}
                       >
@@ -743,7 +786,7 @@ function CellDisplay({ column, raw }: { column: Column; raw: CellValue }) {
         numeric && "text-right font-mono text-[11.5px]",
         column.type === "date" && "font-mono text-[11.5px]",
         column.type === "formula" &&
-          (text === FORMULA_ERROR ? "text-danger" : "text-fg-muted"),
+          (isErrorText(text) ? "text-danger" : "text-fg-muted"),
         text === "" && "text-fg-subtle",
       )}
     >
@@ -1350,6 +1393,117 @@ function ColumnMenu({
           Delete column
         </button>
       )}
+    </div>
+  );
+}
+
+/**
+ * A pivot, rendered.
+ *
+ * Read-only by construction: its columns and rows are computed from another
+ * table every time this runs, so there is nothing here that could be edited
+ * without editing the wrong thing. Everything else about it is an ordinary
+ * table — which is why a chart can bind to it and every exporter already
+ * knows what to do with it.
+ */
+function PivotView({ projectId, block }: Props) {
+  const blocks = useProjects((s) => s.projects.find((p) => p.id === projectId)?.blocks);
+  const updateBlock = useProjects((s) => s.updateBlock);
+  const spec = block.pivot!;
+
+  const source = useMemo(
+    () => blocks?.find((b) => b.id === spec.sourceId && b.type === "table") as
+      | TableBlockModel
+      | undefined,
+    [blocks, spec.sourceId],
+  );
+
+  const result = useMemo(() => pivotTable(spec, source), [spec, source]);
+
+  // The derived shape is written back so that everything reading the stored
+  // block — charts, .docx, .xlsx, the shared viewer — sees the same table the
+  // screen does, without each of them having to know what a pivot is.
+  useEffect(() => {
+    if (result.problem) return;
+    const sameColumns =
+      block.columns.length === result.columns.length &&
+      block.columns.every((c, i) => c.id === result.columns[i].id && c.name === result.columns[i].name);
+    const sameRows =
+      block.rows.length === result.rows.length &&
+      block.rows.every(
+        (r, i) =>
+          r.id === result.rows[i].id &&
+          JSON.stringify(r.cells) === JSON.stringify(result.rows[i].cells),
+      );
+    if (sameColumns && sameRows) return;
+    updateBlock<TableBlockModel>(projectId, block.id, {
+      columns: result.columns,
+      rows: result.rows,
+    });
+  }, [result, block.columns, block.rows, block.id, projectId, updateBlock]);
+
+  return (
+    <div className="overflow-hidden rounded-md border border-line bg-surface">
+      <div className="flex items-center gap-2 border-b border-line px-2.5 py-1.5">
+        <Icon name="sort" size={10} className="shrink-0 text-fg-subtle" />
+        <span className="min-w-0 flex-1 truncate text-[11px] text-fg-muted">
+          {describePivot(spec, source)}
+        </span>
+        <span className="shrink-0 rounded-xs border border-line px-1.5 py-0.5 font-mono text-[9.5px] text-fg-subtle">
+          summary
+        </span>
+      </div>
+
+      {result.problem ? (
+        <p className="p-3 text-[12.5px] text-warn">{result.problem}</p>
+      ) : (
+        <div className="overflow-auto" style={{ maxHeight: MAX_BODY_H }}>
+          <table className="w-full border-collapse text-[12.5px]">
+            <thead>
+              <tr>
+                {result.columns.map((c) => (
+                  <th
+                    key={c.id}
+                    scope="col"
+                    className={cn(
+                      "sticky top-0 z-10 border-b border-line bg-surface-2 px-2.5 py-1.5 text-left font-medium text-fg-muted",
+                      NUMERIC_COLUMN_TYPES.has(c.type) && "text-right",
+                    )}
+                  >
+                    {c.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {result.rows.map((row) => {
+                const total = row.id === "pv-total-row";
+                return (
+                  <tr key={row.id} className={cn(total && "bg-surface-2/60 font-medium")}>
+                    {result.columns.map((c) => (
+                      <td
+                        key={c.id}
+                        className={cn(
+                          "border-b border-line px-2.5 py-1.5 text-fg",
+                          NUMERIC_COLUMN_TYPES.has(c.type) && "text-right font-mono text-[11.5px]",
+                        )}
+                      >
+                        {displayCell(row.cells[c.id] ?? null, c)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <FigureCaption
+        projectId={projectId}
+        block={block}
+        placeholder="What this summary shows"
+      />
     </div>
   );
 }

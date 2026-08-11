@@ -61,6 +61,34 @@ export const NUMERIC_COLUMN_TYPES: ReadonlySet<ColumnType> = new Set([
   "formula",
 ]);
 
+/**
+ * What a column will accept.
+ *
+ * A choice column already limits what can be picked; this is for everything
+ * else a form has always been able to say — must be filled in, has to be a
+ * date, has to be between one and ten, has to be unique. Entry is never
+ * blocked: the value is kept and marked, because a rule that throws away
+ * typing is a rule that loses work when the rule itself is wrong.
+ */
+export interface Validation {
+  /** Cannot be left empty. */
+  required?: boolean;
+  /** Must parse as a number, a date, or match a pattern. */
+  is?: "number" | "integer" | "date" | "email" | "url";
+  /** Numeric or date bounds, inclusive. Dates as ISO strings. */
+  min?: number | string;
+  max?: number | string;
+  /** Text length bounds. */
+  minLength?: number;
+  maxLength?: number;
+  /** No two rows may share a value. */
+  unique?: boolean;
+  /** Any formula over this row; false marks the cell. */
+  rule?: string;
+  /** Shown instead of the generated sentence, when a rule needs explaining. */
+  message?: string;
+}
+
 export interface Column {
   id: string;
   name: string;
@@ -70,6 +98,8 @@ export interface Column {
   width?: number;
   /** The choices a `select` column offers. Order is display order. */
   options?: string[];
+  /** What this column will accept. Absent means anything. */
+  validation?: Validation;
 }
 
 export type CellValue = string | number | null;
@@ -125,6 +155,13 @@ export interface TableBlock extends BlockBase {
   formats?: FormatRule[];
   /** Keep the first column in view while scrolling horizontally. */
   freeze?: boolean;
+  /**
+   * When present, this table is a summary of another one and its columns and
+   * rows are derived on every render rather than stored. Read-only, and never
+   * stale — see `lib/sheet/pivot.ts` for why it is a table rather than a new
+   * kind of block.
+   */
+  pivot?: import("./sheet/pivot").PivotSpec;
 }
 
 /** Sort as a list, whatever vintage the stored shape is. */
@@ -618,6 +655,15 @@ export interface Project {
 
   /** How the document sits on paper. See `lib/page.ts`. */
   page?: import("./page").PageSetup;
+
+  /**
+   * Names standing for ranges, usable from any formula in the project.
+   *
+   * On the project rather than on a table: the whole point of a name is that
+   * it means the same thing from wherever it is read, and one scoped to a
+   * single table would be neither a name nor a range.
+   */
+  names?: import("./formula").NamedRange[];
 
   /**
    * Where notes are printed. The screen always lists them at the end — it has

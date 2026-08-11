@@ -32,6 +32,7 @@ import { KeepPromptCompact } from "@/components/account/KeepPrompt";
 import { KINDS } from "@/lib/kinds";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { LogoTile } from "@/components/ui/Logo";
 
 /**
  * What the identity row says on the right.
@@ -227,12 +228,7 @@ export function Sidebar() {
             href="/library"
             className="flex items-center gap-2 rounded-sm px-1 py-1 text-[13px] font-medium tracking-[-0.01em] text-fg"
           >
-            <span
-              aria-hidden="true"
-              className="grid size-5 place-items-center rounded-[5px] bg-fg text-[11px] font-semibold text-canvas"
-            >
-              T
-            </span>
+            <LogoTile size={20} className="rounded-[5px]" />
             Tougather
           </Link>
           <button

@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import { Logo } from "@/components/ui/Logo";
 
 /**
  * Absolute rather than bare fragments: the bar renders on the sub-pages too,
@@ -57,22 +58,11 @@ export function Nav() {
         )}
       >
         <Link href="/" className="group flex items-center gap-2.5 text-fg">
-          {/* The same notched square the banner returns to. Drawn, not a
-              lettered box: an initial in a rounded rectangle is the default
-              every generated brand arrives wearing. */}
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            className="size-[19px] shrink-0 transition-transform duration-300 group-hover:rotate-90"
-          >
-            <path
-              d="M8 3h8v5h5v8h-5v5H8v-5H3V8h5z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.9}
-              strokeLinejoin="round"
-            />
-          </svg>
+          {/* The mark itself, taking the nav's colour. */}
+          <Logo
+            size={20}
+            className="transition-transform duration-300 group-hover:scale-110"
+          />
           <span className="nav-wordmark text-[17px] leading-none tracking-[-0.01em]">
             Tougather
           </span>

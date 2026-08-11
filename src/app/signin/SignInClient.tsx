@@ -18,6 +18,7 @@ import { AccountForm, type AccountMode } from "@/components/account/AccountForm"
 import { useAuth, useAuthHydrated } from "@/lib/auth/store";
 import { useAccountSession } from "@/lib/auth/session";
 import { useRemoteConfigured } from "@/lib/db/use-config";
+import { LogoTile } from "@/components/ui/Logo";
 
 export function SignInClient() {
   const params = useSearchParams();
@@ -58,9 +59,7 @@ export function SignInClient() {
           href="/"
           className="mb-6 flex items-center gap-2 text-[13px] font-medium text-fg"
         >
-          <span className="grid size-5 place-items-center rounded-xs bg-fg font-mono text-[10px] text-canvas">
-            T
-          </span>
+          <LogoTile size={20} />
           Tougather
         </Link>
 

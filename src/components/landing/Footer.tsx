@@ -12,6 +12,7 @@
 import Link from "next/link";
 import { CTA } from "./primitives";
 import { IMPACT, percent } from "@/lib/impact/config";
+import { LogoTile } from "@/components/ui/Logo";
 
 interface FooterLink {
   label: string;
@@ -67,12 +68,7 @@ export function Footer() {
               href="/"
               className="flex w-fit items-center gap-2.5 text-[14px] font-medium text-fg"
             >
-              <span
-                aria-hidden="true"
-                className="grid size-6 place-items-center rounded-sm bg-fg text-[11px] font-semibold text-canvas"
-              >
-                T
-              </span>
+              <LogoTile size={24} className="rounded-sm" />
               Tougather
             </Link>
             <p className="mt-3 max-w-[38ch] text-[13px] leading-relaxed text-fg-muted text-pretty">

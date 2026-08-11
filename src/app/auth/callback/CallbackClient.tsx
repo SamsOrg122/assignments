@@ -29,6 +29,7 @@ import { supabase } from "@/lib/db/client";
 import { useRemoteConfigSettled, useRemoteConfigured } from "@/lib/db/use-config";
 import { explainAuthError } from "@/lib/auth/errors";
 import { useAccountSession } from "@/lib/auth/session";
+import { LogoTile } from "@/components/ui/Logo";
 
 type State =
   | { kind: "working" }
@@ -134,9 +135,7 @@ export function CallbackClient() {
           href="/"
           className="mb-6 flex items-center gap-2 text-[13px] font-medium text-fg"
         >
-          <span className="grid size-5 place-items-center rounded-xs bg-fg font-mono text-[10px] text-canvas">
-            T
-          </span>
+          <LogoTile size={20} />
           Tougather
         </Link>
 

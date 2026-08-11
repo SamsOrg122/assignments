@@ -1268,7 +1268,7 @@ export const useProjects = create<ProjectsState>()(
  * True once persisted state has been merged in. Components that would flash
  * wrong content (a project that only exists locally, say) wait on this.
  */
-let rehydrateRequested = false;
+let rehydrating: Promise<void> | null = null;
 
 export function useHydrated(): boolean {
   // The persist middleware is an external store, so subscribe to it directly
@@ -1281,12 +1281,26 @@ export function useHydrated(): boolean {
   );
 
   useEffect(() => {
-    if (rehydrateRequested) return;
-    rehydrateRequested = true;
-    void useProjects.persist.rehydrate();
+    void ensureProjects();
   }, []);
 
   return hydrated;
+}
+
+/**
+ * Hydrate the projects, once, and say when that is done.
+ *
+ * `skipHydration` means an un-asked store answers "no projects" for every
+ * browser, including one holding a year of work. Anything that makes a
+ * *decision* from the project list has to wait for this rather than assume the
+ * shell has already run — the sign-in screens are outside the shell, and
+ * "there is nothing here" is exactly the wrong thing for them to believe.
+ */
+export function ensureProjects(): Promise<void> {
+  rehydrating ??= Promise.resolve(useProjects.persist.rehydrate()).then(
+    () => {},
+  );
+  return rehydrating;
 }
 
 /* ── Selectors ──────────────────────────────────────────── */

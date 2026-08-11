@@ -18,7 +18,12 @@
  *   2. Turn on anonymous sign-ins (Authentication → Providers → Anonymous).
  *      This is what lets the free plan keep work without a login.
  *   3. Put NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in the
- *      environment.
+ *      environment. They are read at request time as well as at build time —
+ *      see `config.ts` — so they work without a redeploy.
+ *
+ * Settings → Connection checks all three against the live project and says
+ * which one is missing, rather than leaving anyone to guess from a form that
+ * silently does nothing.
  *
  * Nothing here writes on its own. `sync.ts` drives it, and the rules it plays
  * by are written down there — they are the part worth reading before changing
@@ -27,6 +32,7 @@
 
 import type { Project } from "../types";
 import { STORAGE_KEYS } from "../persistence";
+import { remoteConfig } from "./config";
 import { supabaseDatabase } from "./supabase";
 
 /** A row as the sync layer sees it — the document plus what it needs to merge. */
@@ -141,15 +147,12 @@ export function setDatabase(db: Database | null) {
 }
 
 /**
- * Whether a remote backend is configured. Read from `process.env` rather than
- * from a runtime probe so the answer is the same on the server and the client
- * and never depends on a network round trip.
+ * Whether a remote backend is configured — from the compiled-in variables if
+ * they are there, otherwise from what `/api/config` reported. See `config.ts`
+ * for why both exist; the short version is that a `NEXT_PUBLIC_` variable set
+ * in a dashboard does nothing until the next deploy.
  */
-export const isRemoteConfigured = (): boolean =>
-  Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  );
+export const isRemoteConfigured = (): boolean => remoteConfig() !== null;
 
 export function getDatabase(): Database {
   if (override) return override;

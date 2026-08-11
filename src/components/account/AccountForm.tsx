@@ -1,0 +1,479 @@
+"use client";
+
+/**
+ * Everything to do with an account, in one form.
+ *
+ * Used twice — on `/signin` and inside Settings — because there is exactly one
+ * set of rules about what happens when someone signs in, and having two
+ * screens implement them separately is how they end up disagreeing.
+ *
+ * The step worth reading is `handover`. Signing in as an id different from the
+ * one this browser has been syncing as is a genuine fork in the road, and the
+ * sync layer refuses to guess: it stops rather than risk copying one person's
+ * documents into another person's account. So the form asks. Neither answer
+ * loses anything — one carries the work into the account, the other leaves it
+ * in the browser and will not proceed until a backup file has been taken.
+ */
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  MIN_PASSWORD,
+  checkCredentials,
+  emailLooksValid,
+  resendConfirmation,
+  resetPassword,
+  signIn,
+  signUp,
+  updatePassword,
+  type AuthFailure,
+  type Identity,
+} from "@/lib/auth";
+import { useAuth } from "@/lib/auth/store";
+import { useRemoteConfigured } from "@/lib/db/use-config";
+import { ensureSyncMemory, handOver, startFresh, syncOwner } from "@/lib/db/sync";
+import { exportWorkspace } from "@/lib/persistence";
+import { allBlobs } from "@/lib/kit/blobs";
+import { ensureProjects, useHydrated, useProjects } from "@/lib/store";
+import { useUI } from "@/lib/ui-store";
+import { cn } from "@/lib/cn";
+
+export type AccountMode = "sign-in" | "sign-up" | "reset" | "new-password";
+
+interface Props {
+  mode: AccountMode;
+  onMode: (mode: AccountMode) => void;
+  /** Called once the person is signed in and the work question is settled. */
+  onDone?: () => void;
+  /** Where to send them afterwards. Settings stays put; /signin goes to work. */
+  destination?: string;
+}
+
+/** What the form is showing right now, beyond which credentials it wants. */
+type Step =
+  | { kind: "form" }
+  | { kind: "failed"; failure: AuthFailure; email: string }
+  | { kind: "note"; note: string }
+  /** Signed in, but this browser is holding work that isn't in that account. */
+  | { kind: "handover"; identity: Identity; count: number };
+
+export function AccountForm({ mode, onMode, onDone, destination }: Props) {
+  const configured = useRemoteConfigured();
+  const identity = useAuth((s) => s.identity);
+  const signedIn = useAuth((s) => s.signedIn);
+  const notify = useUI((s) => s.notify);
+  const router = useRouter();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState<Step>({ kind: "form" });
+  const [backedUp, setBackedUp] = useState(false);
+
+  // Both of these hydrate on request, and this screen lives outside the app
+  // shell that normally asks. Started here so the answers are ready by the time
+  // somebody has finished typing a password — and awaited again below, because
+  // "there is nothing in this browser" is the one wrong answer that matters.
+  useHydrated();
+  useEffect(() => {
+    void ensureSyncMemory();
+    void ensureProjects();
+  }, []);
+
+  const reset = () => {
+    setStep({ kind: "form" });
+    setBackedUp(false);
+  };
+
+  /**
+   * Record the identity locally, then work out whether anything has to be
+   * asked about the work already here.
+   */
+  const land = async (next: Identity, note?: string) => {
+    signedIn({
+      // The display name was theirs before the account was, and it is what
+      // other people already see next to their comments.
+      ...next,
+      ...(identity.name && identity.kept === "account"
+        ? {}
+        : { name: identity.name, initials: identity.initials }),
+    });
+    setPassword("");
+
+    await Promise.all([ensureSyncMemory(), ensureProjects()]);
+    const owner = syncOwner();
+    const count = useProjects.getState().projects.length;
+
+    // Same id — the anonymous session was upgraded, so everything here is
+    // already this account's and there is nothing to decide.
+    if (!owner || owner === next.id || count === 0) {
+      handOver();
+      if (note) {
+        setStep({ kind: "note", note });
+        return;
+      }
+      notify("Signed in");
+      finish();
+      return;
+    }
+
+    setStep({ kind: "handover", identity: next, count });
+  };
+
+  const finish = () => {
+    onDone?.();
+    if (destination) router.push(destination);
+  };
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (mode === "reset") {
+      if (!emailLooksValid(email)) {
+        setStep({
+          kind: "failed",
+          failure: {
+            ok: false,
+            reason: "That doesn't look like an email address.",
+          },
+          email,
+        });
+        return;
+      }
+      setBusy(true);
+      const result = await resetPassword(email);
+      setBusy(false);
+      setStep(
+        result.ok
+          ? { kind: "note", note: result.note ?? "Check your email." }
+          : { kind: "failed", failure: result, email },
+      );
+      return;
+    }
+
+    if (mode === "new-password") {
+      if (password.length < MIN_PASSWORD) {
+        setStep({
+          kind: "failed",
+          failure: { ok: false, reason: `Use at least ${MIN_PASSWORD} characters.` },
+          email,
+        });
+        return;
+      }
+      setBusy(true);
+      const result = await updatePassword(password);
+      setBusy(false);
+      if (!result.ok) {
+        setStep({ kind: "failed", failure: result, email });
+        return;
+      }
+      setPassword("");
+      notify("Password changed");
+      finish();
+      return;
+    }
+
+    const problem = checkCredentials(email, password);
+    if (problem) {
+      setStep({ kind: "failed", failure: { ok: false, reason: problem }, email });
+      return;
+    }
+
+    setBusy(true);
+    const result = await (mode === "sign-up"
+      ? signUp(email, password)
+      : signIn(email, password));
+    setBusy(false);
+
+    if (!result.ok) {
+      setStep({ kind: "failed", failure: result, email });
+      return;
+    }
+    await land(result.identity, result.note);
+  };
+
+  /* ── The work-already-here question ── */
+
+  if (step.kind === "handover")
+    return (
+      <div className="rounded-md border border-line bg-surface p-3.5">
+        <p className="text-[13px] font-medium text-fg">
+          Signed in as {step.identity.email}
+        </p>
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-muted">
+          This browser is holding {step.count}{" "}
+          {step.count === 1 ? "project" : "projects"} that {step.count === 1 ? "isn't" : "aren't"}{" "}
+          in that account yet — made before you signed in. Whose {step.count === 1 ? "is it" : "are they"}?
+        </p>
+
+        <div className="mt-3 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              handOver();
+              notify(`Bringing your work into ${step.identity.email}`);
+              finish();
+            }}
+            className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+          >
+            Mine — bring {step.count === 1 ? "it" : "them"} into this account
+          </button>
+
+          <div className="rounded-sm border border-line p-2.5">
+            <p className="text-[12.5px] text-fg-muted">
+              Not mine — leave {step.count === 1 ? "it" : "them"} out of the account.
+            </p>
+            <p className="mt-1 text-[11.5px] leading-relaxed text-fg-subtle">
+              {step.count === 1 ? "It is" : "They are"} removed from this browser, so take the
+              backup file first. Nothing is deleted from anyone&apos;s account.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void allBlobs()
+                    .catch(() => ({}))
+                    .then((blobs) =>
+                      exportWorkspace(
+                        {
+                          "assignments:projects:v1": JSON.stringify({
+                            state: { projects: useProjects.getState().projects },
+                            version: 0,
+                          }),
+                        },
+                        blobs,
+                      ),
+                    )
+                    .then(({ filename }) => {
+                      setBackedUp(true);
+                      notify(`Saved ${filename}`);
+                    });
+                }}
+                className="rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+              >
+                {backedUp ? "Backup saved ✓" : "Save a backup file"}
+              </button>
+              <button
+                type="button"
+                disabled={!backedUp}
+                onClick={() => {
+                  startFresh();
+                  notify(`Signed in as ${step.identity.email}`);
+                  finish();
+                }}
+                className="rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                Clear this browser and continue
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+  /* ── Sent-you-an-email, and other things worth stopping on ── */
+
+  if (step.kind === "note")
+    return (
+      <div className="rounded-md border border-line bg-surface p-3.5">
+        <p className="rounded-sm border border-accent/35 bg-accent-soft p-2.5 text-[12.5px] leading-relaxed text-fg-muted">
+          {step.note}
+        </p>
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              reset();
+              finish();
+            }}
+            className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+          >
+            Carry on working
+          </button>
+          <button
+            type="button"
+            onClick={reset}
+            className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    );
+
+  const failure = step.kind === "failed" ? step.failure : null;
+  const wantsEmail = mode !== "new-password";
+  const wantsPassword = mode !== "reset";
+
+  return (
+    <form
+      onSubmit={submit}
+      // The browser's own validation on type="email" silently refuses to
+      // submit and shows a bubble, so `checkCredentials` never runs and the
+      // user gets two different validation systems depending on which field
+      // they got wrong. One source of messages; type="email" stays for the
+      // mobile keyboard.
+      noValidate
+      className="rounded-md border border-line bg-surface p-3.5"
+    >
+      <p className="text-[13px] font-medium text-fg">
+        {mode === "sign-up"
+          ? "Create an account"
+          : mode === "reset"
+            ? "Reset your password"
+            : mode === "new-password"
+              ? "Choose a new password"
+              : "Sign in"}
+      </p>
+
+      {mode === "reset" && (
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-subtle">
+          We&apos;ll email a link that signs you in and lets you set a new one.
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-col gap-2">
+        {wantsEmail && (
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] text-fg-subtle">Email</span>
+            <input
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
+            />
+          </label>
+        )}
+        {wantsPassword && (
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] text-fg-subtle">
+              {mode === "new-password" ? "New password" : "Password"}
+              {mode !== "sign-in" && (
+                <span className="ml-1 text-fg-subtle">
+                  — at least {MIN_PASSWORD} characters
+                </span>
+              )}
+            </span>
+            <input
+              type="password"
+              autoComplete={
+                mode === "sign-in" ? "current-password" : "new-password"
+              }
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
+            />
+          </label>
+        )}
+      </div>
+
+      {failure && (
+        <div
+          className={cn(
+            "mt-3 rounded-sm border p-2.5 text-[12.5px] leading-relaxed",
+            failure.setup
+              ? "border-warn/35 bg-warn/[0.07] text-fg-muted"
+              : "border-danger/35 bg-danger/[0.07] text-danger",
+          )}
+          role="alert"
+        >
+          {failure.reason}
+          {failure.fix && (
+            <span className="mt-1 block text-fg-subtle">{failure.fix}</span>
+          )}
+          {failure.unconfirmed && (
+            <button
+              type="button"
+              onClick={async () => {
+                setBusy(true);
+                const again = await resendConfirmation(step.kind === "failed" ? step.email : email);
+                setBusy(false);
+                setStep(
+                  again.ok
+                    ? { kind: "note", note: again.note ?? "Sent." }
+                    : { kind: "failed", failure: again, email },
+                );
+              }}
+              className="mt-1.5 block text-[12px] text-fg-muted underline decoration-line-strong underline-offset-2 hover:text-fg"
+            >
+              Send the confirmation email again
+            </button>
+          )}
+        </div>
+      )}
+
+      {!configured && (
+        <p className="mt-3 rounded-sm border border-warn/35 bg-warn/[0.07] p-2.5 text-[12.5px] leading-relaxed text-fg-muted">
+          No database is configured, so there is nothing to sign in to yet. Your
+          work is safe in this browser meanwhile —{" "}
+          <Link
+            href="/settings#connection"
+            className="underline decoration-line-strong underline-offset-2 hover:text-fg"
+          >
+            Settings → Connection
+          </Link>{" "}
+          says exactly what is missing.
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
+        >
+          {busy
+            ? "One moment…"
+            : mode === "sign-up"
+              ? "Create it"
+              : mode === "reset"
+                ? "Send the link"
+                : mode === "new-password"
+                  ? "Save it"
+                  : "Sign in"}
+        </button>
+
+        {mode !== "new-password" && (
+          <button
+            type="button"
+            onClick={() => {
+              onMode(mode === "sign-up" ? "sign-in" : "sign-up");
+              reset();
+            }}
+            className="text-[12px] text-fg-subtle underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-muted"
+          >
+            {mode === "sign-up" ? "I have one already" : "Create one instead"}
+          </button>
+        )}
+
+        {mode === "sign-in" && (
+          <button
+            type="button"
+            onClick={() => {
+              onMode("reset");
+              reset();
+            }}
+            className="ml-auto text-[12px] text-fg-subtle underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-muted"
+          >
+            Forgotten your password?
+          </button>
+        )}
+
+        {mode === "reset" && (
+          <button
+            type="button"
+            onClick={() => {
+              onMode("sign-in");
+              reset();
+            }}
+            className="ml-auto text-[12px] text-fg-subtle underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-muted"
+          >
+            Back to signing in
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}

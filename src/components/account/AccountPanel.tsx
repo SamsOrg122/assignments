@@ -17,67 +17,32 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  accountsAvailable,
-  checkCredentials,
-  signIn,
-  signOut,
-  signUp,
-  type AuthOutcome,
-} from "@/lib/auth";
+import { resendConfirmation, signOut } from "@/lib/auth";
 import { useAuth } from "@/lib/auth/store";
+import { useAccountSession } from "@/lib/auth/session";
+import { useRemoteConfigured } from "@/lib/db/use-config";
 import { handOver } from "@/lib/db/sync";
 import { useUI } from "@/lib/ui-store";
 import { cn } from "@/lib/cn";
+import { AccountForm, type AccountMode } from "./AccountForm";
 
-type Mode = "choose" | "sign-up" | "sign-in";
+type Mode = "choose" | AccountMode;
 
 export function AccountPanel() {
   const identity = useAuth((s) => s.identity);
   const setName = useAuth((s) => s.setName);
   const keepOnDevice = useAuth((s) => s.keepOnDevice);
-  const signedIn = useAuth((s) => s.signedIn);
   const signedOut = useAuth((s) => s.signedOut);
   const notify = useUI((s) => s.notify);
+  // Settings is where somebody goes to find out whether they are actually
+  // signed in, so this is the one screen where the answer has to come from the
+  // server rather than from what the browser last wrote down.
+  useAccountSession();
 
   const [mode, setMode] = useState<Mode>("choose");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [outcome, setOutcome] = useState<AuthOutcome | null>(null);
 
-  const available = accountsAvailable();
+  const available = useRemoteConfigured();
   const hasAccount = identity.kept === "account";
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const problem = checkCredentials(email, password);
-    if (problem) {
-      setOutcome({ ok: false, reason: problem });
-      return;
-    }
-    setBusy(true);
-    const result = await (mode === "sign-up"
-      ? signUp(email, password)
-      : signIn(email, password));
-    setBusy(false);
-    setOutcome(result);
-    if (result.ok) {
-      // The display name was theirs before the account was, and it is what
-      // other people already see next to their comments. An email local-part
-      // is not an upgrade on it.
-      signedIn({
-        ...result.identity,
-        name: identity.name,
-        initials: identity.initials,
-      });
-      notify(result.note ?? "Signed in");
-      setPassword("");
-      // A note is the one thing worth staying on this screen for — it is
-      // usually "go and click the link in your email".
-      if (!result.note) setMode("choose");
-    }
-  };
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -101,36 +66,79 @@ export function AccountPanel() {
         <span
           className={cn(
             "shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px]",
-            hasAccount
-              ? "border-leaf/40 bg-leaf-soft text-leaf"
-              : "border-line text-fg-subtle",
+            !hasAccount
+              ? "border-line text-fg-subtle"
+              : identity.pending
+                ? "border-warn/40 bg-warn/[0.08] text-warn"
+                : "border-leaf/40 bg-leaf-soft text-leaf",
           )}
         >
           {hasAccount ? identity.email : "this device"}
         </span>
       </div>
 
-      {hasAccount ? (
-        <div className="flex items-center gap-2">
+      {hasAccount && identity.pending && (
+        // Not a warning about something being broken: the account works, in
+        // this browser, right now. It is a warning about what it can't do yet.
+        <div className="rounded-md border border-warn/35 bg-warn/[0.07] p-3 text-[12.5px] leading-relaxed text-fg-muted">
+          <p>
+            {identity.email} hasn&apos;t been confirmed yet. Everything works
+            here and your work is syncing — but you can&apos;t sign in with it
+            on another machine until the link in that email is clicked.
+          </p>
           <button
             type="button"
             onClick={async () => {
-              await signOut();
-              signedOut();
-              // Hands this browser's work to whatever identity comes next —
-              // otherwise sync sees an account mismatch and stops, and the
-              // promise below would quietly stop being true.
-              handOver();
-              notify("Signed out — your work stays in this browser");
+              const again = await resendConfirmation(identity.email ?? "");
+              notify(again.ok ? (again.note ?? "Sent again.") : again.reason);
             }}
-            className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+            className="mt-1.5 text-[12px] text-fg-muted underline decoration-line-strong underline-offset-2 hover:text-fg"
           >
-            Sign out
+            Send it again
           </button>
-          <p className="text-[12px] text-fg-subtle">
-            Signing out leaves everything on this device. Nothing is deleted.
-          </p>
         </div>
+      )}
+
+      {hasAccount ? (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                await signOut();
+                signedOut();
+                // Hands this browser's work to whatever identity comes next —
+                // otherwise sync sees an account mismatch and stops, and the
+                // promise below would quietly stop being true.
+                handOver();
+                setMode("choose");
+                notify("Signed out — your work stays in this browser");
+              }}
+              className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+            >
+              Sign out
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setMode(mode === "new-password" ? "choose" : "new-password")
+              }
+              className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+            >
+              Change password
+            </button>
+            <p className="text-[12px] text-fg-subtle">
+              Signing out leaves everything on this device. Nothing is deleted.
+            </p>
+          </div>
+          {mode === "new-password" && (
+            <AccountForm
+              mode="new-password"
+              onMode={() => setMode("choose")}
+              onDone={() => setMode("choose")}
+            />
+          )}
+        </>
       ) : mode === "choose" ? (
         <>
           <div className="grid gap-2.5 sm:grid-cols-2">
@@ -175,10 +183,7 @@ export function AccountPanel() {
               action={
                 <button
                   type="button"
-                  onClick={() => {
-                    setMode("sign-up");
-                    setOutcome(null);
-                  }}
+                  onClick={() => setMode("sign-up")}
                   className="w-full rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
                 >
                   Create an account
@@ -193,8 +198,8 @@ export function AccountPanel() {
                   </>
                 ) : (
                   <span className="text-warn">
-                    Not switched on yet. The form works; there is nothing behind
-                    it until the server exists.
+                    Not switched on. Connection, below, says which of the three
+                    steps is missing.
                   </span>
                 )
               }
@@ -212,10 +217,7 @@ export function AccountPanel() {
             {" · "}
             <button
               type="button"
-              onClick={() => {
-                setMode("sign-in");
-                setOutcome(null);
-              }}
+              onClick={() => setMode("sign-in")}
               className="underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-muted"
             >
               I already have an account
@@ -223,105 +225,11 @@ export function AccountPanel() {
           </p>
         </>
       ) : (
-        <form
-          onSubmit={submit}
-          // The browser's own validation on type="email" silently refuses to
-          // submit and shows a bubble, so `checkCredentials` never runs and the
-          // user gets two different validation systems depending on which
-          // field they got wrong. One source of messages; type="email" stays
-          // for the mobile keyboard.
-          noValidate
-          className="rounded-md border border-line bg-surface p-3.5"
-        >
-          <p className="text-[13px] font-medium text-fg">
-            {mode === "sign-up" ? "Create an account" : "Sign in"}
-          </p>
-
-          <div className="mt-3 flex flex-col gap-2">
-            <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-fg-subtle">Email</span>
-              <input
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-fg-subtle">
-                Password
-                {mode === "sign-up" && (
-                  <span className="ml-1 text-fg-subtle">
-                    — at least 8 characters
-                  </span>
-                )}
-              </span>
-              <input
-                type="password"
-                autoComplete={
-                  mode === "sign-up" ? "new-password" : "current-password"
-                }
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
-              />
-            </label>
-          </div>
-
-          {outcome?.ok && outcome.note && (
-            <p className="mt-3 rounded-sm border border-accent/35 bg-accent-soft p-2.5 text-[12.5px] leading-relaxed text-fg-muted">
-              {outcome.note}
-            </p>
-          )}
-
-          {outcome && !outcome.ok && (
-            <p
-              className={cn(
-                "mt-3 rounded-sm border p-2.5 text-[12.5px] leading-relaxed",
-                "unavailable" in outcome
-                  ? "border-warn/35 bg-warn/[0.07] text-fg-muted"
-                  : "border-danger/35 bg-danger/[0.07] text-danger",
-              )}
-            >
-              {outcome.reason}
-            </p>
-          )}
-
-          <div className="mt-3 flex items-center gap-2">
-            <button
-              type="submit"
-              disabled={busy}
-              className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
-            >
-              {busy
-                ? "One moment…"
-                : mode === "sign-up"
-                  ? "Create it"
-                  : "Sign in"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("choose");
-                setOutcome(null);
-              }}
-              className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-            >
-              Back
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode(mode === "sign-up" ? "sign-in" : "sign-up");
-                setOutcome(null);
-              }}
-              className="ml-auto text-[12px] text-fg-subtle underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-muted"
-            >
-              {mode === "sign-up" ? "I have one already" : "Create one instead"}
-            </button>
-          </div>
-        </form>
+        <AccountForm
+          mode={mode}
+          onMode={setMode}
+          onDone={() => setMode("choose")}
+        />
       )}
     </div>
   );

@@ -99,6 +99,15 @@ export function Nav() {
         </ul>
 
         <div className="ml-auto flex items-center gap-1.5">
+          {/* An account is optional, so this sits beside "start writing"
+              rather than in front of it — but it has to exist somewhere a
+              returning user can find without opening Settings. */}
+          <Link
+            href="/signin"
+            className="rounded-sm px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:text-fg"
+          >
+            Sign in
+          </Link>
           <Link
             href="/library"
             className="hidden rounded-sm px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:text-fg sm:block"

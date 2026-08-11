@@ -14,6 +14,7 @@ import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
 import { useAppearanceSync } from "@/lib/theme-store";
 import { useAuthHydrated } from "@/lib/auth/store";
+import { useAccountSession } from "@/lib/auth/session";
 import { hydrateShared } from "@/lib/collab/shared";
 import { connectAI } from "@/lib/ai";
 import { useSync } from "@/lib/db/sync";
@@ -27,6 +28,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // without this call it silently starts from defaults on every load, and the
   // account choice would be asked again after each reload.
   useAuthHydrated();
+  // …and then asks the server who that actually is. The stored identity is a
+  // cache: it can outlive an expired session, and it can miss a sign-in that
+  // happened in another tab when a confirmation link was clicked.
+  useAccountSession();
   // Which projects are live-shared is persisted too, and has the same
   // skipHydration contract as everything else.
   useEffect(hydrateShared, []);

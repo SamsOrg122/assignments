@@ -32,6 +32,9 @@ import { useProjects, useHydrated } from "../store";
 import { versioned } from "../persistence/versioned";
 import type { Project } from "../types";
 import { getDatabase, isRemoteConfigured, toRemote } from "./index";
+import { ensureRemoteConfig, subscribeConfig } from "./config";
+import { useRemoteConfigured } from "./use-config";
+import { explainAuthErrorLine } from "../auth/errors";
 
 /* ── What the UI can say about it ───────────────────────── */
 
@@ -57,6 +60,16 @@ let status: SyncStatus = isRemoteConfigured()
   ? { state: "working" }
   : { state: "off" };
 const watchers = new Set<() => void>();
+
+/**
+ * The configuration can arrive after this module loads — that is the whole
+ * point of the runtime lookup — and a status that stayed "off" would have
+ * Settings insisting there is no database while sync is busy using one.
+ */
+subscribeConfig(() => {
+  if (isRemoteConfigured() && status.state === "off")
+    setStatus({ state: "working" });
+});
 
 const setStatus = (next: SyncStatus) => {
   status = next;
@@ -130,6 +143,22 @@ const useMemory = create<Memory>()(
   ),
 );
 
+/**
+ * The tombstones and the ledger, in memory.
+ *
+ * `skipHydration` is set, like every other persisted store here, so this has
+ * to be asked for — and asked for exactly once, hence the cached promise. The
+ * sign-in screens need it too: they read the owner to decide whether there is
+ * anything to ask about, and an un-hydrated store answers "nobody" for every
+ * browser, including the ones holding a year of work.
+ */
+let rehydrated: Promise<void> | null = null;
+
+export function ensureSyncMemory(): Promise<void> {
+  rehydrated ??= Promise.resolve(useMemory.persist.rehydrate()).then(() => {});
+  return rehydrated;
+}
+
 /* ── The loop ───────────────────────────────────────────── */
 
 /** Long enough that typing doesn't cause a write per keystroke. */
@@ -139,6 +168,11 @@ let running = false;
 let queued = false;
 
 async function reconcile(): Promise<void> {
+  // Settled by the time anything renders in the normal case; awaited here for
+  // the one that isn't — "Sync now" pressed on a page that has only just
+  // loaded, before `/api/config` has answered.
+  await ensureRemoteConfig();
+
   const db = getDatabase();
   if (db.name === "browser") return;
 
@@ -269,10 +303,13 @@ async function reconcile(): Promise<void> {
 
     setStatus({ state: "synced", at: Date.now() });
   } catch (error) {
+    // Raw Postgres and GoTrue strings are not an answer. "Anonymous sign-ins
+    // are disabled" describes a switch in a dashboard, and the person reading
+    // this needs to be told which one.
     setStatus({
       state: "error",
       at: status.at,
-      problem: error instanceof Error ? error.message : "Sync failed.",
+      problem: explainAuthErrorLine(error),
     });
   } finally {
     running = false;
@@ -294,9 +331,12 @@ async function reconcile(): Promise<void> {
  */
 export function useSync() {
   const hydrated = useHydrated();
+  // Flips when `/api/config` answers, so keys set in a host's dashboard start
+  // working on this page load instead of on the next deploy.
+  const configured = useRemoteConfigured();
 
   useEffect(() => {
-    if (!hydrated || !isRemoteConfigured()) return;
+    if (!hydrated || !configured) return;
 
     let seen = new Set(useProjects.getState().projects.map((p) => p.id));
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -319,7 +359,7 @@ export function useSync() {
 
     // The tombstones have to be in memory before the first reconcile, or a
     // deletion made offline is silently undone by the pull that follows it.
-    void Promise.resolve(useMemory.persist.rehydrate()).then(() => {
+    void ensureSyncMemory().then(() => {
       if (!cancelled) void reconcile();
     });
 
@@ -334,7 +374,7 @@ export function useSync() {
       window.removeEventListener("focus", onFocus);
       clearTimeout(timer);
     };
-  }, [hydrated]);
+  }, [hydrated, configured]);
 }
 
 /** Force a round trip — the "Sync now" button. */
@@ -343,11 +383,44 @@ export const syncNow = () => reconcile();
 /**
  * Let the next identity take over this browser's work.
  *
- * Called on sign-out. What is here stays here, and the anonymous session that
- * follows adopts it — which is exactly what "signing out leaves everything on
- * this device" has to mean if the promise is to survive contact with sync.
+ * Called on sign-out, and on signing *in* as somebody whose id differs from
+ * the anonymous one this browser has been using. What is here stays here and
+ * the next session adopts it — which is exactly what "signing out leaves
+ * everything on this device" has to mean if the promise is to survive contact
+ * with sync, and what "sign in and my work is there" has to mean on the way
+ * back in.
+ *
+ * The owner check in `reconcile` is what makes this necessary rather than
+ * automatic: it exists so that signing in as somebody else on a shared laptop
+ * cannot quietly copy the first person's documents into the second person's
+ * account. Handing over is that decision being made deliberately, by someone
+ * who was asked.
  */
 export function handOver() {
   useMemory.getState().claim(null);
   void reconcile();
 }
+
+/**
+ * Sign in and leave what is here behind.
+ *
+ * For the other answer to the same question: the work in this browser is not
+ * mine, so don't carry it into my account. The projects are cleared locally —
+ * the form that calls this offers a backup file first and does not proceed
+ * without one being taken — and the account's own work arrives on the next
+ * pull.
+ */
+export function startFresh() {
+  useProjects.setState({ projects: [] });
+  // After the store, so the watcher's tombstones for those projects are
+  // cleared with the rest of the previous identity's ledger. Burying them
+  // would push a deletion into the account that never had them.
+  useMemory.getState().claim(null);
+  void reconcile();
+}
+
+/**
+ * Whose work this browser currently holds, as far as sync is concerned. Null
+ * before the first successful round trip, and after a hand-over.
+ */
+export const syncOwner = (): string | null => useMemory.getState().owner;

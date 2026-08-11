@@ -455,8 +455,21 @@ one people get wrong: the browser posts to `/api/ai` and the key never leaves
 the server, so there is deliberately no public variant of it.
 
 Supabase needs two one-time steps before the variables do anything: run
-`supabase/schema.sql` against the project, and turn on anonymous sign-ins —
-that is what lets the free plan keep work without a login.
+`supabase/schema.sql` against the project, and turn on anonymous sign-ins
+(Authentication → Sign In / Providers → Anonymous) — that is what lets the free
+plan keep work without a login.
+
+**Settings → Connection** checks both of those against the live project, plus
+the keys themselves, and names the exact page to fix whatever is missing. It is
+the first place to look when accounts don't work; a misconfigured project and a
+working one are indistinguishable from a login form, and that screen is where
+they stop being indistinguishable.
+
+The two Supabase names are also accepted unprefixed — `SUPABASE_URL` and
+`SUPABASE_ANON_KEY` — and those are read per request rather than compiled in.
+This matters more than it sounds: a `NEXT_PUBLIC_` variable set in a host's
+dashboard does nothing until the next deploy, which is the single most common
+reason a correctly-configured project appears to be ignored.
 
 Live sessions need one thing from the host: **a single long-running process.**
 `next start`, a container or a VPS is enough, and needs no configuration at

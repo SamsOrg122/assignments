@@ -8,7 +8,7 @@
  * the channel renders, so they can't disagree.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useProjects } from "@/lib/store";
@@ -27,13 +27,37 @@ import {
 } from "@/lib/chat";
 import { LOCAL_USER } from "@/lib/realtime";
 import { useAuth } from "@/lib/auth/store";
+import { subscribeSync, syncStatus } from "@/lib/db/sync";
 import { KeepPromptCompact } from "@/components/account/KeepPrompt";
 import { KINDS } from "@/lib/kinds";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
 
+/**
+ * What the identity row says on the right.
+ *
+ * "synced" is a claim, and it has to stop being made the moment it stops being
+ * true — a sync that has stalled or paused is exactly when somebody needs to
+ * know, and the settings page they'd have to open to find out is the one place
+ * they aren't looking.
+ */
+function useSyncBadge(): { label: string; wrong: boolean } {
+  const status = useSyncExternalStore(
+    subscribeSync,
+    syncStatus,
+    () => ({ state: "off" }) as ReturnType<typeof syncStatus>,
+  );
+  if (status.state === "error") return { label: "sync failed", wrong: true };
+  if (status.state === "paused") return { label: "sync paused", wrong: true };
+  if (status.state === "off") return { label: "this device", wrong: false };
+  if (status.state === "working" && !status.at)
+    return { label: "connecting", wrong: false };
+  return { label: "synced", wrong: false };
+}
+
 export function Sidebar() {
   const identity = useAuth((s) => s.identity);
+  const badge = useSyncBadge();
   const projects = useProjects((s) => s.projects);
   const addProject = useProjects((s) => s.addProject);
   const params = useParams<{ projectId?: string; channelId?: string[] }>();
@@ -435,7 +459,10 @@ export function Sidebar() {
               a line in Settings: "am I signed in" is a question people ask of
               the chrome, not of a settings page. */}
           <Link
-            href="/settings#account"
+            // Signed in, this is where the account is managed; signed out, it
+            // is the way in. Sending someone who wants to sign in to a settings
+            // page and asking them to find the right section is a maze.
+            href={identity.kept === "account" ? "/settings#account" : "/signin"}
             onClick={closeOnMobile}
             className={cn(
               "mb-1 flex items-center gap-2 rounded-md px-2 transition-colors duration-150",
@@ -449,8 +476,13 @@ export function Sidebar() {
             <span className="min-w-0 flex-1 truncate text-[13px]">
               {identity.name}
             </span>
-            <span className="shrink-0 font-mono text-[9.5px] text-fg-subtle">
-              {identity.kept === "account" ? "synced" : "this device"}
+            <span
+              className={cn(
+                "shrink-0 font-mono text-[9.5px]",
+                badge.wrong ? "text-danger" : "text-fg-subtle",
+              )}
+            >
+              {badge.label}
             </span>
           </Link>
 

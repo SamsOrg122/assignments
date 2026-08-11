@@ -26,6 +26,7 @@ type State =
   | { status: "reading" }
   | { status: "ready"; project: Project; permission: SharePermission }
   | { status: "empty" }
+  | { status: "expired"; at: number }
   | { status: "broken" };
 
 export function ViewerClient() {
@@ -44,13 +45,15 @@ export function ViewerClient() {
         (decoded) => {
           if (!live) return;
           setState(
-            decoded
-              ? {
-                  status: "ready",
-                  project: decoded.project,
-                  permission: decoded.permission,
-                }
-              : { status: "broken" },
+            !decoded
+              ? { status: "broken" }
+              : decoded.expired
+                ? { status: "expired", at: decoded.expires ?? 0 }
+                : {
+                    status: "ready",
+                    project: decoded.project,
+                    permission: decoded.permission,
+                  },
           );
         },
         () => live && setState({ status: "broken" }),
@@ -142,6 +145,15 @@ export function ViewerClient() {
         <Explain
           title="Nothing to show"
           body="This address needs the rest of the link — the part after the # carries the document. Copy the whole link and try again."
+        />
+      )}
+
+      {state.status === "expired" && (
+        <Explain
+          title="That link has expired"
+          body={`Whoever shared this set it to stop working on ${new Date(
+            state.at,
+          ).toLocaleDateString()}. Ask them for a new one — the document itself is untouched.`}
         />
       )}
 

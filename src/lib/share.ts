@@ -98,8 +98,10 @@ async function through(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> 
 export async function encodeShare(
   project: Project,
   permission: SharePermission = "view",
+  /** Milliseconds since the epoch after which the viewer refuses to open it. */
+  expires?: number,
 ): Promise<string> {
-  const json = JSON.stringify(stripForShare(project));
+  const json = JSON.stringify(stripForShare(project, expires));
   const bytes = new TextEncoder().encode(json);
   const mark = permission === "edit" ? "e" : permission === "suggest" ? "s" : "v";
 
@@ -117,10 +119,11 @@ export async function encodeShare(
  * the document — sending them would make every link heavier for nothing, and
  * a snapshot history is a record of drafts the author didn't choose to show.
  */
-function stripForShare(project: Project): Project {
+function stripForShare(project: Project, expires?: number): Project {
   const light: Project = { ...project, board: project.board.map(bare) };
   delete light.history;
   delete light.viewport;
+  if (expires) light.shareExpires = expires;
   return light;
 }
 
@@ -133,8 +136,9 @@ function bare(item: BoardItem): BoardItem {
 export async function shareLink(
   project: Project,
   permission: SharePermission = "view",
+  expires?: number,
 ): Promise<string> {
-  const payload = await encodeShare(project, permission);
+  const payload = await encodeShare(project, permission, expires);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   return `${origin}/v#${payload}`;
 }
@@ -180,7 +184,23 @@ export function linkVerdict(url: string): LinkVerdict {
 export interface DecodedShare {
   project: Project;
   permission: SharePermission;
+  /** When this link stops working, if it was given a date. */
+  expires?: number;
+  /** Whether that date has passed. The viewer shows the notice, not the work. */
+  expired?: boolean;
 }
+
+/**
+ * What an expiry date on a copied link can and cannot do.
+ *
+ * A view link carries the whole document inside it — that is what makes it
+ * work with no server and no account. The consequence is unavoidable and has
+ * to be said out loud rather than implied by a date picker: the date stops the
+ * *app* opening it, and cannot reach a copy somebody has already saved. Only a
+ * live session, which streams from this browser, can truly be cut off.
+ */
+export const EXPIRY_IS_ADVISORY =
+  "The date stops Tougather opening the link. It can't reach a copy someone already saved — a link with the document in it is a copy. For a link you can genuinely switch off, share a live session instead.";
 
 export async function decodeShare(payload: string): Promise<DecodedShare | null> {
   const dot = payload.indexOf(".");
@@ -214,7 +234,14 @@ export async function decodeShare(payload: string): Promise<DecodedShare | null>
 
   try {
     const project = validate(JSON.parse(new TextDecoder().decode(bytes)));
-    return project ? { project, permission } : null;
+    if (!project) return null;
+    const expires = project.shareExpires;
+    return {
+      project,
+      permission,
+      expires,
+      expired: typeof expires === "number" && Date.now() > expires,
+    };
   } catch {
     return null;
   }
@@ -251,6 +278,12 @@ function validate(input: unknown): Project | null {
     glyph: str(raw.glyph, "◇").slice(0, 4),
     createdAt: num(raw.createdAt, Date.now()),
     updatedAt: num(raw.updatedAt, Date.now()),
+    // Read like everything else here: never trusted, only coerced. A payload
+    // claiming a string or an object for this must not reach a comparison.
+    shareExpires:
+      typeof raw.shareExpires === "number" && Number.isFinite(raw.shareExpires)
+        ? raw.shareExpires
+        : undefined,
     blocks: arr(raw.blocks).map(block).filter(Boolean) as Project["blocks"],
     board: arr(raw.board).map(item).filter(Boolean) as Project["board"],
     typography: raw.typography ? (obj(raw.typography) as never) : undefined,

@@ -24,10 +24,46 @@ export function projectMenu(
     open: (id: string) => void;
     settings: () => void;
     rename: () => void;
+    /** Only the Library offers these; elsewhere the entries are left out. */
+    labels?: () => void;
   },
 ): MenuItem[] {
   const store = useProjects.getState();
   const notify = useUI.getState().notify;
+
+  /** The folder tree as a flat list, indented, for the "Move to" submenu. */
+  const folderItems = (): MenuItem[] => {
+    const out: MenuItem[] = [
+      {
+        kind: "item",
+        label: "Top level",
+        checked: !project.folderId,
+        onSelect: () => {
+          store.moveProject(project.id, null);
+          notify("Moved to the top level");
+        },
+      },
+    ];
+    const walk = (parentId: string | null, depth: number) => {
+      for (const folder of store.folders.filter((f) => f.parentId === parentId)) {
+        out.push({
+          kind: "item",
+          // Indented with figure spaces: a submenu has no room for a tree, and
+          // two folders called "Drafts" in different places are otherwise the
+          // same entry twice.
+          label: `${"  ".repeat(depth)}${folder.name}`,
+          checked: project.folderId === folder.id,
+          onSelect: () => {
+            store.moveProject(project.id, folder.id);
+            notify(`Moved to ${folder.name}`);
+          },
+        });
+        walk(folder.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return out;
+  };
 
   return [
     {
@@ -68,6 +104,22 @@ export function projectMenu(
         },
       })),
     },
+    {
+      kind: "submenu",
+      label: "Move to",
+      icon: "folder",
+      items: folderItems(),
+    },
+    ...(actions.labels
+      ? [
+          {
+            kind: "item" as const,
+            label: "Labels…",
+            icon: "tag" as const,
+            onSelect: actions.labels,
+          },
+        ]
+      : []),
     {
       kind: "submenu",
       label: "Export",

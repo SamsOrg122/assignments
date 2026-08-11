@@ -22,6 +22,7 @@ import { useAuth } from "@/lib/auth/store";
 import { useAccountSession } from "@/lib/auth/session";
 import { useRemoteConfigured } from "@/lib/db/use-config";
 import { handOver } from "@/lib/db/sync";
+import { clearOffline } from "@/lib/offline";
 import { useUI } from "@/lib/ui-store";
 import { cn } from "@/lib/cn";
 import { AccountForm, type AccountMode } from "./AccountForm";
@@ -107,6 +108,9 @@ export function AccountPanel() {
               onClick={async () => {
                 await signOut();
                 signedOut();
+                // The cached shell is not private, and two people share a
+                // laptop more often than anyone designing this remembers.
+                void clearOffline();
                 // Hands this browser's work to whatever identity comes next —
                 // otherwise sync sees an account mismatch and stops, and the
                 // promise below would quietly stop being true.

@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Project } from "@/lib/types";
 import {
+  EXPIRY_IS_ADVISORY,
   linkVerdict,
   shareLink,
   type LinkVerdict,
@@ -58,6 +59,8 @@ export function ShareMenu({ project }: { project: Project }) {
   const [link, setLink] = useState<string | null>(null);
   const [verdict, setVerdict] = useState<LinkVerdict | null>(null);
   const [copied, setCopied] = useState(false);
+  /** Days until the link stops opening. 0 means no date at all. */
+  const [days, setDays] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -72,7 +75,8 @@ export function ShareMenu({ project }: { project: Project }) {
       // opening the session are the same intent, so they are the same action —
       // otherwise the first person to follow the link finds nobody there.
       if (permission === "edit" || permission === "suggest") startSharing(project.id);
-      shareLink(project, permission).then(
+      const until = days ? Date.now() + days * 86_400_000 : undefined;
+      shareLink(project, permission, until).then(
         (url) => {
           setLink(url);
           setVerdict(linkVerdict(url));
@@ -80,7 +84,7 @@ export function ShareMenu({ project }: { project: Project }) {
         () => notify("That project couldn't be turned into a link."),
       );
     },
-    [project, notify, startSharing],
+    [project, notify, startSharing, days],
   );
 
   const toggle = () => {
@@ -99,6 +103,15 @@ export function ShareMenu({ project }: { project: Project }) {
     setMode(next);
     setCopied(false);
     build(next);
+  };
+
+  const setExpiry = (next: number) => {
+    setDays(next);
+    setCopied(false);
+    // Rebuilt rather than patched: the date is inside the payload, so a link
+    // already copied keeps whatever it was made with. That is the honest
+    // behaviour and the reason the note below says what it says.
+    setTimeout(() => build(mode), 0);
   };
 
   useEffect(() => {
@@ -249,7 +262,7 @@ export function ShareMenu({ project }: { project: Project }) {
               <p>
                 &ldquo;Can view&rdquo; picks which door the link opens, not what
                 the recipient is able to read — they hold the document either
-                way. Locking, expiry and revoking need an account.
+                way.
               </p>
             ) : (
               <p>
@@ -262,6 +275,38 @@ export function ShareMenu({ project }: { project: Project }) {
               </p>
             )}
           </div>
+
+          {/* Expiry. Offered because people ask for it, and annotated because
+              what it actually does is narrower than the word suggests. */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11.5px] text-fg-subtle">Stops working</span>
+            {[
+              { days: 0, label: "Never" },
+              { days: 1, label: "Tomorrow" },
+              { days: 7, label: "In a week" },
+              { days: 30, label: "In a month" },
+            ].map((option) => (
+              <button
+                key={option.days}
+                type="button"
+                aria-pressed={days === option.days}
+                onClick={() => setExpiry(option.days)}
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-[11px] transition-colors duration-150",
+                  days === option.days
+                    ? "border-accent/50 bg-accent-soft text-accent"
+                    : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {days > 0 && (
+            <p className="mt-1.5 text-[11px] leading-relaxed text-fg-subtle">
+              {EXPIRY_IS_ADVISORY}
+            </p>
+          )}
 
           <div className="mt-2.5 flex items-center gap-3">
             {link && (

@@ -38,6 +38,7 @@ import {
   type TableFilter,
   type FormatRule,
   type Typography,
+  type Folder,
   sortsOf,
 } from "./types";
 import {
@@ -53,6 +54,17 @@ import { formatInline } from "./sources/format";
 
 interface ProjectsState {
   projects: Project[];
+  /** Where projects are filed. See `Folder` in types.ts. */
+  folders: Folder[];
+
+  /* Folders and labels */
+  addFolder: (name: string, parentId?: string | null) => string;
+  renameFolder: (folderId: string, name: string) => void;
+  /** Delete a folder; its contents move up to its parent, never away. */
+  removeFolder: (folderId: string) => void;
+  moveFolder: (folderId: string, parentId: string | null) => void;
+  moveProject: (projectId: string, folderId: string | null) => void;
+  setLabels: (projectId: string, labels: string[]) => void;
 
   /* Projects */
   addProject: (kind?: ProjectKind, name?: string) => string;
@@ -394,6 +406,78 @@ export const useProjects = create<ProjectsState>()(
   persist(
     (set, get) => ({
       projects: SEED_PROJECTS,
+      folders: [],
+
+      addFolder: (name, parentId = null) => {
+        const folder: Folder = {
+          id: uid(),
+          name: name.trim() || "New folder",
+          parentId,
+          createdAt: Date.now(),
+        };
+        set((s) => ({ folders: [...s.folders, folder] }));
+        return folder.id;
+      },
+
+      renameFolder: (folderId, name) =>
+        set((s) => ({
+          folders: s.folders.map((f) =>
+            f.id === folderId ? { ...f, name: name.trim() || f.name } : f,
+          ),
+        })),
+
+      removeFolder: (folderId) =>
+        set((s) => {
+          const gone = s.folders.find((f) => f.id === folderId);
+          if (!gone) return s;
+          // Contents move up rather than out: deleting a folder is a statement
+          // about the folder, never about the work inside it.
+          return {
+            folders: s.folders
+              .filter((f) => f.id !== folderId)
+              .map((f) => (f.parentId === folderId ? { ...f, parentId: gone.parentId } : f)),
+            projects: s.projects.map((p) =>
+              p.folderId === folderId ? { ...p, folderId: gone.parentId } : p,
+            ),
+          };
+        }),
+
+      moveFolder: (folderId, parentId) =>
+        set((s) => {
+          // A folder inside its own descendant would vanish from every view
+          // and take its contents with it.
+          let walk = parentId;
+          while (walk) {
+            if (walk === folderId) return s;
+            walk = s.folders.find((f) => f.id === walk)?.parentId ?? null;
+          }
+          return {
+            folders: s.folders.map((f) =>
+              f.id === folderId ? { ...f, parentId } : f,
+            ),
+          };
+        }),
+
+      moveProject: (projectId, folderId) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id === projectId ? { ...p, folderId } : p,
+          ),
+        })),
+
+      setLabels: (projectId, labels) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  labels: [
+                    ...new Set(labels.map((l) => l.trim()).filter(Boolean)),
+                  ].sort((a, b) => a.localeCompare(b)),
+                }
+              : p,
+          ),
+        })),
 
       addProject: (kind = "doc", name) => {
         const project = createProject(kind, name);
@@ -1255,7 +1339,7 @@ export const useProjects = create<ProjectsState>()(
       // migration is how an update deletes somebody's thesis.
       ...versioned<ProjectsState>("assignments:projects:v1", PROJECT_MIGRATIONS),
       // Persist content only; actions are re-created on every load.
-      partialize: (s) => ({ projects: s.projects }),
+      partialize: (s) => ({ projects: s.projects, folders: s.folders }),
       // Rehydrate manually after mount. Reading localStorage during module
       // evaluation would make the first client render disagree with the
       // server-rendered seed, which React reports as a hydration mismatch.

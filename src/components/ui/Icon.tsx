@@ -55,6 +55,8 @@ export type IconName =
   | "unlock"
   | "group"
   | "map"
+  | "folder"
+  | "tag"
   | "list";
 
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -65,6 +67,17 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   plus: <path d="M8 3.5v9M3.5 8h9" />,
+  folder: (
+    <>
+      <path d="M2.5 5a1.5 1.5 0 0 1 1.5-1.5h2.3l1.2 1.6h5A1.5 1.5 0 0 1 14 6.6v5.4a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12V5z" />
+    </>
+  ),
+  tag: (
+    <>
+      <path d="M8.2 2.5H13a.5.5 0 0 1 .5.5v4.8a1 1 0 0 1-.3.7l-5 5a1 1 0 0 1-1.4 0L2.5 9.2a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 .7-.3z" />
+      <circle cx="10.8" cy="5.2" r=".9" />
+    </>
+  ),
   list: (
     <>
       <path d="M6 4.5h7.5M6 8h7.5M6 11.5h5" />

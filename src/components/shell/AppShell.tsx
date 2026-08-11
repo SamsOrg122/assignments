@@ -15,6 +15,7 @@ import { useProjects } from "@/lib/store";
 import { useAppearanceSync } from "@/lib/theme-store";
 import { useAuthHydrated } from "@/lib/auth/store";
 import { useAccountSession } from "@/lib/auth/session";
+import { useOfflineReady } from "@/lib/offline";
 import { hydrateShared } from "@/lib/collab/shared";
 import { connectAI } from "@/lib/ai";
 import { useSync } from "@/lib/db/sync";
@@ -42,6 +43,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // with no database configured, which is the normal case.
   useSync();
   useKitFonts();
+  // Stores the app itself, so it opens without a network. Work already
+  // survived offline; the app — the only way to reach it — did not.
+  useOfflineReady();
 
   const { togglePalette, toggleSidebar, setSidebarOpen, openAI, closeAI, closePalette } =
     useUI();

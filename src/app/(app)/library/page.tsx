@@ -14,6 +14,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProjects, useHydrated } from "@/lib/store";
 import { KINDS, KIND_ORDER } from "@/lib/kinds";
+import {
+  FolderRail,
+  LabelBar,
+  LabelEditor,
+  pathTo,
+  subtree,
+} from "@/components/library/Folders";
 import { fuzzyMatch } from "@/lib/fuzzy";
 import { TopBar } from "@/components/shell/TopBar";
 import { useMenu } from "@/components/ui/Menu";
@@ -34,6 +41,7 @@ type Sort = "recent" | "name" | "kind";
 
 export default function LibraryPage() {
   const projects = useProjects((s) => s.projects);
+  const folders = useProjects((s) => s.folders);
   const addProject = useProjects((s) => s.addProject);
   const hydrated = useHydrated();
   const router = useRouter();
@@ -45,6 +53,9 @@ export default function LibraryPage() {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<ProjectKind | "all">("all");
   const [sort, setSort] = useState<Sort>("recent");
+  const [folder, setFolder] = useState<string | null>(null);
+  const [labels, setLabels] = useState<string[]>([]);
+  const [labelling, setLabelling] = useState<string | null>(null);
 
   const openMenu = (e: React.MouseEvent, project: Project) =>
     menu.open(
@@ -53,11 +64,13 @@ export default function LibraryPage() {
         open: (id) => router.push(`/p/${id}`),
         settings: () => setSettingsFor(project.id),
         rename: () => setRenaming(project.id),
+        labels: () => setLabelling(project.id),
       }),
     );
 
   const settingsProject = projects.find((p) => p.id === settingsFor);
   const renamingProject = projects.find((p) => p.id === renaming);
+  const labellingProject = projects.find((p) => p.id === labelling);
 
   const counts = useMemo(() => {
     const map = new Map<ProjectKind, number>();
@@ -66,8 +79,16 @@ export default function LibraryPage() {
   }, [projects]);
 
   const rows = useMemo(() => {
+    // A folder shows everything under it, not just what is directly in it —
+    // otherwise a parent looks empty while holding forty projects.
+    const inFolder = folder ? new Set(subtree(folders, folder)) : null;
+
     const filtered = projects
       .filter((p) => kind === "all" || p.kind === kind)
+      .filter((p) => !inFolder || (p.folderId ? inFolder.has(p.folderId) : false))
+      // Every selected label has to match: two labels means the intersection,
+      // which is the only reading that makes a second click useful.
+      .filter((p) => labels.every((l) => (p.labels ?? []).includes(l)))
       .map((p) => {
         if (!query.trim()) return { project: p, score: 0 };
         const hit =
@@ -88,7 +109,7 @@ export default function LibraryPage() {
         );
       return b.project.updatedAt - a.project.updatedAt;
     });
-  }, [projects, query, kind, sort]);
+  }, [projects, folders, query, kind, sort, folder, labels]);
 
   const create = (k: ProjectKind) => router.push(`/p/${addProject(k)}`);
 
@@ -122,6 +143,12 @@ export default function LibraryPage() {
         <RenameDialog
           project={renamingProject}
           onClose={() => setRenaming(null)}
+        />
+      )}
+      {labellingProject && (
+        <LabelEditor
+          project={labellingProject}
+          onClose={() => setLabelling(null)}
         />
       )}
 
@@ -193,6 +220,45 @@ export default function LibraryPage() {
 
           <KeepPrompt />
 
+          {/* Where things live. Hidden entirely until there is something to
+              show, so a small workspace keeps the plain list it had. */}
+          {(folders.length > 0 || projects.length >= 8) && (
+            <div className="mb-4 rounded-md border border-line bg-surface p-2.5">
+              <FolderRail
+                selected={folder}
+                onSelect={setFolder}
+                projects={projects}
+              />
+            </div>
+          )}
+
+          {folder && (
+            <nav
+              aria-label="Folder"
+              className="mb-3 flex flex-wrap items-center gap-1 text-[12px] text-fg-subtle"
+            >
+              <button
+                type="button"
+                onClick={() => setFolder(null)}
+                className="transition-colors hover:text-fg"
+              >
+                Everything
+              </button>
+              {pathTo(folders, folder).map((f) => (
+                <span key={f.id} className="flex items-center gap-1">
+                  <span aria-hidden="true">/</span>
+                  <button
+                    type="button"
+                    onClick={() => setFolder(f.id)}
+                    className="transition-colors hover:text-fg"
+                  >
+                    {f.name}
+                  </button>
+                </span>
+              ))}
+            </nav>
+          )}
+
           {/* Search + filters */}
           <div className="mb-4 flex flex-col gap-3">
             <div className="flex items-center gap-2.5 rounded-md border border-line bg-surface px-3">
@@ -217,6 +283,18 @@ export default function LibraryPage() {
               )}
               <kbd className="kbd hidden sm:block">⌘K for anything</kbd>
             </div>
+
+            <LabelBar
+              projects={projects}
+              active={labels}
+              onToggle={(label) =>
+                setLabels((current) =>
+                  current.includes(label)
+                    ? current.filter((l) => l !== label)
+                    : [...current, label],
+                )
+              }
+            />
 
             <div className="no-scrollbar -mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5">
               <FilterChip

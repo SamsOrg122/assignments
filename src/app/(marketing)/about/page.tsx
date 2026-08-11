@@ -52,6 +52,17 @@ export default function AboutPage() {
         every option is how documents end up looking like ransom notes. Power
         is in what you can build, not in how many ways you can style it.
       </P>
+      <P>
+        And it is <strong className="font-medium text-fg">not a replacement
+        for Microsoft 365 or Google Workspace</strong>, whatever the shape of
+        the argument above suggests. There is no email and no calendar, which
+        for most people is the larger half of what Outlook is. There is no
+        organisation-wide administration — no single sign-on, no audit log, no
+        retention policy — so a school&apos;s IT department has nothing here to
+        approve. Sharing is per-link rather than per-group. Keep the mail and
+        the calendar you have; this replaces the four apps you make things in,
+        which is a smaller claim and a true one.
+      </P>
 
       <H2>The money</H2>
       <P>

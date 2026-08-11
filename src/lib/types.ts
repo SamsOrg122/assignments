@@ -621,12 +621,38 @@ export const DEFAULT_TYPOGRAPHY: Typography = {
   paper: "canvas",
 };
 
+/**
+ * A place to put projects.
+ *
+ * Nested, because forty projects is where a flat list stops working and the
+ * first thing anybody reaches for is a folder inside a folder. Folders hold
+ * *only* projects and other folders — a document is never inside a document —
+ * which keeps "where is this?" a single answer.
+ */
+export interface Folder {
+  id: string;
+  name: string;
+  /** Null at the top level. */
+  parentId: string | null;
+  createdAt: number;
+}
+
 export interface Project {
   id: string;
   name: string;
   kind: ProjectKind;
   /** Single glyph shown in the sidebar and on Library rows. */
   glyph: string;
+  /** Which folder it sits in. Absent or null means the top level. */
+  folderId?: string | null;
+  /**
+   * Labels, which cut across folders on purpose.
+   *
+   * A project is in exactly one folder and can carry any number of labels,
+   * because the two questions people ask are different: "where does this
+   * live" has one answer, and "everything to do with the thesis" has many.
+   */
+  labels?: string[];
   createdAt: number;
   updatedAt: number;
   /** Stacked blocks — doc, notes, deck, code. */
@@ -655,6 +681,14 @@ export interface Project {
 
   /** How the document sits on paper. See `lib/page.ts`. */
   page?: import("./page").PageSetup;
+
+  /**
+   * When a shared copy of this project stops opening.
+   *
+   * Only ever set on the copy inside a link, never on the original — see
+   * `EXPIRY_IS_ADVISORY` in `lib/share.ts` for what it can and cannot do.
+   */
+  shareExpires?: number;
 
   /**
    * Names standing for ranges, usable from any formula in the project.

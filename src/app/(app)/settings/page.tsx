@@ -35,6 +35,8 @@ import { SafeKeeping } from "@/components/settings/SafeKeeping";
 import { Dictionary } from "@/components/settings/Dictionary";
 import { AccountPanel } from "@/components/account/AccountPanel";
 import { ConnectionPanel } from "@/components/account/ConnectionPanel";
+import { LanguagePanel } from "@/components/settings/LanguagePanel";
+import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 /**
@@ -79,6 +81,7 @@ function useSyncLine(): string {
 }
 
 export default function SettingsPage() {
+  const { t } = useLocale();
   const a = useAppearance();
   const isClient = useIsClient();
   const aiProvider = useAIProviderName();
@@ -90,7 +93,9 @@ export default function SettingsPage() {
   return (
     <>
       <TopBar>
-        <span className="text-[13px] font-medium text-fg">Settings</span>
+        <span className="text-[13px] font-medium text-fg">
+          {t("settings.title")}
+        </span>
       </TopBar>
 
       <main className="flex-1 overflow-y-auto">
@@ -251,8 +256,16 @@ export default function SettingsPage() {
           </Section>
 
           <Section
+            id="language"
+            title={t("settings.language")}
+            hint={t("settings.languageHint")}
+          >
+            <LanguagePanel />
+          </Section>
+
+          <Section
             id="account"
-            title="Your account"
+            title={t("settings.account")}
             hint="Two ways to keep your work, and you pick. Neither one is a trial version of the other."
           >
             <AccountPanel />

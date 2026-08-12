@@ -24,6 +24,7 @@
 import { supabase } from "./db/client";
 import { isRemoteConfigured } from "./db";
 import { explainAuthErrorLine } from "./auth/errors";
+import { t } from "./i18n";
 import type { FormBlock, FormField, FormFieldKind } from "./types";
 
 export const FIELD_LABELS: Record<FormFieldKind, string> = {
@@ -75,13 +76,13 @@ export function checkAnswer(field: FormField, answer: Answer): string | null {
     answer === "" ||
     (Array.isArray(answer) && answer.length === 0);
 
-  if (empty) return field.required ? "This one is required." : null;
+  if (empty) return field.required ? t("form.required") : null;
 
   switch (field.kind) {
     case "number":
     case "scale": {
       const n = Number(answer);
-      if (!Number.isFinite(n)) return "That has to be a number.";
+      if (!Number.isFinite(n)) return t("form.badNumber");
       if (field.min !== undefined && n < field.min)
         return `Has to be at least ${field.min}.`;
       if (field.max !== undefined && n > field.max)
@@ -91,15 +92,15 @@ export function checkAnswer(field: FormField, answer: Answer): string | null {
     case "email":
       return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(answer))
         ? null
-        : "That doesn't look like an email address.";
+        : t("form.badEmail");
     case "date":
       return /^\d{4}-\d{2}-\d{2}$/.test(String(answer))
         ? null
-        : "Give a date as 2026-08-11.";
+        : t("form.badDate");
     case "choice":
       return (field.options ?? []).includes(String(answer))
         ? null
-        : "Pick one of the options.";
+        : t("form.pickOne");
     case "checkboxes": {
       const picked = Array.isArray(answer) ? answer : [String(answer)];
       const known = new Set(field.options ?? []);

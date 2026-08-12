@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProjects, useHydrated } from "@/lib/store";
 import { KINDS, KIND_ORDER } from "@/lib/kinds";
+import { useLocale } from "@/lib/i18n";
 import {
   FolderRail,
   LabelBar,
@@ -40,6 +41,7 @@ import {
 type Sort = "recent" | "name" | "kind";
 
 export default function LibraryPage() {
+  const { t } = useLocale();
   const projects = useProjects((s) => s.projects);
   const folders = useProjects((s) => s.folders);
   const addProject = useProjects((s) => s.addProject);
@@ -211,10 +213,10 @@ export default function LibraryPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-[880px] px-5 py-8 sm:px-8 sm:py-12">
           <div className="mb-8">
-            <p className="label-mono mb-2.5">Everything, in one</p>
+            <p className="label-mono mb-2.5">{t("library.eyebrow")}</p>
             <h1 className="max-w-[20ch] text-[26px] leading-[1.15] font-medium tracking-[-0.03em] text-fg sm:text-[32px]">
-              Finished work lives here.
-              <span className="text-fg-subtle"> Thinking lives on a Board.</span>
+              {t("library.title")}
+              <span className="text-fg-subtle"> {t("library.subtitle")}</span>
             </h1>
           </div>
 
@@ -242,7 +244,7 @@ export default function LibraryPage() {
                 onClick={() => setFolder(null)}
                 className="transition-colors hover:text-fg"
               >
-                Everything
+                {t("library.everything")}
               </button>
               {pathTo(folders, folder).map((f) => (
                 <span key={f.id} className="flex items-center gap-1">
@@ -266,8 +268,8 @@ export default function LibraryPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search the library…"
-                aria-label="Search projects"
+                placeholder={t("library.search")}
+                aria-label={t("library.searchLabel")}
                 spellCheck={false}
                 className="w-full bg-transparent py-2.5 text-[13.5px] text-fg outline-none placeholder:text-fg-subtle"
               />
@@ -300,7 +302,7 @@ export default function LibraryPage() {
               <FilterChip
                 active={kind === "all"}
                 onClick={() => setKind("all")}
-                label="All"
+                label={t("library.all")}
                 count={projects.length}
               />
               {KIND_ORDER.map((k) => (
@@ -400,7 +402,9 @@ export default function LibraryPage() {
                     lost: export a backup at the old address and{" "}
                     <Link
                       href="/settings#keeping"
-                      className="text-accent transition-opacity hover:opacity-80"
+                      // Underlined, not just coloured: a link a colour-blind
+                      // reader can't pick out of a paragraph isn't a link.
+                      className="text-accent underline decoration-accent/40 underline-offset-2 transition-opacity hover:opacity-80"
                     >
                       restore it here
                     </Link>

@@ -216,7 +216,10 @@ export function Pricing() {
 
             {/* Result */}
             <div className="p-5 sm:p-6">
-              <dl className="space-y-2.5">
+              {/* A grid rather than rows of divs: `dt` and `dd` have to be
+                  children of the `dl` to mean anything to a screen reader,
+                  which rules out a wrapper per line. */}
+              <dl className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 gap-y-2.5">
                 <Line
                   label={`${plan.name}${plan.perSeat ? ` × ${seats}` : ""}`}
                   value={euro(est.subscription)}
@@ -230,9 +233,12 @@ export function Pricing() {
                   value={euro(est.usage)}
                   muted={est.usage === 0}
                 />
-                <div className="border-t border-line pt-2.5">
-                  <Line label="Per month" value={<TweenedEuro to={est.total} />} strong />
-                </div>
+                <Line
+                  label="Per month"
+                  value={<TweenedEuro to={est.total} />}
+                  strong
+                  ruled
+                />
               </dl>
 
               {!plan.metered && credits > plan.includedCredits && (
@@ -438,17 +444,21 @@ function Line({
   value,
   strong = false,
   muted = false,
+  ruled = false,
 }: {
   label: string;
   value: React.ReactNode;
   strong?: boolean;
   muted?: boolean;
+  /** A rule above the total, drawn on the pair rather than around it. */
+  ruled?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <>
       <dt
         className={cn(
           "text-[12.5px]",
+          ruled && "mt-0.5 border-t border-line pt-2.5",
           strong ? "text-fg" : muted ? "text-fg-subtle" : "text-fg-muted",
         )}
       >
@@ -456,13 +466,14 @@ function Line({
       </dt>
       <dd
         className={cn(
-          "shrink-0 font-mono tabular-nums",
+          "shrink-0 text-right font-mono tabular-nums",
+          ruled && "mt-0.5 border-t border-line pt-2.5",
           strong ? "text-[17px] text-fg" : "text-[12.5px] text-fg-muted",
         )}
       >
         {value}
       </dd>
-    </div>
+    </>
   );
 }
 

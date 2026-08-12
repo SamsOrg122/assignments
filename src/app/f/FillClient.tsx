@@ -28,6 +28,7 @@ import {
 import { useRemoteConfigSettled } from "@/lib/db/use-config";
 import { LogoTile } from "@/components/ui/Logo";
 import { cn } from "@/lib/cn";
+import { useLocale } from "@/lib/i18n";
 
 type State =
   | { kind: "reading" }
@@ -36,6 +37,7 @@ type State =
   | { kind: "broken" };
 
 export function FillClient() {
+  const { t } = useLocale();
   const settled = useRemoteConfigSettled();
   const [state, setState] = useState<State>({ kind: "reading" });
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
@@ -94,17 +96,16 @@ export function FillClient() {
   };
 
   if (state.kind === "reading" || !settled)
-    return <Shell><p className="text-[13px] text-fg-muted">Opening…</p></Shell>;
+    return <Shell><p className="text-[13px] text-fg-muted">{t("common.checking")}</p></Shell>;
 
   if (state.kind === "broken")
     return (
       <Shell>
         <h1 className="mb-2 text-[20px] font-medium tracking-[-0.02em] text-fg">
-          That link didn&apos;t open
+          {t("form.linkBroken")}
         </h1>
         <p className="text-[13px] leading-relaxed text-fg-muted">
-          The form inside it couldn&apos;t be read. Links get cut short by some
-          chat apps — ask whoever sent it for the whole thing.
+          {t("form.linkBrokenBody")}
         </p>
       </Shell>
     );
@@ -113,11 +114,10 @@ export function FillClient() {
     return (
       <Shell>
         <h1 className="mb-2 text-[20px] font-medium tracking-[-0.02em] text-fg">
-          Sent
+          {t("form.sent")}
         </h1>
         <p className="text-[13px] leading-relaxed text-fg-muted">
-          Your answers have gone to whoever made this form. You can close this
-          page.
+          {t("form.sentBody")}
         </p>
         <Link
           href="/"
@@ -168,10 +168,10 @@ export function FillClient() {
             disabled={sending}
             className="rounded-sm bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
           >
-            {sending ? "Sending…" : "Send"}
+            {sending ? t("form.sending") : t("form.send")}
           </button>
           <span className="text-[11.5px] text-fg-subtle">
-            Your answers go to whoever made this form.
+            {t("form.goesTo")}
           </span>
         </div>
       </form>

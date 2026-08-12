@@ -481,12 +481,13 @@ function TableGrid({ projectId, block }: Props) {
       )}
 
       {/* ── The grid ── */}
+      {/* The scroll container is not the grid: `role="grid"` requires row
+          children, and a scrolling div whose only child is a <table> has none.
+          The role belongs on the table itself, where the rows actually are. */}
       <div
         ref={gridRef}
         tabIndex={0}
-        role="grid"
-        aria-rowcount={rowCount}
-        aria-colcount={colCount}
+        aria-label={block.title ?? "Table"}
         onKeyDown={onKeyDown}
         onScroll={(e) => {
           if (virtual) setScrollTop(e.currentTarget.scrollTop);
@@ -504,6 +505,9 @@ function TableGrid({ projectId, block }: Props) {
         style={{ maxHeight: bodyH + HEADER_H + 2 }}
       >
         <table
+          role="grid"
+          aria-rowcount={rowCount}
+          aria-colcount={colCount}
           className="w-full border-collapse text-[12.5px]"
           style={{ tableLayout: "fixed" }}
         >

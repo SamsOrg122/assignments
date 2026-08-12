@@ -29,6 +29,7 @@ import { LOCAL_USER } from "@/lib/realtime";
 import { useAuth } from "@/lib/auth/store";
 import { subscribeSync, syncStatus } from "@/lib/db/sync";
 import { useOffline } from "@/lib/offline";
+import { useLocale } from "@/lib/i18n";
 import { KeepPromptCompact } from "@/components/account/KeepPrompt";
 import { KINDS } from "@/lib/kinds";
 import { cn } from "@/lib/cn";
@@ -50,18 +51,20 @@ function useSyncBadge(): { label: string; wrong: boolean } {
     () => ({ state: "off" }) as ReturnType<typeof syncStatus>,
   );
   const offline = useOffline();
+  const { t } = useLocale();
   // "Sync failed" on a train is alarming and wrong: nothing failed, there is
   // no network. The distinction is the difference between a bug and a tunnel.
-  if (offline) return { label: "offline", wrong: false };
-  if (status.state === "error") return { label: "sync failed", wrong: true };
-  if (status.state === "paused") return { label: "sync paused", wrong: true };
-  if (status.state === "off") return { label: "this device", wrong: false };
+  if (offline) return { label: t("state.offline"), wrong: false };
+  if (status.state === "error") return { label: t("state.syncFailed"), wrong: true };
+  if (status.state === "paused") return { label: t("state.syncPaused"), wrong: true };
+  if (status.state === "off") return { label: t("state.thisDevice"), wrong: false };
   if (status.state === "working" && !status.at)
-    return { label: "connecting", wrong: false };
-  return { label: "synced", wrong: false };
+    return { label: t("state.syncing"), wrong: false };
+  return { label: t("state.synced"), wrong: false };
 }
 
 export function Sidebar() {
+  const { t } = useLocale();
   const identity = useAuth((s) => s.identity);
   const badge = useSyncBadge();
   const projects = useProjects((s) => s.projects);
@@ -253,7 +256,7 @@ export function Sidebar() {
             className="flex w-full items-center gap-2 rounded-md border border-line bg-surface px-2 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
           >
             <Icon name="search" size={13} className="text-fg-subtle" />
-            <span>Search…</span>
+            <span>{t("nav.search")}</span>
             <kbd className="kbd ml-auto">⌘K</kbd>
           </button>
         </div>
@@ -262,14 +265,14 @@ export function Sidebar() {
           <NavLink
             href="/library"
             icon="home"
-            label="Library"
+            label={t("nav.library")}
             active={!activeProject && !onChat && pathname === "/"}
             onNavigate={closeOnMobile}
           />
           <NavLink
             href="/chat"
             icon="users"
-            label="Chat"
+            label={t("nav.chat")}
             active={onChat}
             badge={totalUnread}
             onNavigate={closeOnMobile}
@@ -277,14 +280,14 @@ export function Sidebar() {
           <NavLink
             href="/kit"
             icon="group"
-            label="Kit"
+            label={t("nav.kit")}
             active={pathname === "/kit"}
             onNavigate={closeOnMobile}
           />
           <NavLink
             href="/team"
             icon="board"
-            label="Team"
+            label={t("nav.team")}
             active={pathname === "/team"}
             onNavigate={closeOnMobile}
           />
@@ -292,7 +295,7 @@ export function Sidebar() {
             <NavLink
               href={`/chat/${assistant.channel.id}`}
               icon="sparkle"
-              label="Team assistant"
+              label={t("nav.assistant")}
               active={assistant.channel.id === activeChannel}
               onNavigate={closeOnMobile}
             />
@@ -302,7 +305,7 @@ export function Sidebar() {
         <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto pb-3">
           {/* Projects */}
           <div className="mb-1 flex items-center justify-between px-4">
-            <span className="label-mono">Projects</span>
+            <span className="label-mono">{t("nav.projects")}</span>
             <button
               type="button"
               onClick={() => {
@@ -367,7 +370,7 @@ export function Sidebar() {
 
           {/* Channels */}
           <div className="mt-4 mb-1 flex items-center justify-between px-4">
-            <span className="label-mono">Channels</span>
+            <span className="label-mono">{t("nav.channels")}</span>
             <button
               type="button"
               onClick={() => setNewChannel(true)}
@@ -427,7 +430,7 @@ export function Sidebar() {
 
           {/* Direct messages */}
           <div className="mt-4 mb-1 px-4">
-            <span className="label-mono">Direct messages</span>
+            <span className="label-mono">{t("nav.dms")}</span>
           </div>
           <ul className="flex flex-col gap-0.5 px-2.5">
             {dms.map(({ channel, unread }) => {
@@ -490,7 +493,7 @@ export function Sidebar() {
           <NavLink
             href="/settings"
             icon="settings"
-            label="Settings"
+            label={t("nav.settings")}
             active={pathname === "/settings"}
             onNavigate={closeOnMobile}
           />

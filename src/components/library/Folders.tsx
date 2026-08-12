@@ -21,6 +21,7 @@ import { useUI } from "@/lib/ui-store";
 import { useMenu } from "@/components/ui/Menu";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import { useLocale } from "@/lib/i18n";
 
 /** Every folder id at or under `id`, so a parent shows its whole subtree. */
 export function subtree(folders: Folder[], id: string): string[] {
@@ -59,6 +60,7 @@ export function FolderRail({
   const removeFolder = useProjects((s) => s.removeFolder);
   const moveFolder = useProjects((s) => s.moveFolder);
   const notify = useUI((s) => s.notify);
+  const { t } = useLocale();
   const menu = useMenu();
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -82,7 +84,7 @@ export function FolderRail({
     menu.open(event, [
       {
         kind: "item",
-        label: "Rename",
+        label: t("folder.rename"),
         icon: "type",
         onSelect: () => {
           setRenaming(folder.id);
@@ -91,7 +93,7 @@ export function FolderRail({
       },
       {
         kind: "item",
-        label: "New folder inside",
+        label: t("folder.newInside"),
         icon: "plus",
         onSelect: () => {
           const id = addFolder("New folder", folder.id);
@@ -101,12 +103,12 @@ export function FolderRail({
       },
       {
         kind: "submenu",
-        label: "Move to",
+        label: t("folder.moveTo"),
         icon: "folder",
         items: [
           {
             kind: "item" as const,
-            label: "Top level",
+            label: t("folder.topLevel"),
             checked: folder.parentId === null,
             onSelect: () => moveFolder(folder.id, null),
           },
@@ -123,7 +125,7 @@ export function FolderRail({
       { kind: "separator" },
       {
         kind: "item",
-        label: "Delete folder",
+        label: t("folder.delete"),
         icon: "trash",
         danger: true,
         onSelect: () => {
@@ -131,7 +133,7 @@ export function FolderRail({
           if (selected === folder.id) onSelect(null);
           // Said out loud because it is the one thing somebody would fear:
           // deleting a folder here never deletes what was in it.
-          notify("Folder deleted — everything in it moved up a level");
+          notify(t("folder.deleted"));
         },
       },
     ]);
@@ -154,7 +156,7 @@ export function FolderRail({
                 if (e.key === "Enter") e.currentTarget.blur();
                 if (e.key === "Escape") setRenaming(null);
               }}
-              aria-label="Folder name"
+              aria-label={t("library.folderName")}
               className="w-full rounded-xs border border-accent bg-surface-2 px-1.5 py-1 text-[12.5px] text-fg outline-none"
               style={{ marginLeft: depth * 12 }}
             />
@@ -192,7 +194,7 @@ export function FolderRail({
       {menu.node}
       <div className="flex flex-col gap-0.5">
         <div className="mb-1 flex items-center gap-2">
-          <span className="label-mono flex-1">Folders</span>
+          <span className="label-mono flex-1">{t("library.folders")}</span>
           <button
             type="button"
             onClick={() => {
@@ -203,7 +205,7 @@ export function FolderRail({
             className="flex items-center gap-1 rounded-xs px-1 py-0.5 text-[11px] text-fg-subtle transition-colors duration-150 hover:text-fg"
           >
             <Icon name="plus" size={10} />
-            New
+            {t("library.newFolder")}
           </button>
         </div>
 
@@ -218,7 +220,7 @@ export function FolderRail({
           )}
         >
           <Icon name="home" size={11} className="shrink-0 text-fg-subtle" />
-          <span className="min-w-0 flex-1 truncate">Everything</span>
+          <span className="min-w-0 flex-1 truncate">{t("library.everything")}</span>
           <span className="shrink-0 font-mono text-[9.5px] text-fg-subtle">
             {projects.length}
           </span>
@@ -241,6 +243,7 @@ export function LabelBar({
   active: string[];
   onToggle: (label: string) => void;
 }) {
+  const { t } = useLocale();
   const labels = useMemo(() => {
     const counts = new Map<string, number>();
     for (const p of projects)
@@ -280,7 +283,7 @@ export function LabelBar({
           onClick={() => active.forEach(onToggle)}
           className="text-[11.5px] text-fg-subtle underline decoration-line-strong underline-offset-2 hover:text-fg"
         >
-          Clear
+          {t("library.clear")}
         </button>
       )}
     </div>
@@ -296,6 +299,7 @@ export function LabelEditor({
   project: Project;
   onClose: () => void;
 }) {
+  const { t } = useLocale();
   const setLabels = useProjects((s) => s.setLabels);
   const projects = useProjects((s) => s.projects);
   const [draft, setDraft] = useState((project.labels ?? []).join(", "));
@@ -327,10 +331,9 @@ export function LabelEditor({
         className="absolute inset-0 cursor-default"
       />
       <div className="relative w-full max-w-[380px] rounded-lg border border-line bg-surface p-4">
-        <p className="text-[14px] font-medium text-fg">Labels</p>
+        <p className="text-[14px] font-medium text-fg">{t("labels.title")}</p>
         <p className="mt-1 text-[12.5px] leading-relaxed text-fg-muted">
-          Separate them with commas. A project keeps its folder; labels are for
-          the things that cut across folders.
+          {t("labels.help")}
         </p>
         <input
           autoFocus
@@ -338,7 +341,7 @@ export function LabelEditor({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && save()}
           aria-label="Labels, separated by commas"
-          placeholder="thesis, chapter 2, urgent"
+          placeholder={t("labels.placeholder")}
           className="mt-3 w-full rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
         />
 
@@ -365,14 +368,14 @@ export function LabelEditor({
             onClick={save}
             className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
           >
-            Save
+            {t("labels.save")}
           </button>
           <button
             type="button"
             onClick={onClose}
             className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
           >
-            Cancel
+            {t("labels.cancel")}
           </button>
         </div>
       </div>

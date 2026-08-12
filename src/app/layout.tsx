@@ -6,6 +6,7 @@ import "./globals.css";
 // equation renders offline and nothing is fetched from a CDN.
 import "katex/dist/katex.min.css";
 import { APPEARANCE_BOOT_SCRIPT } from "@/lib/appearance";
+import { LOCALE_BOOT_SCRIPT } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   /*
@@ -47,6 +48,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           which is exactly the behaviour wanted here: this runs once, at load.
         */}
         <script dangerouslySetInnerHTML={{ __html: APPEARANCE_BOOT_SCRIPT }} />
+        {/* And the language, before first paint — a screen reader picks its
+            voice from <html lang>, so getting it late is not cosmetic. */}
+        <script dangerouslySetInnerHTML={{ __html: LOCALE_BOOT_SCRIPT }} />
         {children}
       </body>
     </html>

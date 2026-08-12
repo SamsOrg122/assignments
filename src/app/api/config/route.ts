@@ -16,6 +16,29 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * OAuth providers this app knows how to send someone to. The list is closed
+ * because the value ends up in `signInWithOAuth`, and an unknown name there
+ * produces a redirect to a Supabase error page rather than anything useful.
+ */
+const KNOWN_PROVIDERS = [
+  "google",
+  "azure",
+  "github",
+  "apple",
+  "gitlab",
+  "bitbucket",
+  "slack_oidc",
+  "keycloak",
+  "workos",
+] as const;
+
+const list = (raw: string | undefined) =>
+  (raw ?? "")
+    .split(",")
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+
 export function GET() {
   // Unprefixed names are accepted too. Someone who sets `SUPABASE_URL` has
   // configured their database by any reasonable reading, and refusing it on a
@@ -24,8 +47,33 @@ export function GET() {
   const anonKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
 
+  /*
+   * Single sign-on is *declared* here and configured in Supabase.
+   *
+   * Nothing in this app can make a provider work; the dashboard does that.
+   * What this variable decides is whether the buttons are offered at all —
+   * and that matters, because a "Continue with Microsoft" button on a
+   * deployment where Microsoft was never enabled is a dead end dressed up as
+   * a feature. No variable, no buttons, and the password form stands alone.
+   */
+  const providers = list(
+    process.env.AUTH_PROVIDERS ?? process.env.NEXT_PUBLIC_AUTH_PROVIDERS,
+  ).filter((name): name is (typeof KNOWN_PROVIDERS)[number] =>
+    (KNOWN_PROVIDERS as readonly string[]).includes(name),
+  );
+
+  // SAML domains, for organisations whose identity provider is their own.
+  // `signInWithSSO` takes the domain; Supabase resolves it to the connection
+  // that was registered with the CLI. Requires a plan that includes SAML.
+  const ssoDomains = list(
+    process.env.AUTH_SSO_DOMAINS ?? process.env.NEXT_PUBLIC_AUTH_SSO_DOMAINS,
+  );
+
   return Response.json(
-    { supabase: url && anonKey ? { url, anonKey } : null },
+    {
+      supabase: url && anonKey ? { url, anonKey } : null,
+      auth: { providers, ssoDomains },
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

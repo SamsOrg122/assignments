@@ -36,6 +36,7 @@ import { Dictionary } from "@/components/settings/Dictionary";
 import { AccountPanel } from "@/components/account/AccountPanel";
 import { ConnectionPanel } from "@/components/account/ConnectionPanel";
 import { LanguagePanel } from "@/components/settings/LanguagePanel";
+import { TemplatesPanel } from "@/components/settings/TemplatesPanel";
 import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
@@ -277,6 +278,14 @@ export default function SettingsPage() {
             hint="Whether accounts and sync actually work on this deployment — asked of the project itself, not guessed from a variable."
           >
             <ConnectionPanel />
+          </Section>
+
+          <Section
+            id="templates"
+            title={t("settings.templates")}
+            hint="Shapes to start from. Yours stay in this browser; the workspace's are published by an admin and everybody here gets them."
+          >
+            <TemplatesPanel />
           </Section>
 
           <Section

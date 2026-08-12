@@ -13,6 +13,7 @@ import { KINDS, KIND_ORDER } from "./kinds";
 import { useProjects } from "./store";
 import { useUI } from "./ui-store";
 import { EXPORT_LABELS, exportProject, type ExportFormat } from "./export";
+import { record } from "./admin";
 import type { MenuItem } from "@/components/ui/Menu";
 import type { Project } from "./types";
 
@@ -26,6 +27,7 @@ export function projectMenu(
     rename: () => void;
     /** Only the Library offers these; elsewhere the entries are left out. */
     labels?: () => void;
+    saveAsTemplate?: () => void;
   },
 ): MenuItem[] {
   const store = useProjects.getState();
@@ -120,6 +122,16 @@ export function projectMenu(
           },
         ]
       : []),
+    ...(actions.saveAsTemplate
+      ? [
+          {
+            kind: "item" as const,
+            label: "Save as template…",
+            icon: "copy" as const,
+            onSelect: actions.saveAsTemplate,
+          },
+        ]
+      : []),
     {
       kind: "submenu",
       label: "Export",
@@ -145,6 +157,9 @@ export function projectMenu(
       onSelect: () => {
         store.deleteProject(project.id);
         notify(`Deleted “${project.name}”`);
+        // Best effort and deliberately not awaited: the deletion is what was
+        // asked for, and a workspace with no database has nowhere to record it.
+        void record("project.deleted", project.name, { kind: project.kind });
       },
     },
   ];

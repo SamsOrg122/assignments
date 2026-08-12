@@ -26,6 +26,8 @@ import {
 import { ingestFile } from "@/lib/files/ingest";
 import { LOCAL_USER } from "@/lib/realtime";
 import { useUI } from "@/lib/ui-store";
+import Link from "next/link";
+import { useRemoteConfigured } from "@/lib/db/use-config";
 import { TopBar } from "@/components/shell/TopBar";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
@@ -158,11 +160,30 @@ function MembersSection({
   const removeMember = useTeam((s) => s.removeMember);
   const notify = useUI((s) => s.notify);
 
+  const configured = useRemoteConfigured();
   const options = assignableRoles(myRole);
   const owners = members.filter((m) => m.role === "owner").length;
 
   return (
     <Section title="Members" hint={`${members.length} people in this workspace.`}>
+      {/* Two role lists would be one too many if it weren't said out loud.
+          These are this browser's, and they decide what this browser offers;
+          the ones a policy actually enforces live in the database, and the
+          console is where you read them. */}
+      {configured && (
+        <p className="mb-2.5 text-[12px] leading-relaxed text-fg-subtle">
+          These roles decide what this browser offers you. The roles the
+          database enforces — the ones that decide what a request is allowed to
+          do — are in{" "}
+          <Link
+            href="/admin"
+            className="underline decoration-line-strong underline-offset-2 hover:text-fg"
+          >
+            Administration
+          </Link>
+          .
+        </p>
+      )}
       <ul className="flex flex-col">
         {members.map((m) => {
           const person = collaboratorById(m.id);

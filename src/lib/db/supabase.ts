@@ -108,13 +108,36 @@ function flatten(project: RemoteProject): string {
  * person's documents into the first person's workspace — where the first
  * person can read them, because they own it. The identity is part of the
  * question, so it is part of the key.
+ *
+ * The values are *promises*, because the second caller is the one that
+ * matters. The admin console asks five questions at once; with a
+ * resolved-value cache all five miss it, all five find no workspace, and all
+ * five create one — leaving somebody with five workspaces, four of them empty,
+ * and their documents scattered between them. Caching the in-flight promise
+ * makes the second caller wait for the first answer instead of racing it.
  */
-const workspaces = new Map<string, string>();
+const workspaces = new Map<string, Promise<string>>();
 
-async function ensureWorkspace(client: NonNullable<ReturnType<typeof supabase>>, ownerId: string) {
+function ensureWorkspace(
+  client: NonNullable<ReturnType<typeof supabase>>,
+  ownerId: string,
+): Promise<string> {
   const known = workspaces.get(ownerId);
   if (known) return known;
+  const pending = findOrCreateWorkspace(client, ownerId).catch((error) => {
+    // A failed lookup must not be remembered as the answer, or every later
+    // call in this tab fails with it.
+    workspaces.delete(ownerId);
+    throw error;
+  });
+  workspaces.set(ownerId, pending);
+  return pending;
+}
 
+async function findOrCreateWorkspace(
+  client: NonNullable<ReturnType<typeof supabase>>,
+  ownerId: string,
+) {
   const existing = await client
     .from("workspaces")
     .select("id")
@@ -122,10 +145,7 @@ async function ensureWorkspace(client: NonNullable<ReturnType<typeof supabase>>,
     .limit(1)
     .maybeSingle();
   if (existing.error) throw new Error(existing.error.message);
-  if (existing.data) {
-    workspaces.set(ownerId, existing.data.id as string);
-    return existing.data.id as string;
-  }
+  if (existing.data) return existing.data.id as string;
 
   const created = await client
     .from("workspaces")
@@ -133,9 +153,28 @@ async function ensureWorkspace(client: NonNullable<ReturnType<typeof supabase>>,
     .select("id")
     .single();
   if (created.error) throw new Error(created.error.message);
-  workspaces.set(ownerId, created.data.id as string);
   return created.data.id as string;
 }
+
+/**
+ * The workspace everything of this person's hangs off, creating it if needed.
+ *
+ * Exported for the administration surfaces, which have to ask "which
+ * workspace?" before they can ask anything else. Same cache, same rules — a
+ * second lookup would be a second answer waiting to disagree with this one.
+ */
+export async function currentWorkspaceId(): Promise<string | null> {
+  const client = supabase();
+  if (!client) return null;
+  const session = await supabaseDatabase.session();
+  if (!session) return null;
+  return ensureWorkspace(client, session.userId);
+}
+
+/** The anonymous sign-in currently in flight, if any. See `session()`. */
+let signingIn: ReturnType<
+  NonNullable<ReturnType<typeof supabase>>["auth"]["signInAnonymously"]
+> | null = null;
 
 /** The adapter. Every call maps one-for-one onto `supabase/schema.sql`. */
 export const supabaseDatabase: Database = {
@@ -156,7 +195,14 @@ export const supabaseDatabase: Database = {
 
     // No session yet: sign in anonymously. This is the free plan's normal
     // state, not a fallback — see the note at the top.
-    const created = await client.auth.signInAnonymously();
+    //
+    // Shared between concurrent callers for the same reason the workspace
+    // lookup is: five simultaneous calls would otherwise mint five anonymous
+    // users, and the four that lose the race take their documents with them.
+    signingIn ??= client.auth.signInAnonymously().finally(() => {
+      signingIn = null;
+    });
+    const created = await signingIn;
     if (created.error) throw new Error(created.error.message);
     if (!created.data.user) throw new Error("Supabase returned no user.");
 

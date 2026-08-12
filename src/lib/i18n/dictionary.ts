@@ -28,6 +28,7 @@ export const EN = {
   "nav.chat": "Chat",
   "nav.kit": "Kit",
   "nav.team": "Team",
+  "nav.admin": "Administration",
   "nav.settings": "Settings",
   "nav.search": "Search…",
   "nav.projects": "Projects",
@@ -137,6 +138,7 @@ export const EN = {
   "settings.keeping": "Keeping your work",
   "settings.words": "Your words",
   "settings.workspace": "Workspace",
+  "settings.templates": "Templates",
 
   /* Offline */
   "offline.title": "You're offline, and your work is fine.",
@@ -174,6 +176,7 @@ export const NL: Partial<Record<Key, string>> = {
   "nav.chat": "Chat",
   "nav.kit": "Kit",
   "nav.team": "Team",
+  "nav.admin": "Beheer",
   "nav.settings": "Instellingen",
   "nav.search": "Zoeken…",
   "nav.projects": "Projecten",
@@ -277,6 +280,7 @@ export const NL: Partial<Record<Key, string>> = {
   "settings.keeping": "Je werk bewaren",
   "settings.words": "Je woorden",
   "settings.workspace": "Werkruimte",
+  "settings.templates": "Sjablonen",
 
   "offline.title": "Je bent offline, en je werk is in orde.",
   "offline.eyebrow": "Geen verbinding",

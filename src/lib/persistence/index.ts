@@ -38,6 +38,7 @@ export const STORAGE_KEYS = [
   "assignments:team:v1",
   "assignments:appearance:v1",
   "assignments:kit:v1",
+  "assignments:templates:v1",
 ] as const;
 
 /**

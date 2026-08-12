@@ -12,10 +12,12 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import {
+  authOptionsFor,
   ensureRemoteConfig,
   remoteConfig,
   remoteConfigSettled,
   subscribeConfig,
+  type AuthOptions,
   type RemoteConfig,
 } from "./config";
 
@@ -30,6 +32,22 @@ export function useRemoteConfig(): RemoteConfig | null {
 
 /** Whether accounts can work here at all. */
 export const useRemoteConfigured = (): boolean => useRemoteConfig() !== null;
+
+/**
+ * Which sign-in providers this deployment has switched on.
+ *
+ * Empty on the server and on the first client render, which is correct rather
+ * than a compromise: nothing is known until `/api/config` answers, and drawing
+ * a "Continue with Microsoft" button on a guess would be worse than drawing it
+ * a moment late.
+ */
+export function useAuthOptions(): AuthOptions {
+  useEffect(() => {
+    void ensureRemoteConfig();
+  }, []);
+
+  return useSyncExternalStore(subscribeConfig, authOptionsFor, authOptionsFor);
+}
 
 /**
  * Whether the question has been answered yet. Until it has, the honest thing

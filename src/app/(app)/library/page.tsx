@@ -33,10 +33,9 @@ import { cn } from "@/lib/cn";
 import type { Project, ProjectKind } from "@/lib/types";
 import { projectSummary } from "@/lib/summary";
 import { KeepPrompt } from "@/components/account/KeepPrompt";
-import {
-  PROJECT_TEMPLATES,
-  type ProjectTemplate,
-} from "@/lib/project-templates";
+import { TemplatePicker } from "@/components/library/TemplatePicker";
+import { SaveAsTemplate } from "@/components/library/SaveAsTemplate";
+import type { Block } from "@/lib/types";
 
 type Sort = "recent" | "name" | "kind";
 
@@ -58,6 +57,7 @@ export default function LibraryPage() {
   const [folder, setFolder] = useState<string | null>(null);
   const [labels, setLabels] = useState<string[]>([]);
   const [labelling, setLabelling] = useState<string | null>(null);
+  const [templatingFrom, setTemplatingFrom] = useState<string | null>(null);
 
   const openMenu = (e: React.MouseEvent, project: Project) =>
     menu.open(
@@ -67,12 +67,14 @@ export default function LibraryPage() {
         settings: () => setSettingsFor(project.id),
         rename: () => setRenaming(project.id),
         labels: () => setLabelling(project.id),
+        saveAsTemplate: () => setTemplatingFrom(project.id),
       }),
     );
 
   const settingsProject = projects.find((p) => p.id === settingsFor);
   const renamingProject = projects.find((p) => p.id === renaming);
   const labellingProject = projects.find((p) => p.id === labelling);
+  const templateSource = projects.find((p) => p.id === templatingFrom);
 
   const counts = useMemo(() => {
     const map = new Map<ProjectKind, number>();
@@ -123,11 +125,11 @@ export default function LibraryPage() {
    * than landing underneath it — otherwise every templated document opens with
    * an orphan heading above the structure you asked for.
    */
-  const createFrom = (template: ProjectTemplate) => {
-    const id = addProject(template.kind, template.name);
+  const createFrom = (kind: ProjectKind, name: string, blocks: Block[]) => {
+    const id = addProject(kind, name);
     const project = useProjects.getState().projects.find((p) => p.id === id);
     for (const block of project?.blocks ?? []) removeBlock(id, block.id);
-    for (const block of template.build(template.name)) insertBlock(id, block);
+    for (const block of blocks) insertBlock(id, block);
     setTemplating(false);
     router.push(`/p/${id}`);
   };
@@ -155,48 +157,17 @@ export default function LibraryPage() {
       )}
 
       {templating && (
-        <Dialog
-          title="Start from a template"
-          description="Each one is a shape with prompts in it. Replace the italics as you go."
-          width={720}
+        <TemplatePicker
           onClose={() => setTemplating(false)}
-        >
-          <div className="grid gap-2 sm:grid-cols-2">
-            {PROJECT_TEMPLATES.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => createFrom(t)}
-                className="rounded-md border border-line bg-surface p-3 text-left transition-colors duration-150 hover:border-line-strong"
-              >
-                <span className="flex items-center gap-2">
-                  <Icon
-                    name={KINDS[t.kind].icon}
-                    size={12}
-                    className="text-fg-subtle"
-                  />
-                  <span className="text-[13px] font-medium text-fg">{t.name}</span>
-                  <span className="ml-auto font-mono text-[10px] text-fg-subtle">
-                    {KINDS[t.kind].label}
-                  </span>
-                </span>
-                <span className="mt-1 block text-[11.5px] leading-snug text-fg-subtle">
-                  {t.blurb}
-                </span>
-                <span className="mt-2 flex flex-wrap gap-1">
-                  {t.outline.map((section) => (
-                    <span
-                      key={section}
-                      className="rounded-xs border border-line px-1.5 py-0.5 text-[10px] text-fg-muted"
-                    >
-                      {section}
-                    </span>
-                  ))}
-                </span>
-              </button>
-            ))}
-          </div>
-        </Dialog>
+          onUse={createFrom}
+        />
+      )}
+
+      {templateSource && (
+        <SaveAsTemplate
+          project={templateSource}
+          onClose={() => setTemplatingFrom(null)}
+        />
       )}
 
       <TopBar

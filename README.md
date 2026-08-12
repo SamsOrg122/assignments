@@ -445,6 +445,8 @@ that group on and changes nothing else.
 | `NEXT_PUBLIC_SUPABASE_URL` | browser | Accounts, sync, and hosted live sessions. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser | Same pair — both or neither. |
 | `SUPABASE_SERVICE_ROLE_KEY` | server | Only for jobs that must bypass RLS. Not needed to launch. |
+| `AUTH_PROVIDERS` | server | Sign-in buttons — `azure,google,github,…`. Enable the provider in Supabase first. |
+| `AUTH_SSO_DOMAINS` | server | SAML domains, e.g. `acme.com`. Register the connection with the Supabase CLI first. |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | browser | Checkout. |
 | `STRIPE_SECRET_KEY` | server | Checkout. |
 | `STRIPE_WEBHOOK_SECRET` | server | Subscription webhooks. |

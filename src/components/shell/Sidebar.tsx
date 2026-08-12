@@ -14,6 +14,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { useProjects } from "@/lib/store";
 import { useMenu, type MenuItem } from "@/components/ui/Menu";
 import { ProjectSettings } from "./ProjectSettings";
+import { SaveAsTemplate } from "@/components/library/SaveAsTemplate";
 import { ChannelSettings } from "@/components/chat/ChannelSettings";
 import { projectMenu } from "@/lib/project-menu";
 import { useUI } from "@/lib/ui-store";
@@ -29,6 +30,7 @@ import { LOCAL_USER } from "@/lib/realtime";
 import { useAuth } from "@/lib/auth/store";
 import { subscribeSync, syncStatus } from "@/lib/db/sync";
 import { useOffline } from "@/lib/offline";
+import { useRemoteConfigured } from "@/lib/db/use-config";
 import { useLocale } from "@/lib/i18n";
 import { KeepPromptCompact } from "@/components/account/KeepPrompt";
 import { KINDS } from "@/lib/kinds";
@@ -66,6 +68,7 @@ function useSyncBadge(): { label: string; wrong: boolean } {
 export function Sidebar() {
   const { t } = useLocale();
   const identity = useAuth((s) => s.identity);
+  const configured = useRemoteConfigured();
   const badge = useSyncBadge();
   const projects = useProjects((s) => s.projects);
   const addProject = useProjects((s) => s.addProject);
@@ -88,8 +91,10 @@ export function Sidebar() {
   const menu = useMenu();
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [channelSettingsFor, setChannelSettingsFor] = useState<string | null>(null);
+  const [templatingFrom, setTemplatingFrom] = useState<string | null>(null);
   const settingsProject = projects.find((p) => p.id === settingsFor);
   const settingsChannel = channels.find((c) => c.id === channelSettingsFor);
+  const templateSource = projects.find((p) => p.id === templatingFrom);
 
   const channelMenu = (channelId: string): MenuItem[] => {
     const chat = useChat.getState();
@@ -204,6 +209,12 @@ export function Sidebar() {
           onClose={() => setSettingsFor(null)}
         />
       )}
+      {templateSource && (
+        <SaveAsTemplate
+          project={templateSource}
+          onClose={() => setTemplatingFrom(null)}
+        />
+      )}
       {settingsChannel && (
         <ChannelSettings
           channel={settingsChannel}
@@ -291,6 +302,18 @@ export function Sidebar() {
             active={pathname === "/team"}
             onNavigate={closeOnMobile}
           />
+          {/* Only where there is something to administer. A console that says
+              "administration needs a database" every time you click it is a
+              permanent piece of furniture teaching people to ignore it. */}
+          {configured && (
+            <NavLink
+              href="/admin"
+              icon="lock"
+              label={t("nav.admin")}
+              active={pathname === "/admin"}
+              onNavigate={closeOnMobile}
+            />
+          )}
           {assistant && (
             <NavLink
               href={`/chat/${assistant.channel.id}`}
@@ -333,6 +356,7 @@ export function Sidebar() {
                         open: (id) => router.push(`/p/${id}`),
                         settings: () => setSettingsFor(p.id),
                         rename: () => setSettingsFor(p.id),
+                        saveAsTemplate: () => setTemplatingFrom(p.id),
                       }),
                     )
                   }

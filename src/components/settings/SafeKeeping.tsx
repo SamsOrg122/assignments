@@ -42,6 +42,7 @@ import {
 } from "@/lib/persistence/versioned";
 import { allBlobs, replaceBlobs } from "@/lib/kit/blobs";
 import { useUI } from "@/lib/ui-store";
+import { record } from "@/lib/admin";
 import { useProjects } from "@/lib/store";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
@@ -276,6 +277,12 @@ export function SafeKeeping() {
               .then(({ filename }) => {
                 notify(`Saved ${filename}`);
                 refresh();
+                // Somebody taking a copy of everything is the entry an admin
+                // would come looking for. Best effort, and silent without a
+                // database — see `lib/admin`.
+                void record("workspace.exported", filename, {
+                  projects: useProjects.getState().projects.length,
+                });
               });
           }}
           className="flex items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"

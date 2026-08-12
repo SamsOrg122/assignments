@@ -38,6 +38,7 @@ import { allBlobs } from "@/lib/kit/blobs";
 import { ensureProjects, useHydrated, useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
 import { cn } from "@/lib/cn";
+import { SingleSignOn } from "./SingleSignOn";
 
 export type AccountMode = "sign-in" | "sign-up" | "reset" | "new-password";
 
@@ -416,6 +417,10 @@ export function AccountForm({ mode, onMode, onDone, destination }: Props) {
           </Link>{" "}
           says exactly what is missing.
         </p>
+      )}
+
+      {(mode === "sign-in" || mode === "sign-up") && (
+        <SingleSignOn email={email} destination={destination ?? "/library"} />
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">

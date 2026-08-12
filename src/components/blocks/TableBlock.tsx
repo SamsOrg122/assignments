@@ -765,15 +765,26 @@ function TableGrid({ projectId, block }: Props) {
                         onClick={(e) =>
                           setSort(projectId, block.id, column.id, e.shiftKey)
                         }
-                        title={`Sort by ${column.name} — shift-click to add a second key`}
+                        title={`Sort by ${column.name} (column ${columnLetters(c)}) — shift-click to add a second key`}
                         className="flex min-w-0 flex-1 items-center gap-1 px-2.5 py-2 text-left transition-colors duration-150 hover:text-fg"
                       >
-                        {/* The letter as well as the name. `=B2*C2` is
+                        {/* The letter as well as the name: `=B2*C2` is
                             unwritable if nothing on screen says which column
-                            is B, and a name is what the *table* calls it. */}
-                        <span className="shrink-0 font-mono text-[9.5px] text-fg-subtle">
-                          {columnLetters(c)}
-                        </span>
+                            is B, and a name is what the *table* calls it.
+
+                            Drawn by CSS from `data-letter` rather than as
+                            text, for two reasons. It keeps the header's text
+                            content as the name alone — so copying a header,
+                            or reading one aloud, gives "Rep" and not "ARep" —
+                            and it keeps the letter out of the button's
+                            accessible name, where the column's address
+                            belongs in the label rather than glued to its
+                            title. */}
+                        <span
+                          aria-hidden="true"
+                          data-letter={columnLetters(c)}
+                          className="col-letter shrink-0 font-mono text-[9.5px] text-fg-subtle"
+                        />
                         <span className="truncate font-medium text-fg-muted">
                           {column.name}
                         </span>

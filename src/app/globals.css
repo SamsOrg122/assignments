@@ -1121,3 +1121,13 @@
     transition: none;
   }
 }
+
+/* A spreadsheet column's letter, drawn beside its name.
+
+   Content rather than markup on purpose: this keeps the header's text — what
+   a screen reader announces, what a copy of the header row produces, what a
+   test matches on — as the column's own name, while the address a formula
+   needs is still on screen. */
+.col-letter::before {
+  content: attr(data-letter);
+}

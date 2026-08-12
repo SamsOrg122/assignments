@@ -118,9 +118,30 @@ export function createBook(workbook: Workbook = EMPTY) {
     return out;
   }
 
-  /** One cell, computing it first if it is a formula. */
+  /**
+   * One cell, computing it first if it is a formula.
+   *
+   * Two ways a cell can be one, and both run through here so the memo and the
+   * cycle guard cover them equally:
+   *
+   *   - The **column** carries the formula, and every row computes the same
+   *     expression against its own row. That is the table way, and it is what
+   *     keeps a thousand rows from holding a thousand copies of one idea.
+   *   - The **cell** holds text beginning with `=`. That is the spreadsheet
+   *     way, and it exists because somebody arriving from Excel types `=B2*C2`
+   *     into a cell before they read anything, and an app that answers with
+   *     the literal text "=B2*C2" has told them it is not a spreadsheet.
+   *
+   * A column formula wins where both exist: the column is a rule about every
+   * row, and a rule that any single cell can quietly override is not a rule.
+   */
   function cell(sheet: Sheet, column: Column, row: Row): Value {
-    if (column.type !== "formula") return raw(row.cells[column.id]);
+    const stored = column.type === "formula" ? undefined : raw(row.cells[column.id]);
+    const inCell =
+      typeof stored === "string" && stored.length > 1 && stored.startsWith("=")
+        ? stored.slice(1).trim()
+        : null;
+    if (column.type !== "formula" && !inCell) return stored as Value;
 
     const key = `${sheet.id}:${row.id}:${column.id}`;
     const done = memo.get(key);
@@ -128,7 +149,7 @@ export function createBook(workbook: Workbook = EMPTY) {
     if (busy.has(key))
       return fault("#CYCLE!", "This formula ends up asking for itself.");
 
-    const source = (column.formula ?? "").trim();
+    const source = inCell ?? (column.formula ?? "").trim();
     if (!source) return "";
 
     busy.add(key);
@@ -348,16 +369,32 @@ export function createBook(workbook: Workbook = EMPTY) {
   }
 
   return {
-    /** Every formula cell of one sheet, ready to render. */
+    /**
+     * Every formula cell of one sheet, ready to render.
+     *
+     * Formula *columns* are computed for every row; ordinary columns are
+     * scanned for cells that begin with `=`. The scan is over stored strings
+     * only, so a table with no cell formulas pays one `startsWith` per cell
+     * and nothing else — which is what keeps a hundred thousand rows of plain
+     * numbers as cheap as they were before cells could hold formulas.
+     */
     compute(sheet: Sheet): Record<string, Record<string, string | number>> {
       const out: Record<string, Record<string, string | number>> = {};
       const formulaCols = sheet.columns.filter((c) => c.type === "formula");
-      if (!formulaCols.length) return out;
+      const plainCols = sheet.columns.filter((c) => c.type !== "formula");
       for (const row of sheet.rows) {
-        const line: Record<string, string | number> = {};
-        for (const column of formulaCols)
+        let line: Record<string, string | number> | undefined;
+        for (const column of formulaCols) {
+          line ??= {};
           line[column.id] = display(cell(sheet, column, row));
-        out[row.id] = line;
+        }
+        for (const column of plainCols) {
+          const stored = row.cells[column.id];
+          if (typeof stored !== "string" || !stored.startsWith("=")) continue;
+          line ??= {};
+          line[column.id] = display(cell(sheet, column, row));
+        }
+        if (line) out[row.id] = line;
       }
       return out;
     },

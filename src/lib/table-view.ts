@@ -21,15 +21,31 @@ import {
 
 export type Derived = Record<string, Record<string, string | number>>;
 
-/** A cell's effective value: derived for formula columns, stored otherwise. */
+/**
+ * A cell's effective value: computed where there is a formula, stored where
+ * there isn't.
+ *
+ * Two kinds of formula end up in `derived` — the column's, and the cell's own
+ * `=…` — and this deliberately cannot tell them apart. Everything downstream
+ * of here (sorting, filtering, charts, exports, the pivot) wants the number a
+ * person sees, not the sentence that produced it.
+ */
 export function readCell(
   row: Row,
   column: Column,
   derived: Derived,
 ): CellValue {
-  return column.type === "formula"
-    ? ((derived[row.id]?.[column.id] ?? null) as CellValue)
-    : (row.cells[column.id] ?? null);
+  if (column.type === "formula")
+    return (derived[row.id]?.[column.id] ?? null) as CellValue;
+  const stored = row.cells[column.id] ?? null;
+  if (typeof stored === "string" && stored.startsWith("="))
+    return (derived[row.id]?.[column.id] ?? null) as CellValue;
+  return stored;
+}
+
+/** What a cell holds *as typed* — the formula, not its answer. For editing. */
+export function rawCell(row: Row, column: Column): CellValue {
+  return column.type === "formula" ? null : (row.cells[column.id] ?? null);
 }
 
 /* ── Filters ────────────────────────────────────────────── */

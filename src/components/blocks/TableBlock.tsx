@@ -32,13 +32,22 @@ import type {
 } from "@/lib/types";
 import { NUMERIC_COLUMN_TYPES, sortsOf } from "@/lib/types";
 import { useProjects } from "@/lib/store";
-import { checkFormula, computeFormulas, isErrorText } from "@/lib/formula";
+import {
+  checkFormula,
+  columnLetters,
+  computeFormulas,
+  cycleAnchor,
+  isErrorText,
+  isFormulaCell,
+  shiftFormula,
+} from "@/lib/formula";
 import { sheetsOf } from "@/lib/workbook";
 import { checkTable, failureMap } from "@/lib/validation";
 import {
   displayCell,
   formatTone,
   isChecked,
+  rawCell,
   readCell,
   viewRows,
 } from "@/lib/table-view";
@@ -71,6 +80,24 @@ const HEADER_H = 33;
 const VIRTUAL_FROM = 60;
 const OVERSCAN = 10;
 const MAX_BODY_H = 480;
+/** Rows a Page Up / Page Down moves. One screenful of the body, near enough. */
+const PAGE = Math.floor(MAX_BODY_H / ROW_H);
+
+/**
+ * The last range copied *here*, kept beside the system clipboard.
+ *
+ * The clipboard holds text, and text cannot say "this was a formula at B2".
+ * Keeping the sources next to it — matched by the exact text we wrote — means
+ * a paste back into the app can move formulas instead of pasting the numbers
+ * they had at the moment of copying, while a paste into anything else still
+ * gets sensible values. Module-level because a copy in one table and a paste
+ * in another is an ordinary thing to do.
+ */
+let clipboardMemory: {
+  text: string;
+  cells: CellValue[][];
+  origin: { r: number; c: number };
+} | null = null;
 
 const TONE_CLASS: Record<FormatRule["tone"], string> = {
   accent: "bg-accent-soft",
@@ -180,6 +207,74 @@ function TableGrid({ projectId, block }: Props) {
     [clamp],
   );
 
+  /**
+   * ⌘ + arrow, as a spreadsheet means it.
+   *
+   * From a filled cell: run to the last filled cell before the first gap.
+   * From a blank one, or when already at the edge of a block: run to the next
+   * filled cell, or to the end of the table. That two-part rule is what makes
+   * the keystroke feel like navigation instead of a jump to row one.
+   */
+  const jumpToEdge = useCallback(
+    (dr: number, dc: number, extend: boolean) => {
+      setEditing(null);
+      setSel((prev) => {
+        if (!prev) return prev;
+        const filled = (r: number, c: number) => {
+          const row = rows[r];
+          const column = block.columns[c];
+          if (!row || !column) return false;
+          const v = readCell(row, column, derived);
+          return v !== null && v !== undefined && v !== "";
+        };
+        let { r, c } = prev.focus;
+        const step = () => {
+          r += dr;
+          c += dc;
+        };
+        const inside = () => r >= 0 && r < rowCount && c >= 0 && c < colCount;
+        const startFilled = filled(r, c);
+        const nextFilled = filled(r + dr, c + dc);
+
+        if (startFilled && nextFilled) {
+          // Along a run: stop on its last filled cell.
+          while (true) {
+            step();
+            if (!inside() || !filled(r, c)) {
+              r -= dr;
+              c -= dc;
+              break;
+            }
+          }
+        } else {
+          // Across a gap: stop on the next filled cell, or at the far edge.
+          let landed = false;
+          while (true) {
+            step();
+            if (!inside()) {
+              r -= dr;
+              c -= dc;
+              break;
+            }
+            if (filled(r, c)) {
+              landed = true;
+              break;
+            }
+          }
+          if (!landed) {
+            r = dr > 0 ? rowCount - 1 : dr < 0 ? 0 : r;
+            c = dc > 0 ? colCount - 1 : dc < 0 ? 0 : c;
+          }
+        }
+        const next = clamp({ r, c });
+        return extend
+          ? { anchor: prev.anchor, focus: next }
+          : { anchor: next, focus: next };
+      });
+    },
+    [rows, block.columns, derived, rowCount, colCount, clamp],
+  );
+
   // Keep the focused row on screen as the selection moves.
   useEffect(() => {
     if (!sel || !gridRef.current) return;
@@ -229,25 +324,43 @@ function TableGrid({ projectId, block }: Props) {
   const copySelection = useCallback(() => {
     if (!rect) return;
     const lines: string[] = [];
+    const sources: CellValue[][] = [];
     for (let r = rect.r1; r <= rect.r2; r++) {
       const cells: string[] = [];
+      const typed: CellValue[] = [];
       for (let c = rect.c1; c <= rect.c2; c++) {
         const raw = readCell(rows[r], block.columns[c], derived);
         cells.push(raw === null || raw === undefined ? "" : String(raw));
+        typed.push(rawCell(rows[r], block.columns[c]));
       }
       lines.push(cells.join("\t"));
+      sources.push(typed);
     }
-    void navigator.clipboard?.writeText(lines.join("\n"));
+    const text = lines.join("\n");
+    // Two copies leave here, and which one lands depends on where it is
+    // dropped. Another app gets the *values* — a spreadsheet's formula means
+    // nothing in an email. A paste back into this app gets the formulas,
+    // moved to wherever they land, which is what copying a formula means.
+    clipboardMemory = { text, cells: sources, origin: { r: rect.r1, c: rect.c1 } };
+    void navigator.clipboard?.writeText(text);
   }, [rect, rows, block.columns, derived]);
 
   const pasteBlock = useCallback(
     (text: string) => {
       if (!sel) return;
-      const grid = text
-        .replace(/\r/g, "")
-        .split("\n")
-        .filter((line, i, all) => !(i === all.length - 1 && line === ""))
-        .map((line) => line.split("\t"));
+      // Ours, unchanged since we copied it: paste the formulas rather than
+      // the answers they happened to have.
+      const internal =
+        clipboardMemory && clipboardMemory.text === text ? clipboardMemory : null;
+      const grid = internal
+        ? internal.cells.map((line) =>
+            line.map((v) => (v === null || v === undefined ? "" : String(v))),
+          )
+        : text
+            .replace(/\r/g, "")
+            .split("\n")
+            .filter((line, i, all) => !(i === all.length - 1 && line === ""))
+            .map((line) => line.split("\t"));
       if (!grid.length) return;
 
       // Grow the table if the paste spills past the last row.
@@ -265,10 +378,16 @@ function TableGrid({ projectId, block }: Props) {
         for (let dc = 0; dc < grid[dr].length; dc++) {
           const column = block.columns[start.c + dc];
           if (!column || column.type === "formula") continue;
+          const cellText = grid[dr][dc];
           writes.push({
             rowId,
             columnId: column.id,
-            value: parseInput(grid[dr][dc], column),
+            value:
+              internal && isFormulaCell(cellText)
+                ? // The whole block moves by one offset — the distance from
+                  // where it was copied to where it landed.
+                  shiftFormula(cellText, start.r - internal.origin.r, start.c - internal.origin.c)
+                : parseInput(cellText, column),
           });
         }
       }
@@ -284,18 +403,56 @@ function TableGrid({ projectId, block }: Props) {
     [sel, rowCount, rows, block.columns, block.id, projectId, addRows, setCells, clamp],
   );
 
-  const fillDown = useCallback(() => {
-    if (!rect || rect.r1 === rect.r2) return;
-    const writes: Array<{ rowId: string; columnId: string; value: CellValue }> = [];
-    for (let c = rect.c1; c <= rect.c2; c++) {
-      const column = block.columns[c];
-      if (!column || column.type === "formula") continue;
-      const top = rows[rect.r1].cells[column.id] ?? null;
-      for (let r = rect.r1 + 1; r <= rect.r2; r++)
-        writes.push({ rowId: rows[r].id, columnId: column.id, value: top });
-    }
-    setCells(projectId, block.id, writes);
-  }, [rect, rows, block.columns, block.id, projectId, setCells]);
+  /**
+   * Ctrl+D and Ctrl+R.
+   *
+   * A formula is *moved*, not copied: `=B2*C2` two rows down is `=B4*C4`,
+   * unless a `$` says otherwise. Anything else — a number, a word — is copied
+   * as it is. That difference is the whole reason fill exists.
+   */
+  const fill = useCallback(
+    (direction: "down" | "right") => {
+      if (!rect) return;
+      if (direction === "down" && rect.r1 === rect.r2) return;
+      if (direction === "right" && rect.c1 === rect.c2) return;
+      const writes: Array<{ rowId: string; columnId: string; value: CellValue }> = [];
+
+      if (direction === "down") {
+        for (let c = rect.c1; c <= rect.c2; c++) {
+          const column = block.columns[c];
+          if (!column || column.type === "formula") continue;
+          const top = rows[rect.r1].cells[column.id] ?? null;
+          for (let r = rect.r1 + 1; r <= rect.r2; r++)
+            writes.push({
+              rowId: rows[r].id,
+              columnId: column.id,
+              value: isFormulaCell(top)
+                ? shiftFormula(String(top), r - rect.r1, 0)
+                : top,
+            });
+        }
+      } else {
+        const source = block.columns[rect.c1];
+        if (!source) return;
+        for (let r = rect.r1; r <= rect.r2; r++) {
+          const left = rows[r].cells[source.id] ?? null;
+          for (let c = rect.c1 + 1; c <= rect.c2; c++) {
+            const column = block.columns[c];
+            if (!column || column.type === "formula") continue;
+            writes.push({
+              rowId: rows[r].id,
+              columnId: column.id,
+              value: isFormulaCell(left)
+                ? shiftFormula(String(left), 0, c - rect.c1)
+                : left,
+            });
+          }
+        }
+      }
+      setCells(projectId, block.id, writes);
+    },
+    [rect, rows, block.columns, block.id, projectId, setCells],
+  );
 
   const clearSelection = useCallback(() => {
     if (!rect) return;
@@ -324,7 +481,46 @@ function TableGrid({ projectId, block }: Props) {
         ArrowRight: [0, 1],
       };
       const [dr, dc] = d[e.key];
-      moveFocus(dr, dc, e.shiftKey);
+      // ⌘/Ctrl + arrow runs to the edge of the data, the way it does in every
+      // spreadsheet: to the last filled cell, or to the end if it is already
+      // there. Ten thousand rows is one keystroke away, not ten thousand.
+      if (mod && sel) jumpToEdge(dr, dc, e.shiftKey);
+      else moveFocus(dr, dc, e.shiftKey);
+      return;
+    }
+    if (e.key === "Home" || e.key === "End") {
+      e.preventDefault();
+      if (!sel) return;
+      const c = e.key === "Home" ? 0 : colCount - 1;
+      const r = mod ? (e.key === "Home" ? 0 : rowCount - 1) : sel.focus.r;
+      setSel((prev) => ({
+        anchor: e.shiftKey && prev ? prev.anchor : { r, c },
+        focus: { r, c },
+      }));
+      return;
+    }
+    if (e.key === "PageDown" || e.key === "PageUp") {
+      e.preventDefault();
+      moveFocus(e.key === "PageDown" ? PAGE : -PAGE, 0, e.shiftKey);
+      return;
+    }
+    if (e.key === " " && (e.shiftKey || mod) && sel) {
+      e.preventDefault();
+      // ⇧Space takes the row, ⌘Space the column — and ⌘⇧Space, as in Excel,
+      // takes everything.
+      setSel(
+        e.shiftKey && mod
+          ? { anchor: { r: 0, c: 0 }, focus: { r: rowCount - 1, c: colCount - 1 } }
+          : e.shiftKey
+            ? {
+                anchor: { r: sel.focus.r, c: 0 },
+                focus: { r: sel.focus.r, c: colCount - 1 },
+              }
+            : {
+                anchor: { r: 0, c: sel.focus.c },
+                focus: { r: rowCount - 1, c: sel.focus.c },
+              },
+      );
       return;
     }
     if (e.key === "Tab") {
@@ -348,7 +544,18 @@ function TableGrid({ projectId, block }: Props) {
     }
     if (mod && e.key.toLowerCase() === "d") {
       e.preventDefault();
-      fillDown();
+      fill("down");
+      return;
+    }
+    if (mod && e.key.toLowerCase() === "r") {
+      e.preventDefault();
+      fill("right");
+      return;
+    }
+    if (mod && e.key.toLowerCase() === "x") {
+      e.preventDefault();
+      copySelection();
+      clearSelection();
       return;
     }
     if (mod && e.key.toLowerCase() === "a") {
@@ -526,6 +733,13 @@ function TableGrid({ projectId, block }: Props) {
               className="border-b border-line"
               style={{ height: HEADER_H }}
             >
+              {/* The corner. Empty, like every spreadsheet's, and the anchor
+                  the row numbers line up under. */}
+              <th
+                scope="col"
+                aria-label="Row numbers"
+                className="sticky top-0 left-0 z-30 w-10 border-r border-b border-line bg-surface-2 p-0"
+              />
               {block.columns.map((column, c) => {
                 const key = sorts.find((k) => k.columnId === column.id);
                 const priority = sorts.findIndex((k) => k.columnId === column.id);
@@ -542,7 +756,7 @@ function TableGrid({ projectId, block }: Props) {
                     }
                     className={cn(
                       "group/th sticky top-0 z-10 border-r border-line bg-surface-2 p-0 text-left last:border-r-0",
-                      block.freeze && c === 0 && "left-0 z-20",
+                      block.freeze && c === 0 && "left-10 z-20",
                     )}
                   >
                     <div className="flex items-center">
@@ -554,6 +768,12 @@ function TableGrid({ projectId, block }: Props) {
                         title={`Sort by ${column.name} — shift-click to add a second key`}
                         className="flex min-w-0 flex-1 items-center gap-1 px-2.5 py-2 text-left transition-colors duration-150 hover:text-fg"
                       >
+                        {/* The letter as well as the name. `=B2*C2` is
+                            unwritable if nothing on screen says which column
+                            is B, and a name is what the *table* calls it. */}
+                        <span className="shrink-0 font-mono text-[9.5px] text-fg-subtle">
+                          {columnLetters(c)}
+                        </span>
                         <span className="truncate font-medium text-fg-muted">
                           {column.name}
                         </span>
@@ -619,6 +839,21 @@ function TableGrid({ projectId, block }: Props) {
                   className="group/row border-b border-line last:border-b-0"
                   style={{ height: ROW_H }}
                 >
+                  <th
+                    scope="row"
+                    onClick={() =>
+                      setSel({
+                        anchor: { r, c: 0 },
+                        focus: { r, c: colCount - 1 },
+                      })
+                    }
+                    className={cn(
+                      "sticky left-0 z-10 w-10 cursor-pointer border-r border-line bg-surface-2/60 text-center font-mono text-[10px] font-normal text-fg-subtle select-none",
+                      sel?.focus.r === r && "bg-surface-3 text-fg-muted",
+                    )}
+                  >
+                    {r + 1}
+                  </th>
                   {block.columns.map((column, c) => {
                     const raw = readCell(row, column, derived);
                     const active =
@@ -660,7 +895,7 @@ function TableGrid({ projectId, block }: Props) {
                         onDoubleClick={() => startEdit({ r, c })}
                         className={cn(
                           "relative border-r border-line p-0 last:border-r-0",
-                          block.freeze && c === 0 && "sticky left-0 z-[5] bg-surface",
+                          block.freeze && c === 0 && "sticky left-10 z-[5] bg-surface",
                           tone && TONE_CLASS[tone],
                           inRect(r, c) && "bg-accent-soft",
                           broken &&
@@ -672,8 +907,15 @@ function TableGrid({ projectId, block }: Props) {
                           <CellEditor
                             column={column}
                             initial={
+                              // The *source*, not the answer: opening `=B2*C2`
+                              // as `41.30` and committing it would silently
+                              // replace the formula with one stale number.
                               editing.seed ??
-                              (raw === null ? "" : String(raw))
+                              (() => {
+                                const typed = rawCell(row, column);
+                                const shown = typed ?? raw;
+                                return shown === null ? "" : String(shown);
+                              })()
                             }
                             seeded={editing.seed !== undefined}
                             onCommit={(text, then) => {
@@ -871,6 +1113,16 @@ function CellEditor({
           e.preventDefault();
           onCommit(value, "right");
         } else if (e.key === "Escape") onCancel();
+        else if (e.key === "F4" && isFormulaCell(value)) {
+          // Pin or unpin the address under the caret. Without this, a lookup
+          // range has to be typed with four `$` by hand at exactly the right
+          // moment, which is where most people give up on fill.
+          e.preventDefault();
+          const input = e.currentTarget;
+          const { text, caret } = cycleAnchor(value, input.selectionStart ?? 0);
+          setValue(text);
+          requestAnimationFrame(() => input.setSelectionRange(caret, caret));
+        }
       }}
       className={cn(
         "absolute inset-0 w-full bg-surface px-2.5 text-fg outline-1 -outline-offset-1 outline-accent",
@@ -884,6 +1136,10 @@ function CellEditor({
 function parseInput(text: string, column: Column): CellValue {
   const trimmed = text.trim();
   if (trimmed === "") return null;
+  // A formula is stored exactly as typed, in any column. A number column that
+  // "helpfully" turned `=B2*C2` into NaN would be the single most baffling
+  // thing this grid could do to somebody arriving from Excel.
+  if (isFormulaCell(trimmed)) return trimmed;
   switch (column.type) {
     case "number":
     case "currency":

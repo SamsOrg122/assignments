@@ -174,3 +174,5 @@ export function previewFormula(
 export const FUNCTION_SUGGESTIONS = [...FUNCTION_NAMES].sort(
   (a, b) => b.length - a.length,
 );
+
+export { shiftFormula, isFormulaCell, cycleAnchor } from "./shift";

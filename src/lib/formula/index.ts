@@ -19,6 +19,7 @@
 import type { CellValue, Column, Row } from "../types";
 import { createBook, type Sheet, type Workbook } from "./evaluate";
 import { FUNCTION_NAMES, knownFunction } from "./functions";
+import { ABSENT } from "./more";
 import {
   FormulaSyntaxError,
   parseFormula,
@@ -33,6 +34,7 @@ export { isFault, display } from "./values";
 export { createBook } from "./evaluate";
 export { columnLetters, columnIndex } from "./parse";
 export { FUNCTION_NAMES, knownFunction } from "./functions";
+export { ABSENT } from "./more";
 
 /**
  * The sentinel the table view still checks for.
@@ -120,7 +122,15 @@ export function checkFormula(
   }
 
   const missing = unknownFunctions(tree);
-  if (missing.length) return `There's no function called ${missing[0]}`;
+  if (missing.length) {
+    // Absent on purpose reads very differently from misspelled, and the
+    // difference is worth a sentence: one is "look again", the other is
+    // "stop looking, here is what to do instead".
+    const why = ABSENT[missing[0].toUpperCase()];
+    return why
+      ? `${missing[0]} isn't here. ${why}`
+      : `There's no function called ${missing[0]}`;
+  }
 
   return null;
 }

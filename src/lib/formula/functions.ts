@@ -26,6 +26,8 @@ import {
   type Value,
 } from "./values";
 
+import { MORE } from "./more";
+
 /** One argument, unevaluated until asked. */
 export interface Arg {
   /** As a single value. A one-cell range narrows; a wider one is a fault. */
@@ -501,6 +503,11 @@ export const FUNCTIONS: Record<string, Fn> = {
   },
   ISERROR: (a) => isFault(a[0]?.value() ?? null),
   N: (a) => num(a[0]?.value() ?? null),
+
+  // Money, statistics, lookups, working days — everything somebody arriving
+  // from Excel goes looking for. Kept in `more.ts` so the machinery above
+  // stays readable; merged here so there is still exactly one library.
+  ...MORE,
 };
 
 /* ── The shapes the entries above share ─────────────────── */

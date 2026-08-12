@@ -738,7 +738,11 @@ function TableGrid({ projectId, block }: Props) {
               <th
                 scope="col"
                 aria-label="Row numbers"
-                className="sticky top-0 left-0 z-30 w-10 border-r border-b border-line bg-surface-2 p-0"
+                // Below the block's own chrome, which sits at z-30. The menu
+                // for a block opens to its left — straight over this gutter —
+                // and a corner cell that painted on top of it made half the
+                // menu unclickable on any table.
+                className="sticky top-0 left-0 z-20 w-10 border-r border-b border-line bg-surface-2 p-0"
               />
               {block.columns.map((column, c) => {
                 const key = sorts.find((k) => k.columnId === column.id);

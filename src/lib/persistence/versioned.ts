@@ -179,6 +179,24 @@ function writeNow(key: string, value: string): boolean {
   }
 }
 
+/**
+ * Throw away what is queued, without writing it.
+ *
+ * For the one thing that legitimately replaces storage from outside the
+ * stores: restoring a backup. Without this, a write queued moments before the
+ * restore lands *after* it and quietly puts the old workspace back — somebody
+ * restores a backup, watches it appear, and finds their old data again a
+ * quarter of a second later. The queued value is by definition the state the
+ * restore is replacing, so dropping it is not a loss.
+ */
+export function discardQueuedWrites() {
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
+  pending.clear();
+}
+
 /** Push everything waiting to disk, now. Safe to call at any time. */
 export function flushWrites() {
   if (timer) {
@@ -190,6 +208,20 @@ export function flushWrites() {
 }
 
 function queueWrite(key: string, value: string) {
+  // A write that changes nothing is not a write. Zustand persists on every
+  // state change, and plenty of those — a rehydration merging into itself,
+  // a store touched but not altered — produce byte-identical payloads.
+  // Skipping them keeps an untouched document from queueing a copy of itself
+  // and then replaying it over whatever else has happened since.
+  try {
+    if (localStorage.getItem(key) === value) {
+      pending.delete(key);
+      return;
+    }
+  } catch {
+    // Storage unreadable — fall through and try the write anyway.
+  }
+
   pending.set(key, value);
   if (timer) return;
   timer = setTimeout(() => {

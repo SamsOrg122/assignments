@@ -573,7 +573,11 @@ set search_path = public
 as $$
 declare days integer;
 begin
-  if not public.has_role(ws, 'admin') then
+  -- Same rule as `purge_expired` below, and for the same reason: a scheduled
+  -- job and the SQL editor both run with no `auth.uid()`, and anybody who has
+  -- reached either of those already holds the keys to the whole database.
+  -- Through the API — where a session always exists — it is admins only.
+  if auth.uid() is not null and not public.has_role(ws, 'admin') then
     raise exception 'Only an admin can look at this.';
   end if;
   select retention_days into days from public.workspaces where id = ws;

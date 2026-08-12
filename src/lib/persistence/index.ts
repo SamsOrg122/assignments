@@ -55,7 +55,7 @@ export const BACKUP_BLOBS = "kitBlobs";
  * Stamped into every backup file ever exported. Changing it would make each
  * one unreadable by the app that wrote it — see the note on STORAGE_KEYS.
  */
-import { flushWrites } from "./versioned";
+import { discardQueuedWrites, flushWrites } from "./versioned";
 
 export const BACKUP_FORMAT = "assignments.backup";
 export const BACKUP_VERSION = 1;
@@ -262,6 +262,9 @@ export function describeBackup(backup: Backup): {
  * from the old contents at mount and will not notice a write underneath them.
  */
 export function restoreBackup(backup: Backup) {
+  // Anything queued belongs to the workspace being replaced. Left alone it
+  // would flush a moment later and put the old one back on top of the restore.
+  discardQueuedWrites();
   for (const key of STORAGE_KEYS) localStorage.removeItem(key);
   for (const [key, value] of Object.entries(backup.data))
     if ((STORAGE_KEYS as readonly string[]).includes(key))

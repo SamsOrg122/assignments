@@ -290,6 +290,9 @@ export interface SlideObject {
   /** Text size in cqw units so it scales with the slide. */
   textSize?: number;
 
+  /** Which build step reveals this object. 0 or absent means immediately. */
+  step?: number;
+
   /** Data URL, for the image kind. Already downscaled by `prepareImage`. */
   src?: string;
   alt?: string;
@@ -303,6 +306,16 @@ export interface SlideObject {
   radius?: number;
 }
 
+/**
+ * Revealing a slide in pieces.
+ *
+ * Not an animation library. One thing at a time, with a soft entrance, because
+ * that is what a build is *for*: keeping a room looking at the sentence being
+ * said rather than reading ahead. Anything more elaborate is a distraction the
+ * presenter has to operate while also talking.
+ */
+export type SlideBuild = "none" | "bullets" | "objects" | "both";
+
 export interface Slide {
   id: string;
   title: string;
@@ -311,6 +324,10 @@ export interface Slide {
   layout?: SlideLayout;
   /** Free-form layer. Empty/absent for purely structured slides. */
   objects?: SlideObject[];
+  /** How this slide reveals itself. Absent means all at once. */
+  build?: SlideBuild;
+  /** Skip the deck's master on this one — title slides usually want to. */
+  bare?: boolean;
 }
 
 /**
@@ -368,10 +385,32 @@ export const DEFAULT_DECK_STYLE: DeckStyle = {
   transition: "fade",
 };
 
+/**
+ * The deck's own model, which every slide inherits from.
+ *
+ * A theme is a preset — someone else's decisions, taken as a set. A master is
+ * *yours*: the logo in the corner, the footer with the module code on it, the
+ * page numbers a supervisor asked for. It is drawn behind each slide's own
+ * content, so editing it changes forty slides at once, which is the entire
+ * reason the concept exists.
+ */
+export interface SlideMaster {
+  /** Drawn on every slide, behind its content. Positions are percentages. */
+  objects?: SlideObject[];
+  /** A line along the bottom — a module code, a name, a date. */
+  footer?: string;
+  /** Slide numbers, bottom right. */
+  numbers?: boolean;
+  /** Overrides the theme's background, where a brand needs its own. */
+  background?: string;
+}
+
 export interface SlidesBlock extends BlockBase {
   type: "slides";
   slides: Slide[];
   style?: DeckStyle;
+  /** Inherited by every slide that hasn't opted out with `bare`. */
+  master?: SlideMaster;
 }
 
 /* ── Code ───────────────────────────────────────────────── */

@@ -10,7 +10,8 @@
  * layouts, no free-form layer. There is one now.
  */
 
-import type { DeckStyle, Slide, SlideLayout } from "@/lib/types";
+import type { DeckStyle, Slide, SlideLayout, SlideMaster } from "@/lib/types";
+import { visibleBullets, visibleObjects } from "@/lib/deck/build";
 import { DECK_THEMES, deckVars } from "@/lib/deck-themes";
 import { SlideObjectsView } from "@/components/editors/SlideObjects";
 import { cn } from "@/lib/cn";
@@ -89,6 +90,9 @@ export function SlideView({
   onChange,
   readOnly = false,
   hideObjects = false,
+  master,
+  step,
+  total,
 }: {
   slide?: Slide;
   index: number;
@@ -97,6 +101,16 @@ export function SlideView({
   readOnly?: boolean;
   /** The stage hides the static layer — the editor renders it interactively. */
   hideObjects?: boolean;
+  /** The deck's model. Drawn behind this slide unless it has opted out. */
+  master?: SlideMaster;
+  /**
+   * How far into this slide's build we are. Absent means "show everything",
+   * which is what every surface except presenting wants — a thumbnail of a
+   * half-revealed slide would be a thumbnail of nothing.
+   */
+  step?: number;
+  /** Slide count, for the master's numbering. */
+  total?: number;
 }) {
   const theme = DECK_THEMES[style.theme] ?? DECK_THEMES.ink;
   const vars = deckVars(theme, style.scale, style.accent, style.font);
@@ -105,7 +119,9 @@ export function SlideView({
     return <div className="size-full" style={{ background: theme.bg }} />;
 
   const layout = layoutOf(slide, index);
-  const bullets = slide.bullets;
+  const building = step !== undefined;
+  const bullets = building ? visibleBullets(slide, step) : slide.bullets;
+  const inherited = slide.bare ? undefined : master;
   const centred = style.align === "centre";
 
   const setBullets = (next: string[]) => onChange?.({ bullets: next });
@@ -219,7 +235,29 @@ export function SlideView({
       style={{ ...vars, background: "var(--slide-bg)", containerType: "size" }}
     >
       <SlideSurface background={style.background} />
-      {!hideObjects && <SlideObjectsView objects={slide.objects} />}
+      {/* The master goes down first, so a slide's own content sits on top. */}
+      {!hideObjects && inherited?.objects?.length ? (
+        <SlideObjectsView objects={inherited.objects} />
+      ) : null}
+      {!hideObjects && (
+        <SlideObjectsView
+          objects={building ? visibleObjects(slide, step) : slide.objects}
+        />
+      )}
+      {inherited?.footer?.trim() ? (
+        <span
+          className="pointer-events-none absolute bottom-[3.5%] left-[6%] text-[1.6cqw] text-[var(--slide-muted)]"
+          style={{ opacity: 0.85 }}
+        >
+          {inherited.footer}
+        </span>
+      ) : null}
+      {inherited?.numbers ? (
+        <span className="pointer-events-none absolute right-[6%] bottom-[3.5%] font-mono text-[1.5cqw] text-[var(--slide-muted)]">
+          {index + 1}
+          {total ? ` / ${total}` : ""}
+        </span>
+      ) : null}
       {layout === "title" ? (
         <div className={cn("w-full", centred && "text-center")}>
           {Title}

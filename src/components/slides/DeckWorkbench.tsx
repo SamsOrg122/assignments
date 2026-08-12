@@ -54,6 +54,10 @@ export interface Deck {
   removeSlide: (id: string) => void;
   /** Pick, drop or paste a picture onto the current slide. */
   placeImage: (file: File | Blob | null) => Promise<void>;
+  /** The deck's model, drawn behind every slide that hasn't opted out. */
+  master: SlidesBlockModel["master"];
+  /** Slide count, so the model can number them. */
+  total: number;
 }
 
 export function useDeck(projectId: string, block: SlidesBlockModel): Deck {
@@ -67,6 +71,8 @@ export function useDeck(projectId: string, block: SlidesBlockModel): Deck {
   const clamped = Math.min(index, Math.max(slides.length - 1, 0));
   const current = slides[clamped];
   const style = block.style ?? DEFAULT_DECK_STYLE;
+
+  const master = block.master;
 
   return useMemo(() => {
     const setSlides = (next: (list: Slide[]) => Slide[]) =>
@@ -87,6 +93,8 @@ export function useDeck(projectId: string, block: SlidesBlockModel): Deck {
       setIndex,
       patch,
       setSlides,
+      master,
+      total: slides.length,
 
       setStyle: (next) =>
         updateBlock<SlidesBlockModel>(projectId, block.id, (b) => ({
@@ -132,7 +140,7 @@ export function useDeck(projectId: string, block: SlidesBlockModel): Deck {
         }
       },
     };
-  }, [projectId, block.id, slides, style, clamped, current, updateBlock, notify]);
+  }, [projectId, block.id, slides, style, clamped, current, master, updateBlock, notify]);
 }
 
 /* ── The stage ──────────────────────────────────────────── */
@@ -147,7 +155,7 @@ export function useDeck(projectId: string, block: SlidesBlockModel): Deck {
 export function SlideStage({ deck, className }: { deck: Deck; className?: string }) {
   const [dropping, setDropping] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
-  const { current, style, index, patch, placeImage } = deck;
+  const { current, style, index, patch, placeImage, master, total } = deck;
 
   return (
     <div
@@ -180,6 +188,8 @@ export function SlideStage({ deck, className }: { deck: Deck; className?: string
         slide={current}
         index={index}
         style={style}
+        master={master}
+        total={total}
         hideObjects
         onChange={(next) => current && patch(current.id, next)}
       />

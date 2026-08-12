@@ -435,6 +435,36 @@ says so, checkout walks the whole flow and answers 501 rather than charging,
 and view links carry their document inside the URL. Setting a group switches
 that group on and changes nothing else.
 
+### How big a sheet can get
+
+Measured, not guessed — `scale.mjs` in the scratchpad opens a table of N rows,
+types one character into it and times the round trip to storage:
+
+| rows | stored | opens in | keystroke on screen | written to disk |
+|---|---|---|---|---|
+| 1 000 | 0.1 MB | 0.45 s | 50 ms | 280 ms |
+| 20 000 | 1.3 MB | 0.48 s | 68 ms | 290 ms |
+| 50 000 | 3.4 MB | 0.56 s | 118 ms | 340 ms |
+| 100 000 | 6.8 MB | **refused** — browser storage is full | — | — |
+
+The last two columns are deliberately different numbers. Typing used to
+serialise the entire workspace on every character, which at fifty thousand
+rows was a quarter of a second of frozen main thread per keystroke; writes
+are now coalesced, so what you type appears immediately and reaches storage a
+beat later. The buffer is flushed before the page can be hidden or closed,
+and anything reading storage directly — sync, a backup — flushes first.
+
+So the ceiling is *storage*, not the grid: rendering and scrolling are
+comfortable at fifty thousand rows, and the browser stops accepting the
+workspace somewhere past that. A refused write is now impossible to miss — a
+bar across the top of the app says the work on screen is no longer being
+saved — because the alternative is somebody typing for an hour into a
+workspace that stopped recording half of it.
+
+Millions of rows would need a different storage model: rows stored and paged
+individually rather than a document written whole. That is a real piece of
+work rather than a setting, and it is not done.
+
 ### Environment
 
 | Variable | Where | What it switches on |

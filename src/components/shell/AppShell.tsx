@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Sidebar } from "./Sidebar";
+import { StorageAlarm } from "./StorageAlarm";
 import { CommandPalette } from "./CommandPalette";
 import { Toast } from "@/components/ui/Toast";
 import { InlineAI } from "@/components/ai/InlineAI";
@@ -147,7 +148,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Above everything, because it means the app has stopped keeping
+            what is below it. */}
+        <StorageAlarm />
+        {children}
+      </div>
       {/* Reads ?demo=1, so it needs a Suspense boundary of its own. */}
       <Suspense fallback={null}>
         <DemoBootstrap />

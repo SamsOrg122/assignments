@@ -114,6 +114,101 @@ export function forgetRescued(key: string) {
   for (const listener of listeners) listener();
 }
 
+/* ── Writing, and running out of room ───────────────────── */
+
+/**
+ * Writes waiting to reach the disk.
+ *
+ * Every keystroke used to serialise the whole workspace and hand it to
+ * `localStorage.setItem` synchronously. At a few hundred rows that is
+ * invisible; at fifty thousand it is a quarter of a second of the main thread
+ * on every character typed. Coalescing turns a burst of edits into one write.
+ *
+ * The danger of buffering somebody's work is obvious, so it is bounded on
+ * three sides: a short delay, a flush before the page can go away, and
+ * `getItem` reading the queue first so nothing in the same tab ever sees a
+ * stale value.
+ */
+const pending = new Map<string, string>();
+let timer: ReturnType<typeof setTimeout> | null = null;
+
+/** Long enough to coalesce a burst of typing, short enough to be nothing. */
+const WRITE_DELAY = 250;
+
+/**
+ * True once the browser has refused a write for want of space.
+ *
+ * This is the failure worth shouting about. Everything else in this file is
+ * about surviving *our* mistakes; this one is the browser saying no, and if it
+ * passes silently somebody goes on typing into a workspace that stopped being
+ * saved half an hour ago.
+ */
+let storageFull: { at: number; bytes: number } | null = null;
+const fullWatchers = new Set<() => void>();
+
+export const storageIsFull = (): { at: number; bytes: number } | null => storageFull;
+export const noStorageProblem = (): null => null;
+
+export function subscribeStorageFull(fn: () => void) {
+  fullWatchers.add(fn);
+  return () => fullWatchers.delete(fn);
+}
+
+/** Once the user has freed room, let the app stop shouting. */
+export function clearStorageFull() {
+  storageFull = null;
+  for (const fn of fullWatchers) fn();
+}
+
+function writeNow(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    if (storageFull) clearStorageFull();
+    return true;
+  } catch (error) {
+    const quota =
+      error instanceof DOMException &&
+      (error.name === "QuotaExceededError" ||
+        error.name === "NS_ERROR_DOM_QUOTA_REACHED");
+    if (!quota) return false;
+    // Keep the value queued. Delete something, and the next flush lands it —
+    // rather than the work being gone because a timer already dropped it.
+    storageFull = { at: Date.now(), bytes: value.length };
+    for (const fn of fullWatchers) fn();
+    return false;
+  }
+}
+
+/** Push everything waiting to disk, now. Safe to call at any time. */
+export function flushWrites() {
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
+  for (const [key, value] of [...pending])
+    if (writeNow(key, value)) pending.delete(key);
+}
+
+function queueWrite(key: string, value: string) {
+  pending.set(key, value);
+  if (timer) return;
+  timer = setTimeout(() => {
+    timer = null;
+    flushWrites();
+  }, WRITE_DELAY);
+}
+
+if (typeof window !== "undefined") {
+  // `pagehide` covers the back/forward cache and the tab being closed;
+  // `visibilitychange` covers switching apps on a phone, which is where a
+  // browser is most likely to kill the page without warning. Both are
+  // deliberately not `beforeunload`, which some browsers ignore.
+  window.addEventListener("pagehide", flushWrites);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushWrites();
+  });
+}
+
 /**
  * The persist options for a store that must outlive its own releases.
  *
@@ -131,6 +226,11 @@ export function versioned<S>(
 
     storage: createJSONStorage(() => ({
       getItem: (key) => {
+        // A write waiting to be flushed is the truth; the copy on disk is a
+        // few hundred milliseconds behind it.
+        const queued = pending.get(key);
+        if (queued !== undefined) return queued;
+
         const raw = localStorage.getItem(key);
         if (raw === null) return null;
         try {
@@ -144,8 +244,11 @@ export function versioned<S>(
           return null;
         }
       },
-      setItem: (key, value) => localStorage.setItem(key, value),
-      removeItem: (key) => localStorage.removeItem(key),
+      setItem: (key, value) => queueWrite(key, value),
+      removeItem: (key) => {
+        pending.delete(key);
+        localStorage.removeItem(key);
+      },
     })),
 
     migrate: (persisted, from) => {

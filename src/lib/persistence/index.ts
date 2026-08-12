@@ -55,6 +55,8 @@ export const BACKUP_BLOBS = "kitBlobs";
  * Stamped into every backup file ever exported. Changing it would make each
  * one unreadable by the app that wrote it — see the note on STORAGE_KEYS.
  */
+import { flushWrites } from "./versioned";
+
 export const BACKUP_FORMAT = "assignments.backup";
 export const BACKUP_VERSION = 1;
 
@@ -178,6 +180,9 @@ export async function exportWorkspace(
   live?: Record<string, string>,
   blobs?: Record<string, string>,
 ): Promise<{ bytes: number; filename: string }> {
+  // A backup taken a quarter of a second before the last write landed would
+  // be missing exactly the edit somebody was worried about.
+  flushWrites();
   const now = new Date();
   const backup = buildBackup(now.getTime(), live, blobs);
   const text = JSON.stringify(backup);

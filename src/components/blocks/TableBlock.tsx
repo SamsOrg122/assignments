@@ -971,6 +971,15 @@ function TableGrid({ projectId, block }: Props) {
                   {rowCount === block.rows.length
                     ? `${rowCount} rows`
                     : `${rowCount} shown`}
+                  {/* The measured ceiling, said once it is close enough to
+                      matter. Browser storage refuses a workspace over about
+                      5 MB, which is roughly 50,000 rows of four short columns
+                      — the grid itself is still fine well past that. */}
+                  {rowCount >= 25_000 && (
+                    <span className="ml-1.5 text-warn" title="Browser storage holds about 5 MB — roughly 50,000 rows of four short columns. Past that, a database or a second table.">
+                      · large sheet
+                    </span>
+                  )}
                 </span>
               ) : totals[column.id] !== null ? (
                 <span className="font-mono text-fg-muted" title={`Sum of ${column.name}`}>

@@ -32,6 +32,7 @@
 
 import type { Project } from "../types";
 import { STORAGE_KEYS } from "../persistence";
+import { flushWrites } from "../persistence/versioned";
 import { remoteConfig } from "./config";
 import { supabaseDatabase } from "./supabase";
 
@@ -92,6 +93,9 @@ const localDatabase: Database = {
   },
 
   async list() {
+    // Writes are coalesced, so the newest edits may still be in the queue.
+    // Sync reading a stale copy would push yesterday's document over today's.
+    flushWrites();
     const raw = localStorage.getItem(STORAGE_KEYS[0]);
     if (!raw) return [];
     try {

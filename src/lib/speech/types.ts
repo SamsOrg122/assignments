@@ -38,7 +38,14 @@ export interface SpeechProvider {
    * itself rather than to hide the feature.
    */
   isAvailable(): boolean;
-  start(handlers: SpeechHandlers): Promise<SpeechSession>;
+  /**
+   * `lang` is a BCP-47 tag for what the speaker is about to say — the
+   * document's proofing language, not the browser's setting and not the
+   * interface's. Somebody with a Dutch browser writing an English chapter is
+   * speaking English, and a recogniser told otherwise returns confident
+   * nonsense rather than an error.
+   */
+  start(handlers: SpeechHandlers, lang?: string): Promise<SpeechSession>;
   /** Batch transcription of recorded audio. */
   transcribe(audio: Blob): Promise<string>;
 }

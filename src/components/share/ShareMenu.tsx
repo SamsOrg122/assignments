@@ -27,6 +27,7 @@ import { useShared } from "@/lib/collab/shared";
 import { useUI } from "@/lib/ui-store";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import { formatNumber } from "@/lib/format";
 
 const MODES: Array<{
   value: SharePermission;
@@ -238,7 +239,7 @@ export function ShareMenu({ project }: { project: Project }) {
                 className="mt-0.5 shrink-0"
               />
               <span>
-                {verdict.characters.toLocaleString()} characters. {verdict.note}
+                {formatNumber(verdict.characters)} characters. {verdict.note}
               </span>
             </p>
           )}

@@ -35,10 +35,10 @@ import { SafeKeeping } from "@/components/settings/SafeKeeping";
 import { Dictionary } from "@/components/settings/Dictionary";
 import { AccountPanel } from "@/components/account/AccountPanel";
 import { ConnectionPanel } from "@/components/account/ConnectionPanel";
-import { LanguagePanel } from "@/components/settings/LanguagePanel";
 import { TemplatesPanel } from "@/components/settings/TemplatesPanel";
-import { useLocale } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
+import { formatTime } from "@/lib/format";
 
 /**
  * True only in the browser. Some provider names depend on browser capability
@@ -77,12 +77,11 @@ function useSyncLine(): string {
   if (status.state === "paused") return `paused: ${status.problem}`;
   if (status.state === "error") return `stopped: ${status.problem}`;
   return status.at
-    ? `last synced ${new Date(status.at).toLocaleTimeString()}`
+    ? `last synced ${formatTime(status.at)}`
     : "connected";
 }
 
 export default function SettingsPage() {
-  const { t } = useLocale();
   const a = useAppearance();
   const isClient = useIsClient();
   const aiProvider = useAIProviderName();
@@ -254,14 +253,6 @@ export default function SettingsPage() {
               value={isClient ? sourceResolverName() : "…"}
               detail="Local parsing; a metadata service replaces it"
             />
-          </Section>
-
-          <Section
-            id="language"
-            title={t("settings.language")}
-            hint={t("settings.languageHint")}
-          >
-            <LanguagePanel />
           </Section>
 
           <Section

@@ -9,7 +9,7 @@
  * it, and focus mode dims everything but the paragraph under the caret.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { PeerState, Project } from "@/lib/types";
 import { proseVars } from "@/lib/doc-presets";
 import { DEFAULT_TYPOGRAPHY } from "@/lib/types";
@@ -29,6 +29,7 @@ import { Canvas } from "@/components/canvas/Canvas";
 import { SourcesPanel } from "@/components/sources/SourcesPanel";
 import { VersionTimeline } from "./VersionTimeline";
 import { NotesList } from "./NotesList";
+import { formatNumber } from "@/lib/format";
 
 export function WritingEditor({
   project,
@@ -295,7 +296,7 @@ export function WritingEditor({
           {!focusMode && (
             <header className="mb-8 flex items-center gap-3 print:hidden">
               <span className="label-mono">
-                {words.toLocaleString()} word{words === 1 ? "" : "s"}
+                {formatNumber(words)} word{words === 1 ? "" : "s"}
               </span>
               {progress !== null && (
                 <>
@@ -307,7 +308,7 @@ export function WritingEditor({
                   </span>
                   <span className="font-mono text-[10px] text-fg-subtle">
                     {Math.round(progress * 100)}% of{" "}
-                    {project.wordGoal?.toLocaleString()}
+                    {project.wordGoal ? formatNumber(project.wordGoal) : ""}
                   </span>
                 </>
               )}
@@ -436,6 +437,7 @@ function OutlinePanel({
   onSectionGoal: (blockId: string, goal?: number) => void;
   onClose: () => void;
 }) {
+  const goalId = useId();
   const total = sections.reduce((n, s) => n + s.words, 0);
 
   return (
@@ -515,8 +517,14 @@ function OutlinePanel({
       </ul>
 
       <div className="border-t border-line pt-3">
-        <label className="label-mono mb-1.5 block">Word goal</label>
+        {/* Tied to the field, not merely sitting above it: an unassociated
+            <label> is a caption, and the input under it has no name at all for
+            anybody not reading the screen. */}
+        <label className="label-mono mb-1.5 block" htmlFor={goalId}>
+          Word goal
+        </label>
         <input
+          id={goalId}
           type="number"
           min={0}
           step={500}
@@ -528,8 +536,8 @@ function OutlinePanel({
           className="w-full rounded-sm border border-line bg-surface-2 px-2 py-1.5 font-mono text-[11.5px] text-fg outline-none focus:border-accent"
         />
         <p className="mt-1.5 font-mono text-[10px] text-fg-subtle">
-          {total.toLocaleString()} written
-          {goal ? ` · ${Math.max(0, goal - total).toLocaleString()} to go` : ""}
+          {formatNumber(total)} written
+          {goal ? ` · ${formatNumber(Math.max(0, goal - total))} to go` : ""}
         </p>
       </div>
     </aside>

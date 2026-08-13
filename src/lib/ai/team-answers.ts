@@ -10,6 +10,7 @@
 import { ROLE_LABELS } from "../team/permissions";
 import type { AIContext } from "./types";
 import { words as contentWords } from "./analysis";
+import { formatNumber } from "../format";
 
 type Team = NonNullable<AIContext["team"]>;
 
@@ -163,7 +164,7 @@ export function answerFiles(team: Team, prompt: string): TeamAnswer {
   const words = best.f.text.split(/\s+/).filter(Boolean).length;
   return {
     text:
-      `From **${best.f.name}** (${words.toLocaleString()} words):\n\n` +
+      `From **${best.f.name}** (${formatNumber(words)} words):\n\n` +
       picked.map((p) => `> ${p.s}`).join("\n\n") +
       `\n\n_Quoted from the file itself so you can check it._`,
   };

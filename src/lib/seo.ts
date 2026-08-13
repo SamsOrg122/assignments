@@ -531,6 +531,31 @@ export function counterparts(slug: Slug): { en: PageEntry; nl: PageEntry } {
   return self.lang === "en" ? { en: self, nl: other } : { en: other, nl: self };
 }
 
+/**
+ * `<html lang>`, before first paint.
+ *
+ * The interface is English everywhere, so the root layout can say `lang="en"`
+ * and mean it. The storefront is the exception: ten of these pages are written
+ * in Dutch, and a Dutch page announced in an English voice is unusable in a
+ * way that looks perfectly fine on screen. A screen reader reads this
+ * attribute, not the words.
+ *
+ * A script rather than markup because only the root layout renders `<html>`,
+ * and it has no idea which page is inside it. The paths come from the registry
+ * rather than from a `/nl` prefix test, so a Dutch page parked somewhere else
+ * would still be announced correctly — and an English page under `/nl` would
+ * not be mislabelled.
+ */
+export const PAGE_LANGUAGE_SCRIPT = `try{
+  var dutch=${JSON.stringify(
+    Object.values(PAGES)
+      .filter((page) => page.lang === "nl")
+      .map((page) => page.slug),
+  )};
+  var path=location.pathname.replace(/\\/+$/,"")||"/";
+  document.documentElement.lang=dutch.indexOf(path)>=0?"nl":"en";
+}catch(e){}`;
+
 /** BCP-47 for `inLanguage` and `og:locale`. British English: this repo spells
  *  "organise" and "colour", and an en-US tag would contradict the copy. */
 const BCP47: Record<Lang, string> = { en: "en-GB", nl: "nl-NL" };

@@ -10,6 +10,7 @@
  */
 
 import { meterMicrophone } from "./level";
+import { DEFAULT_LANGUAGE } from "@/lib/dictionary";
 import type { SpeechHandlers, SpeechProvider, SpeechSession } from "./types";
 
 /* The API is still vendor-prefixed and missing from lib.dom in places. */
@@ -52,15 +53,17 @@ export const webSpeechProvider: SpeechProvider = {
 
   isAvailable: () => getCtor() !== null,
 
-  async start(handlers: SpeechHandlers): Promise<SpeechSession> {
+  async start(handlers: SpeechHandlers, lang?: string): Promise<SpeechSession> {
     const Ctor = getCtor();
     if (!Ctor) throw new Error("Speech recognition is unavailable");
 
     const recognition = new Ctor();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang =
-      typeof navigator !== "undefined" ? navigator.language : "en-US";
+    // Not `navigator.language`, which is what this used to read: that is the
+    // language the browser's *menus* are in, and it has never been evidence
+    // about what somebody is about to dictate.
+    recognition.lang = lang ?? DEFAULT_LANGUAGE;
 
     let final = "";
     let settle: ((transcript: string) => void) | null = null;

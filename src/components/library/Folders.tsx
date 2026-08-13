@@ -21,7 +21,7 @@ import { useUI } from "@/lib/ui-store";
 import { useMenu } from "@/components/ui/Menu";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
-import { useLocale } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 
 /** Every folder id at or under `id`, so a parent shows its whole subtree. */
 export function subtree(folders: Folder[], id: string): string[] {
@@ -60,7 +60,6 @@ export function FolderRail({
   const removeFolder = useProjects((s) => s.removeFolder);
   const moveFolder = useProjects((s) => s.moveFolder);
   const notify = useUI((s) => s.notify);
-  const { t } = useLocale();
   const menu = useMenu();
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -243,7 +242,6 @@ export function LabelBar({
   active: string[];
   onToggle: (label: string) => void;
 }) {
-  const { t } = useLocale();
   const labels = useMemo(() => {
     const counts = new Map<string, number>();
     for (const p of projects)
@@ -299,7 +297,6 @@ export function LabelEditor({
   project: Project;
   onClose: () => void;
 }) {
-  const { t } = useLocale();
   const setLabels = useProjects((s) => s.setLabels);
   const projects = useProjects((s) => s.projects);
   const [draft, setDraft] = useState((project.labels ?? []).join(", "));

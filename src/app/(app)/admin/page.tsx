@@ -38,6 +38,7 @@ import {
   type PurgeCount,
 } from "@/lib/admin";
 import type { Role } from "@/lib/team/types";
+import { formatDateTime } from "@/lib/format";
 
 /** Every answer this page is waiting on, so one render decides what to show. */
 interface Loaded {
@@ -235,7 +236,7 @@ export default function AdminPage() {
                     {state.audit.map((entry) => (
                       <li key={entry.id} className="flex flex-wrap items-baseline gap-x-2 py-2">
                         <span className="font-mono text-[10.5px] text-fg-subtle">
-                          {new Date(entry.at).toLocaleString()}
+                          {formatDateTime(entry.at)}
                         </span>
                         <span className="text-[12.5px] text-fg-muted">
                           {describeAudit(entry)}

@@ -1,25 +1,28 @@
 /**
- * The words, in both languages.
+ * The words the interface says.
  *
  * One flat object rather than nested namespaces: a nested key is a key nobody
- * can grep for, and the first thing anybody does with a translation file is
- * search it for the English they saw on screen.
+ * can grep for, and the first thing anybody does with a string table is search
+ * it for the English they saw on screen.
  *
- * English is the source of truth and the fallback. A key missing from Dutch
- * renders its English — never a placeholder, never a key name. Somebody using
- * the app in Dutch should meet an English sentence at worst, which is a small
- * awkwardness; `settings.language` reads a word nobody wrote, which is a bug
- * wearing a translation's clothes.
+ * One language, deliberately. There was a Dutch column here, and the table
+ * itself was nearly complete — but a table is not an interface. Seven files
+ * out of a hundred and fifty ask it for their words; every editor, board,
+ * chat, spreadsheet, slide deck and admin screen has its English written into
+ * the markup. A browser set to Dutch picked Dutch on its own, so the result
+ * was a Dutch sidebar wrapped around an English editor, and no way for the
+ * person reading it to tell which half was the mistake. Half a language is
+ * worse than one language.
+ *
+ * A second language belongs here again when every one of those hundred and
+ * fifty files reads its words from this file — not before.
+ *
+ * Documents are a separate matter and always were: what somebody writes is in
+ * whatever language they write it, and the proofing language is set per
+ * project (see `lib/dictionary.ts`).
  *
  * Placeholders are `{name}`, filled by `t("key", { name: "…" })`.
  */
-
-export type Locale = "en" | "nl";
-
-export const LOCALES: Array<{ code: Locale; label: string; own: string }> = [
-  { code: "en", label: "English", own: "English" },
-  { code: "nl", label: "Dutch", own: "Nederlands" },
-];
 
 /** Every string the interface can say, keyed by what it says in English. */
 export const EN = {
@@ -130,9 +133,6 @@ export const EN = {
   /* Settings */
   "settings.title": "Settings",
   "settings.appearance": "Appearance",
-  "settings.language": "Language",
-  "settings.languageHint":
-    "The interface, in the language you'd rather read. Your documents are untouched — this is the buttons and the labels.",
   "settings.account": "Your account",
   "settings.connection": "Connection",
   "settings.keeping": "Keeping your work",
@@ -162,154 +162,3 @@ export const EN = {
 } as const;
 
 export type Key = keyof typeof EN;
-
-/**
- * Dutch.
- *
- * Written rather than machine-translated, because the register matters: this
- * app addresses students directly and informally, and a translation that
- * slips into "u" halfway through reads like two different products. Everything
- * here is "je".
- */
-export const NL: Partial<Record<Key, string>> = {
-  "nav.library": "Bibliotheek",
-  "nav.chat": "Chat",
-  "nav.kit": "Kit",
-  "nav.team": "Team",
-  "nav.admin": "Beheer",
-  "nav.settings": "Instellingen",
-  "nav.search": "Zoeken…",
-  "nav.projects": "Projecten",
-  "nav.channels": "Kanalen",
-  "nav.dms": "Directe berichten",
-  "nav.assistant": "Teamassistent",
-  "nav.newProject": "Nieuw",
-  "nav.signIn": "Inloggen",
-
-  "state.thisDevice": "dit apparaat",
-  "state.synced": "gesynchroniseerd",
-  "state.syncing": "verbinden",
-  "state.syncFailed": "synchroniseren mislukt",
-  "state.syncPaused": "synchroniseren gepauzeerd",
-  "state.offline": "offline",
-
-  "library.title": "Af werk staat hier.",
-  "library.subtitle": "Denken gebeurt op een Board.",
-  "library.eyebrow": "Alles, op één plek",
-  "library.search": "Zoek in de bibliotheek…",
-  "library.searchLabel": "Zoek projecten",
-  "library.all": "Alles",
-  "library.folders": "Mappen",
-  "library.everything": "Alles",
-  "library.newFolder": "Nieuw",
-  "library.folderName": "Mapnaam",
-  "library.empty": "Hier staat nog niets.",
-  "library.clear": "Wissen",
-
-  "folder.rename": "Naam wijzigen",
-  "folder.newInside": "Nieuwe map hierin",
-  "folder.moveTo": "Verplaatsen naar",
-  "folder.topLevel": "Hoogste niveau",
-  "folder.delete": "Map verwijderen",
-  "folder.deleted": "Map verwijderd — alles erin is een niveau omhoog gegaan",
-  "labels.title": "Labels",
-  "labels.help":
-    "Scheid ze met komma's. Een project houdt zijn map; labels zijn voor wat dwars door mappen heen loopt.",
-  "labels.placeholder": "scriptie, hoofdstuk 2, urgent",
-  "labels.save": "Opslaan",
-  "labels.cancel": "Annuleren",
-
-  "account.signIn": "Inloggen",
-  "account.signOut": "Uitloggen",
-  "account.createAccount": "Account aanmaken",
-  "account.createIt": "Aanmaken",
-  "account.email": "E-mail",
-  "account.password": "Wachtwoord",
-  "account.newPassword": "Nieuw wachtwoord",
-  "account.changePassword": "Wachtwoord wijzigen",
-  "account.forgot": "Wachtwoord vergeten?",
-  "account.sendLink": "Stuur de link",
-  "account.backToSignIn": "Terug naar inloggen",
-  "account.haveOne": "Ik heb er al een",
-  "account.createInstead": "Maak er juist een aan",
-  "account.oneMoment": "Momentje…",
-  "account.saveIt": "Opslaan",
-  "account.resetTitle": "Wachtwoord opnieuw instellen",
-  "account.resetHelp":
-    "We mailen een link waarmee je inlogt en een nieuw wachtwoord kiest.",
-  "account.chooseNew": "Kies een nieuw wachtwoord",
-  "account.minLength": "— minstens {n} tekens",
-  "account.yourName": "Je naam, zoals anderen die zien",
-  "account.displayName": "Je weergavenaam",
-  "account.carryOn": "Ga verder met werken",
-  "account.back": "Terug",
-  "account.signedIn": "Ingelogd",
-  "account.signedOut": "Uitgelogd — je werk blijft in deze browser",
-  "account.noDatabase":
-    "Er is geen database ingesteld, dus er is nog nergens om in te loggen. Je werk staat intussen veilig in deze browser —",
-  "account.whyOff": "Waarom accounts uit staan",
-  "account.skip": "Sla dit over en begin gewoon met schrijven",
-  "account.skipHelp":
-    "— je werk blijft in deze browser, en je kunt later een account maken zonder er iets van kwijt te raken.",
-  "account.welcomeBack": "Welkom terug",
-  "account.lead":
-    "Een account neemt je werk mee tussen apparaten en overleeft het wissen van deze browser. Het hoeft niet — alles werkt ook zonder.",
-
-  "form.send": "Versturen",
-  "form.sending": "Versturen…",
-  "form.sent": "Verstuurd",
-  "form.sentBody":
-    "Je antwoorden zijn naar degene gegaan die dit formulier maakte. Je kunt deze pagina sluiten.",
-  "form.goesTo": "Je antwoorden gaan naar degene die dit formulier maakte.",
-  "form.required": "Deze is verplicht.",
-  "form.badEmail": "Dat lijkt geen e-mailadres.",
-  "form.badDate": "Geef een datum als 2026-08-11.",
-  "form.badNumber": "Dit moet een getal zijn.",
-  "form.pickOne": "Kies een van de opties.",
-  "form.linkBroken": "Die link ging niet open",
-  "form.linkBrokenBody":
-    "Het formulier erin was niet te lezen. Sommige chat-apps knippen links af — vraag degene die hem stuurde om de hele link.",
-
-  "settings.title": "Instellingen",
-  "settings.appearance": "Uiterlijk",
-  "settings.language": "Taal",
-  "settings.languageHint":
-    "De interface, in de taal die je liever leest. Je documenten blijven zoals ze zijn — dit gaat over de knoppen en de labels.",
-  "settings.account": "Je account",
-  "settings.connection": "Verbinding",
-  "settings.keeping": "Je werk bewaren",
-  "settings.words": "Je woorden",
-  "settings.workspace": "Werkruimte",
-  "settings.templates": "Sjablonen",
-
-  "offline.title": "Je bent offline, en je werk is in orde.",
-  "offline.eyebrow": "Geen verbinding",
-  "offline.body":
-    "Alles wat je hebt gemaakt staat in deze browser en opent zonder netwerk. Wat verbinding nodig heeft is synchroniseren met je account, live sessies met anderen, en de AI — die pakken vanzelf op zodra het netwerk terug is.",
-  "offline.open": "Open de bibliotheek",
-
-  "common.cancel": "Annuleren",
-  "common.save": "Opslaan",
-  "common.delete": "Verwijderen",
-  "common.close": "Sluiten",
-  "common.open": "Openen",
-  "common.rename": "Naam wijzigen",
-  "common.duplicate": "Dupliceren",
-  "common.export": "Exporteren",
-  "common.import": "Importeren",
-  "common.done": "Klaar",
-  "common.checking": "Bezig met controleren…",
-};
-
-export const DICTIONARIES: Record<Locale, Partial<Record<Key, string>>> = {
-  en: EN,
-  nl: NL,
-};
-
-/** How much of the interface a language actually covers. Shown in Settings. */
-export function coverage(locale: Locale): { done: number; total: number } {
-  const total = Object.keys(EN).length;
-  const dictionary = DICTIONARIES[locale];
-  const done = Object.keys(EN).filter((key) => dictionary[key as Key]).length;
-  return { done, total };
-}

@@ -21,6 +21,7 @@ import { SharedProject } from "@/components/viewer/SharedProject";
 import { GuestEditor } from "@/components/viewer/GuestEditor";
 import { Icon } from "@/components/ui/Icon";
 import { KINDS } from "@/lib/kinds";
+import { formatDate } from "@/lib/format";
 
 type State =
   | { status: "reading" }
@@ -151,9 +152,9 @@ export function ViewerClient() {
       {state.status === "expired" && (
         <Explain
           title="That link has expired"
-          body={`Whoever shared this set it to stop working on ${new Date(
+          body={`Whoever shared this set it to stop working on ${formatDate(
             state.at,
-          ).toLocaleDateString()}. Ask them for a new one — the document itself is untouched.`}
+          )}. Ask them for a new one — the document itself is untouched.`}
         />
       )}
 

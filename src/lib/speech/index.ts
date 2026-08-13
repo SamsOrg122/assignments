@@ -46,9 +46,12 @@ export function speechProviderName(): string {
  * hands over to the simulated provider rather than leaving the user with a
  * recorder that captures nothing.
  */
-export async function listen(handlers: SpeechHandlers): Promise<SpeechSession> {
+export async function listen(
+  handlers: SpeechHandlers,
+  lang?: string,
+): Promise<SpeechSession> {
   const provider = pick();
-  if (provider !== webSpeechProvider) return provider.start(handlers);
+  if (provider !== webSpeechProvider) return provider.start(handlers, lang);
 
   let heardAnything = false;
   let swapped: SpeechSession | null = null;
@@ -70,7 +73,7 @@ export async function listen(handlers: SpeechHandlers): Promise<SpeechSession> {
       if (FATAL.has(message)) void fallBack();
       else handlers.onError(message);
     },
-  });
+  }, lang);
 
   // A session that produces nothing at all is the same failure, quietly.
   const grace = setTimeout(() => void fallBack(), 2200);

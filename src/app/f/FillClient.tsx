@@ -28,7 +28,7 @@ import {
 import { useRemoteConfigSettled } from "@/lib/db/use-config";
 import { LogoTile } from "@/components/ui/Logo";
 import { cn } from "@/lib/cn";
-import { useLocale } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 
 type State =
   | { kind: "reading" }
@@ -37,7 +37,6 @@ type State =
   | { kind: "broken" };
 
 export function FillClient() {
-  const { t } = useLocale();
   const settled = useRemoteConfigSettled();
   const [state, setState] = useState<State>({ kind: "reading" });
   const [answers, setAnswers] = useState<Record<string, Answer>>({});

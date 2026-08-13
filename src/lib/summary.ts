@@ -7,6 +7,7 @@
 import { htmlToText } from "./ai/context";
 import { KINDS } from "./kinds";
 import type { Block, Project } from "./types";
+import { formatNumber } from "./format";
 
 export function countWords(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
@@ -73,7 +74,7 @@ export function projectSummary(project: Project): string {
     default: {
       const words = projectWordCount(project);
       return words
-        ? `${words.toLocaleString()} word${words === 1 ? "" : "s"}`
+        ? `${formatNumber(words)} word${words === 1 ? "" : "s"}`
         : "Empty";
     }
   }

@@ -39,6 +39,7 @@ import {
   speechToProse,
   termsFromPrompt,
 } from "./analysis";
+import { formatNumber } from "../format";
 
 type Intent =
   | "speech"
@@ -506,8 +507,8 @@ function buildOutlineAnswer(req: AIRequest): Built {
   const { words, wordGoal } = req.context;
 
   const lines = [
-    `**${req.context.projectName}** — ${entries.length} sections, ${words.toLocaleString()} words` +
-      (wordGoal ? ` of ${wordGoal.toLocaleString()} (${Math.round((words / wordGoal) * 100)}%)` : "") +
+    `**${req.context.projectName}** — ${entries.length} sections, ${formatNumber(words)} words` +
+      (wordGoal ? ` of ${formatNumber(wordGoal)} (${Math.round((words / wordGoal) * 100)}%)` : "") +
       `.`,
     "",
     ...entries.map(
@@ -520,7 +521,7 @@ function buildOutlineAnswer(req: AIRequest): Built {
     lines.push(
       "",
       remaining
-        ? `${remaining.toLocaleString()} words to go. The thinnest section is **${
+        ? `${formatNumber(remaining)} words to go. The thinnest section is **${
             entries.reduce((m, e) => (e.words < m.words ? e : m), entries[0])?.where
           }**.`
         : `You're past the target.`,

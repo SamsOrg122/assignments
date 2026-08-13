@@ -14,7 +14,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProjects, useHydrated } from "@/lib/store";
 import { KINDS, KIND_ORDER } from "@/lib/kinds";
-import { useLocale } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import {
   FolderRail,
   LabelBar,
@@ -36,11 +36,11 @@ import { KeepPrompt } from "@/components/account/KeepPrompt";
 import { TemplatePicker } from "@/components/library/TemplatePicker";
 import { SaveAsTemplate } from "@/components/library/SaveAsTemplate";
 import type { Block } from "@/lib/types";
+import { formatDayMonth } from "@/lib/format";
 
 type Sort = "recent" | "name" | "kind";
 
 export default function LibraryPage() {
-  const { t } = useLocale();
   const projects = useProjects((s) => s.projects);
   const folders = useProjects((s) => s.folders);
   const addProject = useProjects((s) => s.addProject);
@@ -578,10 +578,7 @@ function relativeTime(ts: number): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.round(hours / 24);
   if (days < 30) return `${days}d ago`;
-  return new Date(ts).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
+  return formatDayMonth(ts);
 }
 
 /**

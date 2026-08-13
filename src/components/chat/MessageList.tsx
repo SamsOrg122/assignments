@@ -19,6 +19,7 @@ import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { FileCard } from "./attachments";
 import type { Message } from "@/lib/chat";
+import { formatTime } from "@/lib/format";
 
 const EMPTY: string[] = [];
 const GROUP_WINDOW = 5 * 60_000;
@@ -360,8 +361,5 @@ function ProjectCard({ projectId }: { projectId: string }) {
 }
 
 function shortTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatTime(ts);
 }

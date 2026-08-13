@@ -31,6 +31,7 @@ import { useRemoteConfigured } from "@/lib/db/use-config";
 import { TopBar } from "@/components/shell/TopBar";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
+import { formatNumber } from "@/lib/format";
 
 export default function TeamPage() {
   useTeamHydrated();
@@ -653,7 +654,7 @@ function FilesSection({ count }: { count: number }) {
               </span>
               <span className="block truncate text-[11px] text-fg-subtle">
                 {f.status === "ready"
-                  ? `${f.text.split(/\s+/).filter(Boolean).length.toLocaleString()} words${f.note ? ` · ${f.note}` : ""}`
+                  ? `${formatNumber(f.text.split(/\s+/).filter(Boolean).length)} words${f.note ? ` · ${f.note}` : ""}`
                   : (f.note ?? f.status)}
                 {f.muted ? " · excluded from context" : ""}
               </span>

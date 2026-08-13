@@ -17,6 +17,7 @@ import { ingestFile } from "@/lib/files/ingest";
 import type { FileAttachment, MessageAttachment } from "@/lib/chat";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
+import { formatNumber } from "@/lib/format";
 
 /* ── State ──────────────────────────────────────────────── */
 
@@ -243,7 +244,7 @@ export function DropZone({
 function describe(file: FileAttachment): string {
   if (file.status !== "ready") return file.note ?? file.status;
   const words = file.text.split(/\s+/).filter(Boolean).length;
-  return `${words.toLocaleString()} words · ${size(file.size)}`;
+  return `${formatNumber(words)} words · ${size(file.size)}`;
 }
 
 function size(bytes: number): string {

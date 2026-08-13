@@ -31,7 +31,7 @@ import { useAuth } from "@/lib/auth/store";
 import { subscribeSync, syncStatus } from "@/lib/db/sync";
 import { useOffline } from "@/lib/offline";
 import { useRemoteConfigured } from "@/lib/db/use-config";
-import { useLocale } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { KeepPromptCompact } from "@/components/account/KeepPrompt";
 import { KINDS } from "@/lib/kinds";
 import { cn } from "@/lib/cn";
@@ -53,7 +53,6 @@ function useSyncBadge(): { label: string; wrong: boolean } {
     () => ({ state: "off" }) as ReturnType<typeof syncStatus>,
   );
   const offline = useOffline();
-  const { t } = useLocale();
   // "Sync failed" on a train is alarming and wrong: nothing failed, there is
   // no network. The distinction is the difference between a bug and a tunnel.
   if (offline) return { label: t("state.offline"), wrong: false };
@@ -66,7 +65,6 @@ function useSyncBadge(): { label: string; wrong: boolean } {
 }
 
 export function Sidebar() {
-  const { t } = useLocale();
   const identity = useAuth((s) => s.identity);
   const configured = useRemoteConfigured();
   const badge = useSyncBadge();

@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Project, TextBlock } from "@/lib/types";
 import { listen, speechProviderName, type SpeechSession } from "@/lib/speech";
+import { DEFAULT_LANGUAGE } from "@/lib/dictionary";
 import { askAI, type AIChange } from "@/lib/ai";
 import { buildContext } from "@/lib/ai/context";
 import { useProjects } from "@/lib/store";
@@ -66,17 +67,22 @@ export function DictationBar({
       focusedBlockId ?? project.blocks.filter((b) => b.type === "text").at(-1)?.id ?? null;
 
     try {
-      sessionRef.current = await listen({
-        onChunk: (chunk) => setHeard(chunk.text),
-        onError: (message) => setError(message),
-        onLevel: setLevel,
-      });
+      sessionRef.current = await listen(
+        {
+          onChunk: (chunk) => setHeard(chunk.text),
+          onError: (message) => setError(message),
+          onLevel: setLevel,
+        },
+        // What the document is written in, which is what the person is about
+        // to say. Set per project in the page panel.
+        project.language ?? DEFAULT_LANGUAGE,
+      );
       setPhase("listening");
     } catch {
       setError("Couldn't start listening. Check microphone permission.");
       setPhase("idle");
     }
-  }, [focusedBlockId, project.blocks]);
+  }, [focusedBlockId, project.blocks, project.language]);
 
   /** Stop capture, then run the transcript through the AI clean-up pass. */
   const finish = useCallback(async () => {

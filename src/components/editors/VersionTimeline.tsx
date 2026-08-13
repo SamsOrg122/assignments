@@ -16,6 +16,7 @@ import { htmlToText } from "@/lib/ai/context";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import type { Project, Snapshot } from "@/lib/types";
+import { formatDayMonth, formatNumber } from "@/lib/format";
 
 export function VersionTimeline({
   project,
@@ -127,7 +128,7 @@ export function VersionTimeline({
             <div className="flex items-baseline gap-2 px-3 pt-2">
               <span className="text-[12.5px] text-fg">{entry?.label}</span>
               <span className="font-mono text-[10px] text-fg-subtle">
-                {entry ? timeOf(entry.at) : ""} · {entry?.words.toLocaleString()} words
+                {entry ? timeOf(entry.at) : ""} · {entry ? formatNumber(entry.words) : ""} words
                 {delta !== 0 && (
                   <span className={delta > 0 ? "text-accent" : "text-warn"}>
                     {" "}
@@ -192,8 +193,5 @@ function timeOf(ts: number): string {
   if (diff < 60_000) return "just now";
   if (diff < 3_600_000) return `${Math.round(diff / 60_000)}m ago`;
   if (diff < 86_400_000) return `${Math.round(diff / 3_600_000)}h ago`;
-  return new Date(ts).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
+  return formatDayMonth(ts);
 }

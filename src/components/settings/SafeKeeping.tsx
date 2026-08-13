@@ -46,6 +46,7 @@ import { record } from "@/lib/admin";
 import { useProjects } from "@/lib/store";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import { formatDateTime } from "@/lib/format";
 
 const STATE_COPY: Record<PersistenceState, { label: string; body: string }> = {
   persisted: {
@@ -106,7 +107,7 @@ function Rescued() {
           >
             <span className="text-fg-muted">{item.source}</span>
             <span>{formatBytes(item.bytes)}</span>
-            <span>{new Date(item.at).toLocaleString()}</span>
+            <span>{formatDateTime(item.at)}</span>
             <button
               type="button"
               onClick={() => {

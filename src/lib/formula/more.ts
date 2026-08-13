@@ -834,8 +834,7 @@ const DATES: Record<string, Fn> = {
  */
 export const ABSENT: Record<string, string> = {
   RAND: "A cell that changes on every render can't be compared with what it said a second ago. Use a fixed number, or paste one in.",
-  RANDBETWEEN: "Same reason as RAND: nothing here may change on its own.",
-  NOW: "NOW is here, but it is read when the sheet is computed rather than ticking.",
+  RANDBETWEEN: "Same reason as RAND: nothing here may change on its own. TODAY and NOW are here, but they are read when the sheet computes rather than ticking.",
   UNIQUE: "Spilling into cells you didn't select needs a spill model this doesn't have yet. A pivot table does the same job.",
   SORT: "Same as UNIQUE — sort the table itself, which is a click on the header.",
   FILTER: "Same as UNIQUE. Filter the table, or use SUMIFS / COUNTIFS.",

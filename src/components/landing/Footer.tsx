@@ -12,11 +12,18 @@
 import Link from "next/link";
 import { CTA } from "./primitives";
 import { IMPACT, percent } from "@/lib/impact/config";
+import { HUBS, page } from "@/lib/seo";
 import { LogoTile } from "@/components/ui/Logo";
 
 interface FooterLink {
   label: string;
   href: string | null;
+  /**
+   * Set when the label is not in the surrounding page's language. Two of the
+   * hub links below are Dutch words in an otherwise English footer; without
+   * this a screen reader reads "Vergelijken" in an English voice.
+   */
+  lang?: string;
 }
 
 const COLUMNS: Array<{ title: string; links: FooterLink[] }> = [
@@ -38,6 +45,30 @@ const COLUMNS: Array<{ title: string; links: FooterLink[] }> = [
       { label: "Pricing", href: "/pricing" },
       { label: "Open Tougather", href: "/library" },
     ],
+  },
+  {
+    /**
+     * The four comparison and guide hubs, read straight from the registry.
+     *
+     * This is the only path a person has to those twenty pages: nothing in the
+     * Nav points at them, and a page nobody can reach from the site is a page
+     * that exists for crawlers only. Built from `HUBS` rather than typed out
+     * so a new hub cannot be added to `src/lib/seo.ts` and then be missing
+     * here.
+     *
+     * Both languages are listed. In the body of a page an EN→NL link would be
+     * a relevance signal we do not want; site navigation is the exception,
+     * because it is where a reader goes looking for their own language.
+     */
+    title: "Compare and learn",
+    links: HUBS.map((slug) => {
+      const hub = page(slug);
+      return {
+        label: hub.nav,
+        href: hub.slug,
+        lang: hub.lang === "en" ? undefined : hub.lang,
+      };
+    }),
   },
   {
     title: "Company",
@@ -83,7 +114,9 @@ export function Footer() {
 
           <nav
             aria-label="Footer"
-            className="grid grid-cols-2 gap-8 sm:grid-cols-4"
+            // Five columns now. Three across at tablet width rather than five
+            // squeezed ones — a 12-character link column wraps every label.
+            className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5"
           >
             {COLUMNS.map((col) => (
               <div key={col.title}>
@@ -96,6 +129,7 @@ export function Footer() {
                       {l.href ? (
                         <Link
                           href={l.href}
+                          lang={l.lang}
                           className="text-[12.5px] text-fg-muted transition-colors duration-150 hover:text-fg"
                         >
                           {l.label}

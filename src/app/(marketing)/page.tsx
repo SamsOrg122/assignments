@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   // already opens with it — "Tougather … · Tougather" is what a search result
   // would otherwise show.
   title: { absolute: "Tougather — everything you make, in one place" },
+  // Its own URL, said out loud. The sitemap advertises this page, and a
+  // page in a sitemap with no canonical leaves the choice of URL to a crawler.
+  alternates: { canonical: "/" },
   description:
     `An AI-native workspace for entrepreneurs and students: write, present, draw and organise in one place. ` +
     `${percent(IMPACT.shareOfRevenue.value)} of every euro — subscription and AI usage alike — is set aside for reforestation.`,

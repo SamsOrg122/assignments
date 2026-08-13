@@ -4,6 +4,9 @@ import { H2, List, NotYet, P, PageShell } from "@/components/landing/PageShell";
 
 export const metadata: Metadata = {
   title: "Contact",
+  // Its own URL, said out loud. The sitemap advertises this page, and a
+  // page in a sitemap with no canonical leaves the choice of URL to a crawler.
+  alternates: { canonical: "/contact" },
   description: "How to reach whoever is building this.",
 };
 

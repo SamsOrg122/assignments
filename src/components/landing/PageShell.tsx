@@ -19,6 +19,7 @@ export function PageShell({
   lead,
   children,
   updated,
+  lang,
 }: {
   eyebrow?: string;
   title: string;
@@ -26,11 +27,37 @@ export function PageShell({
   children: React.ReactNode;
   /** When the page last said something different. Omitted where it can't. */
   updated?: string;
+  /**
+   * The language of *this page's words*, when it isn't the site default.
+   *
+   * The honest fix for a problem we can't fix properly yet. `<html lang>` is
+   * written by the boot script in `src/lib/i18n`, from the reader's stored
+   * interface preference — which is the right source for the interface and
+   * the wrong one for a document. A Dutch reader with the app in English
+   * opening `/nl/gidsen/formules` gets Dutch prose announced in an English
+   * voice; an English reader with the app in Dutch gets the reverse.
+   *
+   * `lang` on `<main>` overrides the ancestor for everything inside it, which
+   * is exactly what the attribute is for. So the page's own words are labelled
+   * correctly and the Nav and Footer — which really do follow the interface
+   * preference, because their text is translated by it — are left alone
+   * outside `<main>`.
+   *
+   * What this does not fix: the `<html lang>` attribute itself still says
+   * whatever the reader's preference says. Fixing that means reading the
+   * locale on the server, which means giving up static rendering for the whole
+   * app — the trade `src/lib/i18n/index.ts` already weighed and declined. For
+   * search engines the load is carried by `alternates.languages` in
+   * `pageMetadata`, which is what Google actually reads for language
+   * targeting; `lang` here is for the screen reader, and the screen reader
+   * honours the nearest ancestor.
+   */
+  lang?: "en" | "nl";
 }) {
   return (
     <>
       <Nav />
-      <main>
+      <main lang={lang}>
         <Section className="pt-16 pb-10 sm:pt-24 sm:pb-14">
           {eyebrow && (
             <p className="mb-4 text-[12.5px] text-fg-subtle">{eyebrow}</p>
@@ -88,6 +115,32 @@ export function H2({
     >
       {children}
     </h2>
+  );
+}
+
+/**
+ * The step under `H2`. Sans rather than the display serif, and one size above
+ * body — a second serif tier at this scale reads as a slightly wrong `H2`
+ * rather than as a subordinate heading.
+ *
+ * It lives here next to `H2` rather than in `LongForm.tsx` so there is one
+ * place a heading level is defined; `LongForm` re-exports it so a long-form
+ * page can take everything it needs from one import.
+ */
+export function H3({
+  id,
+  children,
+}: {
+  id?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <h3
+      id={id}
+      className="mt-8 mb-2 scroll-mt-24 text-[15.5px] font-medium text-fg"
+    >
+      {children}
+    </h3>
   );
 }
 

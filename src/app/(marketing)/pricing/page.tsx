@@ -7,6 +7,9 @@ import { IMPACT, percent } from "@/lib/impact/config";
 
 export const metadata: Metadata = {
   title: "Pricing",
+  // Its own URL, said out loud. The sitemap advertises this page, and a
+  // page in a sitemap with no canonical leaves the choice of URL to a crawler.
+  alternates: { canonical: "/pricing" },
   description:
     `Three plans, metered AI on top, and ${percent(IMPACT.shareOfRevenue.value)} of everything set aside ` +
     `before anything else is paid out.`,

@@ -21,6 +21,7 @@ import {
   FUNCTIONS,
   type Arg,
 } from "./functions";
+import { ABSENT } from "./more";
 import {
   columnIndex,
   parseFormula,
@@ -306,7 +307,18 @@ export function createBook(workbook: Workbook = EMPTY) {
 
       case "call": {
         const fn = FUNCTIONS[node.fn];
-        if (!fn) return NAME(`There's no function called ${node.fn}.`);
+        if (!fn) {
+          // A name we left out deliberately carries its reason with it. The
+          // column editor already explains itself through `checkFormula`; a
+          // formula typed straight into a cell never goes through that, and
+          // "#NAME?" alone reads as a typo rather than as a decision.
+          const why = ABSENT[node.fn];
+          return NAME(
+            why
+              ? `${node.fn} isn't here. ${why}`
+              : `There's no function called ${node.fn}.`,
+          );
+        }
         return fn(
           node.args.map((a) => argFor(a, frame)),
           node.fn,

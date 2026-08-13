@@ -135,6 +135,14 @@ export const t = (key: Key, values?: Record<string, string | number>) =>
  * Not decoration: a screen reader picks its voice from this attribute, so a
  * Dutch interface announced in an English voice is unusable in a way that
  * looks fine on screen.
+ *
+ * The URL wins where there is one. The storefront has pages written in Dutch
+ * at `/nl/…` and pages written in English everywhere else, and those are
+ * documents rather than interface — their language is a fact about the page,
+ * not a preference. Without this a Dutch reader landed on an English guide and
+ * had it announced in Dutch, and a Dutch page reached from an English
+ * interface was announced in English. Inside the app, where there is no
+ * language in the path, the preference decides as before.
  */
 export const LOCALE_BOOT_SCRIPT = `try{
   var s=localStorage.getItem(${JSON.stringify(STORAGE)});
@@ -147,5 +155,7 @@ export const LOCALE_BOOT_SCRIPT = `try{
       if(known.indexOf(base)>=0){l=base;break;}
     }
   }
-  document.documentElement.lang=l||"en";
+  var path=location.pathname;
+  var onDutchPage=path==="/nl"||path.indexOf("/nl/")===0;
+  document.documentElement.lang=onDutchPage?"nl":(l||"en");
 }catch(e){}`;

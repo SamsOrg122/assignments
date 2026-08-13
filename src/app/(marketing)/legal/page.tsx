@@ -11,6 +11,9 @@ import { IMPACT, percent } from "@/lib/impact/config";
 
 export const metadata: Metadata = {
   title: "Terms, privacy and cookies",
+  // Its own URL, said out loud. The sitemap advertises this page, and a
+  // page in a sitemap with no canonical leaves the choice of URL to a crawler.
+  alternates: { canonical: "/legal" },
   description:
     "What we do with your work and your data, in plain words. A draft, not yet reviewed by a lawyer.",
 };

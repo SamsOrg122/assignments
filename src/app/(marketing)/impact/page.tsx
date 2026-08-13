@@ -21,6 +21,9 @@ const SHARE = percent(IMPACT.shareOfRevenue.value);
 
 export const metadata: Metadata = {
   title: `Better for the future — ${SHARE} of revenue`,
+  // Its own URL, said out loud. The sitemap advertises this page, and a
+  // page in a sitemap with no canonical leaves the choice of URL to a crawler.
+  alternates: { canonical: "/impact" },
   description:
     `Where ${SHARE} of every euro goes, what the other ${percent(1 - IMPACT.shareOfRevenue.value)} pays for, ` +
     `and which of these numbers are confirmed rather than intended.`,

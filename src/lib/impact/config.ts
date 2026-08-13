@@ -56,16 +56,23 @@ export const PLANS: Plan[] = [
   {
     id: "free",
     name: "Free",
-    blurb: "For one project at a time, with enough AI to feel it.",
+    blurb: "Everything that isn't AI, with enough AI to feel it.",
     price: 0,
     perSeat: false,
     includedCredits: 200,
     metered: false,
+    /*
+     * No feature here is gated, and this list says so rather than implying a
+     * ceiling nothing enforces. "Three projects" sat here for months while the
+     * code counted nothing — a limit a customer discovers is not there is a
+     * small lie that costs the next claim its credibility. If a limit is ever
+     * wanted, it goes in the code first and in this list second.
+     */
     features: [
-      "Three projects",
-      "Library, Board and every editor",
+      "Every editor, the Library and the Board",
+      "Sources, citations and version history",
+      "Word and PowerPoint in and out",
       "200 AI credits a month",
-      "Export to PDF, Word and Markdown",
     ],
     cta: "Start writing",
   },
@@ -78,12 +85,14 @@ export const PLANS: Plan[] = [
     includedCredits: 3000,
     metered: true,
     featured: true,
+    // What the money buys is the allowance. Everything else is on the free
+    // plan too, and saying otherwise on a pricing page is the kind of claim
+    // somebody checks.
     features: [
-      "Unlimited projects and boards",
       "3,000 AI credits a month, then metered",
       "Speak-to-prose and workspace-aware AI",
-      "Sources, citations and version history",
-      "PowerPoint and Word import",
+      "The whole workspace, as on the free plan",
+      "One price, not per seat",
     ],
     cta: "Start writing",
   },

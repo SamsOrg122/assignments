@@ -10,6 +10,7 @@
  * headers stacked on each other.
  */
 
+import Link from "next/link";
 import { CTA, Leaf, Section } from "./primitives";
 import { LiveDemo } from "./LiveDemo";
 import { IMPACT, PRIMARY_CAUSE, percent } from "@/lib/impact/config";
@@ -27,10 +28,31 @@ export function Hero() {
         </h1>
 
         <p className="mt-6 max-w-[54ch] text-[clamp(16px,2vw,19px)] leading-relaxed text-fg-muted text-pretty">
-          Tougather is an AI-native workspace for entrepreneurs and students.
-          Write a thesis, build a deck, sketch on an infinite board, keep your
-          team&apos;s files and memory in one place — without four subscriptions and
-          six tabs.
+          Tougather is an AI-native workspace for entrepreneurs and students. A
+          thesis, a deck, a budget, a board and your team&apos;s memory in one
+          project — where Office hands you five files in five apps, each with a
+          subscription of its own. Everything except the AI allowance is free.
+        </p>
+
+        {/* The comparison, offered rather than hidden. Somebody who has
+            already decided to weigh this against Microsoft should not have to
+            find a dropdown to do it. */}
+        <p className="mt-3 text-[13.5px] text-fg-subtle">
+          <Link
+            href="/compare/microsoft-365"
+            className="inline-flex items-center gap-0.5 text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg"
+          >
+            How it compares to Microsoft 365
+            <Icon name="chevron-right" size={10} />
+          </Link>
+          <span className="mx-2 text-line-strong">·</span>
+          <Link
+            href="#why"
+            className="inline-flex items-center gap-0.5 text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg"
+          >
+            And where you should stay put
+            <Icon name="chevron-right" size={10} />
+          </Link>
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-3">

@@ -3,6 +3,7 @@ import { Nav } from "@/components/landing/Nav";
 import { HeroBanner } from "@/components/landing/HeroBanner";
 import { Hero } from "@/components/landing/Hero";
 import { Product } from "@/components/landing/Product";
+import { Switch } from "@/components/landing/Switch";
 import { Signature } from "@/components/landing/Signature";
 import { Mission } from "@/components/landing/Mission";
 import { ForestBand } from "@/components/landing/ForestBand";
@@ -32,6 +33,9 @@ export default function LandingPage() {
         <HeroBanner />
         <Hero />
         <Product />
+        {/* The argument comes straight after "what it is", because it is
+            meaningless before that and forgotten after the fold. */}
+        <Switch />
         <Signature />
         <Mission />
         <ForestBand />

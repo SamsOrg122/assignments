@@ -323,7 +323,9 @@ function toMarkdown(project: Project): string {
     .trim();
 }
 
-function download(
+/** Hand a file to the browser. Exported because every "save this" in the app
+ *  should get the same Safari-safe revoke, not its own copy of it. */
+export function download(
   filename: string,
   content: string | Uint8Array,
   mime: string,

@@ -28,6 +28,7 @@ import { useUI } from "@/lib/ui-store";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { formatNumber } from "@/lib/format";
+import { EmailDraft } from "./EmailDraft";
 
 const MODES: Array<{
   value: SharePermission;
@@ -60,6 +61,7 @@ export function ShareMenu({ project }: { project: Project }) {
   const [link, setLink] = useState<string | null>(null);
   const [verdict, setVerdict] = useState<LinkVerdict | null>(null);
   const [copied, setCopied] = useState(false);
+  const [emailing, setEmailing] = useState(false);
   /** Days until the link stops opening. 0 means no date at all. */
   const [days, setDays] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -244,6 +246,18 @@ export function ShareMenu({ project }: { project: Project }) {
             </p>
           )}
 
+          {/* Sending it to somebody is the other half of sharing it, and the
+              link is what an email would carry — so the composer opens from
+              here, with the link already in the body. */}
+          <button
+            type="button"
+            onClick={() => setEmailing(true)}
+            className="mt-2 flex w-full items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+          >
+            <Icon name="file" size={11} />
+            Make an email out of this
+          </button>
+
           <div className="mt-2.5 space-y-1.5 border-t border-line pt-2.5 text-[11px] leading-relaxed text-fg-subtle">
             {/*
               The one thing a person needs to know before they paste this
@@ -339,6 +353,14 @@ export function ShareMenu({ project }: { project: Project }) {
             )}
           </div>
         </div>
+      )}
+
+      {emailing && (
+        <EmailDraft
+          project={project}
+          link={link}
+          onClose={() => setEmailing(false)}
+        />
       )}
     </span>
   );

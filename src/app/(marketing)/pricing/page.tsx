@@ -3,6 +3,7 @@ import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
 import { Section } from "@/components/landing/primitives";
 import { PricingTable } from "@/components/pricing/PricingTable";
+import { PaymentStatus } from "@/components/pricing/PaymentStatus";
 import { IMPACT, percent } from "@/lib/impact/config";
 
 export const metadata: Metadata = {
@@ -30,6 +31,10 @@ export default function PricingPage() {
             because the AI is the part that costs us money by the action. The
             free plan never becomes an invoice — it stops instead.
           </p>
+          {/* Before the table, not after it: somebody should know what the
+              prices currently mean before they read them, not once they have
+              picked one. */}
+          <PaymentStatus />
         </Section>
 
         <PricingTable />

@@ -32,6 +32,7 @@ import { useTweenedNumber } from "@/lib/use-parallax";
 import { Glass, Leaf, Provisional, Reveal, Section, SectionHead } from "./primitives";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
+import { PaymentStatus } from "@/components/pricing/PaymentStatus";
 
 const DEFAULT_CREDITS =
   METER.presets.find((p) => p.id === "regular")?.credits ?? 4000;
@@ -75,6 +76,7 @@ export function Pricing() {
             <Icon name="chevron-right" size={11} />
           </Link>
         </p>
+        <PaymentStatus />
       </Reveal>
 
       {/* Plans */}

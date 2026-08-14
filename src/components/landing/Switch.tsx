@@ -21,6 +21,7 @@ import Link from "next/link";
 import { Glass, Reveal, Section, SectionHead } from "./primitives";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { PLANS } from "@/lib/impact/config";
+import { PaymentStatus } from "@/components/pricing/PaymentStatus";
 
 /** Read from the plans rather than typed here, so a price change cannot leave
  *  the argument quoting a number the pricing table has stopped charging. */
@@ -62,9 +63,7 @@ const COLUMNS: Array<{
         take their figure for your team size and put it beside ours. We
         deliberately don&apos;t print their price here: it moves by country and
         plan, and one stale number would make this whole page worth ignoring.
-        And the part most pages leave out: you cannot pay us yet. Checkout
-        answers 501 until Stripe is configured, so what runs today is the free
-        plan.
+        <PaymentStatus variant="inline" />
       </>
     ),
     link: { href: "/pricing", text: "The whole price list" },

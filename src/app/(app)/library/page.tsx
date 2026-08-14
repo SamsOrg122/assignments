@@ -37,6 +37,7 @@ import { TemplatePicker } from "@/components/library/TemplatePicker";
 import { SaveAsTemplate } from "@/components/library/SaveAsTemplate";
 import type { Block } from "@/lib/types";
 import { formatDayMonth } from "@/lib/format";
+import { ImportZone, openImportPicker } from "@/components/library/ImportZone";
 
 type Sort = "recent" | "name" | "kind";
 
@@ -192,6 +193,10 @@ export default function LibraryPage() {
           </div>
 
           <KeepPrompt />
+
+          {/* Listens on the window, so a folder can be dropped anywhere on
+              this page rather than onto a target somebody has to find. */}
+          <ImportZone />
 
           {/* Where things live. Hidden entirely until there is something to
               show, so a small workspace keeps the plain list it had. */}
@@ -540,6 +545,51 @@ function NewProjectButton({
                 </span>
               </button>
             ))}
+            <div className="my-1 h-px bg-line" />
+            {/* The way in for somebody arriving from Office. Two entries
+                rather than one: dragging a folder is the natural gesture, but
+                a picker is the only way to do it without a second window
+                open, and "choose a folder" needs its own input to exist. */}
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                openImportPicker("files");
+              }}
+              className="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors duration-150 hover:bg-surface-2"
+            >
+              <span className="grid size-6 shrink-0 place-items-center rounded-xs border border-line text-fg-muted">
+                <Icon name="download" size={12} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[12.5px] text-fg">
+                  Files from your computer…
+                </span>
+                <span className="block truncate text-[11px] text-fg-subtle">
+                  Word, PowerPoint, Excel, CSV, text
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                openImportPicker("folder");
+              }}
+              className="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors duration-150 hover:bg-surface-2"
+            >
+              <span className="grid size-6 shrink-0 place-items-center rounded-xs border border-line text-fg-muted">
+                <Icon name="folder" size={12} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[12.5px] text-fg">
+                  A whole folder…
+                </span>
+                <span className="block truncate text-[11px] text-fg-subtle">
+                  Its folders come with it
+                </span>
+              </span>
+            </button>
             <div className="my-1 h-px bg-line" />
             <button
               type="button"

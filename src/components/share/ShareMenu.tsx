@@ -41,6 +41,12 @@ const MODES: Array<{
     blurb: (name) => `Opens ${name} as a reader. Nothing to change, nothing to break.`,
   },
   {
+    value: "comment",
+    label: "Can comment",
+    blurb: (name) =>
+      `Opens ${name} as a reader who can leave notes in the margin. They can't change a word, and you pick the notes up here.`,
+  },
+  {
     value: "suggest",
     label: "Can suggest",
     blurb: (name) =>
@@ -70,6 +76,7 @@ export function ShareMenu({ project }: { project: Project }) {
   const shared = useShared((s) => s.ids.includes(project.id));
   const startSharing = useShared((s) => s.startSharing);
   const stopSharing = useShared((s) => s.stopSharing);
+  const expectNotes = useShared((s) => s.expectNotes);
 
   const build = useCallback(
     (permission: SharePermission) => {
@@ -78,6 +85,12 @@ export function ShareMenu({ project }: { project: Project }) {
       // opening the session are the same intent, so they are the same action —
       // otherwise the first person to follow the link finds nobody there.
       if (permission === "edit" || permission === "suggest") startSharing(project.id);
+      /*
+       * A comment link opens no room — the reader is not in a session — so
+       * this is the only record that somebody is out there with it, and the
+       * only reason the Library knows to go looking for notes afterwards.
+       */
+      if (permission === "comment") expectNotes(project.id);
       const until = days ? Date.now() + days * 86_400_000 : undefined;
       shareLink(project, permission, until).then(
         (url) => {
@@ -87,7 +100,7 @@ export function ShareMenu({ project }: { project: Project }) {
         () => notify("That project couldn't be turned into a link."),
       );
     },
-    [project, notify, startSharing, days],
+    [project, notify, startSharing, expectNotes, days],
   );
 
   const toggle = () => {

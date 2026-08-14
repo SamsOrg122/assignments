@@ -123,7 +123,9 @@ export function ViewerClient() {
 
         <span className="ml-auto flex shrink-0 items-center gap-2.5">
           <span className="hidden rounded-xs border border-line px-1.5 py-0.5 font-mono text-[9.5px] text-fg-subtle sm:inline">
-            READ ONLY
+            {state.status === "ready" && state.permission === "comment"
+              ? "COMMENT ONLY"
+              : "READ ONLY"}
           </span>
           <Link
             href="/library"
@@ -140,7 +142,32 @@ export function ViewerClient() {
         </div>
       )}
 
-      {state.status === "ready" && <SharedProject project={state.project} />}
+      {state.status === "ready" && (
+        <>
+          {state.permission === "comment" && (
+            <p className="border-b border-line bg-surface px-4 py-2 text-[12px] leading-relaxed text-fg-muted">
+              {state.project.kind === "doc" || state.project.kind === "notes" ? (
+                <>
+                  You can leave notes on any paragraph — hover the left margin.
+                  The words themselves are not yours to change, and whoever sent
+                  this picks the notes up next time they open their Library.
+                </>
+              ) : (
+                <>
+                  This link allows comments, but comments live on documents for
+                  now — a {state.project.kind} opens as a reader.
+                </>
+              )}
+            </p>
+          )}
+          <SharedProject
+            project={state.project}
+            commentIn={
+              state.permission === "comment" ? state.project.id : undefined
+            }
+          />
+        </>
+      )}
 
       {state.status === "empty" && (
         <Explain

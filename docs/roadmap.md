@@ -90,9 +90,33 @@ files come in one at a time, which is what happens.
 
 ---
 
-## 2. The link that comes back
+## 2. The link that comes back — **done**
 
-**What exists — more than it seems.** Share links carry three permissions, they
+Landed. "Can comment" is the fourth share mode: it opens the reader, not the
+editor, with a rail in the margin of every paragraph. The commenter types a
+name once, it is kept in their own browser, and it travels with the note so it
+arrives from a person rather than from "Guest".
+
+The part that was actually missing turned out to be storage, not interface. A
+note left through a link lived in the reader's browser, and the relay forwards
+bytes between two people who are both present and keeps nothing — so unless
+the author happened to be in the same live session at the same second, the note
+was simply gone. There is now a note box beside the relay: capped, expiring
+after a day, read by the Library on open and merged onto the paragraphs the
+notes were left on.
+
+**Its limit, which the interface repeats rather than hides:** that box is one
+server process's memory. A restart, a redeploy, or a platform that spreads
+requests across instances loses whatever is waiting, and a note that fails to
+send says so on the spot with the words still in the box to copy. It closes the
+gap between "you were both online at the same second" and "you opened it the
+same day". It is not a database and nothing may call it one.
+
+Still open, deliberately: comments are on documents — a comment link to a deck
+or a board opens as a reader and says so. And there is no reply, no resolve and
+no notification beyond the Library bar.
+
+**What existed — more than it seemed.** Share links carry three permissions, they
 expire, they can be revoked, and a recipient with a suggest or edit link gets the
 *real* editor rather than a viewer: `ViewerClient` hands off to `GuestEditor`,
 which mounts the same `WritingEditor`, the same canvas, the same block comments.

@@ -38,6 +38,7 @@ import { SaveAsTemplate } from "@/components/library/SaveAsTemplate";
 import type { Block } from "@/lib/types";
 import { formatDayMonth } from "@/lib/format";
 import { ImportZone, openImportPicker } from "@/components/library/ImportZone";
+import { ReturnedNotes } from "@/components/library/ReturnedNotes";
 
 type Sort = "recent" | "name" | "kind";
 
@@ -193,6 +194,9 @@ export default function LibraryPage() {
           </div>
 
           <KeepPrompt />
+
+          {/* Notes left through a comment link while nobody was here. */}
+          <ReturnedNotes />
 
           {/* Listens on the window, so a folder can be dropped anywhere on
               this page rather than onto a target somebody has to find. */}

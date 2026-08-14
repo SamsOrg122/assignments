@@ -551,6 +551,13 @@ export interface BoardItemBase {
 export interface BoardComment {
   id: string;
   authorId: string;
+  /**
+   * Carried rather than looked up, for people who are not in the workspace.
+   * Somebody commenting through a link has no seat in anybody's team list, so
+   * an id alone would resolve to nothing on the other side and the note would
+   * arrive from "Guest". The name they typed travels with the note.
+   */
+  authorName?: string;
   body: string;
   at: number;
   /** Emoji → the people who reacted with it. */

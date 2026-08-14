@@ -30,16 +30,34 @@ import { chartData, renderChart } from "@/components/blocks/ChartBlock";
 import { SlideView } from "@/components/slides/SlideView";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import { CommentRail } from "./CommentRail";
 
-export function SharedProject({ project }: { project: Project }) {
+export function SharedProject({
+  project,
+  /**
+   * The room notes go to, set when the link said "can comment". Absent means
+   * a plain reader — and the rail is then not rendered at all rather than
+   * rendered disabled, so there is nothing to click and nothing to explain.
+   */
+  commentIn,
+}: {
+  project: Project;
+  commentIn?: string;
+}) {
   if (project.kind === "board") return <SharedBoard project={project} />;
   if (project.kind === "deck") return <SharedDeck project={project} />;
-  return <SharedDocument project={project} />;
+  return <SharedDocument project={project} commentIn={commentIn} />;
 }
 
 /* ── Documents ──────────────────────────────────────────── */
 
-function SharedDocument({ project }: { project: Project }) {
+function SharedDocument({
+  project,
+  commentIn,
+}: {
+  project: Project;
+  commentIn?: string;
+}) {
   const type = { ...DEFAULT_TYPOGRAPHY, ...project.typography };
 
   return (
@@ -65,9 +83,22 @@ function SharedDocument({ project }: { project: Project }) {
           data-notes-root
         >
           <div className="flex flex-col gap-6">
-            {project.blocks.map((b) => (
-              <ReadOnlyBlock key={b.id} block={b} project={project} />
-            ))}
+            {project.blocks.map((b) =>
+              commentIn ? (
+                // The rail hangs in the margin, so the block needs to be the
+                // thing it is positioned against.
+                <div key={b.id} className="group/block relative">
+                  <CommentRail
+                    room={commentIn}
+                    blockId={b.id}
+                    existing={b.comments ?? []}
+                  />
+                  <ReadOnlyBlock block={b} project={project} />
+                </div>
+              ) : (
+                <ReadOnlyBlock key={b.id} block={b} project={project} />
+              ),
+            )}
           </div>
           <SharedNotes project={project} />
         </div>

@@ -33,7 +33,13 @@ import { sanitizeHtml, safeImageSrc } from "./sanitize";
  * document to live on a server, which is the same line every other seam here
  * draws.
  */
-export type SharePermission = "view" | "edit" | "suggest";
+/**
+ * `comment` is the one most people mean when they send a link: read it, mark
+ * it up, don't touch the words. It opens the reader rather than the editor —
+ * which is not a restriction bolted onto the editor but a different page, so
+ * there is nothing there to type into by accident.
+ */
+export type SharePermission = "view" | "edit" | "suggest" | "comment";
 
 /**
  * Payload tag: permission, then format. `v1z` is a view link, gzipped; `e1p`
@@ -103,7 +109,14 @@ export async function encodeShare(
 ): Promise<string> {
   const json = JSON.stringify(stripForShare(project, expires));
   const bytes = new TextEncoder().encode(json);
-  const mark = permission === "edit" ? "e" : permission === "suggest" ? "s" : "v";
+  const mark =
+    permission === "edit"
+      ? "e"
+      : permission === "suggest"
+        ? "s"
+        : permission === "comment"
+          ? "c"
+          : "v";
 
   if (typeof CompressionStream === "undefined")
     return `${mark}${PLAIN}.${toBase64Url(bytes)}`;
@@ -212,8 +225,13 @@ export async function decodeShare(payload: string): Promise<DecodedShare | null>
     ? "edit"
     : tag.startsWith("s")
       ? "suggest"
-      : "view";
-  const format = tag.replace(/^[ves]/, "");
+      : tag.startsWith("c")
+        ? "comment"
+        : "view";
+  // Anything unrecognised falls through to "view", which is the safe end of
+  // the range — a link from a future version opens as a reader rather than
+  // refusing, and never as something more permissive than it said.
+  const format = tag.replace(/^[vesc]/, "");
 
   let bytes: Uint8Array;
   try {

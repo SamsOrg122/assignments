@@ -24,16 +24,37 @@ import { versioned } from "../persistence/versioned";
 interface SharedState {
   /** Project ids with a live room open. */
   ids: string[];
+  /**
+   * Project ids somebody may be leaving notes on.
+   *
+   * A "can comment" link opens no room — the reader is not in a session — so
+   * the only way the Library knows where to look afterwards is that the link
+   * was made at all. Kept separately from `ids` because these two answer
+   * different questions: one is "is a session open", the other is "is anybody
+   * out there with a link".
+   */
+  awaiting: string[];
   isShared: (projectId: string) => boolean;
   startSharing: (projectId: string) => void;
   stopSharing: (projectId: string) => void;
+  expectNotes: (projectId: string) => void;
+  stopExpecting: (projectId: string) => void;
 }
 
 export const useShared = create<SharedState>()(
   persist(
     (set, get) => ({
       ids: [],
+      awaiting: [],
       isShared: (projectId) => get().ids.includes(projectId),
+      expectNotes: (projectId) =>
+        set((s) =>
+          s.awaiting.includes(projectId)
+            ? s
+            : { awaiting: [...s.awaiting, projectId] },
+        ),
+      stopExpecting: (projectId) =>
+        set((s) => ({ awaiting: s.awaiting.filter((id) => id !== projectId) })),
       startSharing: (projectId) =>
         set((s) =>
           s.ids.includes(projectId) ? s : { ids: [...s.ids, projectId] },
@@ -43,7 +64,7 @@ export const useShared = create<SharedState>()(
     }),
     {
       ...versioned<SharedState>("assignments:shared:v1", []),
-      partialize: (s) => ({ ids: s.ids }),
+      partialize: (s) => ({ ids: s.ids, awaiting: s.awaiting }),
       // Read at mount like every other store here, so the first client render
       // agrees with the server's.
       skipHydration: true,

@@ -23,6 +23,7 @@ import {
   type Block,
   type BlockType,
   type BoardItem,
+  type BoardComment,
   type BoardItemKind,
   type CellValue,
   type Column,
@@ -157,6 +158,12 @@ interface ProjectsState {
     blockId: string,
     body: string,
     authorId: string,
+  ) => void;
+  /** A comment from outside this browser, appended once and only once. */
+  receiveComment: (
+    projectId: string,
+    blockId: string,
+    comment: BoardComment,
   ) => void;
   toggleBlockReaction: (
     projectId: string,
@@ -873,6 +880,24 @@ export const useProjects = create<ProjectsState>()(
                       { id: uid(), authorId, body, at: Date.now() },
                     ],
                   }
+                : b,
+            ),
+          })),
+        })),
+
+      /*
+       * A comment that arrived from somewhere else, keeping the id it already
+       * had. Idempotent on that id: the note box is read rather than emptied,
+       * so the same note is offered again on every visit until it expires, and
+       * collecting twice must not double it.
+       */
+      receiveComment: (projectId, blockId, comment) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({
+            ...p,
+            blocks: p.blocks.map((b) =>
+              b.id === blockId && !(b.comments ?? []).some((c) => c.id === comment.id)
+                ? { ...b, comments: [...(b.comments ?? []), comment] }
                 : b,
             ),
           })),

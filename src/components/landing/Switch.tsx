@@ -142,12 +142,15 @@ export function Switch() {
             Your work comes with you
           </span>
           <p className="flex-1 text-[13.5px] leading-relaxed text-fg-muted text-pretty">
-            Open a <strong className="font-medium text-fg">.docx</strong> into a
-            document, an <strong className="font-medium text-fg">.xlsx</strong>{" "}
-            into a spreadsheet, a{" "}
-            <strong className="font-medium text-fg">.pptx</strong> into a deck —
-            and write all three back out again. Trying this costs you nothing,
-            and leaving takes your work with it.
+            Drag your whole Office folder onto the Library. The{" "}
+            <strong className="font-medium text-fg">.docx</strong> files become
+            documents, the <strong className="font-medium text-fg">.pptx</strong>{" "}
+            files become decks, the{" "}
+            <strong className="font-medium text-fg">.xlsx</strong> files become
+            spreadsheets, and your folders come with them — and all three write
+            back out again. Anything it can&apos;t read is named, with the
+            reason. Trying this costs you nothing, and leaving takes your work
+            with it.
           </p>
         </Glass>
       </Reveal>

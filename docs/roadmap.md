@@ -29,9 +29,24 @@ earning.
 
 ---
 
-## 1. Bring your Office in
+## 1. Bring your Office in — **done**
 
-**What exists.** Real readers for all three formats, and real writers back out:
+Landed. Drag a folder anywhere onto the Library, or pick files or a folder from
+the New menu; the folders are mirrored, every file is either a project or is
+named with a reason, and running out of storage is distinguished from a file
+that could not be read. The front page says so now, which it could not before.
+
+Found while building it: the XML scanner behind the `.xlsx` reader treated a
+self-closing `<sheet/>` as an opening tag and then abandoned the rest of the
+document — so every workbook, including ones this app had written itself,
+arrived as "no sheets with anything in them". Fixed, with a round trip on it.
+
+Still open, and deliberately: `.doc`, `.xls` and `.ppt` are refused rather than
+converted, Apple's formats likewise. A dropped folder is a desktop gesture —
+the file pickers are what a phone gets. The section below is what was planned,
+kept because the reasoning still applies to the two bets that follow.
+
+**What existed.** Real readers for all three formats, and real writers back out:
 `lib/docx`, `lib/pptx`, the sheet's xlsx path. A `.docx` opens into a document,
 an `.xlsx` or `.csv` into a spreadsheet tab, a `.pptx` into a deck. None of this
 is a stub.

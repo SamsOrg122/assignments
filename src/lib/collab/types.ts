@@ -6,12 +6,11 @@
  * extra powers, because a session where one side has to stay online to keep the
  * other's edits is a session that breaks the moment they close a laptop.
  *
- * Document sync is per *block*, last-writer-wins, not a CRDT. That is a real
- * limitation and it is worth naming: two people typing in the same paragraph
- * at the same second will overwrite each other. Two people in different
- * sections — which is what "help me with this assignment" actually looks like
- * — never touch. A CRDT (Yjs) belongs behind this interface, and the message
- * shape is deliberately the one a CRDT would send: changes, not snapshots.
+ * Prose travels as CRDT updates — see `ydoc.ts` — so two people typing in the
+ * same paragraph at the same second both keep their words. Everything that is
+ * not prose (board items, tables, slides) is still per item and
+ * last-writer-wins, which is the right trade for things you grab rather than
+ * type into, and is named here so nobody has to read three files to find out.
  */
 
 import type { Block, BoardItem, Collaborator } from "../types";
@@ -22,7 +21,7 @@ export interface CollabMessage {
    * sent to itself through the server, and the only proof available that the
    * round trip works. The transport swallows it on the way back.
    */
-  kind: "hello" | "bye" | "cursor" | "patch" | "resend" | "probe";
+  kind: "hello" | "bye" | "cursor" | "patch" | "resend" | "probe" | "ydoc";
   /** Sender's participant id — a session, not a person. */
   from: string;
   user?: Collaborator;
@@ -37,6 +36,21 @@ export interface CollabMessage {
   removed?: string[];
   /** Whole-document fields that aren't blocks. */
   name?: string;
+
+  /**
+   * A Yjs update, base64. Carries the prose in every text block: those merge
+   * character by character rather than arriving as a whole block, which is
+   * the difference between two people in one paragraph and one of them losing
+   * a sentence. Everything that is not prose still travels as `blocks`.
+   */
+  update?: string;
+
+  /**
+   * What the sender already holds, base64. Whoever holds more replies with the
+   * difference. This is what makes the merge survive a transport that loses
+   * messages — see `ydoc.ts`.
+   */
+  sv?: string;
 
   at: number;
 }

@@ -38,7 +38,7 @@ const FAQS: FaqItem[] = [
   {
     question: "Kunnen twee mensen tegelijk in hetzelfde document werken?",
     answer:
-      "Ja, met één beperking die je vooraf moet weten. Een live sessie laat zien wie er is, toont de cursor van de ander en stuurt wijzigingen door als wijzigingen, niet als hele kopieën. Maar de synchronisatie gaat per blok en de laatste schrijver wint; het is geen CRDT. Typen jullie op dezelfde seconde in dezelfde alinea, dan overschrijf je elkaar. In verschillende paragrafen gebeurt dat nooit. Google Documenten voegt per teken samen en heeft die beperking niet.",
+      "Ja. Een live sessie laat zien wie er is, toont de cursor van de ander, en tekst voegt per teken samen via een CRDT — hetzelfde soort antwoord als Google Documenten geeft, en twee mensen in één alinea houden allebei hun woorden. Twee grenzen: borden, spreadsheets en slides gaan nog per item met de nieuwste die wint, en de samenvoegtoestand wordt opgebouwd bij het openen in plaats van bewaard, dus hij overleeft een wegvallende verbinding maar geen herlaadbeurt.",
   },
   {
     question: "Waar staan mijn gegevens opgeslagen?",
@@ -118,10 +118,12 @@ export default function GoogleWorkspaceVergelijkingPage() {
         Google Documenten voegt wijzigingen per teken samen; met tien man in één
         alinea overschrijft niemand iemand. Tougather heeft een live sessie — je
         ziet wie er is, waar hun cursor staat, en wijzigingen komen binnen als
-        wijzigingen — maar de synchronisatie gaat per blok en de laatste
-        schrijver wint. Geen CRDT: op dezelfde seconde in dezelfde alinea typen
-        betekent elkaar overschrijven. In verschillende paragrafen raak je
-        elkaar nooit.
+        wijzigingen — en tekst voegt per teken samen via een CRDT. Op dezelfde
+        seconde in dezelfde alinea typen houdt dus van allebei de woorden, en
+        beide schermen komen identiek uit. Twee grenzen: borden, spreadsheets
+        en slides gaan nog per item met de nieuwste die wint, en de
+        samenvoegtoestand wordt opgebouwd bij het openen in plaats van bewaard
+        — hij overleeft een wegvallende verbinding, geen herlaadbeurt.
       </P>
 
       <H3 id="mail-en-agenda">Gmail en Agenda</H3>
@@ -240,7 +242,7 @@ export default function GoogleWorkspaceVergelijkingPage() {
           [
             "Twee mensen in dezelfde alinea",
             "Per teken samengevoegd.",
-            "Overschrijven. Per blok, laatste schrijver wint; verschillende paragrafen botsen nooit.",
+            "Per teken samengevoegd, via een CRDT. Borden en spreadsheets nog per item.",
           ],
           [
             "E-mail en agenda",
@@ -286,7 +288,7 @@ export default function GoogleWorkspaceVergelijkingPage() {
       <P>Eerst wanneer níet. Deze gevallen kosten je echt iets:</P>
       <List
         items={[
-          "Jullie schrijven regelmatig met z'n tweeën in dezelfde alinea. Daar weegt niets hier tegenop.",
+          "Een document moet voor een stuk of tien mensen tegelijk openstaan. De tekst voegt hier wel per teken samen, maar de schaal eromheen is Google's terrein.",
           "Gmail en Agenda zijn de kern van je dag — dan betaal je Google toch al.",
           "Een ICT-afdeling moet het goedkeuren. Zonder database is er geen organisatiebreed beheer om te laten zien.",
           "Je bladen lopen door tot boven de vijftigduizend rijen. Honderdduizend wordt geweigerd, en rijen los pagineren is een ander opslagmodel.",

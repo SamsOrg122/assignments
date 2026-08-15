@@ -75,8 +75,8 @@ const COLUMNS: Array<{
     body: (
       <>
         Stay on Microsoft 365 if your workbook runs macros, if you work past
-        fifty thousand rows, if two of you edit the same paragraph at once, if
-        your institution needs SSO, or if Outlook is the reason the licence
+        fifty thousand rows, if two of you drag the same board around at once,
+        if your institution needs SSO, or if Outlook is the reason the licence
         exists. Those are consequences of keeping your work in your own
         browser, not gaps being quietly closed — and we would rather you read
         it here than find out in week three.

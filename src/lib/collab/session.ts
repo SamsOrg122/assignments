@@ -20,6 +20,15 @@ import type { Block, BoardItem, Collaborator, PeerState, Project } from "../type
 import { useProjects } from "../store";
 import { uid } from "../factories";
 import { pickTransport } from "./transport";
+import {
+  applyRemote,
+  diffSince,
+  expectRemoteState,
+  fullState,
+  onLocalUpdate,
+  releaseSeeding,
+  stateVector,
+} from "./ydoc";
 import type { CollabMessage, CollabTransport, TransportStatus } from "./types";
 
 /** How often a moving pointer is published. 20/s is smooth after CSS easing. */
@@ -30,6 +39,15 @@ const PATCH_MS = 220;
 const TIMEOUT_MS = 12_000;
 /** Heartbeat, comfortably inside the timeout. */
 const HELLO_MS = 4_000;
+
+/**
+ * How often each side says what it holds, so a lost merge update is repaired.
+ *
+ * Two seconds is a compromise with a person's patience rather than with the
+ * network: text that a dropped message left behind is text somebody is
+ * looking at. The message itself is a state vector — bytes, not the document.
+ */
+const MEND_MS = 2_000;
 
 /** Colours for people who arrive without one. Fixed set, stable by position. */
 const COLORS = ["#3d7dff", "#26a17b", "#c46be0", "#d8a33c", "#e0685b"];
@@ -179,6 +197,27 @@ export function useCollabSession({
       // overwrite everything typed since.
       if (message.kind === "resend") sendEverything();
 
+        /*
+         * Prose arrives as a Yjs update and is merged rather than applied.
+         * The first one to land also ends the seeding wait: this browser now
+         * has somebody else's version of the text, so its own blocks must not
+         * seed on top of it.
+         */
+        if (message.kind === "ydoc" && projectId) {
+          if (message.update) {
+            applyRemote(projectId, message.update);
+            releaseSeeding(projectId);
+          }
+          // Somebody said what they have; send them whatever they lack. Free
+          // when they are level — the diff is then a handful of bytes.
+          if (message.sv)
+            publish({
+              kind: "ydoc",
+              user: self,
+              update: diffSince(projectId, message.sv),
+            });
+        }
+
         if (message.kind === "patch") applyPatch(message);
       },
       // Fired from outside React, when the connection proves itself or gives
@@ -198,10 +237,15 @@ export function useCollabSession({
       publish({
         kind: "patch",
         user: self,
-        blocks: project.blocks,
+        blocks: project.blocks.filter((b) => b.type !== "text"),
         board: project.board,
         name: project.name,
       });
+      // The prose goes as merge state rather than as blocks. Sent second and
+      // unconditionally: a newcomer's own copy of the text is already in their
+      // Y document, and merging ours with theirs is exactly the operation that
+      // makes joining safe.
+      if (projectId) publish({ kind: "ydoc", user: self, update: fullState(projectId) });
     }
 
     function applyPatch(message: CollabMessage) {
@@ -225,7 +269,18 @@ export function useCollabSession({
 
             const fresh = (id: string) =>
               id !== focused && message.at >= (versions.current.get(id) ?? 0);
-            const incoming = message.blocks?.filter((b) => fresh(b.id));
+            /*
+             * A text block that both sides already have is left alone: its
+             * prose is merged through the Y document, and copying a whole
+             * paragraph over the top would undo exactly the collisions that
+             * layer exists to survive. Its *existence* still travels this way
+             * — a paragraph somebody adds, deletes or moves has to arrive —
+             * so only blocks already here are filtered out.
+             */
+            const here = new Set(p.blocks.map((b) => b.id));
+            const incoming = message.blocks
+              ?.filter((b) => fresh(b.id))
+              .filter((b) => !(b.type === "text" && here.has(b.id)));
             const incomingItems = message.board?.filter((i) => fresh(i.id));
             for (const item of [...(incoming ?? []), ...(incomingItems ?? [])])
               versions.current.set(item.id, message.at);
@@ -256,6 +311,14 @@ export function useCollabSession({
       }
     }
 
+    /*
+     * Nothing seeds its Y fragment from local HTML until somebody has had a
+     * chance to send theirs. Both sides hold the same words at this moment —
+     * the guest's copy travelled in the link — and both seeding would merge
+     * into the paragraph twice.
+     */
+    expectRemoteState(projectId);
+
     publish({ kind: "hello", user: self, activeBlockId: focusedBlockId() });
     publish({ kind: "resend" });
     const beat = setInterval(() => {
@@ -263,12 +326,22 @@ export function useCollabSession({
       refreshPeers();
     }, HELLO_MS);
 
+    /*
+     * The repair beat. Saying what we have costs a few bytes and is what
+     * turns a lost update from permanent divergence into a two-second delay.
+     * Faster than the hello beat because this is the one people can see.
+     */
+    const mend = setInterval(() => {
+      if (projectId) publish({ kind: "ydoc", user: self, sv: stateVector(projectId) });
+    }, MEND_MS);
+
     const onUnload = () => publish({ kind: "bye" });
     window.addEventListener("pagehide", onUnload);
 
     const roster = participants.current;
     return () => {
       clearInterval(beat);
+      clearInterval(mend);
       window.removeEventListener("pagehide", onUnload);
       publish({ kind: "bye" });
       chosen.leave();
@@ -314,6 +387,19 @@ export function useCollabSession({
       document.removeEventListener("pointerleave", onLeave);
     };
   }, [enabled, projectId, alone, self, publish]);
+
+  /* ── Publish the prose, as merge state ──────────────────── */
+
+  useEffect(() => {
+    if (!enabled || !projectId) return;
+    // Not gated on `alone`: a change made while nobody is here still has to
+    // be in this browser's Y document, and sending to an empty room costs one
+    // POST that nobody reads. The alternative is a gap in the merge history
+    // exactly when somebody joins.
+    return onLocalUpdate(projectId, (update) =>
+      publish({ kind: "ydoc", user: self, update }),
+    );
+  }, [enabled, projectId, self, publish]);
 
   /* ── Publish what changed ───────────────────────────────── */
 

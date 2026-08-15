@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extensions";
@@ -34,6 +34,8 @@ import { createImageBlock } from "@/lib/factories";
 import { countMarkers } from "@/lib/notes";
 import { DEFAULT_LANGUAGE } from "@/lib/dictionary";
 import { figureLabels } from "@/lib/figures";
+import { fragmentFor, whenSeedable } from "@/lib/collab/ydoc";
+import { YjsSync } from "@/lib/collab/tiptap-yjs";
 
 interface Props {
   projectId: string;
@@ -159,6 +161,19 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     [insertBlock, projectId, block.id, notify],
   );
 
+  /*
+   * The shared model for this paragraph.
+   *
+   * Built for every block, shared or not: an editor's extensions are captured
+   * once at creation, so binding only when a session happens to be open would
+   * leave every editor already on screen unbound the moment somebody shares.
+   * Solo, this is a Y document nobody sends anywhere.
+   */
+  const fragment = useMemo(
+    () => fragmentFor(projectId, block.id),
+    [projectId, block.id],
+  );
+
   const editor = useEditor({
     // The editor can't render on the server; Next would flag the mismatch.
     immediatelyRender: false,
@@ -166,6 +181,10 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         link: { openOnClick: false },
+        // Replaced by the Yjs history — see `tiptap-yjs.ts`. ProseMirror's own
+        // undo stack reaches across a shared document and takes back sentences
+        // somebody else typed.
+        undoRedo: false,
       }),
       Placeholder.configure({
         placeholder: "Write something, or press / for a block",
@@ -177,8 +196,15 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
       SuggestInsert,
       SuggestDelete,
       Suggesting,
+      YjsSync(fragment),
     ],
-    content: block.html,
+    /*
+     * No `content` here on purpose. The Y fragment is what this editor is
+     * bound to, and handing TipTap an initial document as well would insert
+     * the paragraph a second time — once from the fragment and once from the
+     * HTML. The seeding effect below fills the fragment instead, and only
+     * when it is genuinely empty.
+     */
     editorProps: {
       attributes: {
         class: `prose-canvas min-h-[1.75em] focus:outline-none ${proseClassName ?? ""}`,
@@ -274,6 +300,32 @@ export function TextBlock({ projectId, block, proseClassName }: Props) {
     held.current = null;
     replaceContent(editor, block.html, suggestMode);
   }, [block.html, editor, suggestMode]);
+
+  /*
+   * Fill the shared model, once, if nothing has filled it yet.
+   *
+   * `whenSeedable` is what stops two people seeding the same words into the
+   * same paragraph while joining each other's session — see `ydoc.ts`, where
+   * that race is spelled out. Solo, or once the wait is over, this runs
+   * immediately.
+   */
+  useEffect(() => {
+    if (!editor) return;
+    let cancelled = false;
+    whenSeedable(projectId, () => {
+      if (cancelled || fragment.length > 0 || !block.html) return;
+      // Written through the editor rather than into the fragment directly:
+      // that is what turns HTML into the schema's nodes, and the sync plugin
+      // carries the result into the Y document.
+      editor.commands.setContent(block.html, { emitUpdate: false });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Deliberately not re-run when `block.html` changes: seeding happens once,
+    // and every change after it belongs to the Y document.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, fragment, projectId]);
 
   /* A note added in an earlier block renumbers this one's. The count goes in
      as a transaction, so the numbering decorations recompute themselves. */

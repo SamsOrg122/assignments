@@ -201,11 +201,22 @@ export default function VergelijkMicrosoft365Page() {
       <P>
         Chat bestaat hier als model: kanalen, DM&apos;s, threads, besloten
         kanalen achter een toegangscode. Wat eronder meegeleverd wordt is een
-        gesimuleerd transport met verzonnen deelnemers. Live samenwerken is wel
-        echt, maar smal: een sessie opent alleen voor een project dat je gedeeld
-        hebt, en synchroniseren gaat per blok waarbij de laatste schrijver wint.
-        Verschillende paragrafen raken elkaar nooit. Dezelfde alinea op dezelfde
-        seconde wel.
+        gesimuleerd transport met verzonnen deelnemers. Live samenwerken is
+        echt: een sessie opent voor een project dat je gedeeld hebt, en tekst
+        voegt per teken samen via een CRDT — twee mensen op dezelfde seconde in
+        dezelfde alinea houden allebei hun woorden, en beide schermen komen
+        identiek uit. Raakt een bericht onderweg kwijt, dan herstelt dat
+        zichzelf binnen een paar seconden in plaats van jullie stilletjes uit
+        elkaar te laten lopen.
+      </P>
+      <P>
+        Twee grenzen die op schrift horen. Borden, spreadsheets en slides gaan
+        nog per item, waarbij de nieuwste wint — het samenvoegen zit op tekst.
+        En die samenvoegtoestand wordt opgebouwd als een document opent in
+        plaats van bewaard: hij overleeft een wegvallende verbinding, maar geen
+        herlaadbeurt. Bewerken jullie een dag lang offline dezelfde alinea en
+        herlaadt ieder voordat de verbinding terug is, dan wint alsnog de
+        nieuwste versie in plaats van allebei.
       </P>
 
       <H3>Beheer waar een ICT-afdeling ja op zegt</H3>
@@ -327,8 +338,8 @@ export default function VergelijkMicrosoft365Page() {
       <H2 id="niet-overstappen">Wanneer je niet moet overstappen</H2>
       <P>
         Blijf bij Microsoft 365 als je werkmap macro&apos;s draait, als je
-        voorbij vijftigduizend rijen werkt, als jullie tegelijk in dezelfde
-        alinea zitten, als je opleiding SSO en centrale uitrol nodig heeft, of
+        voorbij vijftigduizend rijen werkt, als jullie tegelijk hetzelfde bord
+        rondslepen, als je opleiding SSO en centrale uitrol nodig heeft, of
         als Outlook de reden is dat de licentie bestaat. Dat zijn geen gaten
         waar stilletjes aan gewerkt wordt, maar gevolgen van een ontwerp dat je
         werk in je eigen browser houdt.

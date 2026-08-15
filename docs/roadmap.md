@@ -151,9 +151,36 @@ which is precisely where Office is weakest and where we currently say nothing.
 
 ---
 
-## 3. Two people in one paragraph
+## 3. Two people in one paragraph — **done**
 
-**What exists.** The networking is done, and it is not a toy. `lib/collab`
+Landed, with Yjs as planned. Prose merges character by character: two people
+typing into the same paragraph at the same second both keep their words and
+both screens end up identical. The store still holds `block.html` and every
+reader, export and share link is untouched — the dual-write the plan called
+for, so no project already sitting in somebody's browser had to be migrated.
+
+Two things this taught that the plan did not anticipate:
+
+- **Broadcasting updates is not a protocol.** The first version sent each Yjs
+  update as it happened, which is correct only on a transport that never loses
+  a message. Ours can — the relay drops a subscriber whose write fails — and a
+  lost update is missing for ever, so the two documents disagreed quietly and
+  permanently. That is worse than the last-writer-wins it replaced. Each side
+  now also says what it holds every two seconds, and whoever holds more replies
+  with the difference. A gap heals on the next beat.
+- **Seeding is the dangerous moment.** Both sides start from the same words —
+  the guest's copy travels in the link — so both filling the shared model
+  produces the paragraph twice. Seeding waits while a session is joining, and
+  falls back to local seeding if no state arrives at all, because an empty
+  document is worse than a duplicated one and this way neither happens.
+
+Still open, and now written on the comparison pages instead of the old
+warning: boards, spreadsheets and slides are still synced per item with the
+newest winning — the merge is on prose. And the merge state is rebuilt when a
+document opens rather than stored, so it survives a disconnect but not a
+reload. Persisting the update log is the next piece.
+
+**What existed.** The networking is done, and it is not a toy. `lib/collab`
 picks between a server-sent-events relay (`/api/collab/[room]`), a
 `BroadcastChannel` fallback and Supabase Realtime, and it proves the round trip
 with a probe before it will claim reach. Presence, cursors and per-block patches

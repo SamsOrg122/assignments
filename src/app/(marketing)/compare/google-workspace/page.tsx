@@ -38,7 +38,7 @@ const FAQS: FaqItem[] = [
   {
     question: "Can two people edit the same document at the same time?",
     answer:
-      "Yes, with one limit worth knowing first. A live session carries presence, other people's cursors and changes sent as changes rather than whole-document snapshots. But sync is per block and last writer wins, not a CRDT: two people typing in the same paragraph at the same second overwrite each other. Different sections never collide. Google Docs merges at the character level and has no such limit.",
+      "Yes. A live session carries presence, other people's cursors, and prose that merges character by character through a CRDT — the same shape of answer Google Docs gives, and two people in one paragraph both keep their words. Two limits: boards, spreadsheets and slides are still synced per item with the newest winning, and the merge state is rebuilt when a document opens rather than stored, so it survives a disconnect but not a reload.",
   },
   {
     question: "Where is my data stored?",
@@ -116,9 +116,12 @@ export default function GoogleWorkspaceComparisonPage() {
         Google Docs merges edits character by character; ten people can sit in
         one paragraph and nobody overwrites anybody. Tougather has a live
         session — presence, other people&apos;s cursors, changes sent as changes
-        rather than snapshots — but sync is per block and last writer wins. It
-        is not a CRDT: two people typing in one paragraph at the same second
-        overwrite each other. Different sections never touch.
+        rather than snapshots — and prose merges the same way, character by
+        character, through a CRDT. Two people typing in one paragraph at the
+        same second both keep their words. Two limits: boards, spreadsheets and
+        slides are still synced per item with the newest winning, and the merge
+        state is rebuilt when a document opens rather than stored, so it
+        survives a disconnect but not a reload.
       </P>
 
       <H3 id="mail-and-calendar">Gmail and Calendar</H3>
@@ -230,7 +233,7 @@ export default function GoogleWorkspaceComparisonPage() {
           [
             "Two people in one paragraph",
             "Merged character by character.",
-            "Overwrites. Per block, last writer wins; different sections never collide.",
+            "Merged character by character, through a CRDT. Boards and spreadsheets still per item.",
           ],
           [
             "Email and calendar",
@@ -279,7 +282,7 @@ export default function GoogleWorkspaceComparisonPage() {
       <P>The cases where switching would cost you something real:</P>
       <List
         items={[
-          "Two of you routinely write into the same paragraph at once. Nothing here compensates for that.",
+          "A document has to be open to a dozen people at once. The prose merges here too, but the scale around it is Google's ground.",
           "Gmail and Calendar are the centre of your day — you would keep paying Google anyway.",
           "An IT department has to approve it. Without a database there is no organisation-wide administration to show them.",
           "Your sheets run past fifty thousand rows. A hundred thousand is refused outright, and paging rows individually is a different storage model, not a setting.",

@@ -185,10 +185,19 @@ export default function CompareMicrosoft365Page() {
       <P>
         Chat exists as a model: channels, DMs, threads, private channels behind
         a passcode. The transport shipped under it is simulated, with scripted
-        peers. Live editing is real but narrow — a session opens only for a
-        project you explicitly shared, and sync is per block and
-        last-writer-wins rather than a CRDT. Different sections never collide.
-        The same paragraph at the same second does.
+        peers. Live editing is real: a session opens for a project you shared,
+        and prose merges character by character through a CRDT — two people in
+        the same paragraph at the same second both keep their words, and both
+        screens end up identical. A dropped message repairs itself within a
+        couple of seconds rather than leaving the two of you quietly apart.
+      </P>
+      <P>
+        Two limits worth having in writing. Boards, spreadsheets and slides are
+        still synced per item, newest wins — the merge is on prose. And the
+        merge state is built when a document opens rather than stored, so it
+        survives a disconnect but not a reload: two people editing the same
+        paragraph offline for a day, each reloading before they reconnect,
+        still end up with the newer version rather than both.
       </P>
 
       <H3>Administration an IT department can sign off</H3>
@@ -305,8 +314,8 @@ export default function CompareMicrosoft365Page() {
       <H2 id="do-not-switch">Who should not switch</H2>
       <P>
         Stay on Microsoft 365 if your workbook runs macros, if you work past
-        fifty thousand rows, if two of you edit the same paragraph at once, if
-        your institution needs SSO, or if Outlook is the reason the licence
+        fifty thousand rows, if two of you drag the same board around at once,
+        if your institution needs SSO, or if Outlook is the reason the licence
         exists. Those are consequences of keeping your work in your own browser,
         not gaps being quietly closed.
       </P>

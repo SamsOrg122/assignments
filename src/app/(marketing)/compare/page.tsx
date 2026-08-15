@@ -107,10 +107,10 @@ const CARDS: Card[] = [
     ),
     verdict: (
       <>
-        <Keep>Keep Google Workspace</Keep> if two of you routinely write into
-        the same paragraph, or if Gmail and Calendar are the centre of your day.
-        Google merges character by character; sync here is per block and the
-        last writer wins.
+        <Keep>Keep Google Workspace</Keep> if Gmail and Calendar are the centre
+        of your day, or if a document has to be open to a dozen people at once.
+        Prose here merges character by character as Google&apos;s does; what
+        Google has and this does not is the scale around it.
       </>
     ),
   },
@@ -190,7 +190,7 @@ export default function CompareHubPage() {
       <Takeaway title="The short version">
         Every page here ends by telling somebody to keep what they have.
         Microsoft 365 if Outlook or Teams is load-bearing. Google Workspace if
-        two of you write into the same paragraph at once. Notion if your work
+        Gmail is the centre of your day. Notion if your work
         runs on linked databases. Excel if you build models. What is left after
         those four exclusions is the case this was built for: one document with
         the numbers, the slides and the writing inside it.
@@ -239,9 +239,10 @@ export default function CompareHubPage() {
       <P>
         The cost is also the same in all four, so it may as well be here rather
         than four times over. There is no email and no calendar — none, not a
-        thinner version. Live editing is per block and last-writer-wins rather
-        than a CRDT: different sections never collide, the same paragraph at the
-        same second does. Administration runs only against a configured
+        thinner version. Prose merges through a CRDT, but boards, spreadsheets
+        and slides are still synced per item with the newest winning, and the
+        merge state is rebuilt when a document opens rather than stored — so it
+        survives a disconnect and not a reload. Administration runs only against a configured
         database, single sign-on is a hand-off to whatever providers a
         deployment names, and there is no SCIM. The spreadsheet has no macros
         and no spill model. PDF export is the browser print dialog rather than a

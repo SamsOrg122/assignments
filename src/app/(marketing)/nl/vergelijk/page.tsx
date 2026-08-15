@@ -113,10 +113,10 @@ const CARDS: Card[] = [
     ),
     verdict: (
       <>
-        <Keep>Blijf bij Google Workspace</Keep> als jullie geregeld met z&apos;n
-        tweeën in dezelfde alinea typen, of als Gmail en Agenda de kern van je
-        dag zijn. Google voegt per teken samen; hier gaat het per blok en wint
-        de laatste schrijver.
+        <Keep>Blijf bij Google Workspace</Keep> als Gmail en Agenda de kern van
+        je dag zijn, of als een document voor een stuk of tien mensen tegelijk
+        open moet staan. Tekst voegt hier per teken samen, net als bij Google;
+        wat Google wél heeft is de schaal eromheen.
       </>
     ),
   },
@@ -198,7 +198,7 @@ export default function VergelijkHubPagina() {
       <Takeaway title="Kort samengevat">
         Elke pagina hier eindigt bij iemand die beter kan houden wat hij heeft.
         Microsoft 365 als Outlook of Teams dragend is. Google Workspace als
-        jullie tegelijk in dezelfde alinea schrijven. Notion als je werk op
+        Gmail de kern van je dag is. Notion als je werk op
         gekoppelde databases draait. Excel als je modellen bouwt. Wat na die
         vier uitzonderingen overblijft, is waar dit voor gemaakt is: één
         document met de cijfers, de slides en de tekst erin.
@@ -245,9 +245,11 @@ export default function VergelijkHubPagina() {
       <P>
         Wat het kost is ook bij alle vier hetzelfde, dus dan kan het net zo goed
         hier staan als vier keer verderop. Er is geen e-mail en geen agenda —
-        niets, ook geen uitgeklede versie. Live samen typen gaat per blok en de
-        laatste schrijver wint; het is geen CRDT. In verschillende paragrafen
-        gebeurt er nooit iets, in dezelfde alinea op dezelfde seconde wel.
+        niets, ook geen uitgeklede versie. Tekst voegt samen via een CRDT, maar
+        borden, spreadsheets en slides gaan nog per item en daar wint de
+        nieuwste, en die samenvoegtoestand wordt opgebouwd als een document
+        opent in plaats van bewaard — dus hij overleeft een wegvallende
+        verbinding en geen herlaadbeurt.
         Beheer werkt alleen met een database eronder, SSO is een doorverwijzing
         naar de providers die een installatie zelf noemt, en SCIM is er niet.
         De spreadsheet kent geen macro&apos;s en geen uitvouwende matrices. De

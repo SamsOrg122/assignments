@@ -28,6 +28,7 @@
  */
 
 import type { NextRequest } from "next/server";
+import { overLimit } from "@/lib/api/guard";
 
 export const runtime = "nodejs";
 // Streaming and per-request state; nothing here may be cached or prerendered.
@@ -66,10 +67,22 @@ function publish(room: string, payload: string) {
   return subscribers.size;
 }
 
+/**
+ * High on purpose. Every pointer move and every merge update is one of these,
+ * so this is a flood ceiling rather than a session shape — set below it and
+ * the limiter becomes the thing that breaks collaboration.
+ */
+const SEND_LIMIT = { name: "collab-send", limit: 600, windowMs: 60_000 };
+/** Opening a stream is rare; opening hundreds is somebody exhausting rooms. */
+const JOIN_LIMIT = { name: "collab-join", limit: 30, windowMs: 60_000 };
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ room: string }> },
 ) {
+  const tooMany = overLimit(request, JOIN_LIMIT);
+  if (tooMany) return tooMany;
+
   const { room } = await params;
   if (!room || room.length > 64)
     return new Response("Bad room", { status: 400 });
@@ -139,6 +152,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ room: string }> },
 ) {
+  const tooMany = overLimit(request, SEND_LIMIT);
+  if (tooMany) return tooMany;
+
   const { room } = await params;
   if (!room || room.length > 64)
     return Response.json({ error: "Bad room" }, { status: 400 });

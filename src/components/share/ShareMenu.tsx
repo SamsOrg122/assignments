@@ -23,6 +23,7 @@ import {
   type SharePermission,
 } from "@/lib/share";
 import { transportReach } from "@/lib/collab/transport";
+import { uid } from "@/lib/factories";
 import { useShared } from "@/lib/collab/shared";
 import { useUI } from "@/lib/ui-store";
 import { cn } from "@/lib/cn";
@@ -89,10 +90,16 @@ export function ShareMenu({ project }: { project: Project }) {
        * A comment link opens no room — the reader is not in a session — so
        * this is the only record that somebody is out there with it, and the
        * only reason the Library knows to go looking for notes afterwards.
+       *
+       * The key is a fresh secret per link, and it is what the notes room is
+       * named after. The project's own id was the obvious choice and the wrong
+       * one: every view link carries that too, so read access was write access,
+       * permanently, for anybody ever sent one.
        */
-      if (permission === "comment") expectNotes(project.id);
+      const noteKey = permission === "comment" ? uid() + uid() : undefined;
+      if (permission === "comment") expectNotes(project.id, noteKey);
       const until = days ? Date.now() + days * 86_400_000 : undefined;
-      shareLink(project, permission, until).then(
+      shareLink(project, permission, until, noteKey).then(
         (url) => {
           setLink(url);
           setVerdict(linkVerdict(url));

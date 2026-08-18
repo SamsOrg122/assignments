@@ -22,6 +22,7 @@
  */
 
 import type { NextRequest } from "next/server";
+import { overLimit } from "@/lib/api/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,15 @@ export const NOTE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_ROOMS = 500;
 const MAX_NOTES_PER_ROOM = 200;
 const MAX_BODY_BYTES = 64 * 1024;
+
+/**
+ * Somebody leaving notes is typing them. Thirty a minute is more than anyone
+ * writes and far less than a script wants, and the per-room cap below is what
+ * stops a patient attacker from simply taking longer.
+ */
+const WRITE_LIMIT = { name: "notes-write", limit: 30, windowMs: 60_000 };
+/** Reading is cheaper, and the Library polls it on every open. */
+const READ_LIMIT = { name: "notes-read", limit: 120, windowMs: 60_000 };
 
 export interface StoredNote {
   /** The comment's own id, so the owner can drop one they already have. */
@@ -68,6 +78,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ room: string }> },
 ) {
+  const refused = overLimit(request, WRITE_LIMIT);
+  if (refused) return refused;
+
   const { room } = await params;
   if (!room || room.length > 64) return new Response("Bad room", { status: 400 });
 
@@ -124,6 +137,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ room: string }> },
 ) {
+  const refused = overLimit(request, READ_LIMIT);
+  if (refused) return refused;
+
   const { room } = await params;
   if (!room || room.length > 64) return new Response("Bad room", { status: 400 });
 

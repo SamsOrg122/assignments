@@ -162,8 +162,15 @@ export function ViewerClient() {
           )}
           <SharedProject
             project={state.project}
+            /*
+             * The room from the link, never the project id. A link without one
+             * is from before this was a secret; it keeps working on the old
+             * room rather than silently losing somebody's notes.
+             */
             commentIn={
-              state.permission === "comment" ? state.project.id : undefined
+              state.permission === "comment"
+                ? (state.project.shareNote ?? state.project.id)
+                : undefined
             }
           />
         </>

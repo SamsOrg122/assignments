@@ -106,8 +106,12 @@ export async function encodeShare(
   permission: SharePermission = "view",
   /** Milliseconds since the epoch after which the viewer refuses to open it. */
   expires?: number,
+  /** The note room, for a comment link. See `Project.shareNote`. */
+  noteKey?: string,
 ): Promise<string> {
-  const json = JSON.stringify(stripForShare(project, expires));
+  const json = JSON.stringify(
+    stripForShare(project, expires, permission === "comment" ? noteKey : undefined),
+  );
   const bytes = new TextEncoder().encode(json);
   const mark =
     permission === "edit"
@@ -132,11 +136,19 @@ export async function encodeShare(
  * the document — sending them would make every link heavier for nothing, and
  * a snapshot history is a record of drafts the author didn't choose to show.
  */
-function stripForShare(project: Project, expires?: number): Project {
+function stripForShare(
+  project: Project,
+  expires?: number,
+  noteKey?: string,
+): Project {
   const light: Project = { ...project, board: project.board.map(bare) };
   delete light.history;
   delete light.viewport;
   if (expires) light.shareExpires = expires;
+  // Only ever on a comment link. A view link that carried it would hand a
+  // reader the write key, which is the whole thing this is here to prevent.
+  if (noteKey) light.shareNote = noteKey;
+  else delete light.shareNote;
   return light;
 }
 
@@ -150,8 +162,9 @@ export async function shareLink(
   project: Project,
   permission: SharePermission = "view",
   expires?: number,
+  noteKey?: string,
 ): Promise<string> {
-  const payload = await encodeShare(project, permission, expires);
+  const payload = await encodeShare(project, permission, expires, noteKey);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   return `${origin}/v#${payload}`;
 }
@@ -299,6 +312,10 @@ function validate(input: unknown): Project | null {
     updatedAt: num(raw.updatedAt, Date.now()),
     // Read like everything else here: never trusted, only coerced. A payload
     // claiming a string or an object for this must not reach a comparison.
+    shareNote:
+      typeof raw.shareNote === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(raw.shareNote)
+        ? raw.shareNote
+        : undefined,
     shareExpires:
       typeof raw.shareExpires === "number" && Number.isFinite(raw.shareExpires)
         ? raw.shareExpires

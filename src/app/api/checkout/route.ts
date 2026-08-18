@@ -12,6 +12,14 @@
 import { NextResponse } from "next/server";
 import { PLANS, type PlanId } from "@/lib/impact/config";
 import { STRIPE_PRICE_IDS, type Interval } from "@/lib/billing";
+import { overLimit } from "@/lib/api/guard";
+
+/**
+ * Nobody checks out twenty times a minute. Once this route talks to Stripe it
+ * will be creating sessions, and a session is a row somebody else pays to
+ * store — the ceiling belongs here before that, not after.
+ */
+const CHECKOUT_LIMIT = { name: "checkout", limit: 20, windowMs: 60_000 };
 
 interface Body {
   planId?: string;
@@ -22,6 +30,9 @@ interface Body {
 const PLAN_IDS = new Set(PLANS.map((p) => p.id));
 
 export async function POST(request: Request) {
+  const refused = overLimit(request, CHECKOUT_LIMIT);
+  if (refused) return refused;
+
   let body: Body;
   try {
     body = await request.json();

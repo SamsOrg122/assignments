@@ -36,6 +36,7 @@ interface Arrival {
 
 export function ReturnedNotes() {
   const awaiting = useShared((s) => s.awaiting);
+  const noteKeys = useShared((s) => s.noteKeys);
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [dismissed, setDismissed] = useState(false);
 
@@ -47,7 +48,9 @@ export function ReturnedNotes() {
       const found: Arrival[] = [];
 
       for (const projectId of awaiting) {
-        const notes = await waitingNotes(projectId);
+        // The secret room where there is one; the project id for links made
+        // before rooms were secret.
+        const notes = await waitingNotes(noteKeys[projectId] ?? projectId);
         if (!notes.length) continue;
 
         const store = useProjects.getState();
@@ -71,7 +74,7 @@ export function ReturnedNotes() {
     return () => {
       live = false;
     };
-  }, [awaiting]);
+  }, [awaiting, noteKeys]);
 
   if (dismissed || !arrivals.length) return null;
 

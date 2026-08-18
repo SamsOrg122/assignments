@@ -22,6 +22,7 @@ import {
 import { TOOLS, buildChange } from "@/lib/ai/openrouter/tools";
 import { encodeFrame, type AIFrame } from "@/lib/ai/openrouter/wire";
 import type { AIContext } from "@/lib/ai/types";
+import { overLimit, readBody } from "@/lib/api/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,23 @@ const endpoint = () =>
 
 /** Long enough for a considered answer, short enough to not hold a lambda open. */
 const TIMEOUT_MS = 120_000;
+
+/**
+ * The ceiling on a stranger, because this endpoint spends money.
+ *
+ * Every request here bills somebody for tokens. Open and unmetered, that is a
+ * public button wired to a credit card — and the first person to find it does
+ * not have to be clever, only patient. Twelve a minute is above anything a
+ * person types and far below anything a loop wants.
+ */
+const AI_LIMIT = { name: "ai", limit: 12, windowMs: 60_000 };
+
+/**
+ * And a ceiling on the size of one, for the same reason: the bill scales with
+ * the context, so an enormous one is the same attack done in a single
+ * request. A large thesis serialises well under this.
+ */
+const MAX_REQUEST_BYTES = 512 * 1024;
 
 export function GET() {
   const configured = Boolean(process.env.OPENROUTER_API_KEY);
@@ -59,6 +77,18 @@ interface PartialCall {
 }
 
 export async function POST(request: Request) {
+  const refused = overLimit(request, AI_LIMIT);
+  if (refused) return refused;
+
+  /*
+   * Size before anything else, including before deciding whether this
+   * deployment can answer at all. A body is the one thing a stranger controls
+   * completely, so bounding it is the cheapest refusal available and belongs
+   * ahead of every other check rather than behind them.
+   */
+  const read = await readBody(request, MAX_REQUEST_BYTES);
+  if ("tooLarge" in read) return read.tooLarge;
+
   const key = process.env.OPENROUTER_API_KEY;
   if (!key)
     return Response.json(
@@ -71,7 +101,7 @@ export async function POST(request: Request) {
 
   let body: Body;
   try {
-    body = (await request.json()) as Body;
+    body = JSON.parse(read.text) as Body;
   } catch {
     return Response.json({ error: "Expected JSON." }, { status: 400 });
   }

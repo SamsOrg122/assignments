@@ -34,10 +34,19 @@ interface SharedState {
    * out there with a link".
    */
   awaiting: string[];
+  /**
+   * Project id → the note room that project's comment link uses.
+   *
+   * Kept because the room is a secret now rather than the project's own id:
+   * the owner cannot derive it, only remember it. An id present in `awaiting`
+   * with no entry here is a link made before this existed, and falls back to
+   * the old room so those links keep working.
+   */
+  noteKeys: Record<string, string>;
   isShared: (projectId: string) => boolean;
   startSharing: (projectId: string) => void;
   stopSharing: (projectId: string) => void;
-  expectNotes: (projectId: string) => void;
+  expectNotes: (projectId: string, noteKey?: string) => void;
   stopExpecting: (projectId: string) => void;
 }
 
@@ -46,13 +55,17 @@ export const useShared = create<SharedState>()(
     (set, get) => ({
       ids: [],
       awaiting: [],
+      noteKeys: {},
       isShared: (projectId) => get().ids.includes(projectId),
-      expectNotes: (projectId) =>
-        set((s) =>
-          s.awaiting.includes(projectId)
-            ? s
-            : { awaiting: [...s.awaiting, projectId] },
-        ),
+      expectNotes: (projectId, noteKey) =>
+        set((s) => ({
+          awaiting: s.awaiting.includes(projectId)
+            ? s.awaiting
+            : [...s.awaiting, projectId],
+          noteKeys: noteKey
+            ? { ...s.noteKeys, [projectId]: noteKey }
+            : s.noteKeys,
+        })),
       stopExpecting: (projectId) =>
         set((s) => ({ awaiting: s.awaiting.filter((id) => id !== projectId) })),
       startSharing: (projectId) =>
@@ -64,7 +77,11 @@ export const useShared = create<SharedState>()(
     }),
     {
       ...versioned<SharedState>("assignments:shared:v1", []),
-      partialize: (s) => ({ ids: s.ids, awaiting: s.awaiting }),
+      partialize: (s) => ({
+        ids: s.ids,
+        awaiting: s.awaiting,
+        noteKeys: s.noteKeys,
+      }),
       // Read at mount like every other store here, so the first client render
       // agrees with the server's.
       skipHydration: true,

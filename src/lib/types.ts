@@ -781,6 +781,16 @@ export interface Project {
    * `EXPIRY_IS_ADVISORY` in `lib/share.ts` for what it can and cannot do.
    */
   shareExpires?: number;
+  /**
+   * The room notes from a comment link go to.
+   *
+   * Random, and present only in a "can comment" link. The project's own id
+   * would have been the obvious key and was the wrong one: every view link
+   * carries that id too, so anybody ever given read access could write into
+   * the owner's document and read every note left on it — for good, since a
+   * link that has been sent cannot be taken back.
+   */
+  shareNote?: string;
 
   /**
    * Names standing for ranges, usable from any formula in the project.

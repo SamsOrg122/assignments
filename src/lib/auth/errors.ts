@@ -46,6 +46,38 @@ const KNOWN: Array<[RegExp, Explained]> = [
     },
   ],
   [
+    // The one that cost a user every save they made. `projects.id` was a uuid
+    // and the app's ids are ten-character nanoids, so Postgres refused every
+    // write with a message about syntax — accurate, and useless to anybody
+    // who is not holding the schema in their head.
+    /invalid input syntax for type uuid/i,
+    {
+      message:
+        "The database is expecting a different shape of id than this app makes, so nothing can be saved to your account.",
+      fix: "Run supabase/migrations/0003-ids-the-client-can-actually-make.sql in the SQL editor. Your work is safe in this browser until you do.",
+      setup: true,
+    },
+  ],
+  [
+    // The same class, one layer along: a column the client fills that the
+    // deployed schema does not have, which is what a half-run migration
+    // looks like from here.
+    /column .* does not exist|could not find the '.*' column/i,
+    {
+      message:
+        "This database is missing a column the app writes to, so saving fails. The schema and the app are out of step.",
+      fix: "Run everything in supabase/migrations/ that hasn't been run yet, oldest first.",
+      setup: true,
+    },
+  ],
+  [
+    /violates check constraint|violates not-null constraint/i,
+    {
+      message: "The database rejected the document as malformed, so it wasn't saved.",
+      fix: "Nothing is lost — the copy in this browser is intact. Please send this message on so the cause can be found.",
+    },
+  ],
+  [
     /database error (saving|granting|finding|querying)/i,
     {
       message:

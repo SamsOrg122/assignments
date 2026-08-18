@@ -284,21 +284,49 @@ async function reconcile(): Promise<void> {
 
     /* ── Push what is newer down here ── */
 
+    // One document that the server will not take must not take the rest of
+    // the library down with it. Before this, a single rejected row threw out
+    // of the loop, and every project after it in the list was never even
+    // attempted — so one malformed document looked exactly like a broken
+    // account. Each push is now its own attempt, and what failed is counted
+    // and named rather than inferred from a status chip.
+    let refused = 0;
+    let firstRefusal: unknown = null;
+
     for (const project of useProjects.getState().projects) {
       if (useMemory.getState().graves[project.id]) continue;
       if (useMemory.getState().synced[project.id] === project.updatedAt) continue;
-      await db.put({
-        ...toRemote(project),
-        // Monotonic per push, so a later write is visibly later even when two
-        // machines' clocks disagree about `updatedAt`. Counted across buried
-        // rows too, so reviving one continues its history rather than
-        // restarting it.
-        revision:
-          (remoteById.get(project.id)?.revision ??
-            buried.get(project.id)?.revision ??
-            0) + 1,
+      try {
+        await db.put({
+          ...toRemote(project),
+          // Monotonic per push, so a later write is visibly later even when two
+          // machines' clocks disagree about `updatedAt`. Counted across buried
+          // rows too, so reviving one continues its history rather than
+          // restarting it.
+          revision:
+            (remoteById.get(project.id)?.revision ??
+              buried.get(project.id)?.revision ??
+              0) + 1,
+        });
+        // Only ever after the write returned. The ledger is what tells the
+        // next round it can skip this project, so recording a failure here
+        // would lose the document quietly and for good.
+        useMemory.getState().remember(project.id, project.updatedAt);
+      } catch (error) {
+        refused += 1;
+        firstRefusal ??= error;
+      }
+    }
+
+    if (refused > 0) {
+      // Deliberately not "synced". Some of it is, and saying so while three
+      // documents sit unsent is the failure this whole ledger exists to stop.
+      setStatus({
+        state: "error",
+        at: status.at,
+        problem: `${refused} ${refused === 1 ? "document" : "documents"} could not be saved to your account. ${explainAuthErrorLine(firstRefusal)}`,
       });
-      useMemory.getState().remember(project.id, project.updatedAt);
+      return;
     }
 
     setStatus({ state: "synced", at: Date.now() });

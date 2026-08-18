@@ -75,7 +75,15 @@ create index if not exists members_user_idx on public.workspace_members(user_id)
 -- ── Documents ─────────────────────────────────────────────────────────────
 
 create table if not exists public.projects (
-  id           uuid primary key default gen_random_uuid(),
+  -- Text, not uuid, and that is not a shortcut. The id is minted the moment
+  -- somebody makes a document — offline, before any account exists — by
+  -- `uid()` in `src/lib/factories.ts`, which is a ten-character nanoid. It is
+  -- already written into every share link, folder, label and comment thread.
+  -- A uuid column rejected every one of those, so nothing a signed-in user
+  -- wrote ever landed; see migration 0003. An id a local-first app cannot mint
+  -- for itself is the wrong id.
+  id           text primary key default gen_random_uuid()::text
+               check (id ~ '^[A-Za-z0-9_-]{8,64}$'),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   owner_id     uuid not null references public.profiles(id) on delete cascade,
   name         text not null,

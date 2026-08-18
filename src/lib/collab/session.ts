@@ -87,10 +87,20 @@ export interface SessionState {
  */
 export function useCollabSession({
   projectId,
+  room,
   self,
   enabled,
 }: {
   projectId: string | null;
+  /**
+   * Which room to meet in, when it is not the project's own id.
+   *
+   * Separated because these answer different questions: the project id says
+   * which document this is *here*, and the room says who else can reach it.
+   * They were the same value, which meant anybody ever handed a view link
+   * could join the session — the id is in every link.
+   */
+  room?: string | null;
   self: Collaborator;
   enabled: boolean;
 }): SessionState {
@@ -166,7 +176,7 @@ export function useCollabSession({
     if (!chosen) return;
 
     chosen.join(
-      projectId,
+      room ?? projectId,
       (message) => {
       if (message.from === seat) return;
 
@@ -349,7 +359,7 @@ export function useCollabSession({
       roster.clear();
       setPeers([]);
     };
-  }, [enabled, projectId, seat, chosen, self, publish, refreshPeers]);
+  }, [enabled, projectId, room, seat, chosen, self, publish, refreshPeers]);
 
   // Nobody there means nothing to say. A room with no other participant costs
   // one idle channel and no traffic, which is what lets every open project sit

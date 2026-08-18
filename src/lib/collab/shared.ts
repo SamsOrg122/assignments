@@ -43,8 +43,17 @@ interface SharedState {
    * the old room so those links keep working.
    */
   noteKeys: Record<string, string>;
+  /**
+   * Project id → the live session's room.
+   *
+   * Same reasoning as `noteKeys`, and the stakes are higher: the room used to
+   * be the project id, so anybody ever sent a view link could join the session
+   * and both read every keystroke and send their own. An id without an entry
+   * here is from a link made before this, and falls back to the old room.
+   */
+  rooms: Record<string, string>;
   isShared: (projectId: string) => boolean;
-  startSharing: (projectId: string) => void;
+  startSharing: (projectId: string, room?: string) => void;
   stopSharing: (projectId: string) => void;
   expectNotes: (projectId: string, noteKey?: string) => void;
   stopExpecting: (projectId: string) => void;
@@ -56,6 +65,7 @@ export const useShared = create<SharedState>()(
       ids: [],
       awaiting: [],
       noteKeys: {},
+      rooms: {},
       isShared: (projectId) => get().ids.includes(projectId),
       expectNotes: (projectId, noteKey) =>
         set((s) => ({
@@ -68,10 +78,11 @@ export const useShared = create<SharedState>()(
         })),
       stopExpecting: (projectId) =>
         set((s) => ({ awaiting: s.awaiting.filter((id) => id !== projectId) })),
-      startSharing: (projectId) =>
-        set((s) =>
-          s.ids.includes(projectId) ? s : { ids: [...s.ids, projectId] },
-        ),
+      startSharing: (projectId, room) =>
+        set((s) => ({
+          ids: s.ids.includes(projectId) ? s.ids : [...s.ids, projectId],
+          rooms: room ? { ...s.rooms, [projectId]: room } : s.rooms,
+        })),
       stopSharing: (projectId) =>
         set((s) => ({ ids: s.ids.filter((id) => id !== projectId) })),
     }),
@@ -81,6 +92,7 @@ export const useShared = create<SharedState>()(
         ids: s.ids,
         awaiting: s.awaiting,
         noteKeys: s.noteKeys,
+        rooms: s.rooms,
       }),
       // Read at mount like every other store here, so the first client render
       // agrees with the server's.

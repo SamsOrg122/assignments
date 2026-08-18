@@ -74,6 +74,8 @@ export function GuestEditor({
 
   const session = useCollabSession({
     projectId: ready ? project.id : null,
+    // From the link, never the project id — see `Project.shareRoom`.
+    room: project.shareRoom ?? null,
     self,
     enabled: ready,
   });

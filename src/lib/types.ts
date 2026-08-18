@@ -791,6 +791,15 @@ export interface Project {
    * link that has been sent cannot be taken back.
    */
   shareNote?: string;
+  /**
+   * The live session's room, for an edit or suggest link.
+   *
+   * Secret for the same reason `shareNote` is, and more urgently: the room was
+   * the project's own id, which every view link also carries. Anybody ever
+   * sent one could join the session, watch every keystroke arrive and send
+   * their own — with no way for the owner to notice or to take it back.
+   */
+  shareRoom?: string;
 
   /**
    * Names standing for ranges, usable from any formula in the project.

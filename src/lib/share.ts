@@ -106,11 +106,20 @@ export async function encodeShare(
   permission: SharePermission = "view",
   /** Milliseconds since the epoch after which the viewer refuses to open it. */
   expires?: number,
-  /** The note room, for a comment link. See `Project.shareNote`. */
-  noteKey?: string,
+  /**
+   * The secret this link's room is named after: the note box for a comment
+   * link, the live session for an edit or suggest one. See `Project.shareNote`
+   * and `Project.shareRoom`.
+   */
+  secret?: string,
 ): Promise<string> {
   const json = JSON.stringify(
-    stripForShare(project, expires, permission === "comment" ? noteKey : undefined),
+    stripForShare(
+      project,
+      expires,
+      permission === "comment" ? secret : undefined,
+      permission === "edit" || permission === "suggest" ? secret : undefined,
+    ),
   );
   const bytes = new TextEncoder().encode(json);
   const mark =
@@ -140,6 +149,7 @@ function stripForShare(
   project: Project,
   expires?: number,
   noteKey?: string,
+  room?: string,
 ): Project {
   const light: Project = { ...project, board: project.board.map(bare) };
   delete light.history;
@@ -149,6 +159,8 @@ function stripForShare(
   // reader the write key, which is the whole thing this is here to prevent.
   if (noteKey) light.shareNote = noteKey;
   else delete light.shareNote;
+  if (room) light.shareRoom = room;
+  else delete light.shareRoom;
   return light;
 }
 
@@ -162,9 +174,9 @@ export async function shareLink(
   project: Project,
   permission: SharePermission = "view",
   expires?: number,
-  noteKey?: string,
+  secret?: string,
 ): Promise<string> {
-  const payload = await encodeShare(project, permission, expires, noteKey);
+  const payload = await encodeShare(project, permission, expires, secret);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   return `${origin}/v#${payload}`;
 }
@@ -315,6 +327,10 @@ function validate(input: unknown): Project | null {
     shareNote:
       typeof raw.shareNote === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(raw.shareNote)
         ? raw.shareNote
+        : undefined,
+    shareRoom:
+      typeof raw.shareRoom === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(raw.shareRoom)
+        ? raw.shareRoom
         : undefined,
     shareExpires:
       typeof raw.shareExpires === "number" && Number.isFinite(raw.shareExpires)

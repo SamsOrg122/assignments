@@ -46,8 +46,12 @@ export default function ProjectPage() {
    * so reloading the page you shared doesn't drop the person you shared with.
    */
   const shared = useShared((s) => s.ids.includes(projectId));
+  const sessionRoom = useShared((s) => s.rooms[projectId] ?? null);
   const session = useCollabSession({
     projectId: project && shared ? projectId : null,
+    // The room this project's link named. Absent for a session started before
+    // rooms were secret, which then falls back to the project id.
+    room: sessionRoom,
     self: LOCAL_USER,
     enabled: Boolean(project) && shared,
   });

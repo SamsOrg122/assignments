@@ -85,7 +85,9 @@ export function ShareMenu({ project }: { project: Project }) {
       // Choosing "can help" is what opens the room. Building the link and
       // opening the session are the same intent, so they are the same action —
       // otherwise the first person to follow the link finds nobody there.
-      if (permission === "edit" || permission === "suggest") startSharing(project.id);
+      const secret = permission === "view" ? undefined : uid() + uid();
+      if (permission === "edit" || permission === "suggest")
+        startSharing(project.id, secret);
       /*
        * A comment link opens no room — the reader is not in a session — so
        * this is the only record that somebody is out there with it, and the
@@ -96,10 +98,9 @@ export function ShareMenu({ project }: { project: Project }) {
        * one: every view link carries that too, so read access was write access,
        * permanently, for anybody ever sent one.
        */
-      const noteKey = permission === "comment" ? uid() + uid() : undefined;
-      if (permission === "comment") expectNotes(project.id, noteKey);
+      if (permission === "comment") expectNotes(project.id, secret);
       const until = days ? Date.now() + days * 86_400_000 : undefined;
-      shareLink(project, permission, until, noteKey).then(
+      shareLink(project, permission, until, secret).then(
         (url) => {
           setLink(url);
           setVerdict(linkVerdict(url));

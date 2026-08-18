@@ -47,6 +47,7 @@ import { LogoTile } from "@/components/ui/Logo";
  * they aren't looking.
  */
 function useSyncBadge(): { label: string; wrong: boolean } {
+  const identity = useAuth((a) => a.identity);
   const status = useSyncExternalStore(
     subscribeSync,
     syncStatus,
@@ -61,6 +62,16 @@ function useSyncBadge(): { label: string; wrong: boolean } {
   if (status.state === "off") return { label: t("state.thisDevice"), wrong: false };
   if (status.state === "working" && !status.at)
     return { label: t("state.syncing"), wrong: false };
+  /*
+   * The distinction the word "synced" was hiding.
+   *
+   * With a database and nobody signed in, the app signs in anonymously — a
+   * real account, on a real server, that nothing but this browser at this
+   * address can ever reach again. Clearing site data does not just lose a
+   * cache, it loses the only key to it. Calling that "synced" is true about
+   * the round trip and false about everything a person means by the word.
+   */
+  if (!identity.email) return { label: t("state.noAccount"), wrong: false };
   return { label: t("state.synced"), wrong: false };
 }
 

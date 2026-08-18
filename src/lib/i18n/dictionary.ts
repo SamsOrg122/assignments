@@ -44,6 +44,8 @@ export const EN = {
   /* How work is kept, said in the chrome */
   "state.thisDevice": "this device",
   "state.synced": "synced",
+  /* Syncing, but to an account only this browser can reach. */
+  "state.noAccount": "no account yet",
   "state.syncing": "connecting",
   "state.syncFailed": "sync failed",
   "state.syncPaused": "sync paused",

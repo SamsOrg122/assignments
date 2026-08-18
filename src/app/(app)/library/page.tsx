@@ -40,6 +40,7 @@ import { formatDayMonth } from "@/lib/format";
 import { ImportZone, openImportPicker } from "@/components/library/ImportZone";
 import { ReturnedNotes } from "@/components/library/ReturnedNotes";
 import { SaveWarning } from "@/components/library/SaveWarning";
+import { WhereIsMyWork } from "@/components/library/WhereIsMyWork";
 
 type Sort = "recent" | "name" | "kind";
 
@@ -371,29 +372,14 @@ export default function LibraryPage() {
                   </p>
 
                   {/*
-                    The other reason a Library is empty: this is not the
-                    address the work was made at. Browser storage belongs to
-                    one exact origin, so a new deployment URL — a preview
-                    build, a domain change — starts blank however much is
-                    saved somewhere else. There is no way to read across that
-                    line, so the honest move is to say so and point at the
-                    file that does cross it.
+                    The other reason a Library is empty: this is not where the
+                    work is. Which sentence is true depends on what is holding
+                    it, and getting that wrong is worse than saying nothing —
+                    the version of this that explained browser storage to
+                    somebody whose sidebar said "synced" is what sent them
+                    looking for a bug that wasn't there.
                   */}
-                  <p className="mx-auto mt-5 max-w-[52ch] border-t border-line pt-5 text-[12px] leading-relaxed text-fg-subtle">
-                    Expecting to find work here? Projects are stored per web
-                    address, so a different link to this app — a preview build,
-                    a new domain — opens its own empty workspace. Nothing is
-                    lost: export a backup at the old address and{" "}
-                    <Link
-                      href="/settings#keeping"
-                      // Underlined, not just coloured: a link a colour-blind
-                      // reader can't pick out of a paragraph isn't a link.
-                      className="text-accent underline decoration-accent/40 underline-offset-2 transition-opacity hover:opacity-80"
-                    >
-                      restore it here
-                    </Link>
-                    .
-                  </p>
+                  <WhereIsMyWork />
                 </>
               )}
             </div>

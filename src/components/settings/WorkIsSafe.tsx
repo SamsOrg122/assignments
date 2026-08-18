@@ -19,12 +19,14 @@
 import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { useCoverage, syncNow, syncStatus } from "@/lib/db/sync";
+import { useAuth } from "@/lib/auth/store";
 import { useRemoteConfigured } from "@/lib/db/use-config";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
 export function WorkIsSafe() {
   const configured = useRemoteConfigured();
+  const identity = useAuth((s) => s.identity);
   const { total, inAccount, onlyHere } = useCoverage();
   const [checking, setChecking] = useState(false);
   const [checkedAt, setCheckedAt] = useState<number | null>(null);
@@ -115,6 +117,28 @@ export function WorkIsSafe() {
                 </p>
               )}
             </>
+          )}
+
+              {/*
+            The caveat that makes the count above mean what it says. Without an
+            email the account is one this browser minted for itself, and the
+            only key to it is a token in this origin's storage — so "in your
+            account" is true and "safe" is not, and the difference is the whole
+            reason somebody is reading this section.
+          */}
+          {!identity.email && total > 0 && (
+            <p className="mt-2 text-[12px] leading-relaxed text-warn">
+              You are not signed in, so this is an account this browser made
+              for itself. Only this browser, at this address, can reach it —
+              clearing site data loses the only way back in.{" "}
+              <a
+                href="#account"
+                className="underline decoration-warn/40 underline-offset-2"
+              >
+                Sign in with an email
+              </a>{" "}
+              to make it yours.
+            </p>
           )}
 
           {stuck && status.problem && (

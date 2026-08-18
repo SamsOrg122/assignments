@@ -39,6 +39,7 @@ import type { Block } from "@/lib/types";
 import { formatDayMonth } from "@/lib/format";
 import { ImportZone, openImportPicker } from "@/components/library/ImportZone";
 import { ReturnedNotes } from "@/components/library/ReturnedNotes";
+import { SaveWarning } from "@/components/library/SaveWarning";
 
 type Sort = "recent" | "name" | "kind";
 
@@ -194,6 +195,9 @@ export default function LibraryPage() {
           </div>
 
           <KeepPrompt />
+
+          {/* Work that is not reaching the account, said where the work is. */}
+          <SaveWarning />
 
           {/* Notes left through a comment link while nobody was here. */}
           <ReturnedNotes />

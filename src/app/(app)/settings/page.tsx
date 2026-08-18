@@ -32,6 +32,7 @@ import { chatProviderName } from "@/lib/chat";
 import { TopBar } from "@/components/shell/TopBar";
 import { Icon } from "@/components/ui/Icon";
 import { SafeKeeping } from "@/components/settings/SafeKeeping";
+import { WorkIsSafe } from "@/components/settings/WorkIsSafe";
 import { Dictionary } from "@/components/settings/Dictionary";
 import { AccountPanel } from "@/components/account/AccountPanel";
 import { ConnectionPanel } from "@/components/account/ConnectionPanel";
@@ -287,9 +288,17 @@ export default function SettingsPage() {
           </Section>
 
           <Section
+            id="safe"
+            title="Is your work in your account?"
+            hint="Counted, not claimed. Every project either has a version the server agreed to or it does not, and the ones that do not are named."
+          >
+            <WorkIsSafe />
+          </Section>
+
+          <Section
             id="keeping"
             title="Keeping your work"
-            hint="There is no account yet, so this browser is the only thing holding it. Here is exactly how safe that is."
+            hint="What this browser is holding, and how safe that is on its own."
           >
             <SafeKeeping />
           </Section>

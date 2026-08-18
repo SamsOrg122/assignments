@@ -424,3 +424,56 @@ export function startFresh() {
  * before the first successful round trip, and after a hand-over.
  */
 export const syncOwner = (): string | null => useMemory.getState().owner;
+
+/* ── "Is my work actually in my account?" ───────────────── */
+
+/**
+ * The one question this whole file exists to answer, answered with a count
+ * rather than with reassurance.
+ *
+ * A person asked to trust that their thesis is safe has no way to check. The
+ * sidebar chip says "synced", which is a claim about the last round trip and
+ * not about any particular document — so a push that has been failing for a
+ * week looks exactly like one that has not, once the error has scrolled past.
+ *
+ * This reads the same ledger the pusher uses. A project counts as being in the
+ * account only when the version this browser last agreed on with the server is
+ * the version it holds now. Anything else is *here and nowhere else*, and is
+ * named, because "3 of 47" is a fact somebody can act on and "mostly synced"
+ * is not.
+ */
+export interface Coverage {
+  total: number;
+  inAccount: number;
+  /** Projects this browser is the only copy of, newest first. */
+  onlyHere: Array<{ id: string; name: string; updatedAt: number }>;
+}
+
+export function coverage(): Coverage {
+  const projects = useProjects.getState().projects;
+  const { synced } = useMemory.getState();
+  const onlyHere = projects
+    .filter((p) => synced[p.id] !== p.updatedAt)
+    .map((p) => ({ id: p.id, name: p.name, updatedAt: p.updatedAt }))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  return {
+    total: projects.length,
+    inAccount: projects.length - onlyHere.length,
+    onlyHere,
+  };
+}
+
+/** The same, as a hook, so a panel re-renders as work lands. */
+export function useCoverage(): Coverage {
+  const projects = useProjects((s) => s.projects);
+  const synced = useMemory((s) => s.synced);
+  const onlyHere = projects
+    .filter((p) => synced[p.id] !== p.updatedAt)
+    .map((p) => ({ id: p.id, name: p.name, updatedAt: p.updatedAt }))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  return {
+    total: projects.length,
+    inAccount: projects.length - onlyHere.length,
+    onlyHere,
+  };
+}

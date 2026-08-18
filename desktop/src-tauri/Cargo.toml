@@ -1,0 +1,43 @@
+[package]
+name = "tougather-desktop"
+version = "0.1.0"
+description = "Tougather's floating note"
+authors = ["Tougather"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+# Tauri v2's layout: the binary is a shim over a library, so the same code can
+# be driven from a desktop `main` or, later, a mobile entry point.
+name = "tougather_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# The always-on-top behaviour macOS actually needs is not in the cross-platform
+# API: joining every Space *and* staying up over a fullscreen app is a
+# collection-behaviour flag, set through AppKit directly.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+# Only the one class this needs. The crate's default features pull in the
+# whole of AppKit, which is minutes of compile time on every macOS CI run for
+# a single setter call.
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSWindow", "NSResponder"] }
+
+[profile.release]
+# A note window has no business being twenty megabytes.
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

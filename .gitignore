@@ -46,3 +46,9 @@ next-env.d.ts
 
 # typescript build info
 tsconfig.tsbuildinfo
+
+# Desktop app (the floating note)
+desktop/node_modules
+desktop/dist
+desktop/src-tauri/target
+desktop/src-tauri/gen

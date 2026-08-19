@@ -1,17 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "What the note window is allowed to ask the Rust side for. Deliberately short: everything the window does by itself — the hotkey, the tray, restoring position — is decided in Rust, where the frontend cannot reach it. Adding a permission here widens what a bug in the webview can do, so each one is here because a specific piece of the interface needs it.",
+  "description": "What the note window is allowed to ask the Rust side for. Deliberately short, and shorter than in step 1: the window no longer hides itself or reads the login setting through a plugin — both now go through named commands in Rust, where the argument is checked and the surface is one verb wide. What is left is the ability to be dragged by its header and to hear the flush event sent before the app quits. Adding a permission here widens what a bug in the webview can reach, so each one should arrive with a reason.",
   "windows": ["note"],
   "permissions": [
     "core:default",
-    "core:window:allow-hide",
     "core:window:allow-start-dragging",
-    "core:window:allow-set-focus",
-    "core:window:allow-is-visible",
-    "core:event:default",
-    "autostart:allow-is-enabled",
-    "autostart:allow-enable",
-    "autostart:allow-disable"
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
   ]
 }

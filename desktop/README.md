@@ -15,8 +15,8 @@ Built in five steps, each one testable on its own.
 | Step | What it adds | State |
 | --- | --- | --- |
 | 1 | Window behaviour, global hotkey, tray | **done** |
-| 2 | Local SQLite and the note itself, fully offline | next |
-| 3 | Device-code pairing with tougather.com | |
+| 2 | Local SQLite and the note itself, fully offline | **done** |
+| 3 | Device-code pairing with tougather.com | next |
 | 4 | Sync queue, and the notes section in the web Library | |
 | 5 | GitHub Actions matrix build for macOS, Windows, Linux | |
 
@@ -29,6 +29,32 @@ npm run app        # tauri dev — builds the Rust side the first time, so give 
 ```
 
 `npm run app:build` makes a real bundle. Unsigned for now — see *Signing*.
+
+### What to check in step 2
+
+Notes are kept in a SQLite file on this machine and nowhere else. There is no
+account yet, and the line along the bottom of the window says so.
+
+- **Type something, wait a second.** The footer changes to *Saved just now ·
+  on this computer*. Quit from the tray, start it again: it is still there.
+- **`Notes (n)`** in the header opens the list. Each row is the note's first
+  line, what follows it, and when it was last touched. Clicking one opens it.
+- **`+`** starts a new note. The one you were in is written first.
+- **`×`** on a list row deletes it — with no confirmation, on purpose. *Undo*
+  appears along the bottom instead, which is a better safety net than a dialog
+  people learn to click through.
+- **Pull the plug test.** Type, then put the note away with the hotkey inside
+  the first second. Bring it back: what you typed is there. Hiding does not
+  destroy the webview, so the pending save still happens.
+- **Where it lives.** Hover the footer and it shows the path. On Linux that is
+  `~/.local/share/com.tougather.note/notes.sqlite3`; macOS
+  `~/Library/Application Support/com.tougather.note/`; Windows
+  `%APPDATA%\com.tougather.note\`.
+
+Deleted notes stay in the file as tombstones rather than being removed. That
+looks like clutter and is not: when sync arrives, a row that is simply *gone*
+cannot be told apart from one this machine has never seen, and guessing wrong
+takes somebody's note with it.
 
 ### What to check in step 1
 
@@ -56,25 +82,31 @@ by a test. It has to be looked at.
   running, the window is not. Untick it and it should leave no login item
   behind.
 
-### What is deliberately missing in step 1
+### What is deliberately missing so far
 
-Nothing is saved. There is no note to type in yet — that is step 2, and doing
-it in this order means the window behaviour was judged on its own rather than
-through a textarea.
+Nothing leaves this machine. There is no account, no pairing and no sync —
+steps 3 and 4 — and until then the footer says "on this computer only" rather
+than implying otherwise.
 
 ## How it is put together
 
 ```
 desktop/
   src/              the window's contents (React + TS, Vite)
+    App.tsx           the note, the list, the footer
+    autosave.ts       debounce and flush, as plain functions so they can be tested
+    notes.ts          the eight calls into Rust
   src-tauri/
-    src/lib.rs      plugins, hotkey registration, app lifetime
-    src/window.rs   the always-on-top behaviour, including the macOS half
-    src/tray.rs     the tray icon and its menu
-    src/visibility.rs  show / hide / toggle, in one place
+    src/lib.rs        plugins, hotkey registration, app lifetime, flush-on-quit
+    src/window.rs     the always-on-top behaviour, including the macOS half
+    src/tray.rs       the tray icon and its menu
+    src/visibility.rs show / hide / toggle, in one place
+    src/store/        SQLite: the schema, its migrations, and notes CRUD
+    src/commands.rs   what the window may ask for — eight verbs, no SQL
     src/config_check.rs  tests that the config still says what it must
-    tauri.conf.json    the window, the bundle, the policy
-    capabilities/      what the webview is allowed to ask Rust for
+    tauri.conf.json   the window, the bundle, the policy
+    capabilities/     what the webview is allowed to ask Rust for
+  scripts/prove-linux.sh   drives the real app and checks the real disk
 ```
 
 Two rules worth keeping:
@@ -87,6 +119,32 @@ anything filesystem-, shell- or process-shaped is added to it.
 
 **The bundle is local.** The content policy allows `'self'` and nothing else.
 Step 4 opens `connect-src` to exactly one host.
+
+**The store is the store, not a cache.** Everything typed is written to SQLite
+first and to nothing else; when sync arrives it will read from that file and
+push upwards, never sit between a keystroke and the disk.
+
+## Testing
+
+```sh
+cargo test --manifest-path src-tauri/Cargo.toml   # store, schema, config
+./scripts/prove-linux.sh                          # the real app, on a virtual display
+```
+
+The unit tests cover the schema and its migrations, the tombstones, the id
+shape, and — on the TypeScript side — the autosave's ordering, which is where
+losing a sentence would actually come from.
+
+What they cannot cover is whether a keystroke in the real window, through the
+real webview and IPC, reaches the real file. `prove-linux.sh` does that: it
+runs the app on an Xvfb display, presses the hotkey, types, and reads the
+SQLite file. It found a bug the unit tests could not have — the window came
+back from the hotkey with focus on a header button rather than in the note, so
+you could type into it and nothing happened.
+
+It is Linux-only and that is fine: the wiring it tests is the same everywhere.
+The part that genuinely differs is the macOS window behaviour, which needs a
+Mac and a pair of eyes.
 
 ## Signing
 

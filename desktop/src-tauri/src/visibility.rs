@@ -11,7 +11,7 @@
 //! Hiding must not close. Closing destroys the webview, which in step 2 means
 //! throwing away a half-typed sentence to save a few megabytes of memory.
 
-use tauri::{AppHandle, Manager, Runtime, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewWindow};
 
 /// The one window. Named in `tauri.conf.json`, referred to nowhere else.
 pub const MAIN: &str = "note";
@@ -32,6 +32,9 @@ pub fn window<R: Runtime>(app: &AppHandle<R>) -> Option<WebviewWindow<R>> {
     app.get_webview_window(MAIN)
 }
 
+/// What the window listens for so it can put the caret back in the note.
+pub const SHOWN_EVENT: &str = "note:shown";
+
 /// Bring the note up and put the caret in it.
 pub fn show<R: Runtime>(app: &AppHandle<R>) {
     let Some(window) = window(app) else { return };
@@ -45,6 +48,12 @@ pub fn show<R: Runtime>(app: &AppHandle<R>) {
     let _ = window.show();
     let _ = window.unminimize();
     let _ = window.set_focus();
+
+    // Focusing the *window* is not focusing the *note*. The webview restores
+    // whatever it had before it was hidden, which after a few toggles is
+    // often a button on the header — so the note appears, you type, and
+    // nothing happens. Caught by running the app rather than by reading it.
+    let _ = window.emit(SHOWN_EVENT, ());
 }
 
 /// Put it away without losing what is in it.

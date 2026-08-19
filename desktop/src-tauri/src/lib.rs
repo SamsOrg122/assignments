@@ -1,15 +1,19 @@
 //! Tougather's floating note.
 //!
-//! Step one of five: the window behaves, the hotkey works, the tray works.
-//! There is deliberately no data here yet — local storage is step two, the
-//! account is step three — so that the part that is hardest to test by unit
-//! test, and easiest to get subtly wrong on one platform, can be tried on its
-//! own before anything depends on it.
+//! Steps one and two of five: the window behaves, and what you type into it
+//! is kept in a local SQLite file. The account is step three and sync is step
+//! four — and in that order on purpose, so that the note works before it is
+//! ever asked to depend on a network.
 
+mod commands;
 mod config_check;
+mod store;
 mod tray;
 mod visibility;
 mod window;
+
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use tauri::{Manager, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
@@ -18,6 +22,11 @@ use tauri_plugin_window_state::StateFlags;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Set once, when a quit has been asked for and the window has been told to
+    // write. The second exit request — the window answering — must go
+    // through, or the app could never be quit at all.
+    let flushing = Arc::new(AtomicBool::new(false));
+
     tauri::Builder::default()
         .plugin(
             tauri_plugin_window_state::Builder::default()
@@ -36,8 +45,27 @@ pub fn run() {
             Some(vec!["--hidden"]),
         ))
         .plugin(global_shortcut())
+        .invoke_handler(tauri::generate_handler![
+            commands::notes_list,
+            commands::note_create,
+            commands::note_save,
+            commands::note_delete,
+            commands::note_restore,
+            commands::store_path,
+            commands::hide_window,
+            commands::ready_to_quit,
+        ])
         .setup(|app| {
             let handle = app.handle().clone();
+
+            // Before the window is shown, and before the hotkey is live: if
+            // there is nowhere to write, this app has nothing to offer, and
+            // saying so at startup is far better than a window that takes
+            // dictation into nothing.
+            app.manage(store::open(&handle).map_err(|e| {
+                eprintln!("Tougather note: {e}");
+                e
+            })?);
 
             if let Some(window) = visibility::window(&handle) {
                 window::make_it_float(&window);
@@ -70,17 +98,50 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("Tougather note failed to start")
-        .run(|_app, event| {
+        .run(move |app, event| match event {
             // macOS: with the window hidden there is nothing to close, and the
             // default behaviour would quit the app the first time the note is
             // put away — taking the tray icon and the hotkey with it.
-            if let tauri::RunEvent::ExitRequested { api, code, .. } = event {
-                if code.is_none() {
-                    api.prevent_exit();
-                }
+            tauri::RunEvent::ExitRequested { api, code, .. } if code.is_none() => {
+                api.prevent_exit();
             }
+            // A deliberate quit, from the tray. Hiding needs no flush — the
+            // webview survives, so the autosave timer still fires — but
+            // quitting does: inside the 800ms debounce the last sentence typed
+            // exists only in the textarea, and that sentence is usually the
+            // reason the note was opened. So ask the window to write, and let
+            // it say when it has.
+            tauri::RunEvent::ExitRequested { api, .. }
+                if !flushing.swap(true, Ordering::SeqCst) =>
+            {
+                api.prevent_exit();
+                ask_the_window_to_flush(app);
+            }
+            _ => {}
         });
 }
+
+/// Tell the window to save, and quit when it answers — or shortly anyway.
+///
+/// The answer comes back as the `ready_to_quit` command. The timeout is not
+/// belt-and-braces: without it, a webview that has crashed or is stuck in a
+/// loop would leave an app that cannot be quit except by killing it, which is
+/// a worse failure than losing 800ms of typing. A second is far longer than a
+/// single-row SQLite write and short enough that nobody wonders whether the
+/// menu item worked.
+fn ask_the_window_to_flush<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    use tauri::Emitter;
+
+    let asked = app.emit(FLUSH_EVENT, ()).is_ok();
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(if asked { 1000 } else { 0 }));
+        app.exit(0);
+    });
+}
+
+/// What the window listens for when it is about to be shut.
+pub const FLUSH_EVENT: &str = "note:flush";
 
 fn global_shortcut<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri_plugin_global_shortcut::Builder::new()

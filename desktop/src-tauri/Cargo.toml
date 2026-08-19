@@ -23,6 +23,16 @@ tauri-plugin-autostart = "2"
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# `bundled` compiles SQLite into the binary. The alternative is linking
+# whatever SQLite the machine happens to have, which on Windows is nothing and
+# on Linux is a version roulette — for a store holding the only copy of
+# somebody's notes, "which SQLite" is not a question worth leaving open.
+rusqlite = { version = "0.32", features = ["bundled"] }
+# The same alphabet and length the web app's `uid()` uses, so a note made on
+# the desktop already has an id the server's column will accept. That is not a
+# coincidence: a client minting ids the database rejects is exactly the bug
+# that stopped every save from landing.
+nanoid = "0.4"
 
 # The always-on-top behaviour macOS actually needs is not in the cross-platform
 # API: joining every Space *and* staying up over a fullscreen app is a

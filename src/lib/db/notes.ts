@@ -104,3 +104,31 @@ export function previewOf(note: Note): string {
     .trim()
     .slice(0, 160);
 }
+
+/* ── Where the desktop app comes from ─────────────────────────────────── */
+
+/**
+ * The releases page.
+ *
+ * One constant rather than a URL typed into a component, because the day this
+ * moves — to a CDN, to a download service, to a signed installer host — it has
+ * to move in one place, and a link that quietly points at the old one is how
+ * people end up installing a build from last year.
+ */
+export const RELEASES_URL =
+  "https://github.com/SamsOrg122/assignments/releases/latest";
+
+/**
+ * What to offer, per platform.
+ *
+ * All four point at the same releases page for now rather than at direct
+ * asset URLs. A direct link is nicer right up until a release is cut with a
+ * different filename, at which point it 404s and looks like the product is
+ * broken. When there is a stable naming scheme worth relying on, these become
+ * direct links and nothing else changes.
+ */
+export const DOWNLOADS: Array<{ label: string; href: string }> = [
+  { label: "macOS", href: RELEASES_URL },
+  { label: "Windows", href: RELEASES_URL },
+  { label: "Linux", href: RELEASES_URL },
+];

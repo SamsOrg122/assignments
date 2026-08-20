@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { formatDateTime } from "@/lib/format";
 import {
@@ -114,6 +115,14 @@ export function DesktopNotes() {
         <span className="text-[11px] text-fg-subtle">
           from the floating note on your desktop
         </span>
+        {/* This strip is a convenience where the work is; the page is where
+            notes are explained, managed and downloaded. */}
+        <Link
+          href="/notes"
+          className="ml-auto text-[11px] text-accent hover:underline"
+        >
+          All notes
+        </Link>
       </div>
 
       <ul className="grid gap-1.5">

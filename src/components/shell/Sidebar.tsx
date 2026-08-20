@@ -297,6 +297,16 @@ export function Sidebar() {
             badge={totalUnread}
             onNavigate={closeOnMobile}
           />
+          {/* Notes were only ever visible as a strip inside the Library, and
+              only when there were some — so anybody without the desktop app
+              saw nothing and had no way to learn the thing existed. */}
+          <NavLink
+            href="/notes"
+            icon="sticky"
+            label={t("nav.notes")}
+            active={pathname === "/notes"}
+            onNavigate={closeOnMobile}
+          />
           <NavLink
             href="/kit"
             icon="group"

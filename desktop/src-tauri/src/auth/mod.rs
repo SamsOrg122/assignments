@@ -126,7 +126,9 @@ pub fn code_in(link: &str) -> Result<String, String> {
     if let Some(code) = from_query("code") {
         return Ok(code);
     }
-    if let Some(described) = from_query("error_description").or_else(|| from_fragment("error_description")) {
+    if let Some(described) =
+        from_query("error_description").or_else(|| from_fragment("error_description"))
+    {
         return Err(described);
     }
     if let Some(error) = from_query("error").or_else(|| from_fragment("error")) {
@@ -210,11 +212,17 @@ mod tests {
     #[test]
     fn the_challenge_is_the_hash_of_the_verifier_and_not_the_verifier() {
         let (verifier, challenge) = pkce_pair();
-        assert_ne!(verifier, challenge, "the secret was sent as its own challenge");
+        assert_ne!(
+            verifier, challenge,
+            "the secret was sent as its own challenge"
+        );
         // Base64url of a SHA-256 digest, unpadded.
         assert_eq!(challenge.len(), 43, "not a sha-256 digest: {challenge}");
         assert!(!challenge.contains('='), "padded, which the spec forbids");
-        assert!(!challenge.contains('+') && !challenge.contains('/'), "not url-safe");
+        assert!(
+            !challenge.contains('+') && !challenge.contains('/'),
+            "not url-safe"
+        );
         // And it must be reproducible from the verifier, or the exchange fails.
         let again = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(Sha256::digest(verifier.as_bytes()));
@@ -249,8 +257,8 @@ mod tests {
         // Which half of the URL carries the failure depends on where the flow
         // broke, and a window that shows nothing is a window somebody presses
         // the button on five more times.
-        let refused =
-            code_in("tougather://auth#error_description=Provider%20is%20not%20enabled").unwrap_err();
+        let refused = code_in("tougather://auth#error_description=Provider%20is%20not%20enabled")
+            .unwrap_err();
         assert!(refused.contains("not enabled"), "unhelpful: {refused}");
     }
 
@@ -268,6 +276,9 @@ mod tests {
         assert!(ahead < 3600 * 1000, "renewed only after it stops working");
         // A pathologically short lifetime must not produce a time in the past,
         // which would spin the refresh loop.
-        assert!(expiry_from(1) >= now_ms(), "a short-lived token expired instantly");
+        assert!(
+            expiry_from(1) >= now_ms(),
+            "a short-lived token expired instantly"
+        );
     }
 }

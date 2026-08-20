@@ -31,7 +31,9 @@ fn join_all_spaces(window: &WebviewWindow) {
     use objc2::rc::Retained;
     use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
 
-    let Ok(handle) = window.ns_window() else { return };
+    let Ok(handle) = window.ns_window() else {
+        return;
+    };
     if handle.is_null() {
         return;
     }

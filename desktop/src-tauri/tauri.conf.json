@@ -70,7 +70,14 @@
     "createUpdaterArtifacts": false,
     "linux": {
       "deb": {
-        "depends": []
+        "depends": [],
+        "desktopTemplate": "tougather-note.desktop"
+      },
+      "rpm": {
+        "desktopTemplate": "tougather-note.desktop"
+      },
+      "appimage": {
+        "bundleMediaFramework": false
       }
     },
     "macOS": {

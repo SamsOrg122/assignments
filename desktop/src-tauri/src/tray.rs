@@ -51,9 +51,11 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let tick = autostart.clone();
 
     TrayIconBuilder::with_id(TRAY_ID)
-        .icon(app.default_window_icon().cloned().ok_or_else(|| {
-            tauri::Error::AssetNotFound("the bundle has no window icon".into())
-        })?)
+        .icon(
+            app.default_window_icon().cloned().ok_or_else(|| {
+                tauri::Error::AssetNotFound("the bundle has no window icon".into())
+            })?,
+        )
         .icon_as_template(true)
         .tooltip("Tougather note")
         .menu(&menu)

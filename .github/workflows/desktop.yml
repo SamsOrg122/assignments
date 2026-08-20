@@ -1,0 +1,239 @@
+# Building the floating note for the three desktops.
+#
+# Two jobs, and the split matters. `check` is cheap and runs on every push:
+# the tests, the linter, the typechecker, on Linux only, because none of them
+# have a platform-specific answer. `bundle` is slow — a release build of a
+# webview app is minutes per platform — so it runs on the branches that
+# produce something somebody installs, and on tags.
+#
+# Path-filtered, because the web app shares this repository and rebuilding
+# three operating systems for a change to a marketing page would be absurd.
+#
+# Code signing is off. See the notes further down: the inputs are wired, so
+# turning it on is adding two secrets rather than rewriting this file.
+
+name: Desktop app
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop.yml"
+  pull_request:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop.yml"
+  # How a release is cut, and how a bundle is asked for out of turn.
+  #
+  # Tags are deliberately not a push trigger. A `paths` filter applies to tag
+  # pushes as well as branch ones, so tagging a commit that happened not to
+  # touch `desktop/` would silently build nothing — a release that quietly
+  # does not happen is worse than one that takes an extra click. Instead:
+  # push the tag, then run this from the Actions tab with that tag selected.
+  # `github.ref` is the tag, and the release job below picks it up.
+  workflow_dispatch:
+
+# A second push to the same branch makes the first one pointless. Tags are
+# excluded: a cancelled release build leaves a half-published release.
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: desktop
+
+jobs:
+  check:
+    name: Tests and lint
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      # The webview and its dependencies. Ubuntu 22.04 ships webkit2gtk-4.0
+      # and Tauri v2 wants 4.1, which is why the version is pinned rather
+      # than left as `ubuntu-latest` — a runner image bump has broken this
+      # for a lot of people.
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev \
+            patchelf
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+
+      - run: npm ci
+
+      # Typecheck and build the window's own code. `npm run build` is
+      # `tsc --noEmit && vite build`, so this covers both.
+      - name: Frontend
+        run: npm run build
+
+      - name: Formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+  bundle:
+    name: ${{ matrix.name }}
+    needs: check
+    # Slow, so only where it earns its place: the default branch, the branch
+    # this is developed on, a release tag, or when somebody asks.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/desktop-v') ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/claude/assignments-web-app-udolko'
+    strategy:
+      # One platform failing must not hide whether the other two are fine.
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Apple silicon)
+            os: macos-14
+            target: aarch64-apple-darwin
+          - name: macOS (Intel)
+            os: macos-14
+            target: x86_64-apple-darwin
+          - name: Windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - name: Linux
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: System libraries
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev \
+            patchelf
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+          key: ${{ matrix.target }}
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run tauri -- build --target ${{ matrix.target }}
+        env:
+          # Which deployment this build talks to. Read at compile time by
+          # `auth::site()`, so a staging build is an input rather than a code
+          # change. Unset falls back to https://tougather.com.
+          TOUGATHER_SITE: ${{ vars.TOUGATHER_SITE }}
+
+          # ── Signing ────────────────────────────────────────────────────
+          #
+          # Deliberately unset, and wired anyway. An unsigned macOS build is
+          # called damaged unless it is opened through right-click → Open, and
+          # Windows SmartScreen warns; that is the accepted cost for now.
+          #
+          # Turning it on is adding the secrets, not editing this file:
+          #
+          #   macOS  APPLE_CERTIFICATE            base64 of a .p12
+          #          APPLE_CERTIFICATE_PASSWORD   its password
+          #          APPLE_SIGNING_IDENTITY       "Developer ID Application: …"
+          #          APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID  for notarising
+          #   Windows  WINDOWS_CERTIFICATE and WINDOWS_CERTIFICATE_PASSWORD,
+          #          plus `bundle.windows.certificateThumbprint` in
+          #          tauri.conf.json, which is already there waiting.
+          #
+          # Notarising also needs the hardened runtime, which needs an
+          # entitlements file — `bundle.macOS.entitlements` is the slot.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      # Everything installable, under a name that says which platform it is —
+      # four artifacts called "bundle" would be four things nobody can tell
+      # apart.
+      - name: Collect
+        uses: actions/upload-artifact@v4
+        with:
+          name: tougather-note-${{ matrix.target }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+
+  # Only on a tag. Draft, so a release is never published by a push — somebody
+  # looks at the four artifacts and presses the button.
+  release:
+    name: Draft release
+    needs: bundle
+    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Draft
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: Tougather note ${{ github.ref_name }}
+          files: artifacts/**/*
+          body: |
+            Unsigned builds. macOS will call this damaged until it is opened
+            through right-click → Open; Windows SmartScreen will warn. Signing
+            is wired in the workflow and waiting on certificates.

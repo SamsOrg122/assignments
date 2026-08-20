@@ -62,8 +62,8 @@ pub fn open<R: Runtime>(app: &AppHandle<R>) -> Result<Store, String> {
         .map_err(|e| format!("nowhere to keep the notes: {e}"))?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("could not make {dir:?}: {e}"))?;
 
-    let connection =
-        Connection::open(dir.join("notes.sqlite3")).map_err(|e| format!("could not open the note store: {e}"))?;
+    let connection = Connection::open(dir.join("notes.sqlite3"))
+        .map_err(|e| format!("could not open the note store: {e}"))?;
 
     // WAL is what makes a crash mid-write survivable, and it lets a read
     // happen while a write is in flight — which is every autosave.

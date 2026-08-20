@@ -128,7 +128,9 @@ pub fn run() {
                 use tauri_plugin_deep_link::DeepLinkExt;
                 let for_links = handle.clone();
                 app.deep_link().on_open_url(move |event| {
-                    let Some(link) = event.urls().first().cloned() else { return };
+                    let Some(link) = event.urls().first().cloned() else {
+                        return;
+                    };
                     let app = for_links.clone();
                     tauri::async_runtime::spawn(async move {
                         match auth::commands::finish(&app, link.as_str()).await {
@@ -219,7 +221,11 @@ fn ask_the_window_to_flush<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let asked = app.emit(FLUSH_EVENT, ()).is_ok();
     let app = app.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(if asked { 1000 } else { 0 }));
+        std::thread::sleep(std::time::Duration::from_millis(if asked {
+            1000
+        } else {
+            0
+        }));
         app.exit(0);
     });
 }
@@ -269,11 +275,17 @@ fn wake_up_the_account<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
                     // Revoked, or simply too old. Clear it rather than
                     // retrying a dead token at every launch forever.
                     let _ = auth::keychain::clear();
-                    let _ = app.emit(SIGNED_IN_EVENT, auth::commands::standing_now(&app.state::<auth::Auth>()));
+                    let _ = app.emit(
+                        SIGNED_IN_EVENT,
+                        auth::commands::standing_now(&app.state::<auth::Auth>()),
+                    );
                 }
             },
             _ => {
-                let _ = app.emit(SIGNED_IN_EVENT, auth::commands::standing_now(&app.state::<auth::Auth>()));
+                let _ = app.emit(
+                    SIGNED_IN_EVENT,
+                    auth::commands::standing_now(&app.state::<auth::Auth>()),
+                );
             }
         }
     });

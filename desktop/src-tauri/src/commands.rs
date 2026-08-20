@@ -23,7 +23,10 @@ fn with<T>(
     store: &State<'_, Store>,
     work: impl FnOnce(&rusqlite::Connection) -> Result<T, String>,
 ) -> Result<T, String> {
-    let guard = store.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let guard = store
+        .0
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     work(&guard)
 }
 

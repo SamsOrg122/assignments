@@ -28,10 +28,7 @@ pub fn standing_now(auth: &State<'_, Auth>) -> Standing {
     let state = auth.0.lock().unwrap_or_else(|p| p.into_inner());
     Standing {
         signed_in: state.session.is_some(),
-        email: state
-            .session
-            .as_ref()
-            .and_then(|s| s.user.email.clone()),
+        email: state.session.as_ref().and_then(|s| s.user.email.clone()),
         providers: state
             .config
             .as_ref()
@@ -206,7 +203,9 @@ pub async fn access_token<R: Runtime>(app: &AppHandle<R>) -> Result<String, Stri
                 state.expires_at = 0;
             }
             let _ = keychain::clear();
-            Err(format!("Your session has ended — please sign in again. ({why})"))
+            Err(format!(
+                "Your session has ended — please sign in again. ({why})"
+            ))
         }
     }
 }

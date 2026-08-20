@@ -163,11 +163,7 @@ fn urlencoding(value: &str) -> String {
     out
 }
 
-async fn token(
-    config: &Config,
-    grant: &str,
-    body: serde_json::Value,
-) -> Result<Session, String> {
+async fn token(config: &Config, grant: &str, body: serde_json::Value) -> Result<Session, String> {
     let response = client()?
         .post(format!(
             "{}/auth/v1/token?grant_type={grant}",
@@ -236,7 +232,10 @@ pub async fn refresh(config: &Config, refresh_token: &str) -> Result<Session, St
 pub async fn sign_out(config: &Config, access_token: &str) {
     let Ok(client) = client() else { return };
     let _ = client
-        .post(format!("{}/auth/v1/logout", config.url.trim_end_matches('/')))
+        .post(format!(
+            "{}/auth/v1/logout",
+            config.url.trim_end_matches('/')
+        ))
         .header("apikey", &config.anon_key)
         .bearer_auth(access_token)
         .send()
@@ -269,7 +268,10 @@ mod tests {
     #[test]
     fn the_redirect_is_encoded_rather_than_pasted_in() {
         let url = browser_url(&config(), "google", "c", "tougather://auth?x=1");
-        assert!(url.contains("redirect_to=tougather%3A%2F%2Fauth%3Fx%3D1"), "{url}");
+        assert!(
+            url.contains("redirect_to=tougather%3A%2F%2Fauth%3Fx%3D1"),
+            "{url}"
+        );
         // Otherwise its `?` would end the query string and the challenge
         // would silently never arrive.
         assert!(url.contains("code_challenge=c"), "{url}");

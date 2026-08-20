@@ -72,7 +72,9 @@ pub async fn once<R: Runtime>(app: &AppHandle<R>) -> Result<bool, String> {
         }
         state.config.clone()
     };
-    let Some(config) = config else { return Ok(false) };
+    let Some(config) = config else {
+        return Ok(false);
+    };
 
     let token = access_token(app).await?;
     let client = reqwest::Client::builder()
@@ -114,7 +116,10 @@ async fn push<R: Runtime>(
         .collect();
 
     let response = client
-        .post(format!("{}/rest/v1/notes", config.url.trim_end_matches('/')))
+        .post(format!(
+            "{}/rest/v1/notes",
+            config.url.trim_end_matches('/')
+        ))
         .header("apikey", &config.anon_key)
         .bearer_auth(token)
         .header("Content-Type", "application/json")
@@ -177,7 +182,9 @@ async fn pull<R: Runtime>(
     let connection = store.0.lock().unwrap_or_else(|p| p.into_inner());
     let mut changed = false;
     for row in rows {
-        let Some(updated_at) = as_millis(&row.updated_at) else { continue };
+        let Some(updated_at) = as_millis(&row.updated_at) else {
+            continue;
+        };
         let deleted_at = row.deleted_at.as_deref().and_then(as_millis);
         if notes::accept_remote(&connection, &row.id, &row.body, updated_at, deleted_at)? {
             changed = true;
@@ -193,7 +200,11 @@ async fn refusal(response: reqwest::Response) -> String {
     // shown as it came, because a truncated error helps nobody.
     serde_json::from_str::<serde_json::Value>(&said)
         .ok()
-        .and_then(|v| v.get("message").and_then(|m| m.as_str()).map(str::to_string))
+        .and_then(|v| {
+            v.get("message")
+                .and_then(|m| m.as_str())
+                .map(str::to_string)
+        })
         .unwrap_or_else(|| format!("Your account refused the change ({status})."))
 }
 
@@ -374,7 +385,14 @@ mod tests {
 
     #[test]
     fn a_timestamp_survives_the_round_trip() {
-        for ms in [0_i64, 1, 1_000, 1_787_125_705_821, 946_684_800_000, 2_000_000_000_123] {
+        for ms in [
+            0_i64,
+            1,
+            1_000,
+            1_787_125_705_821,
+            946_684_800_000,
+            2_000_000_000_123,
+        ] {
             let text = as_timestamp(ms);
             assert_eq!(as_millis(&text), Some(ms), "{ms} became {text}");
         }
@@ -402,11 +420,23 @@ mod tests {
     fn the_shapes_postgres_actually_sends_are_all_understood() {
         // It writes as many fractional digits as it has, and none when there
         // are none. Every one of these has to come back as the same instant.
-        assert_eq!(as_millis("2024-03-01T12:00:00Z"), as_millis("2024-03-01T12:00:00.000Z"));
-        assert_eq!(as_millis("2024-03-01T12:00:00.5Z"), as_millis("2024-03-01T12:00:00.500Z"));
-        assert_eq!(as_millis("2024-03-01T12:00:00.123456Z"), as_millis("2024-03-01T12:00:00.123Z"));
+        assert_eq!(
+            as_millis("2024-03-01T12:00:00Z"),
+            as_millis("2024-03-01T12:00:00.000Z")
+        );
+        assert_eq!(
+            as_millis("2024-03-01T12:00:00.5Z"),
+            as_millis("2024-03-01T12:00:00.500Z")
+        );
+        assert_eq!(
+            as_millis("2024-03-01T12:00:00.123456Z"),
+            as_millis("2024-03-01T12:00:00.123Z")
+        );
         // And the space-separated form, which PostgREST uses in some versions.
-        assert_eq!(as_millis("2024-03-01 12:00:00.250Z"), as_millis("2024-03-01T12:00:00.250Z"));
+        assert_eq!(
+            as_millis("2024-03-01 12:00:00.250Z"),
+            as_millis("2024-03-01T12:00:00.250Z")
+        );
     }
 
     #[test]

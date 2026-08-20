@@ -36,9 +36,18 @@ mod tests {
         let w = note_window();
         assert_eq!(w["alwaysOnTop"], true, "it would sink behind other windows");
         assert_eq!(w["decorations"], false, "a title bar would make it an app");
-        assert_eq!(w["skipTaskbar"], true, "it would sit in the taskbar all day");
-        assert_eq!(w["visible"], false, "it would appear uninvited at every start");
-        assert_eq!(w["resizable"], true, "the remembered size would be pointless");
+        assert_eq!(
+            w["skipTaskbar"], true,
+            "it would sit in the taskbar all day"
+        );
+        assert_eq!(
+            w["visible"], false,
+            "it would appear uninvited at every start"
+        );
+        assert_eq!(
+            w["resizable"], true,
+            "the remembered size would be pointless"
+        );
     }
 
     #[test]
@@ -56,13 +65,13 @@ mod tests {
             .expect("a policy is set");
         // The bundle is local and stays local until step 4, and even then to
         // one host. A wildcard here would undo that in one character.
-        assert!(csp.contains("default-src 'self'"), "no default in the policy");
+        assert!(
+            csp.contains("default-src 'self'"),
+            "no default in the policy"
+        );
         assert!(csp.contains("object-src 'none'"));
         assert!(!csp.contains('*'), "the policy has a wildcard in it: {csp}");
-        assert!(
-            !csp.contains("unsafe-eval"),
-            "eval is back on: {csp}"
-        );
+        assert!(!csp.contains("unsafe-eval"), "eval is back on: {csp}");
 
         assert_eq!(
             config["app"]["security"]["assetProtocol"]["enable"], false,
@@ -94,14 +103,72 @@ mod tests {
     }
 
     #[test]
+    fn the_linux_desktop_entry_can_receive_a_url() {
+        // The one that would break sign-in on Linux and nowhere else.
+        //
+        // A `.desktop` file that claims `x-scheme-handler/tougather` but has
+        // no `%u` in its Exec line is launched *without* the URL when the
+        // browser hands one over — the app opens, having been told nothing,
+        // and the user is left looking at a sign-in screen that did not
+        // change. Tauri's own template has no `%u`; this was found by
+        // unpacking a built .deb and reading the file inside it.
+        let template = include_str!("../tougather-note.desktop");
+        assert!(
+            template.contains("{{exec}} %u"),
+            "the desktop entry cannot receive a URL:\n{template}"
+        );
+        assert!(
+            template.contains("MimeType={{mime_type}}"),
+            "the desktop entry does not claim the scheme at all"
+        );
+
+        // And the config has to point at it, or the template is a file
+        // nobody reads.
+        let config = config();
+        let linux = &config["bundle"]["linux"];
+        assert_eq!(
+            linux["deb"]["desktopTemplate"], "tougather-note.desktop",
+            "the .deb falls back to Tauri's template"
+        );
+        assert_eq!(
+            linux["rpm"]["desktopTemplate"], "tougather-note.desktop",
+            "the .rpm falls back to Tauri's template"
+        );
+    }
+
+    #[test]
+    fn the_url_scheme_is_the_one_the_app_waits_for() {
+        // `REDIRECT` in auth/mod.rs and this list have to agree. If they
+        // drift, the browser goes somewhere the OS has never heard of.
+        let config = config();
+        let schemes = config["plugins"]["deep-link"]["desktop"]["schemes"]
+            .as_array()
+            .expect("a scheme list");
+        assert!(
+            schemes.iter().any(|s| s == "tougather"),
+            "the bundle does not register the scheme sign-in comes back on"
+        );
+        assert!(
+            crate::auth::REDIRECT.starts_with("tougather://"),
+            "the app waits on a different scheme than the bundle registers"
+        );
+    }
+
+    #[test]
     fn signing_is_off_but_the_shape_is_ready_for_it() {
         let config = config();
         // Deliberately unsigned for now. What must not happen is the fields
         // disappearing, because then turning signing on later means guessing
         // the schema again rather than filling in two blanks.
         let macos = &config["bundle"]["macOS"];
-        assert!(macos.get("signingIdentity").is_some(), "macOS signing slot is gone");
-        assert!(macos.get("entitlements").is_some(), "macOS entitlements slot is gone");
+        assert!(
+            macos.get("signingIdentity").is_some(),
+            "macOS signing slot is gone"
+        );
+        assert!(
+            macos.get("entitlements").is_some(),
+            "macOS entitlements slot is gone"
+        );
         let windows = &config["bundle"]["windows"];
         assert!(
             windows.get("certificateThumbprint").is_some(),

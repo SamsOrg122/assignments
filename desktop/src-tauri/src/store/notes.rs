@@ -262,7 +262,9 @@ pub fn accept_remote(
     deleted_at: Option<i64>,
 ) -> Result<bool, String> {
     let mine: Option<i64> = connection
-        .query_row("select updated_at from notes where id = ?1", [id], |r| r.get(0))
+        .query_row("select updated_at from notes where id = ?1", [id], |r| {
+            r.get(0)
+        })
         .optional()
         .map_err(|e| format!("could not compare that note: {e}"))?;
 
@@ -386,9 +388,11 @@ mod tests {
         delete(&c, &note.id).unwrap();
         assert!(get(&c, &note.id).unwrap().is_none(), "still listed");
         let rows: i64 = c
-            .query_row("select count(*) from notes where id = ?1", [&note.id], |r| {
-                r.get(0)
-            })
+            .query_row(
+                "select count(*) from notes where id = ?1",
+                [&note.id],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(rows, 1, "the row was removed; sync could not tell why");
     }
@@ -429,7 +433,10 @@ mod tests {
         let mut previous = 0;
         for _ in 0..1_000 {
             let now = now_ms();
-            assert!(now > previous, "the clock went backwards: {previous} then {now}");
+            assert!(
+                now > previous,
+                "the clock went backwards: {previous} then {now}"
+            );
             assert!(seen.insert(now), "the clock repeated {now}");
             previous = now;
         }
@@ -488,7 +495,10 @@ mod tests {
 
         let pending = unsent(&c).unwrap();
         assert_eq!(pending.len(), 1, "the deletion was not queued");
-        assert!(pending[0].deleted_at.is_some(), "the tombstone was not carried");
+        assert!(
+            pending[0].deleted_at.is_some(),
+            "the tombstone was not carried"
+        );
     }
 
     #[test]
@@ -496,12 +506,18 @@ mod tests {
         let c = scratch();
         let note = create(&c).unwrap();
         save(&c, &note.id, "mine").unwrap();
-        c.execute("update notes set updated_at = 1000 where id = ?1", [&note.id])
-            .unwrap();
+        c.execute(
+            "update notes set updated_at = 1000 where id = ?1",
+            [&note.id],
+        )
+        .unwrap();
 
         let changed = accept_remote(&c, &note.id, "theirs, and newer", 2000, None).unwrap();
         assert!(changed);
-        assert_eq!(get(&c, &note.id).unwrap().unwrap().body, "theirs, and newer");
+        assert_eq!(
+            get(&c, &note.id).unwrap().unwrap().body,
+            "theirs, and newer"
+        );
     }
 
     #[test]
@@ -509,8 +525,11 @@ mod tests {
         let c = scratch();
         let note = create(&c).unwrap();
         save(&c, &note.id, "mine, and newer").unwrap();
-        c.execute("update notes set updated_at = 5000 where id = ?1", [&note.id])
-            .unwrap();
+        c.execute(
+            "update notes set updated_at = 5000 where id = ?1",
+            [&note.id],
+        )
+        .unwrap();
 
         let changed = accept_remote(&c, &note.id, "theirs, stale", 1000, None).unwrap();
         assert!(!changed, "a stale copy overwrote a newer one");
@@ -524,8 +543,11 @@ mod tests {
         let c = scratch();
         let note = create(&c).unwrap();
         save(&c, &note.id, "same").unwrap();
-        c.execute("update notes set updated_at = 4242 where id = ?1", [&note.id])
-            .unwrap();
+        c.execute(
+            "update notes set updated_at = 4242 where id = ?1",
+            [&note.id],
+        )
+        .unwrap();
         assert!(!accept_remote(&c, &note.id, "also same", 4242, None).unwrap());
         assert_eq!(get(&c, &note.id).unwrap().unwrap().body, "same");
     }
@@ -543,7 +565,10 @@ mod tests {
         // bounce every note back and forth for ever.
         let c = scratch();
         accept_remote(&c, "FromAnother1", "written elsewhere", 1234, None).unwrap();
-        assert!(unsent(&c).unwrap().is_empty(), "an incoming note was queued for sending");
+        assert!(
+            unsent(&c).unwrap().is_empty(),
+            "an incoming note was queued for sending"
+        );
     }
 
     #[test]
@@ -551,7 +576,10 @@ mod tests {
         let c = scratch();
         accept_remote(&c, "FromAnother1", "written elsewhere", 1000, None).unwrap();
         accept_remote(&c, "FromAnother1", "", 2000, Some(2000)).unwrap();
-        assert!(get(&c, "FromAnother1").unwrap().is_none(), "still listed after a remote delete");
+        assert!(
+            get(&c, "FromAnother1").unwrap().is_none(),
+            "still listed after a remote delete"
+        );
     }
 
     #[test]

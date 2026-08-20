@@ -18,7 +18,7 @@ Built in five steps, each one testable on its own.
 | 2 | Local SQLite and the note itself, fully offline | **done** |
 | 3 | Signing in, through your own browser | **done** |
 | 4 | Sync queue, and the notes section in the web Library | **done** |
-| 5 | GitHub Actions matrix build for macOS, Windows, Linux | next |
+| 5 | GitHub Actions matrix build for macOS, Windows, Linux | **done** |
 
 ## Running it
 
@@ -29,6 +29,36 @@ npm run app        # tauri dev — builds the Rust side the first time, so give 
 ```
 
 `npm run app:build` makes a real bundle. Unsigned for now — see *Signing*.
+
+### What to check in step 5
+
+`.github/workflows/desktop.yml`, and it is the first CI in this repository.
+
+Two jobs. **check** is cheap and runs on every push that touches `desktop/`:
+`cargo fmt --check`, `clippy -D warnings`, the Rust tests, and the frontend
+typecheck. None of those have a platform-specific answer, so they run on Linux
+only. **bundle** is slow — a release build of a webview app is minutes per
+platform — so it runs on the default branch, this branch, and on request.
+
+Four targets: macOS on Apple silicon and on Intel, Windows, and Linux. Nothing
+is shared between them except the cache key, and `fail-fast` is off, because
+one platform failing must not hide whether the other two are fine.
+
+Everything is path-filtered. The web app lives in this repository too, and
+rebuilding three operating systems for a change to a marketing page would be
+absurd.
+
+**To cut a release:** push a `desktop-v*` tag, then run the workflow from the
+Actions tab with that tag selected. It drafts a release with the four bundles
+attached — draft, so nothing is published by a push. Tags are deliberately not
+a push trigger: a `paths` filter applies to tag pushes too, so tagging a commit
+that happened not to touch `desktop/` would silently build nothing, and a
+release that quietly does not happen is worse than one that takes a click.
+
+The Linux build was run here before the workflow was written, which is how the
+`.desktop` file turned out to be wrong — see below. It produces a 3.9 MB
+`.deb` around an 8 MB binary. That is the Electron comparison at the top of
+this file, made concrete.
 
 ### What to check in step 4
 
@@ -237,6 +267,18 @@ failed sign-in showed nothing at all — the window sat on "Waiting for your
 browser…" while the reason sat one prop away — and that a *locked* keychain
 was being reported as a *missing* one, which would have sent somebody off to
 install a keyring they already had.
+
+## The Linux desktop entry
+
+`src-tauri/tougather-note.desktop` exists for one character.
+
+Tauri's own template writes `Exec=tougather-desktop` with no `%u`. A handler
+for `x-scheme-handler/tougather` without `%u` is launched *without* the URL
+when the browser hands one over — so on Linux the app would open after
+sign-in, having been told nothing, and sit on the same screen. Found by
+unpacking a built `.deb` and reading the file inside it, not by trusting it
+would be right. A test asserts both the `%u` and that the config still points
+at this template.
 
 ## Signing
 

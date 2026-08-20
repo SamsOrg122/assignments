@@ -32,12 +32,91 @@ use gotrue::{Config, Session};
 /// Where the browser is sent back to. Registered with the OS at install time.
 pub const REDIRECT: &str = "tougather://auth";
 
-/// Which tougather.com to ask. Overridable at build time so a staging build
-/// can point at staging without a code change.
-pub fn site() -> String {
+/// Where this app looks for tougather.com when nothing says otherwise.
+pub const DEFAULT_SITE: &str = "https://tougather.com";
+
+/// Which tougather.com to ask.
+///
+/// Three answers, in order: what the user set, what the build was told, and
+/// the default. The first of those is the important one and was missing —
+/// the address was baked in at compile time, so an app pointed at a domain
+/// that is not serving yet had no way back except a new build. A desktop app
+/// that can only ever talk to one host is a desktop app that is wrong the
+/// first time the host moves.
+pub fn site<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> String {
+    use tauri::Manager;
+
+    if let Some(store) = app.try_state::<crate::store::Store>() {
+        let connection = store.0.lock().unwrap_or_else(|p| p.into_inner());
+        if let Ok(Some(saved)) =
+            crate::store::settings::get(&connection, crate::store::settings::SITE)
+        {
+            let saved = saved.trim().to_string();
+            if !saved.is_empty() {
+                return saved;
+            }
+        }
+    }
+    built_site()
+}
+
+/// What the build was told, or the default. Also what "reset" goes back to.
+pub fn built_site() -> String {
     option_env!("TOUGATHER_SITE")
-        .unwrap_or("https://tougather.com")
+        .unwrap_or(DEFAULT_SITE)
         .to_string()
+}
+
+/// Tidy an address somebody typed, or say why it cannot be used.
+///
+/// People type `tougather.com`, and they type a trailing slash, and they
+/// paste a whole URL with a path on the end. All three should work; a
+/// misspelling that produces an unreachable host should not be turned into
+/// something that looks fine and quietly never connects.
+pub fn tidy_site(input: &str) -> Result<String, String> {
+    // Not trimmed of trailing slashes: `https://` trimmed that way becomes
+    // `https:`, which then fails the scheme test below and gets a second
+    // scheme glued on to make `https://https`. The address is rebuilt from
+    // its parts further down, so a trailing slash was never a problem to
+    // solve here.
+    let raw = input.trim();
+    if raw.is_empty() {
+        return Err("That is empty. Put in an address, or reset it.".into());
+    }
+
+    // Assume https for anything typed without a scheme — except loopback,
+    // where nobody runs a certificate and the guess would fail with a TLS
+    // error that says nothing about the real problem. Loopback traffic never
+    // leaves the machine, so there is nothing to protect there; for every
+    // other host, guessing http would be quietly downgrading somebody.
+    let with_scheme = if raw.contains("://") {
+        raw.to_string()
+    } else if is_loopback(raw) {
+        format!("http://{raw}")
+    } else {
+        format!("https://{raw}")
+    };
+
+    let parsed = url::Url::parse(&with_scheme)
+        .map_err(|_| format!("`{input}` is not an address this can use."))?;
+
+    match parsed.scheme() {
+        "https" => {}
+        // Allowed, because a deployment being tried on a laptop is a real
+        // thing people do, and refusing it would send them back to editing
+        // source. Anything else is a mistake, not a choice.
+        "http" => {}
+        other => return Err(format!("`{other}://` is not something this can talk to.")),
+    }
+
+    let host = parsed.host_str().ok_or_else(|| {
+        format!("`{input}` has no host in it — it needs to look like tougather.com.")
+    })?;
+
+    Ok(match parsed.port() {
+        Some(port) => format!("{}://{host}:{port}", parsed.scheme()),
+        None => format!("{}://{host}", parsed.scheme()),
+    })
 }
 
 /// Everything about being signed in, in one place behind one lock.
@@ -52,6 +131,13 @@ pub struct State {
     pub session: Option<Session>,
     /// When the access token stops working, in milliseconds since the epoch.
     pub expires_at: i64,
+    /// The last thing that went wrong reaching the site or signing in.
+    ///
+    /// Kept here rather than only emitted as an event. The failure happens
+    /// while the app is starting, which is before the window has subscribed
+    /// to anything — so an event alone is a message sent to a room nobody is
+    /// in yet, and the window would show a cheerful nothing.
+    pub problem: Option<String>,
     /// The secret half of the pair, kept only between opening the browser and
     /// the code coming back. Dropped afterwards so a second link cannot reuse
     /// it — an authorization code is meant to be spent once.
@@ -186,6 +272,22 @@ pub fn adopt<R: tauri::Runtime>(
     Ok(commands::standing_now(&auth))
 }
 
+/// Whether an address, as typed, names this machine.
+fn is_loopback(raw: &str) -> bool {
+    let host = raw.split('/').next().unwrap_or(raw);
+    let host = host.rsplit_once(':').map_or(host, |(before, after)| {
+        // Only treat the tail as a port when it is one — `::1` is not a host
+        // called `:` on port `1`.
+        if after.chars().all(|c| c.is_ascii_digit()) && !after.is_empty() {
+            before
+        } else {
+            host
+        }
+    });
+    let host = host.trim_start_matches('[').trim_end_matches(']');
+    matches!(host, "localhost" | "127.0.0.1" | "::1")
+}
+
 /// Milliseconds since the epoch.
 pub fn now_ms() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -208,6 +310,77 @@ pub fn expiry_from(expires_in: i64) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_address_somebody_typed_is_tidied_rather_than_refused() {
+        // Every one of these is what a person actually types.
+        for input in [
+            "tougather.com",
+            "https://tougather.com",
+            "https://tougather.com/",
+            "  https://tougather.com/settings  ",
+            "https://tougather.com/api/config",
+        ] {
+            assert_eq!(
+                tidy_site(input).unwrap(),
+                "https://tougather.com",
+                "{input}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_deployment_on_a_laptop_still_works() {
+        assert_eq!(
+            tidy_site("http://localhost:3000").unwrap(),
+            "http://localhost:3000"
+        );
+        // Typed without a scheme, loopback gets http. Guessing https there
+        // fails on a certificate nobody has, with a TLS error that says
+        // nothing about the actual problem.
+        assert_eq!(
+            tidy_site("localhost:3000").unwrap(),
+            "http://localhost:3000"
+        );
+        assert_eq!(
+            tidy_site("127.0.0.1:4599").unwrap(),
+            "http://127.0.0.1:4599"
+        );
+        // And https is still honoured where it is asked for.
+        assert_eq!(
+            tidy_site("https://localhost:3000").unwrap(),
+            "https://localhost:3000"
+        );
+    }
+
+    #[test]
+    fn everything_that_is_not_this_machine_gets_https() {
+        // The other half of the rule. Guessing http for a real host would be
+        // quietly downgrading somebody who typed a bare domain — and a name
+        // that merely starts with "local" is not this machine.
+        for input in ["tougather.com", "example.co.uk", "localhost.example.com"] {
+            assert!(
+                tidy_site(input).unwrap().starts_with("https://"),
+                "{input} was downgraded"
+            );
+        }
+    }
+
+    #[test]
+    fn a_preview_deployment_keeps_its_whole_host() {
+        assert_eq!(
+            tidy_site("assignments-1jce0al1w-sams-org.vercel.app").unwrap(),
+            "https://assignments-1jce0al1w-sams-org.vercel.app"
+        );
+    }
+
+    #[test]
+    fn nonsense_is_refused_with_a_reason() {
+        for bad in ["", "   ", "ftp://tougather.com", "https://"] {
+            let refused = tidy_site(bad).expect_err(&format!("accepted {bad:?}"));
+            assert!(!refused.is_empty());
+        }
+    }
 
     #[test]
     fn the_challenge_is_the_hash_of_the_verifier_and_not_the_verifier() {

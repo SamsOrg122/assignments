@@ -110,6 +110,12 @@ Signing in happens in your own browser, not in this window.
   keychain. Being unable to sign in is not the same as being signed out, and
   refusing to take a note because a server is down would defeat the point of
   the whole thing.
+- **Press Fix on that line.** It shows the actual reason — verbatim, whatever
+  the server or the network said — and a field to point the app at a
+  different address. That exists because the first release went out with the
+  address compiled in, aimed at a domain that was not serving yet: the window
+  said "Can't reach tougather.com", the real reason went to stderr where
+  nobody looks, and there was no way out except a new build.
 
 The footer says *on this computer* even when signed in, because nothing is
 being synced yet — that is step 4. Saying "saved to your account" now would be

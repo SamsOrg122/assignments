@@ -13,6 +13,7 @@
 //! the only durability property that actually matters here.
 
 pub mod notes;
+pub mod settings;
 
 use std::sync::Mutex;
 
@@ -53,6 +54,11 @@ const MIGRATIONS: &[&str] = &[
         synced_at   integer
      );
      create index notes_recent on notes(updated_at desc) where deleted_at is null;",
+    // 2
+    "create table settings (
+        key   text primary key,
+        value text not null
+     );",
 ];
 
 pub fn open<R: Runtime>(app: &AppHandle<R>) -> Result<Store, String> {

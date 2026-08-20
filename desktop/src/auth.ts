@@ -41,3 +41,16 @@ export function providerName(id: string): string {
   };
   return known[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
 }
+
+/* ── Which deployment ─────────────────────────────────────────────────── */
+
+export interface SiteAddress {
+  address: string;
+  /** True when it is the one the app shipped with. */
+  default: boolean;
+}
+
+export const siteAddress = () => invoke<SiteAddress>("site_address");
+export const setSite = (address: string) =>
+  invoke<Standing>("site_set", { address });
+export const resetSite = () => invoke<Standing>("site_reset");

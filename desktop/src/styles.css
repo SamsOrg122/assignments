@@ -414,3 +414,30 @@ textarea::placeholder {
 .foot .warn {
   color: #ffcc80;
 }
+
+.banner {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.banner-text {
+  min-width: 0;
+  flex: 1;
+  /* Two lines, then it gives up rather than pushing the note off screen. A
+     Postgres error can be a paragraph long. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.flex {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.push {
+  margin-left: auto;
+}

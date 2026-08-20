@@ -21,6 +21,7 @@ import { when } from "./when";
 import { HOTKEY_LABEL } from "./platform";
 import { signOut, standing as readStanding, type Standing } from "./auth";
 import { SignIn } from "./SignIn";
+import { Connection } from "./Connection";
 
 type Status =
   | { kind: "ready" }
@@ -48,6 +49,7 @@ export function App() {
   // the sign-in screen at somebody who is already signed in.
   const [account, setAccount] = useState<Standing | null>(null);
   const [sync, setSync] = useState<SyncStanding | null>(null);
+  const [showConnection, setShowConnection] = useState(false);
 
   const box = useRef<HTMLTextAreaElement>(null);
   // The id the pending write belongs to. Switching notes flushes first, but a
@@ -293,10 +295,19 @@ export function App() {
   const mustSignIn = Boolean(
     account && !account.signed_in && account.configured && account.can_remember,
   );
+  /*
+   * The line above the note when something is degraded.
+   *
+   * It used to say "Can't reach tougather.com" and stop there, while the
+   * actual reason — a deployment with no database configured, a domain not
+   * serving yet, a certificate — sat on stderr where nobody looks. A message
+   * that names the wrong cause is worse than no message: it sends people to
+   * check DNS when the answer was a missing environment variable.
+   */
   const workingAlone =
     account && !account.signed_in && !mustSignIn
       ? account.can_remember
-        ? "Can't reach tougather.com — writing here meanwhile."
+        ? (account.problem ?? "Can't reach tougather.com.")
         : "No keychain on this computer, so signing in can't be remembered."
       : null;
 
@@ -335,9 +346,26 @@ export function App() {
         </button>
       </header>
 
-      {workingAlone ? <p className="banner">{workingAlone}</p> : null}
+      {workingAlone && !showConnection ? (
+        <p className="banner">
+          <span className="banner-text">{workingAlone}</span>
+          <button
+            type="button"
+            className="link"
+            onClick={() => setShowConnection(true)}
+          >
+            Fix
+          </button>
+        </p>
+      ) : null}
 
-      {mustSignIn && account ? (
+      {showConnection ? (
+        <Connection
+          problem={account?.problem ?? null}
+          onChanged={setAccount}
+          onClose={() => setShowConnection(false)}
+        />
+      ) : mustSignIn && account ? (
         <SignIn standing={account} onSignedIn={setAccount} />
       ) : listOpen ? (
         <ul className="list">

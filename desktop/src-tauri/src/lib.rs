@@ -93,6 +93,9 @@ pub fn run() {
             auth::commands::auth_begin,
             auth::commands::auth_with_password,
             auth::commands::auth_sign_out,
+            auth::commands::site_address,
+            auth::commands::site_set,
+            auth::commands::site_reset,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -247,10 +250,19 @@ pub const SIGN_IN_FAILED_EVENT: &str = "auth:failed";
 fn wake_up_the_account<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let config = match auth::gotrue::config(&auth::site()).await {
+        let config = match auth::gotrue::config(&auth::site(&app)).await {
             Ok(config) => config,
             Err(problem) => {
                 eprintln!("Tougather note: {problem}");
+                {
+                    // Written down as well as announced. The window may not
+                    // be listening yet — it is still being built — and a
+                    // failure nobody hears is a window that says nothing is
+                    // wrong.
+                    let held = app.state::<auth::Auth>();
+                    let mut state = held.0.lock().unwrap_or_else(|p| p.into_inner());
+                    state.problem = Some(problem.clone());
+                }
                 let _ = app.emit(SIGN_IN_FAILED_EVENT, problem);
                 return;
             }
@@ -259,6 +271,7 @@ fn wake_up_the_account<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
             let held = app.state::<auth::Auth>();
             let mut state = held.0.lock().unwrap_or_else(|p| p.into_inner());
             state.config = Some(config.clone());
+            state.problem = None;
         }
 
         // A refresh token from a previous run. Trading it for a session is

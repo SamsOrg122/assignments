@@ -10,6 +10,83 @@ use tauri_plugin_opener::OpenerExt;
 
 use super::{gotrue, keychain, now_ms, pkce_pair, Auth, Standing, REDIRECT};
 
+/// The address this app is talking to, and whether it is the default.
+#[tauri::command]
+pub async fn site_address<R: Runtime>(app: AppHandle<R>) -> Result<SiteAddress, ()> {
+    let now = super::site(&app);
+    Ok(SiteAddress {
+        default: now == super::built_site(),
+        address: now,
+    })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SiteAddress {
+    pub address: String,
+    pub default: bool,
+}
+
+/// Point the app somewhere else, and try it at once.
+///
+/// Saved before it is tried, deliberately. An address that is right but
+/// temporarily unreachable — a deployment mid-build, a laptop asleep — must
+/// not be thrown away because the first attempt failed; the app would forget
+/// what it was told every time the network hiccuped.
+#[tauri::command]
+pub async fn site_set<R: Runtime>(app: AppHandle<R>, address: String) -> Result<Standing, String> {
+    let tidy = super::tidy_site(&address)?;
+
+    {
+        let store = app.state::<crate::store::Store>();
+        let connection = store.0.lock().unwrap_or_else(|p| p.into_inner());
+        crate::store::settings::set(&connection, crate::store::settings::SITE, &tidy)?;
+    }
+
+    // A different deployment is a different set of accounts. Whatever is in
+    // the keychain was issued by the old one and will not work here.
+    let _ = keychain::clear();
+    {
+        let auth = app.state::<Auth>();
+        let mut state = auth.0.lock().unwrap_or_else(|p| p.into_inner());
+        state.session = None;
+        state.config = None;
+        state.expires_at = 0;
+        state.verifier = None;
+    }
+
+    reach_for_it(&app, &tidy).await
+}
+
+/// Go back to the address the app shipped with.
+#[tauri::command]
+pub async fn site_reset<R: Runtime>(app: AppHandle<R>) -> Result<Standing, String> {
+    {
+        let store = app.state::<crate::store::Store>();
+        let connection = store.0.lock().unwrap_or_else(|p| p.into_inner());
+        crate::store::settings::clear(&connection, crate::store::settings::SITE)?;
+    }
+    let back = super::built_site();
+    reach_for_it(&app, &back).await
+}
+
+/// Try the address now and say what happened, rather than at the next launch.
+async fn reach_for_it<R: Runtime>(app: &AppHandle<R>, address: &str) -> Result<Standing, String> {
+    let reached = gotrue::config(address).await;
+    {
+        let auth = app.state::<Auth>();
+        let mut state = auth.0.lock().unwrap_or_else(|p| p.into_inner());
+        match &reached {
+            Ok(config) => {
+                state.config = Some(config.clone());
+                state.problem = None;
+            }
+            Err(problem) => state.problem = Some(problem.clone()),
+        }
+    }
+    reached?;
+    Ok(standing_now(&app.state::<Auth>()))
+}
+
 /// Tell the window what to draw.
 ///
 /// Async, and that is not cosmetic. A synchronous command runs on the main
@@ -36,7 +113,7 @@ pub fn standing_now(auth: &State<'_, Auth>) -> Standing {
             .unwrap_or_default(),
         configured: state.config.is_some(),
         can_remember: keychain::available(),
-        problem: None,
+        problem: state.problem.clone(),
     }
 }
 

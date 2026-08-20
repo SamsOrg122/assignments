@@ -17,8 +17,8 @@ Built in five steps, each one testable on its own.
 | 1 | Window behaviour, global hotkey, tray | **done** |
 | 2 | Local SQLite and the note itself, fully offline | **done** |
 | 3 | Signing in, through your own browser | **done** |
-| 4 | Sync queue, and the notes section in the web Library | next |
-| 5 | GitHub Actions matrix build for macOS, Windows, Linux | |
+| 4 | Sync queue, and the notes section in the web Library | **done** |
+| 5 | GitHub Actions matrix build for macOS, Windows, Linux | next |
 
 ## Running it
 
@@ -29,6 +29,40 @@ npm run app        # tauri dev — builds the Rust side the first time, so give 
 ```
 
 `npm run app:build` makes a real bundle. Unsigned for now — see *Signing*.
+
+### What to check in step 4
+
+Notes now travel. The footer stops saying *on this computer* and starts saying
+where they actually are.
+
+- **Type something while signed in.** Within a couple of seconds the footer
+  reads *In your account · just now*.
+- **Open tougather.com → Library.** There is a **Notes** section above your
+  documents with what you just wrote. Edit it there; the desktop app picks the
+  change up within a minute, or straight away if you touch a note.
+- **Pull the network out and keep typing.** The footer says *can't reach your
+  account* with a **Try now** beside it, and the note still saves. Plug it
+  back in and it catches up on its own.
+- **Delete a note in one place.** It goes in the other. Deleted notes are
+  tombstones rather than removed rows — a row that is simply gone cannot be
+  told from one the other machine has never seen, and it would come back for
+  ever.
+- **Sign out.** Every note is queued again, because notes sent to one account
+  have not been sent to another.
+
+Conflicts are last-write-wins on `updated_at`. That is a real choice with a
+real cost — two machines editing the same note at the same moment will lose
+one of the edits — and it is the right cost for something usually one line
+long. A merge algorithm on a sticky note would be a worse product, not a
+better one.
+
+The clock behind that is forced to move forward: never repeating, never going
+backwards. A millisecond is long enough to save and then delete inside, and
+both carrying the same stamp meant the deletion was never newer than the last
+thing sent, so it was never sent, so the note came back from the other machine
+for ever. Wall clocks also step backwards — NTP, a laptop waking, somebody
+fixing their timezone — and every edit made during that window would look
+older than what came before it.
 
 ### What to check in step 3
 
@@ -141,6 +175,7 @@ desktop/
     src/visibility.rs show / hide / toggle, in one place
     src/store/        SQLite: the schema, its migrations, and notes CRUD
     src/auth/         signing in: the HTTP calls, PKCE, and the OS keychain
+    src/sync.rs       the queue: push, pull, and when it runs
     src/commands.rs   what the window may ask for — eight verbs, no SQL
     src/config_check.rs  tests that the config still says what it must
     tauri.conf.json   the window, the bundle, the policy
@@ -169,6 +204,7 @@ push upwards, never sit between a keystroke and the disk.
 cargo test --manifest-path src-tauri/Cargo.toml   # store, schema, config, PKCE
 ./scripts/prove-linux.sh                          # the real app, on a virtual display
 ./scripts/prove-auth-linux.sh                     # the whole sign-in, against a stand-in
+./scripts/prove-sync-linux.sh                     # notes travelling, both directions
 ```
 
 `prove-auth-linux.sh` needs a build pointed at its stand-in:

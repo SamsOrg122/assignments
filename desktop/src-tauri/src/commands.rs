@@ -37,8 +37,28 @@ pub fn note_create(store: State<'_, Store>) -> Result<Note, String> {
     with(&store, notes::create)
 }
 
+/// Where sync stands, for the line along the bottom.
 #[tauri::command]
-pub fn note_save(store: State<'_, Store>, id: String, body: String) -> Result<Note, String> {
+pub async fn sync_standing<R: Runtime>(app: AppHandle<R>) -> Result<crate::sync::Standing, ()> {
+    Ok(crate::sync::standing(&app, 0, None))
+}
+
+/// Try a round now, because somebody asked.
+#[tauri::command]
+pub async fn sync_now<R: Runtime>(app: AppHandle<R>) -> Result<crate::sync::Standing, String> {
+    let changed = crate::sync::once(&app).await?;
+    let standing = crate::sync::standing(&app, crate::store::notes::now_ms(), None);
+    crate::sync::announce(&app, changed, standing.clone());
+    Ok(standing)
+}
+
+#[tauri::command]
+pub fn note_save<R: Runtime>(
+    app: AppHandle<R>,
+    store: State<'_, Store>,
+    id: String,
+    body: String,
+) -> Result<Note, String> {
     // A body long enough to be a paste of somebody's dissertation is still a
     // note, but there is a point past which this is not a sticky note and the
     // window is the wrong tool. Refuse rather than write a megabyte per
@@ -51,17 +71,37 @@ pub fn note_save(store: State<'_, Store>, id: String, body: String) -> Result<No
             LIMIT / 1024
         ));
     }
-    with(&store, |c| notes::save(c, &id, &body))
+    let saved = with(&store, |c| notes::save(c, &id, &body));
+    if saved.is_ok() {
+        crate::sync::nudge(&app);
+    }
+    saved
 }
 
 #[tauri::command]
-pub fn note_delete(store: State<'_, Store>, id: String) -> Result<(), String> {
-    with(&store, |c| notes::delete(c, &id))
+pub fn note_delete<R: Runtime>(
+    app: AppHandle<R>,
+    store: State<'_, Store>,
+    id: String,
+) -> Result<(), String> {
+    let done = with(&store, |c| notes::delete(c, &id));
+    if done.is_ok() {
+        crate::sync::nudge(&app);
+    }
+    done
 }
 
 #[tauri::command]
-pub fn note_restore(store: State<'_, Store>, id: String) -> Result<Option<Note>, String> {
-    with(&store, |c| notes::restore(c, &id))
+pub fn note_restore<R: Runtime>(
+    app: AppHandle<R>,
+    store: State<'_, Store>,
+    id: String,
+) -> Result<Option<Note>, String> {
+    let back = with(&store, |c| notes::restore(c, &id));
+    if back.is_ok() {
+        crate::sync::nudge(&app);
+    }
+    back
 }
 
 /// Where the notes actually are, for the settings line that says so.

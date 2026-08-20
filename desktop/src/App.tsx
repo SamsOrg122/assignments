@@ -10,8 +10,11 @@ import {
   restoreNote,
   saveNote,
   storePath,
+  syncNow,
+  syncStanding,
   titleOf,
   type Note,
+  type SyncStanding,
 } from "./notes";
 import { useAutosave } from "./useAutosave";
 import { when } from "./when";
@@ -44,6 +47,7 @@ export function App() {
   // `null` while the first read is in flight, so the window does not flash
   // the sign-in screen at somebody who is already signed in.
   const [account, setAccount] = useState<Standing | null>(null);
+  const [sync, setSync] = useState<SyncStanding | null>(null);
 
   const box = useRef<HTMLTextAreaElement>(null);
   // The id the pending write belongs to. Switching notes flushes first, but a
@@ -69,7 +73,7 @@ export function App() {
     }
   }, []);
 
-  const { schedule, flush } = useAutosave(write);
+  const { schedule, flush, pending } = useAutosave(write);
 
   /* ── Opening ─────────────────────────────────────────────────────────── */
 
@@ -92,6 +96,7 @@ export function App() {
     })();
     storePath().then(setWhere).catch(() => setWhere(null));
     readStanding().then(setAccount).catch(() => setAccount(null));
+    syncStanding().then(setSync).catch(() => setSync(null));
     return () => {
       alive = false;
     };
@@ -112,6 +117,33 @@ export function App() {
       void stop.then((off) => off());
     };
   }, [flush]);
+
+  useEffect(() => {
+    // Sync runs in Rust on its own beat, so the window is told rather than
+    // asking. Two things arrive: where sync stands, and — separately —
+    // whether anything on this machine actually changed, because reloading
+    // the list on every round would fight with whatever is being typed.
+    const stood = listen<SyncStanding>("sync:standing", (event) => setSync(event.payload));
+    const changed = listen("notes:changed", () => {
+      listNotes()
+        .then((all) => {
+          setNotes(all);
+          // Whatever is open stays open, and its text is only replaced if the
+          // note actually changed underneath — otherwise a round arriving
+          // mid-sentence would move the caret to the end of a copy from
+          // another machine.
+          setDraft((mine) => {
+            const fresh = all.find((n) => n.id === writingFor.current);
+            return fresh && fresh.body !== mine && !pending() ? fresh.body : mine;
+          });
+        })
+        .catch(() => {});
+    });
+    return () => {
+      void stood.then((off) => off());
+      void changed.then((off) => off());
+    };
+  }, []);
 
   useEffect(() => {
     // Rust does the signing in, so it is Rust that knows when it finished —
@@ -358,7 +390,14 @@ export function App() {
             </button>
           </>
         ) : (
-          <Saved status={status} where={where} account={account} onSignOut={setAccount} />
+          <Saved
+            status={status}
+            where={where}
+            account={account}
+            sync={sync}
+            onSignOut={setAccount}
+            onSynced={setSync}
+          />
         )}
       </footer>
     </div>
@@ -369,12 +408,16 @@ function Saved({
   status,
   where,
   account,
+  sync,
   onSignOut,
+  onSynced,
 }: {
   status: Status;
   where: string | null;
   account: Standing | null;
+  sync: SyncStanding | null;
   onSignOut: (next: Standing) => void;
+  onSynced: (next: SyncStanding) => void;
 }) {
   if (status.kind === "failed")
     return (
@@ -382,27 +425,56 @@ function Saved({
         Not saved — {status.why}
       </span>
     );
-  if (status.kind === "saving") return <span>Saving…</span>;
-  // Signed in, but nothing has left this machine yet: sync is step 4. Saying
-  // "saved to your account" now would be the exact untruth the web app spent
-  // a week undoing.
-  const whose = account?.email ? ` · ${account.email}` : "";
+
+  const signedIn = Boolean(account?.signed_in);
+
+  /*
+   * Two different sentences, and they are not interchangeable.
+   *
+   * Signed out, the note is on this computer and that is the whole truth.
+   * Signed in, what matters is not whether it saved — it always saves — but
+   * whether it has reached the account yet, because that is the difference
+   * between losing this machine and losing nothing.
+   */
+  const line = !signedIn
+    ? status.kind === "saved"
+      ? `Saved ${when(status.at)} · on this computer`
+      : "On this computer"
+    : sync?.problem
+      ? "On this computer — can't reach your account"
+      : sync && sync.waiting > 0
+        ? `${sync.waiting} ${sync.waiting === 1 ? "note" : "notes"} still to send`
+        : sync && sync.at > 0
+          ? `In your account · ${when(sync.at)}`
+          : "On this computer";
+
   return (
     <>
-      <span title={where ?? undefined}>
-        {status.kind === "saved"
-          ? `Saved ${when(status.at)} · on this computer`
-          : "On this computer — syncing comes in step 4"}
-        {whose}
+      <span
+        className={sync?.problem && signedIn ? "warn" : undefined}
+        title={sync?.problem ?? where ?? undefined}
+      >
+        {line}
+        {account?.email ? ` · ${account.email}` : ""}
       </span>
-      {account?.signed_in ? (
-        <button
-          type="button"
-          className="link"
-          onClick={() => void signOut().then(onSignOut)}
-        >
-          Sign out
-        </button>
+      {signedIn ? (
+        sync?.problem || (sync && sync.waiting > 0) ? (
+          <button
+            type="button"
+            className="link"
+            onClick={() => void syncNow().then(onSynced).catch(() => {})}
+          >
+            Try now
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="link"
+            onClick={() => void signOut().then(onSignOut)}
+          >
+            Sign out
+          </button>
+        )
       ) : null}
     </>
   );

@@ -135,6 +135,14 @@ pub async fn auth_sign_out<R: Runtime>(app: AppHandle<R>) -> Result<Standing, St
         (state.config.clone(), access)
     };
 
+    // Everything here was sent to an account this machine is no longer signed
+    // in to. Leaving the stamps would mean that whoever signs in next
+    // inherits "already sent" for notes their account has never seen.
+    if let Some(store) = app.try_state::<crate::store::Store>() {
+        let connection = store.0.lock().unwrap_or_else(|p| p.into_inner());
+        let _ = crate::store::notes::forget_sync_state(&connection);
+    }
+
     // The keychain first. If the network call below fails, the token is
     // already gone from this machine — a sign-out that leaves somebody signed
     // in because the wifi was down is not a sign-out.

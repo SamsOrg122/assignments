@@ -9,6 +9,7 @@ mod auth;
 mod commands;
 mod config_check;
 mod store;
+mod sync;
 mod tray;
 mod visibility;
 mod window;
@@ -84,6 +85,8 @@ pub fn run() {
             commands::note_delete,
             commands::note_restore,
             commands::store_path,
+            commands::sync_standing,
+            commands::sync_now,
             commands::hide_window,
             commands::ready_to_quit,
             auth::commands::auth_standing,
@@ -110,6 +113,7 @@ pub fn run() {
             tray::build(&handle)?;
 
             app.manage(auth::Auth::default());
+            sync::keep_in_step(&handle);
             wake_up_the_account(&handle);
 
             // The browser comes back through here. On Windows and Linux the
@@ -130,6 +134,10 @@ pub fn run() {
                         match auth::commands::finish(&app, link.as_str()).await {
                             Ok(standing) => {
                                 let _ = app.emit(SIGNED_IN_EVENT, standing);
+                                // Everything written before signing in is
+                                // waiting; send it now rather than at the
+                                // next beat.
+                                sync::nudge(&app);
                                 // Sign-in happened in the browser, so the note
                                 // window is behind it. Bring it back, or the
                                 // user is left looking at a web page wondering
@@ -254,6 +262,7 @@ fn wake_up_the_account<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
                 Ok(session) => {
                     if let Ok(standing) = auth::adopt(&app, session) {
                         let _ = app.emit(SIGNED_IN_EVENT, standing);
+                        sync::nudge(&app);
                     }
                 }
                 Err(_) => {

@@ -408,3 +408,9 @@ textarea::placeholder {
   color: var(--fg-muted);
   font-size: 11px;
 }
+
+/* Something is waiting or unreachable. Not an error — the note is safe on
+   this computer either way — so it reads as a state, not a fault. */
+.foot .warn {
+  color: #ffcc80;
+}

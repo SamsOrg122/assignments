@@ -46,6 +46,9 @@ keyring = { version = "3", features = ["apple-native", "windows-native", "sync-s
 sha2 = "0.10"
 base64 = "0.22"
 url = "2"
+# The async runtime Tauri already runs on, named here so the sync loop can use
+# its timer and its channel rather than a thread and a mutex.
+tokio = { version = "1", features = ["time", "sync"] }
 getrandom = "0.3"
 tauri-plugin-deep-link = "2"
 

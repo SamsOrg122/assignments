@@ -41,6 +41,7 @@ import { ImportZone, openImportPicker } from "@/components/library/ImportZone";
 import { ReturnedNotes } from "@/components/library/ReturnedNotes";
 import { SaveWarning } from "@/components/library/SaveWarning";
 import { WhereIsMyWork } from "@/components/library/WhereIsMyWork";
+import { DesktopNotes } from "@/components/library/DesktopNotes";
 
 type Sort = "recent" | "name" | "kind";
 
@@ -202,6 +203,11 @@ export default function LibraryPage() {
 
           {/* Notes left through a comment link while nobody was here. */}
           <ReturnedNotes />
+
+          {/* What the floating desktop note has put in this account. Renders
+              nothing at all when there are none, which is everybody who has
+              not installed it. */}
+          <DesktopNotes />
 
           {/* Listens on the window, so a folder can be dropped anywhere on
               this page rather than onto a target somebody has to find. */}

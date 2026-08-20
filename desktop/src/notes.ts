@@ -49,3 +49,18 @@ export function previewOf(note: Note): string {
     .trim()
     .slice(0, 120);
 }
+
+/* ── Sync ─────────────────────────────────────────────────────────────── */
+
+export interface SyncStanding {
+  /** Notes written here that the account has not been told about yet. */
+  waiting: number;
+  /** When the last round finished, in milliseconds. Zero if never. */
+  at: number;
+  /** Why the last round did not finish, if it did not. */
+  problem: string | null;
+  running: boolean;
+}
+
+export const syncStanding = () => invoke<SyncStanding>("sync_standing");
+export const syncNow = () => invoke<SyncStanding>("sync_now");

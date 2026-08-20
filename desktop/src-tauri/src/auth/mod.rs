@@ -155,7 +155,26 @@ pub fn adopt<R: tauri::Runtime>(
     // refuse now and say why.
     keychain::store(&session.refresh_token)?;
 
+    // A different person than last time. Everything on this machine was
+    // marked as "already sent" to somebody else's account, which is not the
+    // same as having been sent to this one — so the stamps go and the whole
+    // lot is queued again.
     let auth = app.state::<Auth>();
+    let switched = {
+        let state = auth.0.lock().unwrap_or_else(|p| p.into_inner());
+        state
+            .session
+            .as_ref()
+            .map(|s| s.user.id != session.user.id)
+            .unwrap_or(false)
+    };
+    if switched {
+        if let Some(store) = app.try_state::<crate::store::Store>() {
+            let connection = store.0.lock().unwrap_or_else(|p| p.into_inner());
+            let _ = crate::store::notes::forget_sync_state(&connection);
+        }
+    }
+
     {
         let mut state = auth.0.lock().unwrap_or_else(|p| p.into_inner());
         state.expires_at = expiry_from(session.expires_in);

@@ -128,6 +128,10 @@ jobs:
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
+    env:
+      # Whether there is anything to sign with. Evaluated here because a step
+      # `if:` cannot reach the secrets context directly.
+      HAS_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -161,6 +165,53 @@ jobs:
 
       - run: npm ci
 
+      # ── Signing ──────────────────────────────────────────────────────
+      #
+      # Off, and this is how it stays off *safely*.
+      #
+      # The first version of this file passed `APPLE_CERTIFICATE:
+      # ${{ secrets.APPLE_CERTIFICATE }}` straight to the build. With no such
+      # secret that resolves to an empty string — and an empty variable is not
+      # an absent one. Tauri saw it, tried to import a certificate made of
+      # nothing, and both macOS bundles died at the codesign step while Linux
+      # and Windows sailed past. "Wired but inert" has to mean genuinely
+      # unset.
+      #
+      # So the values are only put into the environment when they exist. The
+      # day the secrets are added, signing starts happening and nothing here
+      # changes. Notarising additionally needs the hardened runtime, which
+      # needs an entitlements file — `bundle.macOS.entitlements` is the slot,
+      # and a test asserts it is still there.
+      #
+      # Windows is simpler and needs nothing here: signing is driven by
+      # `bundle.windows.certificateThumbprint` in tauri.conf.json, which is
+      # present and null, next to a timestamp URL that is already set — a
+      # signed build with no timestamp stops validating the day the
+      # certificate expires. Fill the thumbprint in and install the
+      # certificate on the runner and it signs.
+      - name: Signing certificate, if there is one
+        if: runner.os == 'macOS' && env.HAS_APPLE_CERTIFICATE == 'true'
+        env:
+          CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          ID: ${{ secrets.APPLE_ID }}
+          APP_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Heredoc form, because a base64 certificate is long and the
+          # single-line form would break on any newline inside it.
+          {
+            echo "APPLE_CERTIFICATE<<TOUGATHER_EOF"
+            echo "$CERTIFICATE"
+            echo "TOUGATHER_EOF"
+            echo "APPLE_CERTIFICATE_PASSWORD=$CERTIFICATE_PASSWORD"
+            echo "APPLE_SIGNING_IDENTITY=$SIGNING_IDENTITY"
+            echo "APPLE_ID=$ID"
+            echo "APPLE_PASSWORD=$APP_PASSWORD"
+            echo "APPLE_TEAM_ID=$TEAM_ID"
+          } >> "$GITHUB_ENV"
+
       - name: Build
         run: npm run tauri -- build --target ${{ matrix.target }}
         env:
@@ -168,31 +219,6 @@ jobs:
           # `auth::site()`, so a staging build is an input rather than a code
           # change. Unset falls back to https://tougather.com.
           TOUGATHER_SITE: ${{ vars.TOUGATHER_SITE }}
-
-          # ── Signing ────────────────────────────────────────────────────
-          #
-          # Deliberately unset, and wired anyway. An unsigned macOS build is
-          # called damaged unless it is opened through right-click → Open, and
-          # Windows SmartScreen warns; that is the accepted cost for now.
-          #
-          # Turning it on is adding the secrets, not editing this file:
-          #
-          #   macOS  APPLE_CERTIFICATE            base64 of a .p12
-          #          APPLE_CERTIFICATE_PASSWORD   its password
-          #          APPLE_SIGNING_IDENTITY       "Developer ID Application: …"
-          #          APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID  for notarising
-          #   Windows  WINDOWS_CERTIFICATE and WINDOWS_CERTIFICATE_PASSWORD,
-          #          plus `bundle.windows.certificateThumbprint` in
-          #          tauri.conf.json, which is already there waiting.
-          #
-          # Notarising also needs the hardened runtime, which needs an
-          # entitlements file — `bundle.macOS.entitlements` is the slot.
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       # Everything installable, under a name that says which platform it is —
       # four artifacts called "bundle" would be four things nobody can tell

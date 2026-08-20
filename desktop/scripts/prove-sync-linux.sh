@@ -64,6 +64,15 @@ for tool in Xvfb xdotool node python3 dbus-launch gnome-keyring-daemon; do
 done
 [ -x "$BIN" ] || { echo "no debug build — see the header"; exit 1; }
 
+
+# A dev build points the webview at the dev server. Without it the window is
+# a connection error, every click lands on nothing, and the failure reads as
+# "sign-in broke" — which is how this line earned its place.
+if ! curl -sf --noproxy '*' -o /dev/null http://localhost:1420/; then
+  echo "starting the dev server…"
+  nohup npm run dev > /tmp/tougather-vite.log 2>&1 &
+  for _ in $(seq 1 30); do curl -sf --noproxy '*' -o /dev/null http://localhost:1420/ && break; sleep 1; done
+fi
 echo "starting the stand-in, a display and a keychain…"
 rm -f /tmp/stub-seen.json /tmp/stub-notes.json "$STORE" "$STORE-wal" "$STORE-shm"
 
@@ -186,6 +195,39 @@ if [ "$(up_there 'typed on this machine')" = "no" ]; then
   ok "deleting it here deletes it in the account"
 else
   bad "the deletion never travelled — it would come back at the next sync"
+fi
+
+# --- A dropped file reaches the account ---------------------------------
+#
+# The drop itself is native (the OS hands Rust a path) and no tool here can
+# fake an OS drag. What can be proven is everything after the catch: a file
+# in the local store is found by the sync loop, encoded, sent, and accepted.
+# So one is placed exactly as the drop handler would place it, and the app
+# restarts to pick it up.
+for p in $(ps -eo pid,comm | grep "[t]ougather" | awk '{print $1}'); do kill "$p" 2>/dev/null; done
+sleep 3
+python3 -c "
+import sqlite3, time
+c = sqlite3.connect('$STORE')
+c.execute('insert into files (id, name, mime, content, size, updated_at) values (?,?,?,?,?,?)',
+          ('DropProof1', 'brief.pdf', 'application/pdf', b'%PDF-1.4 not really', 19, int(time.time()*1000)))
+c.commit()
+"
+nohup "$BIN" > /tmp/tougather-app.log 2>&1 &
+sleep 18
+landed="$(python3 -c "
+import json, base64
+try:
+    f = json.load(open('/tmp/stub-files.json')).get('DropProof1')
+    ok = f and f['name'] == 'brief.pdf' and base64.b64decode(f['content_b64']) == b'%PDF-1.4 not really'
+    print('yes' if ok else 'no')
+except Exception:
+    print('no')
+")"
+if [ "$landed" = "yes" ]; then
+  ok "a file in the store reaches the account, bytes intact"
+else
+  bad "the dropped file never went up, or arrived corrupted"
 fi
 
 echo

@@ -83,6 +83,7 @@ pub async fn once<R: Runtime>(app: &AppHandle<R>) -> Result<bool, String> {
         .map_err(|e| format!("could not start the network client: {e}"))?;
 
     push(app, &client, &config, &token).await?;
+    push_files(app, &client, &config, &token).await?;
     pull(app, &client, &config, &token).await
 }
 
@@ -142,6 +143,60 @@ async fn push<R: Runtime>(
     let connection = store.0.lock().unwrap_or_else(|p| p.into_inner());
     for note in &pending {
         notes::mark_sent(&connection, &note.id, note.updated_at)?;
+    }
+    Ok(())
+}
+
+/// Send dropped files up, one at a time.
+///
+/// One at a time rather than batched, unlike notes: a file is megabytes
+/// where a note is bytes, and a batch where one file trips the account's
+/// size cap would fail all of them with an error naming none.
+async fn push_files<R: Runtime>(
+    app: &AppHandle<R>,
+    client: &reqwest::Client,
+    config: &Config,
+    token: &str,
+) -> Result<(), String> {
+    use base64::Engine;
+
+    let pending = {
+        let store = app.state::<Store>();
+        let connection = store.0.lock().unwrap_or_else(|p| p.into_inner());
+        crate::store::files::unsent(&connection)?
+    };
+
+    for file in pending {
+        let body = serde_json::json!({
+            "id": file.id,
+            "name": file.name,
+            "mime": file.mime,
+            "size": file.content.len(),
+            "content_b64": base64::engine::general_purpose::STANDARD.encode(&file.content),
+            "updated_at": as_timestamp(file.updated_at),
+            "deleted_at": null,
+        });
+        let response = client
+            .post(format!(
+                "{}/rest/v1/kit_files",
+                config.url.trim_end_matches('/')
+            ))
+            .header("apikey", &config.anon_key)
+            .bearer_auth(token)
+            .header("Content-Type", "application/json")
+            .header("Prefer", "resolution=merge-duplicates,return=minimal")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Could not reach your account: {e}"))?;
+
+        if !response.status().is_success() {
+            return Err(refusal(response).await);
+        }
+
+        let store = app.state::<Store>();
+        let connection = store.0.lock().unwrap_or_else(|p| p.into_inner());
+        crate::store::files::mark_sent(&connection, &file.id, file.updated_at)?;
     }
     Ok(())
 }
@@ -287,7 +342,8 @@ pub fn standing<R: Runtime>(app: &AppHandle<R>, at: i64, problem: Option<String>
     let store = app.state::<Store>();
     let connection = store.0.lock().unwrap_or_else(|p| p.into_inner());
     Standing {
-        waiting: notes::waiting(&connection).unwrap_or(0),
+        waiting: notes::waiting(&connection).unwrap_or(0)
+            + crate::store::files::waiting(&connection).unwrap_or(0),
         at,
         problem,
         running: false,

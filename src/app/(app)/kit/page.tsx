@@ -23,6 +23,12 @@ import {
   type KitFont,
 } from "@/lib/kit";
 import { pickImage } from "@/lib/images";
+import {
+  accountFileData,
+  deleteAccountFile,
+  listAccountFiles,
+  type AccountFile,
+} from "@/lib/kit/account";
 import { useUI } from "@/lib/ui-store";
 import { BLOCK_META } from "@/components/shell/CommandPalette";
 import { cn } from "@/lib/cn";
@@ -34,6 +40,7 @@ export default function KitPage() {
   const notify = useUI((s) => s.notify);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [fromAccount, setFromAccount] = useState<AccountFile[]>([]);
   const fontRef = useRef<HTMLInputElement>(null);
   const anyRef = useRef<HTMLInputElement>(null);
   const guardRef = useRef<(work: () => Promise<unknown>) => Promise<void>>(
@@ -46,6 +53,19 @@ export default function KitPage() {
   const pieces = assets.filter((a) => a.kind === "piece");
   const files = assets.filter((a) => a.kind === "file");
   const total = assets.reduce((n, a) => n + a.bytes, 0);
+
+  useEffect(() => {
+    // Quiet when it fails: most deployments without the migration, and every
+    // signed-out browser, simply have no account shelf — an alarm about that
+    // would be noise on a page that works fine without it.
+    let alive = true;
+    listAccountFiles()
+      .then((files) => alive && setFromAccount(files))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   /*
    * The drop. Listens on the window rather than on a target somebody has to
@@ -323,6 +343,59 @@ export default function KitPage() {
               </ul>
             )}
           </Section>
+
+          {fromAccount.length > 0 ? (
+            <Section
+              title="From your desktop"
+              hint="Dropped on the floating note, kept in your account, here on every machine."
+            >
+              <ul className="space-y-1.5">
+                {fromAccount.map((file) => (
+                  <li
+                    key={file.id}
+                    className="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface px-3 py-2.5"
+                  >
+                    <Icon name="download" size={13} className="shrink-0 text-fg-subtle" />
+                    <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">
+                      {file.name}
+                    </span>
+                    <span className="shrink-0 font-mono text-[10px] text-fg-subtle">
+                      {formatBytes(file.size)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void accountFileData(file).then((data) => {
+                          const a = document.createElement("a");
+                          a.href = data;
+                          a.download = file.name;
+                          a.click();
+                        }).catch(() => notify("Couldn't fetch that file."))
+                      }
+                      className="shrink-0 rounded-xs p-1 text-fg-subtle transition-colors hover:text-fg"
+                      aria-label={`Download ${file.name}`}
+                    >
+                      <Icon name="download" size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void deleteAccountFile(file.id)
+                          .then(() =>
+                            setFromAccount((all) => all.filter((f) => f.id !== file.id)),
+                          )
+                          .catch(() => notify("Couldn't delete that file."))
+                      }
+                      className="shrink-0 rounded-xs p-1 text-fg-subtle transition-colors hover:text-danger"
+                      aria-label={`Delete ${file.name}`}
+                    >
+                      <Icon name="trash" size={12} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
 
           <Section
             title="Pieces"

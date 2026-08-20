@@ -12,6 +12,7 @@
 //! SQLite's write-ahead log makes a half-finished write recoverable, which is
 //! the only durability property that actually matters here.
 
+pub mod files;
 pub mod notes;
 pub mod settings;
 
@@ -58,6 +59,20 @@ const MIGRATIONS: &[&str] = &[
     "create table settings (
         key   text primary key,
         value text not null
+     );",
+    // 3
+    "create table files (
+        id         text primary key,
+        name       text not null,
+        mime       text not null default '',
+        -- The bytes themselves. A note store that holds files sounds odd
+        -- until you remember what this is for: something dropped on the
+        -- window on a train has to be *kept* before it can be sent.
+        content    blob not null,
+        size       integer not null,
+        updated_at integer not null,
+        deleted_at integer,
+        synced_at  integer
      );",
 ];
 

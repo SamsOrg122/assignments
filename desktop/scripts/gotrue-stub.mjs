@@ -17,6 +17,7 @@ import { writeFileSync } from "node:fs";
 const PORT = Number(process.env.STUB_PORT ?? 4599);
 const seen = [];
 /** Notes, as the account would hold them. Seeded by the test if it likes. */
+const kitFiles = {};
 const notes = (() => {
   try { return JSON.parse(process.env.STUB_NOTES ?? "{}"); } catch { return {}; }
 })();
@@ -62,6 +63,23 @@ createServer((req, res) => {
     }
 
     if (url.pathname === "/auth/v1/logout") return say(204, {});
+
+    if (url.pathname === "/rest/v1/kit_files") {
+      if (!req.headers.authorization?.startsWith("Bearer "))
+        return say(401, { message: "no token was sent" });
+      if (req.method === "POST") {
+        let sent = {};
+        try { sent = JSON.parse(body || "{}"); } catch { return say(400, { message: "unreadable" }); }
+        if (!/^[A-Za-z0-9_-]{8,64}$/.test(sent.id ?? ""))
+          return say(400, { message: `an id the column would refuse: ${sent.id}` });
+        if ((sent.content_b64 ?? "").length > 12000000)
+          return say(400, { message: "over the size cap" });
+        kitFiles[sent.id] = sent;
+        writeFileSync("/tmp/stub-files.json", JSON.stringify(kitFiles, null, 2));
+        return say(201, {});
+      }
+      return say(405, { message: "not a method this stub knows" });
+    }
 
     if (url.pathname === "/rest/v1/notes") {
       if (!req.headers.authorization?.startsWith("Bearer "))

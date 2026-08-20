@@ -178,12 +178,36 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Closing the window would destroy the webview and everything
-            // half-typed in it. A note is put away, not shut down; quitting is
-            // the tray's job, where it is spelled out.
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                visibility::hide(window.app_handle());
+            match event {
+                // Closing the window would destroy the webview and everything
+                // half-typed in it. A note is put away, not shut down;
+                // quitting is the tray's job, where it is spelled out.
+                WindowEvent::CloseRequested { api, .. } => {
+                    api.prevent_close();
+                    visibility::hide(window.app_handle());
+                }
+                // Files dropped on the window. Handled here, natively — the
+                // OS hands over *paths*, so the bytes are read straight from
+                // disk without a webview File round-trip, and the note is a
+                // dropbox whether or not the page inside has any idea.
+                WindowEvent::DragDrop(drag) => {
+                    use tauri::DragDropEvent;
+                    let app = window.app_handle();
+                    match drag {
+                        DragDropEvent::Enter { .. } | DragDropEvent::Over { .. } => {
+                            let _ = app.emit(DROP_OVER_EVENT, true);
+                        }
+                        DragDropEvent::Leave => {
+                            let _ = app.emit(DROP_OVER_EVENT, false);
+                        }
+                        DragDropEvent::Drop { paths, .. } => {
+                            let _ = app.emit(DROP_OVER_EVENT, false);
+                            take_dropped_files(app, paths);
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
             }
         })
         .build(tauri::generate_context!())
@@ -236,6 +260,65 @@ fn ask_the_window_to_flush<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 
 /// What the window listens for when it is about to be shut.
 pub const FLUSH_EVENT: &str = "note:flush";
+
+/// A drag is over the window (true) or has left it (false).
+pub const DROP_OVER_EVENT: &str = "drop:over";
+/// A dropped file was kept; payload is its name.
+pub const DROP_KEPT_EVENT: &str = "drop:kept";
+/// A dropped file was refused; payload says why.
+pub const DROP_REFUSED_EVENT: &str = "drop:refused";
+
+/// Read what was dropped and keep it, file by file.
+///
+/// Each file is its own success or its own refusal — a folder of six where
+/// one is oversized must keep the five and name the one, not bounce the lot.
+fn take_dropped_files<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: &[std::path::PathBuf]) {
+    for path in paths {
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "file".into());
+        let kept = std::fs::read(path)
+            .map_err(|e| format!("Couldn't read {name}: {e}"))
+            .and_then(|content| {
+                let mime = mime_of(&name);
+                let store = app.state::<store::Store>();
+                let connection = store.0.lock().unwrap_or_else(|p| p.into_inner());
+                store::files::keep(&connection, &name, mime, &content)
+            });
+        match kept {
+            Ok(file) => {
+                let _ = app.emit(DROP_KEPT_EVENT, file.name);
+            }
+            Err(why) => {
+                eprintln!("Tougather note: {why}");
+                let _ = app.emit(DROP_REFUSED_EVENT, why);
+            }
+        }
+    }
+    sync::nudge(app);
+}
+
+/// A mime from the extension: enough for the library to sort by, and honest
+/// as an empty string when the extension says nothing.
+fn mime_of(name: &str) -> &'static str {
+    let ext = name.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+    match ext.as_str() {
+        "pdf" => "application/pdf",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        "webp" => "image/webp",
+        "txt" | "md" => "text/plain",
+        "csv" => "text/csv",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "zip" => "application/zip",
+        _ => "",
+    }
+}
 
 /// Sign-in finished in the browser and came back through the deep link.
 pub const SIGNED_IN_EVENT: &str = "auth:signed-in";

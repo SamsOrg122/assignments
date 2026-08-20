@@ -21,6 +21,7 @@ import { when } from "./when";
 import { HOTKEY_LABEL } from "./platform";
 import { signOut, standing as readStanding, type Standing } from "./auth";
 import { SignIn } from "./SignIn";
+import { StatusPill, type Flash } from "./StatusPill";
 import { Connection } from "./Connection";
 
 type Status =
@@ -50,6 +51,8 @@ export function App() {
   const [account, setAccount] = useState<Standing | null>(null);
   const [sync, setSync] = useState<SyncStanding | null>(null);
   const [showConnection, setShowConnection] = useState(false);
+  const [dropping, setDropping] = useState(false);
+  const [flash, setFlash] = useState<Flash | null>(null);
 
   const box = useRef<HTMLTextAreaElement>(null);
   // The id the pending write belongs to. Switching notes flushes first, but a
@@ -150,6 +153,25 @@ export function App() {
     // rather than a re-subscription. Leaving it out would be claiming a
     // guarantee about another module's internals from this one.
   }, [pending]);
+
+  useEffect(() => {
+    // Dropped files are taken natively — the OS hands Rust the paths — so
+    // the window only hears about it afterwards. The halo says "yes, here";
+    // the pill says what happened.
+    let flashes = 0;
+    const over = listen<boolean>("drop:over", (event) => setDropping(event.payload));
+    const kept = listen<string>("drop:kept", (event) =>
+      setFlash({ id: ++flashes, tone: "green", label: `Kept ${event.payload}` }),
+    );
+    const refused = listen<string>("drop:refused", (event) =>
+      setFlash({ id: ++flashes, tone: "red", label: event.payload }),
+    );
+    return () => {
+      void over.then((off) => off());
+      void kept.then((off) => off());
+      void refused.then((off) => off());
+    };
+  }, []);
 
   useEffect(() => {
     // Rust does the signing in, so it is Rust that knows when it finished —
@@ -346,6 +368,19 @@ export function App() {
         </button>
       </header>
 
+      <StatusPill
+        saving={status.kind === "saving"}
+        failed={status.kind === "failed" ? status.why : null}
+        sync={sync}
+        flash={flash}
+      />
+
+      {dropping ? (
+        <div className="drop-halo" aria-hidden>
+          <p>Drop to keep it in your library</p>
+        </div>
+      ) : null}
+
       {workingAlone && !showConnection ? (
         <p className="banner">
           <span className="banner-text">{workingAlone}</span>
@@ -395,7 +430,7 @@ export function App() {
           ))}
         </ul>
       ) : (
-        <label className="write">
+        <label className="write note-enter" key={activeId ?? "none"}>
           <span className="sr-only">Note</span>
           <textarea
             ref={box}

@@ -900,3 +900,37 @@ create policy agenda_tasks_own on public.agenda_tasks
     (workspace_id is null and owner_id = auth.uid())
     or (workspace_id is not null and public.is_member(workspace_id))
   );
+
+-- ── Dropped files ─────────────────────────────────────────────────────────
+--
+-- Any file dropped on the desktop note, so it is in the library everywhere.
+-- Base64 in a capped text column; when somebody needs videos, object storage
+-- is the upgrade and the cap keeps that decision honest.
+
+create table if not exists public.kit_files (
+  id          text primary key
+              check (id ~ '^[A-Za-z0-9_-]{8,64}$'),
+  owner_id    uuid not null default auth.uid()
+              references public.profiles(id) on delete cascade,
+  name        text not null,
+  mime        text not null default '',
+  size        integer not null check (size > 0),
+  -- Base64 of the bytes. The cap is ~8 MB of raw file, encoded; the desktop
+  -- app refuses bigger files at the drop, where the person can see it, and
+  -- this check is the backstop for any other client.
+  content_b64 text not null check (length(content_b64) <= 12000000),
+  updated_at  timestamptz not null,
+  deleted_at  timestamptz,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists kit_files_owner_idx
+  on public.kit_files(owner_id, updated_at desc);
+
+alter table public.kit_files enable row level security;
+
+drop policy if exists kit_files_own on public.kit_files;
+create policy kit_files_own on public.kit_files
+  for all
+  using (owner_id = auth.uid())
+  with check (owner_id = auth.uid());

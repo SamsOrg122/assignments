@@ -69,6 +69,15 @@ command -v gnome-keyring-daemon > /dev/null || {
   exit 1
 }
 
+
+# A dev build points the webview at the dev server. Without it the window is
+# a connection error, every click lands on nothing, and the failure reads as
+# "sign-in broke" — which is how this line earned its place.
+if ! curl -sf --noproxy '*' -o /dev/null http://localhost:1420/; then
+  echo "starting the dev server…"
+  nohup npm run dev > /tmp/tougather-vite.log 2>&1 &
+  for _ in $(seq 1 30); do curl -sf --noproxy '*' -o /dev/null http://localhost:1420/ && break; sleep 1; done
+fi
 echo "starting the stand-in, a display, and a keychain…"
 rm -f "$SEEN" "$STORE" "$STORE-wal" "$STORE-shm"
 STUB_PORT=$STUB_PORT nohup node scripts/gotrue-stub.mjs > /tmp/tougather-stub.log 2>&1 &

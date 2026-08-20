@@ -16,6 +16,7 @@ import { cn } from "@/lib/cn";
 export interface Draft {
   id?: string;
   title: string;
+  scope?: "personal" | "team";
   day: string;
   start: number;
   end: number;
@@ -36,6 +37,7 @@ export function draftFrom(event: AgendaEvent): Draft {
     location: event.location ?? "",
     notes: event.notes ?? "",
     repeat: event.repeat,
+    scope: event.scope ?? "personal",
   };
 }
 
@@ -46,11 +48,13 @@ const toMinutes = (value: string): number => {
 
 export function EventEditor({
   draft: given,
+  hasTeam = false,
   onSave,
   onDelete,
   onClose,
 }: {
   draft: Draft;
+  hasTeam?: boolean;
   onSave: (draft: Draft) => void;
   onDelete?: () => void;
   onClose: () => void;
@@ -157,6 +161,35 @@ export function EventEditor({
             Every week
           </label>
         </div>
+
+        {/* Which calendar it lives on. Moving an event between them is how
+            "keep these separate" and "share this one" are both true. Only
+            offered when there is a team to put it on. */}
+        {hasTeam ? (
+          <div
+            className="mt-3 flex rounded-sm border border-line p-0.5"
+            role="radiogroup"
+            aria-label="Whose agenda"
+          >
+            {(["personal", "team"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                role="radio"
+                aria-checked={(draft.scope ?? "personal") === option}
+                onClick={() => put("scope", option)}
+                className={cn(
+                  "flex-1 rounded-xs px-2 py-1 text-[11.5px] capitalize transition-colors",
+                  (draft.scope ?? "personal") === option
+                    ? "bg-surface-3 text-fg"
+                    : "text-fg-muted hover:text-fg",
+                )}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <input
           value={draft.location}

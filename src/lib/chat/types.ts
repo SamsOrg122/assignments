@@ -30,6 +30,12 @@ export type ChannelAccess = "open" | "closed";
 export interface Channel {
   id: string;
   kind: ChannelKind;
+  /**
+   * Whose channel this is. Absent means personal — chats existed before
+   * teams did, and a solo user's chats must not vanish behind a team gate
+   * they cannot open.
+   */
+  scope?: "personal" | "team";
   /** Channels have names; DMs derive theirs from members. */
   name: string;
   topic?: string;

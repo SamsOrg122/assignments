@@ -38,6 +38,7 @@ export const EN = {
   "nav.search": "Search…",
   "nav.projects": "Projects",
   "nav.channels": "Channels",
+  "nav.chats": "Chats",
   "nav.dms": "Direct messages",
   "nav.assistant": "Team assistant",
   "nav.newProject": "New",

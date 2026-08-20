@@ -17,6 +17,8 @@
 export interface AgendaEvent {
   id: string;
   title: string;
+  /** Whose calendar this is on. Absent in old data means personal. */
+  scope?: "personal" | "team";
   /** The day it happens — for a repeating event, the first day. */
   day: DayKey;
   /** Minutes from midnight. */
@@ -33,6 +35,23 @@ export interface AgendaEvent {
 
 /** `YYYY-MM-DD`. Sorts correctly as a string, which the views lean on. */
 export type DayKey = string;
+
+/**
+ * A thing to do on a day, with no time attached.
+ *
+ * Deliberately not an event with `start === end`: a task has a `done` state
+ * and no duration, an event has a duration and no done state, and merging
+ * them means every view has to keep telling them apart. Two small types beat
+ * one type with two moods.
+ */
+export interface AgendaTask {
+  id: string;
+  title: string;
+  day: DayKey;
+  done: boolean;
+  scope?: "personal" | "team";
+  updatedAt: number;
+}
 
 export const COLORS = [
   "slate",

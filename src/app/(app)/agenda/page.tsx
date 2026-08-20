@@ -20,12 +20,17 @@ import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 import {
   createEvent,
+  createTask,
   deleteEvent,
+  deleteTask,
   hydrateAgenda,
   pullAgenda,
+  toggleTask,
   updateEvent,
   useAgenda,
 } from "@/lib/agenda";
+import { parseQuick } from "@/lib/agenda/quick";
+import { hydrateScope, useHasTeam, useScope } from "@/lib/scope";
 import {
   addDays,
   clock,
@@ -38,6 +43,7 @@ import {
   snap,
   weekOf,
   type AgendaEvent,
+  type AgendaTask,
   type DayKey,
 } from "@/lib/agenda/model";
 import { blockStyle } from "@/components/agenda/palette";
@@ -55,17 +61,51 @@ const HOUR = 52;
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function AgendaPage() {
-  const events = useAgenda((s) => s.events);
+  const allEvents = useAgenda((s) => s.events);
+  const allTasks = useAgenda((s) => s.tasks);
   const problem = useAgenda((s) => s.problem);
+  const chosen = useScope((s) => s.scope);
+  const setScope = useScope((s) => s.setScope);
+  const hasTeam = useHasTeam();
+  // Without a team there is no team agenda, so the switch upstairs cannot
+  // empty this page — "you don't even have that option" includes not having
+  // the empty calendar behind it.
+  const scope = hasTeam ? chosen : "personal";
 
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<DayKey>(() => keyOf(new Date()));
   const [editing, setEditing] = useState<Draft | null>(null);
+  const [showBoth, setShowBoth] = useState(false);
+  const [quick, setQuick] = useState("");
 
   useEffect(() => {
     hydrateAgenda();
+    hydrateScope();
     void pullAgenda();
   }, []);
+
+  /*
+   * Which calendar is on the grid.
+   *
+   * The switch picks one; "both" overlays the other at reduced strength so a
+   * clash between your dentist and the team's standup is visible without the
+   * two agendas bleeding into one. Without a team there is nothing to
+   * overlay and the whole apparatus stays out of the way.
+   */
+  const events = useMemo(
+    () =>
+      showBoth && hasTeam
+        ? allEvents
+        : allEvents.filter((e) => (e.scope ?? "personal") === scope),
+    [allEvents, scope, showBoth, hasTeam],
+  );
+  const tasks = useMemo(
+    () =>
+      showBoth && hasTeam
+        ? allTasks
+        : allTasks.filter((t) => (t.scope ?? "personal") === scope),
+    [allTasks, scope, showBoth, hasTeam],
+  );
 
   const today = keyOf(new Date());
   const days = useMemo(
@@ -100,12 +140,13 @@ export default function AgendaPage() {
       location: "",
       notes: "",
       repeat: "none",
+      scope,
     });
   };
 
   const save = (draft: Draft) => {
     if (draft.id) {
-      const was = events.find((e) => e.id === draft.id);
+      const was = allEvents.find((e) => e.id === draft.id);
       if (was)
         updateEvent({
           ...was,
@@ -117,6 +158,7 @@ export default function AgendaPage() {
           location: draft.location.trim() || undefined,
           notes: draft.notes.trim() || undefined,
           repeat: draft.repeat,
+          scope: draft.scope,
         });
     } else {
       createEvent({
@@ -128,6 +170,7 @@ export default function AgendaPage() {
         location: draft.location.trim() || undefined,
         notes: draft.notes.trim() || undefined,
         repeat: draft.repeat,
+        scope: draft.scope,
       });
     }
     setEditing(null);
@@ -173,6 +216,75 @@ export default function AgendaPage() {
             </button>
           </div>
 
+          {/* Quick add. A time makes an event, no time makes a task — the
+              parser's rule, stated in the placeholder by example. */}
+          <form
+            className="min-w-0 flex-1 basis-48"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const parsed = parseQuick(quick);
+              if (!parsed) return;
+              if (parsed.kind === "task") {
+                createTask({ title: parsed.title, day: parsed.day, scope });
+              } else {
+                createEvent({
+                  title: parsed.title,
+                  day: parsed.day,
+                  start: parsed.start,
+                  end: parsed.end,
+                  color: "slate",
+                  repeat: parsed.repeat,
+                  scope,
+                });
+              }
+              setQuick("");
+            }}
+          >
+            <input
+              value={quick}
+              onChange={(e) => setQuick(e.target.value)}
+              placeholder={'Quick add — "wiskunde ma 9:30-11" or "morgen afwassen"'}
+              aria-label="Quick add"
+              className="w-full rounded-sm border border-line bg-surface px-2.5 py-1.5 text-[12px] text-fg outline-none placeholder:text-fg-subtle focus:border-accent"
+            />
+          </form>
+
+          {hasTeam ? (
+            <div className="flex items-center gap-1.5">
+              <div
+                className="flex rounded-sm border border-line p-0.5"
+                role="tablist"
+                aria-label="Whose agenda"
+              >
+                {(["personal", "team"] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="tab"
+                    aria-selected={scope === option}
+                    onClick={() => setScope(option)}
+                    className={cn(
+                      "rounded-xs px-2 py-1 text-[11.5px] capitalize transition-colors",
+                      scope === option
+                        ? "bg-surface-3 text-fg"
+                        : "text-fg-muted hover:text-fg",
+                    )}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+              <label className="flex items-center gap-1 text-[11px] text-fg-muted">
+                <input
+                  type="checkbox"
+                  checked={showBoth}
+                  onChange={(e) => setShowBoth(e.target.checked)}
+                />
+                both
+              </label>
+            </div>
+          ) : null}
+
           {problem ? (
             <span className="min-w-0 truncate text-[11px] text-warn">{problem}</span>
           ) : null}
@@ -214,6 +326,8 @@ export default function AgendaPage() {
             days={days}
             today={today}
             events={events}
+            tasks={tasks}
+            scope={scope}
             onCreate={startNew}
             onEdit={(event) => setEditing(draftFrom(event))}
           />
@@ -223,6 +337,7 @@ export default function AgendaPage() {
       {editing ? (
         <EventEditor
           draft={editing}
+          hasTeam={hasTeam}
           onSave={save}
           onClose={() => setEditing(null)}
           onDelete={
@@ -245,12 +360,16 @@ function TimeGrid({
   days,
   today,
   events,
+  tasks,
+  scope,
   onCreate,
   onEdit,
 }: {
   days: DayKey[];
   today: DayKey;
   events: AgendaEvent[];
+  tasks: AgendaTask[];
+  scope: "personal" | "team";
   onCreate: (day: DayKey, minute: number) => void;
   onEdit: (event: AgendaEvent) => void;
 }) {
@@ -279,6 +398,55 @@ function TimeGrid({
               <span className={cn("text-[11.5px]", day === today ? "font-medium text-accent" : "text-fg-muted")}>
                 {DAY_NAMES[(date.getDay() + 6) % 7]} {date.getDate()}
               </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* The day's tasks, above the hours: things to do that have no time.
+          Ticking one is the whole interaction, so it happens here, not in an
+          editor. */}
+      <div
+        className="grid border-b border-line pr-2"
+        style={{ gridTemplateColumns: `48px repeat(${days.length}, 1fr)` }}
+      >
+        <span className="self-center pr-2 text-right text-[9.5px] uppercase tracking-wide text-fg-subtle">
+          tasks
+        </span>
+        {days.map((day) => {
+          const here = tasks
+            .filter((task) => task.day === day)
+            .sort((a, b) => Number(a.done) - Number(b.done) || a.updatedAt - b.updatedAt);
+          return (
+            <div key={day} className="min-h-[26px] border-l border-line px-1.5 py-1">
+              {here.map((task) => (
+                <span key={task.id} className="group flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={task.done}
+                    onChange={() => toggleTask(task.id)}
+                    aria-label={`${task.title}, ${task.done ? "done" : "to do"}`}
+                    className="size-3 accent-current"
+                  />
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate text-[11px]",
+                      task.done ? "text-fg-subtle line-through" : "text-fg-muted",
+                      (task.scope ?? "personal") !== scope && "opacity-60",
+                    )}
+                  >
+                    {task.title}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => deleteTask(task.id)}
+                    aria-label={`Delete ${task.title}`}
+                    className="hidden shrink-0 rounded-xs p-0.5 text-fg-subtle hover:text-fg group-hover:block"
+                  >
+                    <Icon name="x" size={9} />
+                  </button>
+                </span>
+              ))}
             </div>
           );
         })}
@@ -337,7 +505,10 @@ function TimeGrid({
                     key={event.id + day}
                     type="button"
                     onClick={() => onEdit(event)}
-                    className="absolute overflow-hidden rounded-sm px-1.5 py-1 text-left transition-[filter] hover:brightness-110"
+                    className={cn(
+                      "absolute overflow-hidden rounded-sm px-1.5 py-1 text-left transition-[filter] hover:brightness-110",
+                      (event.scope ?? "personal") !== scope && "opacity-55",
+                    )}
                     style={{
                       ...blockStyle(event.color),
                       top: (event.start / 60) * HOUR + 1,

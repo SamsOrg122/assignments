@@ -828,6 +828,10 @@ create table if not exists public.events (
   end_minute   integer not null check (end_minute between 0 and 1440),
   color        text not null default 'slate'
                check (color in ('slate', 'red', 'gold', 'blue', 'green', 'purple')),
+  -- Null is personal, owner-only. Set, the event belongs to that workspace
+  -- and every member can see and change it — a team calendar where only the
+  -- author can move the meeting is a noticeboard.
+  workspace_id uuid references public.workspaces(id) on delete cascade,
   location     text,
   notes        text,
   repeat       text not null default 'none'
@@ -854,5 +858,45 @@ alter table public.events enable row level security;
 drop policy if exists events_own on public.events;
 create policy events_own on public.events
   for all
-  using (owner_id = auth.uid())
-  with check (owner_id = auth.uid());
+  using (
+    (workspace_id is null and owner_id = auth.uid())
+    or (workspace_id is not null and public.is_member(workspace_id))
+  )
+  with check (
+    (workspace_id is null and owner_id = auth.uid())
+    or (workspace_id is not null and public.is_member(workspace_id))
+  );
+
+-- Things to do on a day, with no time. Not events with zero duration: a task
+-- has a done state and no times, and one table with two moods makes every
+-- reader tell them apart.
+create table if not exists public.agenda_tasks (
+  id           text primary key
+               check (id ~ '^[A-Za-z0-9_-]{8,64}$'),
+  owner_id     uuid not null default auth.uid()
+               references public.profiles(id) on delete cascade,
+  workspace_id uuid references public.workspaces(id) on delete cascade,
+  title        text not null default '',
+  day          date not null,
+  done         boolean not null default false,
+  updated_at   timestamptz not null,
+  deleted_at   timestamptz,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists agenda_tasks_owner_idx
+  on public.agenda_tasks(owner_id, day);
+
+alter table public.agenda_tasks enable row level security;
+
+drop policy if exists agenda_tasks_own on public.agenda_tasks;
+create policy agenda_tasks_own on public.agenda_tasks
+  for all
+  using (
+    (workspace_id is null and owner_id = auth.uid())
+    or (workspace_id is not null and public.is_member(workspace_id))
+  )
+  with check (
+    (workspace_id is null and owner_id = auth.uid())
+    or (workspace_id is not null and public.is_member(workspace_id))
+  );

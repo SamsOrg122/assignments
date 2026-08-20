@@ -78,7 +78,12 @@ interface ChatState {
   createChannel: (
     name: string,
     topic?: string,
-    options?: { access?: ChannelAccess; passcode?: string; memberIds?: string[] },
+    options?: {
+      access?: ChannelAccess;
+      passcode?: string;
+      memberIds?: string[];
+      scope?: "personal" | "team";
+    },
   ) => Promise<string>;
   openDM: (userId: string) => string;
   markRead: (channelId: string) => void;
@@ -347,6 +352,7 @@ export const useChat = create<ChatState>()(
         const channel = await provider.createChannel({
           id: uid(),
           kind: "channel",
+          scope: options?.scope ?? "personal",
           name: slug || "channel",
           topic,
           createdBy: LOCAL_USER.id,

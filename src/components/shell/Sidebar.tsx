@@ -8,7 +8,7 @@
  * the channel renders, so they can't disagree.
  */
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useProjects } from "@/lib/store";
@@ -19,6 +19,7 @@ import { ChannelSettings } from "@/components/chat/ChannelSettings";
 import { projectMenu } from "@/lib/project-menu";
 import { useUI } from "@/lib/ui-store";
 import { useAppearance } from "@/lib/theme-store";
+import { hydrateScope, useHasTeam, useScope } from "@/lib/scope";
 import {
   lastActivity,
   personById,
@@ -88,6 +89,10 @@ export function Sidebar() {
   const setAppearance = useAppearance((s) => s.set);
 
   useChatHydrated();
+  useEffect(hydrateScope, []);
+  const scope = useScope((s) => s.scope);
+  const setScope = useScope((s) => s.setScope);
+  const hasTeam = useHasTeam();
   const channels = useChat((s) => s.channels);
   const messages = useChat((s) => s.messages);
   const readAt = useChat((s) => s.readAt);
@@ -179,14 +184,19 @@ export function Sidebar() {
       // Archived channels keep their history but leave the sidebar; you find
       // them again through ⌘K or by restoring them.
       rooms: withMeta
-        .filter((c) => c.channel.kind === "channel" && !c.channel.archived)
+        .filter(
+          (c) =>
+            c.channel.kind === "channel" &&
+            !c.channel.archived &&
+            (c.channel.scope ?? "personal") === scope,
+        )
         .sort(byRecency),
       dms: withMeta.filter((c) => c.channel.kind === "dm").sort(byRecency),
       totalUnread: withMeta
         .filter((c) => !c.channel.archived)
         .reduce((n, c) => n + c.unread, 0),
     };
-  }, [channels, messages, readAt]);
+  }, [channels, messages, readAt, scope]);
 
   const visibleProjects = showAllProjects ? projects : projects.slice(0, 7);
 
@@ -279,6 +289,36 @@ export function Sidebar() {
             <span>{t("nav.search")}</span>
             <kbd className="kbd ml-auto">⌘K</kbd>
           </button>
+        </div>
+
+        {/* Whose things you are looking at. One switch, obeyed by the agenda
+            and by the channel list below — the same answer everywhere at
+            once, because a calendar in team mode next to chats in personal
+            mode is how the wrong thing lands in the wrong place. */}
+        <div className="shrink-0 px-2.5 pb-2">
+          <div
+            className="flex rounded-md border border-line bg-surface p-0.5"
+            role="tablist"
+            aria-label="Personal or team"
+          >
+            {(["personal", "team"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                role="tab"
+                aria-selected={scope === option}
+                onClick={() => setScope(option)}
+                className={cn(
+                  "flex-1 rounded-sm px-2 py-1 text-[11.5px] capitalize transition-colors",
+                  scope === option
+                    ? "bg-surface-3 font-medium text-fg"
+                    : "text-fg-muted hover:text-fg",
+                )}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
         </div>
 
         <nav className="flex shrink-0 flex-col gap-0.5 px-2.5 pb-3">
@@ -418,11 +458,15 @@ export function Sidebar() {
             )}
           </ul>
 
-          {/* Channels */}
+          {/* Channels — the team's rooms, or your own chats, by the switch
+              above. Same list machinery, different shelf. */}
           <div className="mt-4 mb-1 flex items-center justify-between px-4">
-            <span className="label-mono">{t("nav.channels")}</span>
+            <span className="label-mono">
+              {scope === "team" ? t("nav.channels") : t("nav.chats")}
+            </span>
             <button
               type="button"
+              disabled={scope === "team" && !hasTeam}
               onClick={() => setNewChannel(true)}
               className="rounded-xs p-0.5 text-fg-subtle transition-colors duration-150 hover:text-fg"
               aria-label="New channel"
@@ -432,6 +476,30 @@ export function Sidebar() {
             </button>
           </div>
 
+          {scope === "team" && !hasTeam ? (
+            /* No team, so no team channels — and not an empty list that looks
+               broken, but the two doors. Creating a team is the paid plan;
+               joining takes a link from someone who has one. */
+            <div className="mx-2.5 rounded-md border border-dashed border-line px-3 py-2.5">
+              <p className="text-[11.5px] leading-relaxed text-fg-subtle">
+                No team yet. Channels live in a team.
+              </p>
+              <div className="mt-2 flex flex-col gap-1">
+                <Link
+                  href="/pricing"
+                  className="rounded-sm bg-accent px-2 py-1 text-center text-[11.5px] font-medium text-on-accent transition-[filter] hover:brightness-110"
+                >
+                  Create a team
+                </Link>
+                <Link
+                  href="/team#join"
+                  className="rounded-sm border border-line px-2 py-1 text-center text-[11.5px] text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
+                >
+                  Join a team
+                </Link>
+              </div>
+            </div>
+          ) : (
           <ul className="flex flex-col gap-0.5 px-2.5">
             {rooms.map(({ channel, unread }) => (
               <li key={channel.id}>
@@ -463,7 +531,9 @@ export function Sidebar() {
                   }}
                   onKeyDown={async (e) => {
                     if (e.key === "Enter" && channelName.trim()) {
-                      const id = await createChannel(channelName);
+                      const id = await createChannel(channelName, undefined, {
+                        scope,
+                      });
                       setNewChannel(false);
                       setChannelName("");
                       router.push(`/chat/${id}`);
@@ -476,7 +546,14 @@ export function Sidebar() {
                 />
               </li>
             )}
+            {scope === "personal" && rooms.length === 0 && !newChannel ? (
+              <li className="px-2 py-1 text-[11px] leading-relaxed text-fg-subtle">
+                Chats with friends or classmates. Make one with +, then share
+                its invite link from the channel&apos;s settings.
+              </li>
+            ) : null}
           </ul>
+          )}
 
           {/* Direct messages */}
           <div className="mt-4 mb-1 px-4">

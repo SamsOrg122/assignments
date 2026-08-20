@@ -10,6 +10,8 @@
 
 import type { PeerState, Project } from "@/lib/types";
 import { useProjects } from "@/lib/store";
+import { lookStyle } from "@/lib/looks";
+import { cn } from "@/lib/cn";
 import { Canvas } from "@/components/canvas/Canvas";
 import { ProjectTopBar } from "./ProjectTopBar";
 
@@ -25,7 +27,10 @@ export function CodeEditor({
   return (
     <>
       <ProjectTopBar project={project} peers={peers} />
-      <main className="flex-1 overflow-y-auto">
+      <main
+        className={cn("flex-1 overflow-y-auto", lookStyle(project.look) && "look-page")}
+        style={lookStyle(project.look)}
+      >
         <div className="mx-auto w-full max-w-[1100px] px-5 py-8 sm:px-8">
           {project.blocks.length === 0 ? (
             <div className="hairline rounded-lg bg-surface px-6 py-14 text-center">

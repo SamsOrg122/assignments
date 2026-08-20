@@ -27,6 +27,7 @@ import { importPptxFile } from "@/lib/pptx";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
 import { cn } from "@/lib/cn";
+import { lookStyle } from "@/lib/looks";
 import { Icon } from "@/components/ui/Icon";
 import { MasterPanel } from "@/components/slides/MasterPanel";
 import { ProjectTopBar } from "./ProjectTopBar";
@@ -291,7 +292,9 @@ function DeckStage({
         className={cn(
           "flex flex-1 overflow-hidden",
           presenting ? "bg-black" : "flex-col lg:flex-row",
+          !presenting && lookStyle(project.look) && "look-page",
         )}
+        style={presenting ? undefined : lookStyle(project.look)}
         onKeyDown={(e) => {
           // Presenting listens on the window instead — see the effect above.
           if (presenting) return;

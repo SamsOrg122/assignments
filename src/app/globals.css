@@ -1132,6 +1132,36 @@
   content: attr(data-letter);
 }
 
+/* ── Looks ───────────────────────────────────────────────
+   A project's backdrop (lib/looks.ts) paints the page; the writing stays on
+   a floating sheet so it never has to negotiate contrast with the scenery.
+   The sheet carries the paper tokens (see .paper above) — a warm or night
+   paper is still warm or night, just floating now. */
+
+.look-sheet {
+  margin-top: 36px;
+  margin-bottom: 140px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.22);
+  background: var(--color-surface);
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.38),
+    0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+@media print {
+  /* Paper printers print the document, not the scenery. */
+  .look-page {
+    background: none !important;
+  }
+  .look-sheet {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
 /* ── Avatars ─────────────────────────────────────────────
    The animated marks a document can wear (components/ui/Avatar). Everything
    here is sized in percentages of the container so one set of rules serves a

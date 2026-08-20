@@ -12,6 +12,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { PeerState, Project } from "@/lib/types";
 import { proseVars } from "@/lib/doc-presets";
+import { backdropOf, lookStyle } from "@/lib/looks";
 import { DEFAULT_TYPOGRAPHY } from "@/lib/types";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
@@ -99,6 +100,10 @@ export function WritingEditor({
   const [findOpen, setFindOpen] = useState(false);
 
   const type = project.typography ?? DEFAULT_TYPOGRAPHY;
+  const backdrop = backdropOf(project.look);
+  const pageStyle = lookStyle(project.look);
+  const paperAttr =
+    type.paper && type.paper !== "canvas" ? type.paper : undefined;
   const words = useMemo(() => projectWordCount(project), [project]);
   const sections = useMemo(() => outline(project.blocks), [project.blocks]);
   const proposed = useMemo(
@@ -264,10 +269,15 @@ export function WritingEditor({
 
       <main
         className={cn(
-          "paper relative flex-1 overflow-y-auto",
+          "relative flex-1 overflow-y-auto",
+          // With a backdrop the *sheet* carries the paper tokens instead of
+          // the page — the whole point is that the page is scenery and the
+          // writing surface stays a readable sheet on top of it.
+          backdrop ? "look-page" : "paper",
           focusMode && "focus-mode",
         )}
-        data-paper={type.paper && type.paper !== "canvas" ? type.paper : undefined}
+        data-paper={!backdrop && paperAttr ? paperAttr : undefined}
+        style={pageStyle}
       >
         {focusMode && (
           <button
@@ -282,7 +292,8 @@ export function WritingEditor({
         )}
 
         <div
-          className="mx-auto w-full"
+          className={cn("mx-auto w-full", backdrop && "paper look-sheet")}
+          data-paper={backdrop && paperAttr ? paperAttr : undefined}
           style={{
             // The measure is set in `ch`, so it tracks the chosen face and
             // size rather than being a fixed pixel width that drifts.
@@ -290,7 +301,9 @@ export function WritingEditor({
             paddingLeft: `min(${type.margin}px, 6vw)`,
             paddingRight: `min(${type.margin}px, 6vw)`,
             paddingTop: focusMode ? 96 : 40,
-            paddingBottom: 240,
+            // On a sheet the scroll room lives outside the card, not as a
+            // quarter-screen of empty paper inside it.
+            paddingBottom: backdrop ? 96 : 240,
           }}
         >
           {!focusMode && (

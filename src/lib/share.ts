@@ -21,6 +21,7 @@
 import type { Block, BoardItem, Project, SlideObject } from "./types";
 import { sanitizeHtml, safeImageSrc } from "./sanitize";
 import { sanitizeGlyph } from "./avatars";
+import { sanitizeLook } from "./looks";
 
 /**
  * What the sender is offering.
@@ -325,6 +326,7 @@ function validate(input: unknown): Project | null {
     // in *your* personal world. Keeping a "team" stamp would file a
     // stranger's document into your team's library the moment you opened it.
     scope: "personal",
+    look: sanitizeLook(raw.look),
     createdAt: num(raw.createdAt, Date.now()),
     updatedAt: num(raw.updatedAt, Date.now()),
     // Read like everything else here: never trusted, only coerced. A payload

@@ -767,6 +767,11 @@ export interface Project {
   viewport?: { x: number; y: number; scale: number };
   /** Per-project typography for writing projects. */
   typography?: Typography;
+  /**
+   * The page the whole document is presented on: a backdrop behind the
+   * sheet, and optionally this project's own accent. See `lib/looks.ts`.
+   */
+  look?: { backdrop: string; accent?: string };
   /** Word target for the whole project; sections can override. */
   wordGoal?: number;
   /** Per-section targets, keyed by the section's block id. */

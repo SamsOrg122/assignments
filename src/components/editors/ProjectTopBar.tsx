@@ -15,6 +15,8 @@ import { Avatars } from "@/components/presence/Avatars";
 import { Icon } from "@/components/ui/Icon";
 import { KINDS } from "@/lib/kinds";
 import { ShareMenu } from "@/components/share/ShareMenu";
+import { LookPanel } from "./LookPanel";
+import { cn } from "@/lib/cn";
 
 export function ProjectTopBar({
   project,
@@ -30,6 +32,7 @@ export function ProjectTopBar({
   const setVoiceOpen = useUI((s) => s.setVoiceOpen);
   const openPalette = useUI((s) => s.openPalette);
   const [draft, setDraft] = useState<string | null>(null);
+  const [designOpen, setDesignOpen] = useState(false);
 
   return (
     <TopBar right={<Avatars peers={peers} />}>
@@ -59,6 +62,34 @@ export function ProjectTopBar({
       />
 
       {tools}
+
+      {/* Design belongs to every kind of project, so it lives here rather
+          than in each editor's own toolset. */}
+      <span className="relative shrink-0">
+        <button
+          type="button"
+          onClick={() => setDesignOpen((v) => !v)}
+          aria-pressed={designOpen}
+          aria-label="Design"
+          title="Design — backdrop and accent"
+          className={cn(
+            "flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[11.5px] transition-colors duration-150",
+            project.look || designOpen
+              ? "border-accent/50 bg-accent-soft text-fg"
+              : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
+          )}
+        >
+          <Icon name="image" size={11} />
+          Design
+        </button>
+        {designOpen && (
+          <LookPanel
+            projectId={project.id}
+            look={project.look}
+            onClose={() => setDesignOpen(false)}
+          />
+        )}
+      </span>
 
       <span className="hidden shrink-0 items-center gap-1.5 md:flex">
         <ShareMenu project={project} />

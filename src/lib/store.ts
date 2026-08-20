@@ -77,6 +77,11 @@ interface ProjectsState {
   setProjectGlyph: (projectId: string, glyph: string) => void;
   /** Move a project between the personal and team worlds. */
   setProjectScope: (projectId: string, scope: "personal" | "team") => void;
+  /** The backdrop and accent the whole document is presented with. */
+  setProjectLook: (
+    projectId: string,
+    look: { backdrop: string; accent?: string } | undefined,
+  ) => void;
   deleteProject: (projectId: string) => void;
   duplicateProject: (projectId: string) => string | null;
   setTypography: (projectId: string, patch: Partial<Typography>) => void;
@@ -510,6 +515,11 @@ export const useProjects = create<ProjectsState>()(
       setProjectScope: (projectId, scope) =>
         set((s) => ({
           projects: withProject(s.projects, projectId, (p) => ({ ...p, scope })),
+        })),
+
+      setProjectLook: (projectId, look) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({ ...p, look })),
         })),
 
       setTypography: (projectId, patch) =>

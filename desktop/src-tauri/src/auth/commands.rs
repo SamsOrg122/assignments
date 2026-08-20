@@ -57,6 +57,24 @@ pub async fn site_set<R: Runtime>(app: AppHandle<R>, address: String) -> Result<
     reach_for_it(&app, &tidy).await
 }
 
+/// Try the current address again.
+///
+/// What almost everybody who ever sees the connection panel actually needs: a
+/// deployment mid-build, a laptop that just woke, a minute of no wifi. It
+/// does not sign anybody out and does not touch the address — offering
+/// somebody an address field when their wifi blinked is handing them a
+/// spanner because their car will not start.
+#[tauri::command]
+pub async fn site_retry<R: Runtime>(app: AppHandle<R>) -> Result<Standing, String> {
+    let address = super::site(&app);
+    let standing = reach_for_it(&app, &address).await?;
+
+    // Reached it again, so anything waiting can go up now rather than at the
+    // next beat.
+    crate::sync::nudge(&app);
+    Ok(standing)
+}
+
 /// Go back to the address the app shipped with.
 #[tauri::command]
 pub async fn site_reset<R: Runtime>(app: AppHandle<R>) -> Result<Standing, String> {

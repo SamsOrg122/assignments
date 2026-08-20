@@ -54,3 +54,6 @@ export const siteAddress = () => invoke<SiteAddress>("site_address");
 export const setSite = (address: string) =>
   invoke<Standing>("site_set", { address });
 export const resetSite = () => invoke<Standing>("site_reset");
+
+/** Try the current address again, without signing anybody out. */
+export const retrySite = () => invoke<Standing>("site_retry");

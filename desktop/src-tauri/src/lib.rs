@@ -95,6 +95,7 @@ pub fn run() {
             auth::commands::auth_sign_out,
             auth::commands::site_address,
             auth::commands::site_set,
+            auth::commands::site_retry,
             auth::commands::site_reset,
         ])
         .setup(|app| {

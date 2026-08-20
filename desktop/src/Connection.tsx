@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   resetSite,
+  retrySite,
   setSite,
   siteAddress,
   type SiteAddress,
@@ -16,7 +17,12 @@ import {
  * about it from inside the app — the real reason was on stderr, where nobody
  * looks, and the only fix was a new build.
  *
- * So: the reason, in the window, and a field to point it somewhere else.
+ * What it leads with matters. Almost everybody who ever opens this has a
+ * deployment mid-build, a laptop that has just woken, or a minute of no wifi
+ * — so the first thing is "Try again". The address field is underneath, for
+ * the rare case where the app is genuinely pointed at the wrong place;
+ * offering that first is handing somebody a spanner because their car will
+ * not start.
  */
 export function Connection({
   problem,
@@ -29,8 +35,9 @@ export function Connection({
 }) {
   const [site, setSiteState] = useState<SiteAddress | null>(null);
   const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"retry" | "address" | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
+  const [showAddress, setShowAddress] = useState(false);
 
   useEffect(() => {
     siteAddress()
@@ -41,9 +48,22 @@ export function Connection({
       .catch(() => setSiteState(null));
   }, []);
 
+  const again = async () => {
+    setBusy("retry");
+    setRefused(null);
+    try {
+      onChanged(await retrySite());
+      onClose();
+    } catch (error) {
+      setRefused(String(error));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const apply = async (event: React.FormEvent) => {
     event.preventDefault();
-    setBusy(true);
+    setBusy("address");
     setRefused(null);
     try {
       onChanged(await setSite(draft));
@@ -51,12 +71,12 @@ export function Connection({
     } catch (error) {
       setRefused(String(error));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
   const back = async () => {
-    setBusy(true);
+    setBusy("address");
     setRefused(null);
     try {
       onChanged(await resetSite());
@@ -66,7 +86,7 @@ export function Connection({
     } catch (error) {
       setRefused(String(error));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -87,23 +107,19 @@ export function Connection({
         </p>
       ) : null}
 
-      <form className="password" onSubmit={apply}>
-        <label>
-          <span>This app talks to</span>
-          <input
-            type="text"
-            value={draft}
-            spellCheck={false}
-            autoCapitalize="off"
-            autoCorrect="off"
-            placeholder="tougather.com"
-            onChange={(e) => setDraft(e.target.value)}
-          />
-        </label>
-        <button type="submit" className="wide" disabled={busy}>
-          {busy ? "Trying…" : "Use this address"}
-        </button>
-      </form>
+      <button
+        type="button"
+        className="wide"
+        disabled={busy !== null}
+        onClick={() => void again()}
+      >
+        {busy === "retry" ? "Trying…" : "Try again"}
+      </button>
+
+      <p className="quiet">
+        Your notes are safe on this computer meanwhile, and go up on their own
+        as soon as this works.
+      </p>
 
       {refused ? (
         <p className="bad" role="alert">
@@ -111,16 +127,51 @@ export function Connection({
         </p>
       ) : null}
 
-      {site && !site.default ? (
-        <button type="button" className="link" onClick={() => void back()}>
-          Back to the default
-        </button>
-      ) : null}
+      {showAddress ? (
+        <>
+          <form className="password" onSubmit={apply}>
+            <label>
+              <span>This app talks to</span>
+              <input
+                type="text"
+                value={draft}
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+                placeholder="tougather.com"
+                onChange={(e) => setDraft(e.target.value)}
+              />
+            </label>
+            <button type="submit" className="wide" disabled={busy !== null}>
+              {busy === "address" ? "Trying…" : "Use this address"}
+            </button>
+          </form>
 
-      <p className="quiet">
-        Changing this signs you out: a different deployment is a different set
-        of accounts. Your notes stay on this computer either way.
-      </p>
+          {site && !site.default ? (
+            <button
+              type="button"
+              className="link"
+              onClick={() => void back()}
+            >
+              Back to the default
+            </button>
+          ) : null}
+
+          <p className="quiet">
+            Changing this signs you out: a different deployment is a different
+            set of accounts. Your notes stay on this computer either way.
+          </p>
+        </>
+      ) : (
+        <button
+          type="button"
+          className="link"
+          onClick={() => setShowAddress(true)}
+        >
+          This app is pointed at the wrong place
+        </button>
+      )}
+
     </div>
   );
 }

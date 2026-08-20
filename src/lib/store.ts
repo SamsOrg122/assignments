@@ -50,6 +50,7 @@ import {
   uid,
 } from "./factories";
 import { DEFAULT_PAGE } from "./page";
+import { currentWorld } from "./scope";
 import { DEMO_PROJECTS, SEED_PROJECTS } from "./seed";
 import { formatInline } from "./sources/format";
 
@@ -74,6 +75,8 @@ interface ProjectsState {
   /** Changes which editor opens. Blocks are untouched. */
   setProjectKind: (projectId: string, kind: ProjectKind) => void;
   setProjectGlyph: (projectId: string, glyph: string) => void;
+  /** Move a project between the personal and team worlds. */
+  setProjectScope: (projectId: string, scope: "personal" | "team") => void;
   deleteProject: (projectId: string) => void;
   duplicateProject: (projectId: string) => string | null;
   setTypography: (projectId: string, patch: Partial<Typography>) => void;
@@ -496,9 +499,18 @@ export const useProjects = create<ProjectsState>()(
 
       addProject: (kind = "doc", name) => {
         const project = createProject(kind, name);
+        // Born into the world you are looking at: making a document while
+        // wearing the team hat makes a team document. The scope module is
+        // imported lazily-by-value here (store ← scope ← team, no cycle).
+        project.scope = currentWorld();
         set((s) => ({ projects: [project, ...s.projects] }));
         return project.id;
       },
+
+      setProjectScope: (projectId, scope) =>
+        set((s) => ({
+          projects: withProject(s.projects, projectId, (p) => ({ ...p, scope })),
+        })),
 
       setTypography: (projectId, patch) =>
         set((s) => ({

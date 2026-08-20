@@ -272,16 +272,26 @@ export const KNOWLEDGE_LABELS: Record<KnowledgeKind, string> = {
 
 let rehydrateRequested = false;
 
+/**
+ * Ask the persisted workspace to load, once.
+ *
+ * Idempotent and callable from anywhere. It used to happen only when the
+ * Team page mounted, which left every *other* reader of this store — the
+ * scope switch deciding whether a team exists, above all — looking at the
+ * seed workspace until somebody happened to visit /team.
+ */
+export function hydrateTeam() {
+  if (rehydrateRequested) return;
+  rehydrateRequested = true;
+  void useTeam.persist.rehydrate();
+}
+
 export function useTeamHydrated(): boolean {
   const hydrated = useSyncExternalStore(
     (cb) => useTeam.persist.onFinishHydration(cb),
     () => useTeam.persist.hasHydrated(),
     () => false,
   );
-  useEffect(() => {
-    if (rehydrateRequested) return;
-    rehydrateRequested = true;
-    void useTeam.persist.rehydrate();
-  }, []);
+  useEffect(hydrateTeam, []);
   return hydrated;
 }

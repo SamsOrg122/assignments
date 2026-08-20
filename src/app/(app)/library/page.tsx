@@ -13,6 +13,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProjects, useHydrated } from "@/lib/store";
+import { useHasTeam, useScope } from "@/lib/scope";
 import { KINDS, KIND_ORDER } from "@/lib/kinds";
 import { t } from "@/lib/i18n";
 import {
@@ -47,11 +48,22 @@ import { DesktopNotes } from "@/components/library/DesktopNotes";
 type Sort = "recent" | "name" | "kind";
 
 export default function LibraryPage() {
-  const projects = useProjects((s) => s.projects);
+  const allProjects = useProjects((s) => s.projects);
   const folders = useProjects((s) => s.folders);
   const addProject = useProjects((s) => s.addProject);
   const hydrated = useHydrated();
   const router = useRouter();
+
+  // The sidebar's Personal | Team switch changes worlds, and the Library is
+  // the world's shelf: team scope lists the team's documents and nothing of
+  // yours, personal the reverse. No scope on a project means personal.
+  const chosen = useScope((s) => s.scope);
+  const hasTeam = useHasTeam();
+  const world = hasTeam ? chosen : "personal";
+  const projects = useMemo(
+    () => allProjects.filter((p) => (p.scope ?? "personal") === world),
+    [allProjects, world],
+  );
 
   const menu = useMenu();
   const setGlyph = useProjects((s) => s.setProjectGlyph);
@@ -202,13 +214,43 @@ export default function LibraryPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-[880px] px-5 py-8 sm:px-8 sm:py-12">
           <div className="mb-8">
-            <p className="label-mono mb-2.5">{t("library.eyebrow")}</p>
+            <p className="label-mono mb-2.5">
+              {world === "team" ? "The team's, in one" : t("library.eyebrow")}
+            </p>
             <h1 className="max-w-[20ch] text-[26px] leading-[1.15] font-medium tracking-[-0.03em] text-fg sm:text-[32px]">
               {t("library.title")}
               <span className="text-fg-subtle"> {t("library.subtitle")}</span>
             </h1>
           </div>
 
+          {chosen === "team" && !hasTeam ? (
+            /* Team world, no team behind it: the two doors rather than an
+               empty shelf that looks broken. Creating a team is the paid
+               plan; joining takes a link from someone who has one. */
+            <div className="hairline rounded-lg bg-surface px-6 py-14 text-center">
+              <p className="display text-[19px] text-fg">No team yet.</p>
+              <p className="mx-auto mt-2 max-w-[46ch] text-[13px] leading-relaxed text-fg-muted">
+                Team documents live in a team: everyone in it sees this
+                library, and everything made here is the team&rsquo;s. Your own
+                work stays under Personal.
+              </p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                <Link
+                  href="/pricing"
+                  className="rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+                >
+                  Create a team
+                </Link>
+                <Link
+                  href="/team#join"
+                  className="rounded-sm border border-line px-3 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                >
+                  Join a team
+                </Link>
+              </div>
+            </div>
+          ) : (
+          <>
           <KeepPrompt />
 
           {/* Work that is not reaching the account, said where the work is. */}
@@ -414,6 +456,8 @@ export default function LibraryPage() {
                 </li>
               ))}
             </ul>
+          )}
+          </>
           )}
 
         </div>

@@ -18,6 +18,7 @@ import { useKit } from "@/lib/kit";
 import { insertPiece, kitImage } from "@/lib/kit/insert";
 import { createImageBlock } from "@/lib/factories";
 import { useProjects } from "@/lib/store";
+import { useHasTeam, useScope } from "@/lib/scope";
 import { useUI } from "@/lib/ui-store";
 import { fuzzyMatch, segments } from "@/lib/fuzzy";
 import { searchContent } from "@/lib/global-search";
@@ -188,8 +189,19 @@ function PaletteDialog({ seed }: { seed: string }) {
   const params = useParams<{ projectId?: string }>();
   const projectId = params?.projectId ?? null;
 
-  const projects = useProjects((s) => s.projects);
+  const allProjects = useProjects((s) => s.projects);
   const kitAssets = useKit((s) => s.assets);
+  // The palette searches the world you are in — a personal thesis should not
+  // surface while wearing the team hat, and vice versa. The *active* project
+  // is looked up in the full list below, because being inside a document is
+  // its own proof you can see it, whichever world the switch is on.
+  const chosen = useScope((s) => s.scope);
+  const hasTeam = useHasTeam();
+  const world = hasTeam ? chosen : "personal";
+  const projects = useMemo(
+    () => allProjects.filter((p) => (p.scope ?? "personal") === world),
+    [allProjects, world],
+  );
   const addProject = useProjects((s) => s.addProject);
   const addBlock = useProjects((s) => s.addBlock);
   const duplicateProject = useProjects((s) => s.duplicateProject);
@@ -214,7 +226,7 @@ function PaletteDialog({ seed }: { seed: string }) {
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const project = projects.find((p) => p.id === projectId) ?? null;
+  const project = allProjects.find((p) => p.id === projectId) ?? null;
 
   useEffect(() => {
     // Focus after paint so the open animation doesn't fight the caret.

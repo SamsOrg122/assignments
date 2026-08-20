@@ -20,6 +20,7 @@ import { projectMenu } from "@/lib/project-menu";
 import { useUI } from "@/lib/ui-store";
 import { useAppearance } from "@/lib/theme-store";
 import { hydrateScope, useHasTeam, useScope } from "@/lib/scope";
+import { hydrateTeam } from "@/lib/team";
 import {
   lastActivity,
   personById,
@@ -89,7 +90,12 @@ export function Sidebar() {
   const setAppearance = useAppearance((s) => s.set);
 
   useChatHydrated();
-  useEffect(hydrateScope, []);
+  useEffect(() => {
+    hydrateScope();
+    // The switch's "is there a team?" answer lives in the team store; without
+    // this it reads the seed until somebody visits /team.
+    hydrateTeam();
+  }, []);
   const scope = useScope((s) => s.scope);
   const setScope = useScope((s) => s.setScope);
   const hasTeam = useHasTeam();
@@ -198,7 +204,14 @@ export function Sidebar() {
     };
   }, [channels, messages, readAt, scope]);
 
-  const visibleProjects = showAllProjects ? projects : projects.slice(0, 7);
+  // The switch changes worlds, and the documents come with it: team scope
+  // lists the team's projects, personal lists yours. Projects from before
+  // worlds existed have no scope and count as personal.
+  const world = hasTeam ? scope : "personal";
+  const worldProjects = projects.filter((p) => (p.scope ?? "personal") === world);
+  const visibleProjects = showAllProjects
+    ? worldProjects
+    : worldProjects.slice(0, 7);
 
   const closeOnMobile = () => {
     if (window.innerWidth < 1024) setSidebarOpen(false);
@@ -397,6 +410,7 @@ export function Sidebar() {
             <span className="label-mono">{t("nav.projects")}</span>
             <button
               type="button"
+              disabled={scope === "team" && !hasTeam}
               onClick={() => {
                 closeOnMobile();
                 router.push(`/p/${addProject("doc")}`);
@@ -409,6 +423,15 @@ export function Sidebar() {
             </button>
           </div>
 
+          {scope === "team" && !hasTeam ? (
+            /* Team world, no team: the documents live behind the same two
+               doors the channels point at below — one hint here, not a second
+               pair of buttons. */
+            <p className="mx-2.5 rounded-md border border-dashed border-line px-3 py-2 text-[11.5px] leading-relaxed text-fg-subtle">
+              No team yet. Team documents appear here once you create or join
+              one.
+            </p>
+          ) : (
           <ul className="flex flex-col gap-0.5 px-2.5">
             {visibleProjects.map((p) => (
               <li key={p.id}>
@@ -444,7 +467,7 @@ export function Sidebar() {
                 </Link>
               </li>
             ))}
-            {projects.length > 7 && (
+            {worldProjects.length > 7 && (
               <li>
                 <button
                   type="button"
@@ -453,11 +476,12 @@ export function Sidebar() {
                 >
                   {showAllProjects
                     ? "show less"
-                    : `+${projects.length - 7} more`}
+                    : `+${worldProjects.length - 7} more`}
                 </button>
               </li>
             )}
           </ul>
+          )}
 
           {/* Channels — the team's rooms, or your own chats, by the switch
               above. Same list machinery, different shelf. */}

@@ -59,3 +59,18 @@ export function useHasTeam(): boolean {
       s.workspace.kind !== "personal",
   );
 }
+
+/** The same answer outside a component. */
+export function hasTeamNow(): boolean {
+  const w = useTeam.getState().workspace;
+  return w.members.length > 1 || w.invites.length > 0 || w.kind !== "personal";
+}
+
+/**
+ * The world things are born into right now: the chosen scope, downgraded to
+ * personal when there is no team behind the switch — the same rule every
+ * page applies before trusting the chosen value.
+ */
+export function currentWorld(): Scope {
+  return hasTeamNow() ? useScope.getState().scope : "personal";
+}

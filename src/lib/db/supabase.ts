@@ -25,6 +25,7 @@ import type { Database, RemoteProject, Session } from "./index";
 /** The row shape `schema.sql` produces, before it is mapped to the app's. */
 interface ProjectRow {
   id: string;
+  workspace_id: string;
   name: string;
   kind: RemoteProject["kind"];
   content: RemoteProject["content"];
@@ -171,6 +172,67 @@ export async function currentWorkspaceId(): Promise<string | null> {
   return ensureWorkspace(client, session.userId);
 }
 
+/**
+ * The team's workspace, if this account is in one: a workspace someone else
+ * owns that lists me as a member. A team-scoped project is written under it,
+ * which is the entire mechanism by which teammates see each other's team
+ * documents — `projects_member` in schema.sql does the rest.
+ *
+ * Null when there is no such workspace, and the caller falls back to the
+ * personal one: a project marked "team" before a team exists stays safely
+ * yours, and moves over on its next edit after joining.
+ *
+ * Same promise-cache discipline as `workspaces` above, keyed by owner.
+ */
+const teamWorkspaces = new Map<string, Promise<string | null>>();
+
+function teamWorkspaceId(
+  client: NonNullable<ReturnType<typeof supabase>>,
+  ownerId: string,
+): Promise<string | null> {
+  const known = teamWorkspaces.get(ownerId);
+  if (known) return known;
+  const pending = (async () => {
+    const found = await client
+      .from("workspaces")
+      .select("id")
+      .neq("owner_id", ownerId)
+      .limit(1)
+      .maybeSingle();
+    if (found.error) throw new Error(found.error.message);
+    return found.data ? (found.data.id as string) : null;
+  })().catch((error) => {
+    teamWorkspaces.delete(ownerId);
+    throw error;
+  });
+  teamWorkspaces.set(ownerId, pending);
+  return pending;
+}
+
+/** Own workspace id for read paths — same cache `put` uses, same session. */
+async function ownWorkspaceForReads(
+  client: NonNullable<ReturnType<typeof supabase>>,
+): Promise<string | null> {
+  const session = await supabaseDatabase.session();
+  return session ? ensureWorkspace(client, session.userId) : null;
+}
+
+/**
+ * The row's workspace is the truth about which world a project is in: a row
+ * that lives under somebody else's workspace is the team's, whatever an
+ * older client wrote into its content. A row under your own keeps whatever
+ * the content says — including "team" chosen before the team existed.
+ */
+function stampScope(row: ProjectRow, own: string | null): RemoteProject {
+  const project = rowToProject(row);
+  if (!project.content || typeof project.content !== "object") return project;
+  const scope =
+    own && row.workspace_id !== own
+      ? "team"
+      : (project.content.scope ?? "personal");
+  return { ...project, content: { ...project.content, scope } };
+}
+
 /** The anonymous sign-in currently in flight, if any. See `session()`. */
 let signingIn: ReturnType<
   NonNullable<ReturnType<typeof supabase>>["auth"]["signInAnonymously"]
@@ -235,7 +297,8 @@ export const supabaseDatabase: Database = {
       .select("*")
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []).map(rowToProject);
+    const own = await ownWorkspaceForReads(client);
+    return (data ?? []).map((row) => stampScope(row, own));
   },
 
   async get(id: string): Promise<RemoteProject | null> {
@@ -247,7 +310,7 @@ export const supabaseDatabase: Database = {
       .eq("id", id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return data ? rowToProject(data) : null;
+    return data ? stampScope(data, await ownWorkspaceForReads(client)) : null;
   },
 
   async put(project: RemoteProject): Promise<void> {
@@ -255,7 +318,14 @@ export const supabaseDatabase: Database = {
     if (!client) throw new Error("Supabase isn't configured.");
     const session = await supabaseDatabase.session();
     if (!session) throw new Error("No session to write as.");
-    const workspace = await ensureWorkspace(client, session.userId);
+    const own = await ensureWorkspace(client, session.userId);
+    // A team document lives under the team's workspace so every member sees
+    // it. The row's id never changes, so moving a project between worlds is
+    // the same upsert with a different workspace column — one row, one home.
+    const workspace =
+      project.content.scope === "team"
+        ? ((await teamWorkspaceId(client, session.userId)) ?? own)
+        : own;
 
     // Last-write-wins on `revision` until there is a CRDT. The store holds a
     // complete document, so a losing write costs one document rather than a

@@ -321,6 +321,10 @@ function validate(input: unknown): Project | null {
     name: str(raw.name).slice(0, 200),
     kind: oneOf(raw.kind, KINDS, "doc"),
     glyph: sanitizeGlyph(raw.glyph),
+    // Whatever world it came from, a document arriving through a link lands
+    // in *your* personal world. Keeping a "team" stamp would file a
+    // stranger's document into your team's library the moment you opened it.
+    scope: "personal",
     createdAt: num(raw.createdAt, Date.now()),
     updatedAt: num(raw.updatedAt, Date.now()),
     // Read like everything else here: never trusted, only coerced. A payload

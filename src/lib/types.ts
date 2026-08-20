@@ -740,6 +740,13 @@ export interface Project {
   kind: ProjectKind;
   /** Single glyph shown in the sidebar and on Library rows. */
   glyph: string;
+  /**
+   * Which world this lives in. Absent means personal — every project made
+   * before worlds existed stays exactly where it was. Team projects are
+   * pushed under the team's workspace, so every member sees and can edit
+   * them; personal ones never leave your own.
+   */
+  scope?: "personal" | "team";
   /** Which folder it sits in. Absent or null means the top level. */
   folderId?: string | null;
   /**

@@ -11,6 +11,7 @@
 
 import { KINDS, KIND_ORDER } from "./kinds";
 import { useProjects } from "./store";
+import { hasTeamNow } from "./scope";
 import { useUI } from "./ui-store";
 import { EXPORT_LABELS, exportProject, type ExportFormat } from "./export";
 import { record } from "./admin";
@@ -122,6 +123,31 @@ export function projectMenu(
       icon: "folder",
       items: folderItems(),
     },
+    // Between worlds, not between folders — only offered once a team exists,
+    // because "move to team" with nobody behind it is a trapdoor.
+    ...(hasTeamNow()
+      ? [
+          (project.scope ?? "personal") === "personal"
+            ? ({
+                kind: "item" as const,
+                label: "Move to team",
+                icon: "users" as const,
+                onSelect: () => {
+                  store.setProjectScope(project.id, "team");
+                  notify(`“${project.name}” is the team's now`);
+                },
+              } satisfies MenuItem)
+            : ({
+                kind: "item" as const,
+                label: "Move to personal",
+                icon: "home" as const,
+                onSelect: () => {
+                  store.setProjectScope(project.id, "personal");
+                  notify(`“${project.name}” is yours again`);
+                },
+              } satisfies MenuItem),
+        ]
+      : []),
     ...(actions.labels
       ? [
           {

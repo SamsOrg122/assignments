@@ -934,3 +934,75 @@ create policy kit_files_own on public.kit_files
   for all
   using (owner_id = auth.uid())
   with check (owner_id = auth.uid());
+
+/* ── The commons ─────────────────────────────────────────────────────────
+   What people choose to share with everyone on this deployment: ideas,
+   designs (a project's look), templates (a project's structure). Read is
+   the widest policy in this schema — every signed-in account, anonymous
+   included, sees every live post; writing and retiring stay the author's.
+   See migrations/0009-a-commons.sql for the full reasoning. */
+
+create table if not exists public.community_posts (
+  id          text primary key
+              check (id ~ '^[A-Za-z0-9_-]{8,64}$'),
+  author_id   uuid not null default auth.uid()
+              references public.profiles(id) on delete cascade,
+  author_name text not null default ''
+              check (length(author_name) <= 60),
+  kind        text not null
+              check (kind in ('idea', 'design', 'template')),
+  title       text not null
+              check (length(title) between 1 and 120),
+  body        text not null default ''
+              check (length(body) <= 4000),
+  payload     jsonb not null default '{}'::jsonb
+              check (pg_column_size(payload) <= 400000),
+  created_at  timestamptz not null default now(),
+  deleted_at  timestamptz
+);
+
+create index if not exists community_posts_live_idx
+  on public.community_posts(created_at desc)
+  where deleted_at is null;
+
+alter table public.community_posts enable row level security;
+
+drop policy if exists community_read on public.community_posts;
+create policy community_read on public.community_posts
+  -- The author still sees their own retired posts. Not generosity: Postgres
+  -- checks an UPDATE's new row against the SELECT policy too, so an author
+  -- whose tombstone made the row invisible to themselves would be refused
+  -- the very update that sets it. Everyone else never sees a tombstone.
+  for select using (deleted_at is null or author_id = auth.uid());
+
+drop policy if exists community_write_own on public.community_posts;
+create policy community_write_own on public.community_posts
+  for insert with check (author_id = auth.uid());
+
+drop policy if exists community_update_own on public.community_posts;
+create policy community_update_own on public.community_posts
+  for update using (author_id = auth.uid())
+  with check (author_id = auth.uid());
+
+create table if not exists public.community_hearts (
+  post_id    text not null
+             references public.community_posts(id) on delete cascade,
+  user_id    uuid not null default auth.uid()
+             references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+
+alter table public.community_hearts enable row level security;
+
+drop policy if exists hearts_read on public.community_hearts;
+create policy hearts_read on public.community_hearts
+  for select using (true);
+
+drop policy if exists hearts_give on public.community_hearts;
+create policy hearts_give on public.community_hearts
+  for insert with check (user_id = auth.uid());
+
+drop policy if exists hearts_take_back on public.community_hearts;
+create policy hearts_take_back on public.community_hearts
+  for delete using (user_id = auth.uid());

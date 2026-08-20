@@ -3,11 +3,11 @@
 --
 -- Run this once in the Supabase SQL editor and the database is fully up to
 -- date with the app: the id fix, the self-check, notes, the agenda, team
--- agendas, daily tasks, and dropped files. Every section is idempotent —
--- running it on a database that already has some or all of it changes
--- nothing and breaks nothing, so when in doubt, run it.
+-- agendas, daily tasks, dropped files, and the community. Every section is
+-- idempotent — running it on a database that already has some or all of it
+-- changes nothing and breaks nothing, so when in doubt, run it.
 --
--- It is the migrations 0003 to 0008 concatenated, in order, verbatim. The
+-- It is the migrations 0003 to 0009 concatenated, in order, verbatim. The
 -- individual files remain the record of why each change exists.
 -- ═══════════════════════════════════════════════════════════════════════
 
@@ -508,3 +508,93 @@ select
   (select count(*) from information_schema.tables where table_name = 'kit_files') as table_there,
   (select relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relname = 'kit_files') as locked;
+
+
+-- ─── from 0009-a-commons.sql ────────────────────
+
+begin;
+
+create table if not exists public.community_posts (
+  id          text primary key
+              check (id ~ '^[A-Za-z0-9_-]{8,64}$'),
+  author_id   uuid not null default auth.uid()
+              references public.profiles(id) on delete cascade,
+  -- Chosen at posting time, stored denormalized: profiles are private to
+  -- their owner under RLS, so a join would show everyone else "somebody".
+  author_name text not null default ''
+              check (length(author_name) <= 60),
+  kind        text not null
+              check (kind in ('idea', 'design', 'template')),
+  title       text not null
+              check (length(title) between 1 and 120),
+  body        text not null default ''
+              check (length(body) <= 4000),
+  -- design: {backdrop, accent?} — template: {project} — idea: {}.
+  -- Capped because a template carries blocks and somebody will eventually
+  -- paste a book into one. 400KB holds any honest template.
+  payload     jsonb not null default '{}'::jsonb
+              check (pg_column_size(payload) <= 400000),
+  created_at  timestamptz not null default now(),
+  deleted_at  timestamptz
+);
+
+create index if not exists community_posts_live_idx
+  on public.community_posts(created_at desc)
+  where deleted_at is null;
+
+alter table public.community_posts enable row level security;
+
+drop policy if exists community_read on public.community_posts;
+create policy community_read on public.community_posts
+  -- The author still sees their own retired posts. Not generosity: Postgres
+  -- checks an UPDATE's new row against the SELECT policy too, so an author
+  -- whose tombstone made the row invisible to themselves would be refused
+  -- the very update that sets it. Everyone else never sees a tombstone.
+  for select using (deleted_at is null or author_id = auth.uid());
+
+drop policy if exists community_write_own on public.community_posts;
+create policy community_write_own on public.community_posts
+  for insert with check (author_id = auth.uid());
+
+-- Update exists solely to set the tombstone (and lets an author edit their
+-- own words, which costs nothing to allow).
+drop policy if exists community_update_own on public.community_posts;
+create policy community_update_own on public.community_posts
+  for update using (author_id = auth.uid())
+  with check (author_id = auth.uid());
+
+-- Hearts. A row is a heart; the pair is the primary key, so a second heart
+-- from the same person is a constraint violation rather than a counter bug.
+create table if not exists public.community_hearts (
+  post_id    text not null
+             references public.community_posts(id) on delete cascade,
+  user_id    uuid not null default auth.uid()
+             references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+
+alter table public.community_hearts enable row level security;
+
+drop policy if exists hearts_read on public.community_hearts;
+create policy hearts_read on public.community_hearts
+  for select using (true);
+
+drop policy if exists hearts_give on public.community_hearts;
+create policy hearts_give on public.community_hearts
+  for insert with check (user_id = auth.uid());
+
+drop policy if exists hearts_take_back on public.community_hearts;
+create policy hearts_take_back on public.community_hearts
+  for delete using (user_id = auth.uid());
+
+commit;
+
+-- ── Proof ─────────────────────────────────────────────────────────────────
+select
+  (select count(*) from information_schema.tables
+    where table_name in ('community_posts', 'community_hearts'))       as tables_there,
+  (select count(*) from pg_policies
+    where tablename in ('community_posts', 'community_hearts'))        as policies,
+  (select relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relname = 'community_posts')      as posts_locked;

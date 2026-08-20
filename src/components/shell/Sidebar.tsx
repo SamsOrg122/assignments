@@ -381,6 +381,13 @@ export function Sidebar() {
             active={pathname === "/team"}
             onNavigate={closeOnMobile}
           />
+          <NavLink
+            href="/community"
+            icon="map"
+            label={t("nav.community")}
+            active={pathname === "/community"}
+            onNavigate={closeOnMobile}
+          />
           {/* Only where there is something to administer. A console that says
               "administration needs a database" every time you click it is a
               permanent piece of furniture teaching people to ignore it. */}

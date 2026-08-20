@@ -33,6 +33,7 @@ export const EN = {
   "nav.notes": "Notes",
   "nav.kit": "Kit",
   "nav.team": "Team",
+  "nav.community": "Community",
   "nav.admin": "Administration",
   "nav.settings": "Settings",
   "nav.search": "Search…",

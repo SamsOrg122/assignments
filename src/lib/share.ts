@@ -313,6 +313,15 @@ const ITEM_KINDS = [
   "text", "sticky", "image", "card", "frame", "connector",
 ] as const;
 
+/**
+ * Reduce an untrusted project payload to one safe to adopt. Exported for the
+ * community's templates, which arrive from strangers exactly like a share
+ * link's payload does and get the same treatment.
+ */
+export function validateSharedProject(input: unknown): Project | null {
+  return validate(input);
+}
+
 function validate(input: unknown): Project | null {
   const raw = obj(input);
   if (!str(raw.id) || !str(raw.name)) return null;

@@ -81,3 +81,67 @@ union all select 'people',     count(*) from public.profiles
 union all select 'form answers', count(*) from public.form_responses
 union all select 'audit entries', count(*) from public.audit_log
 order by what;
+
+-- ── Do the columns the app writes to have the types the app writes? ───────
+--
+-- This section exists because everything above it once said "fine" while not
+-- a single save was reaching the database. `projects.id` was a `uuid`, the
+-- app has always made ten-character ids, and every write was rejected — for
+-- weeks, silently, with the tables all present and correct.
+--
+-- Read `verdict`. Anything that is not `ok` is a save that is failing right
+-- now.
+with expected(table_name, column_name, data_type, why) as (values
+  ('projects',   'id',           'text',                     'the app mints ten-character ids offline; a uuid column refuses every one'),
+  ('projects',   'workspace_id', 'uuid',                      'which account the document belongs to'),
+  ('projects',   'owner_id',     'uuid',                      'who wrote it'),
+  ('projects',   'name',         'text',                      'the title'),
+  ('projects',   'kind',         'text',                      'doc, deck, board…'),
+  ('projects',   'content',      'jsonb',                     'the whole document'),
+  ('projects',   'revision',     'bigint',                    'last-write-wins between two machines'),
+  ('projects',   'deleted_at',   'timestamp with time zone',  'a tombstone, so sync can tell deleted from never-seen'),
+  ('projects',   'search_text',  'text',                      'flattened prose, for search'),
+  ('workspaces', 'id',           'uuid',                      'the account'),
+  ('workspaces', 'owner_id',     'uuid',                      'whose it is')
+)
+select
+  e.table_name || '.' || e.column_name as column,
+  e.data_type                          as expected,
+  coalesce(c.data_type, '— missing —') as found,
+  case
+    when c.data_type is null       then 'MISSING'
+    when c.data_type = e.data_type then 'ok'
+    else 'WRONG TYPE — SAVES ARE FAILING'
+  end                                  as verdict,
+  e.why
+from expected e
+left join information_schema.columns c
+  on c.table_schema = 'public'
+ and c.table_name   = e.table_name
+ and c.column_name  = e.column_name
+order by (case when c.data_type is distinct from e.data_type then 0 else 1 end),
+         e.table_name, e.column_name;
+
+-- Which of the migrations have visibly been applied, inferred from what each
+-- one left behind rather than from a number somebody has to remember to bump.
+select
+  '0002 — work lands in the account' as migration,
+  case when exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'handle_new_user'
+  ) then 'applied' else 'NOT APPLIED' end as state
+union all
+select
+  '0003 — ids the client can actually make',
+  case when exists (
+    select 1 from pg_constraint
+     where conname = 'projects_id_shape' and conrelid = 'public.projects'::regclass
+  ) then 'applied' else 'NOT APPLIED — NOTHING IS BEING SAVED' end
+union all
+select
+  '0004 — let the app check its own database',
+  case when exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'schema_report'
+  ) then 'applied' else 'not applied — Settings cannot self-check' end
+order by migration;

@@ -9,15 +9,25 @@
  * a form that submits and quietly does nothing — is how a working app and a
  * misconfigured one look identical from the outside.
  *
- * It is deliberately read-only apart from the anonymous sign-in check, which
- * cannot be answered any other way than by trying. That leaves at most one
- * anonymous user behind per run, which is also what simply opening the app
- * does.
+ * It used to be read-only apart from the anonymous sign-in check, and that
+ * was the flaw. `projects.id` was a `uuid` while this app has always written
+ * ten-character ids, so every save was refused — and this page reported "the
+ * projects table is there and readable" for weeks, which was true and useless.
+ * Reading was never the problem.
+ *
+ * So it writes now. It saves a real document, reads it back, and removes it,
+ * because that is the only question anybody actually has: *is my work being
+ * saved*. Everything it leaves behind is cleaned up, and if it cannot clean
+ * up it says so rather than leaving a stray row nobody can explain.
  */
 
 import { supabase } from "./client";
 import { remoteConfig } from "./config";
 import { explainAuthError } from "../auth/errors";
+import { driftIn, migrationFor, type SchemaReport } from "./expected";
+import { projectToRow } from "./supabase";
+import { toRemote } from "./index";
+import { createProject } from "../factories";
 
 export type CheckState = "ok" | "bad" | "warn" | "skipped";
 
@@ -191,8 +201,129 @@ export async function diagnose(): Promise<Diagnosis> {
     });
   }
 
+  /* 6. Does the deployed schema match the one this code was written against */
+
+  const report = await client.rpc("schema_report");
+  if (report.error) {
+    // An older deployment simply does not have the function. That is not a
+    // failure — it is a missing pair of glasses, and the write test below
+    // still answers the real question.
+    checks.push({
+      label: "Schema drift",
+      state: "warn",
+      detail: "This database can't be asked what shape it is.",
+      fix: "Run supabase/migrations/0004-let-the-app-check-its-own-database.sql to turn this check on.",
+    });
+  } else {
+    const drift = driftIn((report.data ?? {}) as SchemaReport);
+    if (drift.length === 0) {
+      checks.push(ok("Schema drift", "The database matches what this version of the app expects."));
+    } else {
+      const first = drift[0]!;
+      checks.push({
+        label: "Schema drift",
+        state: "bad",
+        detail:
+          `${first.where} is ${first.found}, and this app writes ${first.expected}` +
+          (drift.length > 1 ? ` (and ${drift.length - 1} more).` : "."),
+        fix:
+          migrationFor(first) ??
+          "Run everything in supabase/migrations/ that hasn't been run yet, oldest first.",
+      });
+    }
+  }
+
+  /* 7. The only question anybody is really asking */
+
+  if (session) checks.push(await canItActuallySave(client, session.user.id));
+  else
+    checks.push({
+      label: "Saving",
+      state: "skipped",
+      detail: "No session to save as.",
+    });
+
   return {
     checks,
     healthy: checks.every((check) => check.state === "ok" || check.state === "warn"),
   };
+}
+
+/**
+ * Save a document, read it back, remove it.
+ *
+ * Built with the same row builder and the same id generator the app itself
+ * uses, on purpose. A check that constructs its own tidy row proves that a
+ * tidy row can be written, which is not the thing in doubt — the bug this
+ * exists to catch was the app's own ids being the wrong shape.
+ */
+async function canItActuallySave(
+  client: NonNullable<ReturnType<typeof supabase>>,
+  userId: string,
+): Promise<Check> {
+  const workspace = await client
+    .from("workspaces")
+    .select("id")
+    .limit(1)
+    .maybeSingle();
+
+  if (workspace.error || !workspace.data) {
+    const { message, fix } = explainAuthError(workspace.error?.message ?? "");
+    return {
+      label: "Saving",
+      state: "bad",
+      detail: workspace.data
+        ? message
+        : "This account has no workspace, so a document has nowhere to land.",
+      fix: fix ?? "Run supabase/migrations/0002-work-lands-in-the-account.sql.",
+    };
+  }
+
+  // The app's own factory and the app's own converters, all the way down.
+  // A check that builds its own tidy row proves a tidy row can be written,
+  // which was never in doubt — the bug this exists to catch was the shape of
+  // the ids the app itself makes.
+  const project = createProject("doc", "Settings check — safe to delete");
+  const id = project.id;
+  const row = projectToRow(toRemote(project), workspace.data.id, userId);
+
+  const written = await client.from("projects").insert({
+    ...row,
+    // Born deleted. The row exists for about a hundred milliseconds, but a
+    // sync pull landing inside that window would put "Settings check — safe
+    // to delete" in somebody's Library — and it is the app's own sync, so
+    // that is not a rare race, it is a scheduled one. A tombstone is ignored
+    // by the pull, and every part of the write being tested still happens.
+    deleted_at: new Date().toISOString(),
+  });
+  if (written.error) {
+    const { message, fix } = explainAuthError(written.error.message);
+    return { label: "Saving", state: "bad", detail: message, fix };
+  }
+
+  // Written is not saved. A policy can allow the insert and then hide the row
+  // from the account that made it, which looks like success and is not.
+  const back = await client.from("projects").select("id").eq("id", id).maybeSingle();
+  const readable = !back.error && back.data?.id === id;
+
+  // Hard delete: this row is litter, not a document, so it gets no tombstone.
+  const cleared = await client.from("projects").delete().eq("id", id);
+
+  if (!readable)
+    return {
+      label: "Saving",
+      state: "bad",
+      detail: "A document can be written but not read back — a policy is hiding your own rows.",
+      fix: "Check the projects_member policy in supabase/migrations/0002-work-lands-in-the-account.sql.",
+    };
+
+  if (cleared.error)
+    return {
+      label: "Saving",
+      state: "warn",
+      detail:
+        'Saving works. The test document could not be removed again — look for "Settings check — safe to delete" in your Library.',
+    };
+
+  return ok("Saving", "A document was saved to this account, read back, and removed.");
 }

@@ -253,7 +253,10 @@ textarea::placeholder {
 .foot {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  /* The status can be long — an address plus a state — and the action must
+     stay on one line and stay reachable. So the text gives way, not the link. */
+  justify-content: space-between;
   padding: 7px 12px;
   border-top: 1px solid var(--line);
   background: var(--surface);
@@ -262,10 +265,19 @@ textarea::placeholder {
   min-height: 30px;
 }
 
-.foot .bad {
-  color: #ff8a80;
+.foot > span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.foot .bad {
+  color: #ff8a80;
+}
+
+.foot .link {
+  flex: none;
   white-space: nowrap;
 }
 
@@ -290,4 +302,109 @@ textarea::placeholder {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ── Before the note: signing in ─────────────────────────────────────── */
+
+.gate {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gate .lead {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.quiet {
+  margin: 0;
+  color: var(--fg-subtle);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.providers {
+  display: grid;
+  gap: 7px;
+}
+
+.wide {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.wide:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.wide:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.wide:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.password {
+  display: grid;
+  gap: 9px;
+}
+
+.password label {
+  display: grid;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.password input {
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--canvas);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12.5px;
+  /* Typing an address is typing; the rest of the chrome is not. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.password input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.gate .bad {
+  margin: 0;
+  color: #ff8a80;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* A line above the note when something is degraded but the note still works.
+   Not an error colour: nothing is broken from where the user sits, and a red
+   bar over a working note trains people to ignore red bars. */
+.banner {
+  margin: 0;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fg-muted);
+  font-size: 11px;
 }

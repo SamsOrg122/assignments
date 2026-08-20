@@ -5,6 +5,7 @@
 //! four — and in that order on purpose, so that the note works before it is
 //! ever asked to depend on a network.
 
+mod auth;
 mod commands;
 mod config_check;
 mod store;
@@ -15,7 +16,7 @@ mod window;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use tauri::{Manager, WindowEvent};
+use tauri::{Emitter, Manager, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_window_state::StateFlags;
@@ -27,7 +28,37 @@ pub fn run() {
     // through, or the app could never be quit at all.
     let flushing = Arc::new(AtomicBool::new(false));
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // Windows and Linux hand a `tougather://` link to a fresh copy of the app.
+    // Without this, signing in would open a second note window and the first
+    // one would sit there waiting for a link it never receives.
+    //
+    // On Linux it talks over the session bus, and a machine with no session
+    // bus — a bare X session, a container, some minimal window managers —
+    // has none to talk over. Loading it there hangs the app before the window
+    // is ever created: no note, no tray, no message, nothing to see. Found by
+    // running it, because with a session bus present everything works.
+    //
+    // So: skip it there rather than hang. Deep links stop being forwarded,
+    // which costs the browser sign-in on exactly the machines that have no
+    // browser session to speak of, and the app itself still runs.
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    let builder = if has_a_session_bus() {
+        builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            use tauri_plugin_deep_link::DeepLinkExt;
+            let _ = app.deep_link().register_all();
+            visibility::show(app);
+        }))
+    } else {
+        eprintln!(
+            "Tougather note: no D-Bus session, so signing in through the browser \
+             is unavailable on this machine. Notes still work."
+        );
+        builder
+    };
+
+    builder
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 // Position and size, and nothing else. VISIBLE is left out on
@@ -45,6 +76,7 @@ pub fn run() {
             Some(vec!["--hidden"]),
         ))
         .plugin(global_shortcut())
+        .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
             commands::notes_list,
             commands::note_create,
@@ -54,6 +86,10 @@ pub fn run() {
             commands::store_path,
             commands::hide_window,
             commands::ready_to_quit,
+            auth::commands::auth_standing,
+            auth::commands::auth_begin,
+            auth::commands::auth_with_password,
+            auth::commands::auth_sign_out,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -72,6 +108,46 @@ pub fn run() {
             }
 
             tray::build(&handle)?;
+
+            app.manage(auth::Auth::default());
+            wake_up_the_account(&handle);
+
+            // The browser comes back through here. On Windows and Linux the
+            // link arrives in a second copy of the app, which the single
+            // instance below hands to this one; on macOS it arrives directly.
+            #[cfg(any(target_os = "windows", target_os = "linux"))]
+            let links_work = has_a_session_bus();
+            #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+            let links_work = true;
+
+            if links_work {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let for_links = handle.clone();
+                app.deep_link().on_open_url(move |event| {
+                    let Some(link) = event.urls().first().cloned() else { return };
+                    let app = for_links.clone();
+                    tauri::async_runtime::spawn(async move {
+                        match auth::commands::finish(&app, link.as_str()).await {
+                            Ok(standing) => {
+                                let _ = app.emit(SIGNED_IN_EVENT, standing);
+                                // Sign-in happened in the browser, so the note
+                                // window is behind it. Bring it back, or the
+                                // user is left looking at a web page wondering
+                                // whether it worked.
+                                visibility::show(&app);
+                            }
+                            Err(problem) => {
+                                // To the log as well as to the window. A
+                                // failure that exists only as an event is a
+                                // failure nobody can investigate afterwards.
+                                eprintln!("Tougather note: sign-in did not finish — {problem}");
+                                let _ = app.emit(SIGN_IN_FAILED_EVENT, problem);
+                                visibility::show(&app);
+                            }
+                        }
+                    });
+                });
+            }
 
             // Registered here rather than in the plugin builder because a
             // shortcut another app already holds is a refusal, not a crash:
@@ -142,6 +218,71 @@ fn ask_the_window_to_flush<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 
 /// What the window listens for when it is about to be shut.
 pub const FLUSH_EVENT: &str = "note:flush";
+
+/// Sign-in finished in the browser and came back through the deep link.
+pub const SIGNED_IN_EVENT: &str = "auth:signed-in";
+/// It came back, and it did not work.
+pub const SIGN_IN_FAILED_EVENT: &str = "auth:failed";
+
+/// Read the site's configuration and resume a session, without holding up
+/// the window.
+///
+/// Both are network calls, and a note-taking app that will not open until
+/// tougather.com answers is a note-taking app that is useless on a train.
+/// The window draws immediately and finds out it is signed in a moment later.
+fn wake_up_the_account<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let config = match auth::gotrue::config(&auth::site()).await {
+            Ok(config) => config,
+            Err(problem) => {
+                eprintln!("Tougather note: {problem}");
+                let _ = app.emit(SIGN_IN_FAILED_EVENT, problem);
+                return;
+            }
+        };
+        {
+            let held = app.state::<auth::Auth>();
+            let mut state = held.0.lock().unwrap_or_else(|p| p.into_inner());
+            state.config = Some(config.clone());
+        }
+
+        // A refresh token from a previous run. Trading it for a session is
+        // also how we find out it has been revoked.
+        match auth::keychain::read() {
+            Ok(Some(token)) => match auth::gotrue::refresh(&config, &token).await {
+                Ok(session) => {
+                    if let Ok(standing) = auth::adopt(&app, session) {
+                        let _ = app.emit(SIGNED_IN_EVENT, standing);
+                    }
+                }
+                Err(_) => {
+                    // Revoked, or simply too old. Clear it rather than
+                    // retrying a dead token at every launch forever.
+                    let _ = auth::keychain::clear();
+                    let _ = app.emit(SIGNED_IN_EVENT, auth::commands::standing_now(&app.state::<auth::Auth>()));
+                }
+            },
+            _ => {
+                let _ = app.emit(SIGNED_IN_EVENT, auth::commands::standing_now(&app.state::<auth::Auth>()));
+            }
+        }
+    });
+}
+
+/// Whether there is a session bus to talk over.
+///
+/// Linux only in practice; on Windows and macOS this is always true, because
+/// the single-instance plugin there uses the platform's own mechanism.
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+fn has_a_session_bus() -> bool {
+    if cfg!(target_os = "windows") {
+        return true;
+    }
+    std::env::var("DBUS_SESSION_BUS_ADDRESS")
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false)
+}
 
 fn global_shortcut<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri_plugin_global_shortcut::Builder::new()

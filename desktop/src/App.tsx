@@ -16,6 +16,8 @@ import {
 import { useAutosave } from "./useAutosave";
 import { when } from "./when";
 import { HOTKEY_LABEL } from "./platform";
+import { signOut, standing as readStanding, type Standing } from "./auth";
+import { SignIn } from "./SignIn";
 
 type Status =
   | { kind: "ready" }
@@ -39,6 +41,9 @@ export function App() {
   const [listOpen, setListOpen] = useState(false);
   const [undo, setUndo] = useState<Note | null>(null);
   const [where, setWhere] = useState<string | null>(null);
+  // `null` while the first read is in flight, so the window does not flash
+  // the sign-in screen at somebody who is already signed in.
+  const [account, setAccount] = useState<Standing | null>(null);
 
   const box = useRef<HTMLTextAreaElement>(null);
   // The id the pending write belongs to. Switching notes flushes first, but a
@@ -86,6 +91,7 @@ export function App() {
       }
     })();
     storePath().then(setWhere).catch(() => setWhere(null));
+    readStanding().then(setAccount).catch(() => setAccount(null));
     return () => {
       alive = false;
     };
@@ -106,6 +112,28 @@ export function App() {
       void stop.then((off) => off());
     };
   }, [flush]);
+
+  useEffect(() => {
+    // Rust does the signing in, so it is Rust that knows when it finished —
+    // the browser came back through a link this window never sees.
+    const done = listen<Standing>("auth:signed-in", (event) => {
+      setAccount(event.payload);
+    });
+    const failed = listen<string>("auth:failed", (event) => {
+      // Read standing again rather than only stamping the message on: whether
+      // the app is configured, and whether there is a keychain, may both have
+      // changed by the time a sign-in fails.
+      readStanding()
+        .then((next) => setAccount({ ...next, problem: event.payload }))
+        .catch(() =>
+          setAccount((was) => (was ? { ...was, problem: event.payload } : was)),
+        );
+    });
+    return () => {
+      void done.then((off) => off());
+      void failed.then((off) => off());
+    };
+  }, []);
 
   useEffect(() => {
     // Rust raises the window; this puts the caret where somebody who just
@@ -215,26 +243,51 @@ export function App() {
 
   const active = notes.find((n) => n.id === activeId) ?? null;
 
+  /*
+   * When to insist on signing in.
+   *
+   * Only when signing in is actually possible: the site answered, and this
+   * machine has somewhere safe to keep the session. A network that is down
+   * and a keychain that is missing are not the user being signed out, and
+   * refusing to let somebody write a note because tougather.com is
+   * unreachable would be exactly the failure this whole app is built to
+   * avoid. In those two cases the note works and a line says why nothing is
+   * leaving the machine.
+   */
+  const mustSignIn = Boolean(
+    account && !account.signed_in && account.configured && account.can_remember,
+  );
+  const workingAlone =
+    account && !account.signed_in && !mustSignIn
+      ? account.can_remember
+        ? "Can't reach tougather.com — writing here meanwhile."
+        : "No keychain on this computer, so signing in can't be remembered."
+      : null;
+
   return (
     <div className="note">
       <header className="bar" data-tauri-drag-region>
-        <button
-          type="button"
-          className="chip"
-          aria-expanded={listOpen}
-          onClick={() => setListOpen((o) => !o)}
-        >
-          {listOpen ? "Close" : `Notes (${notes.length})`}
-        </button>
+        {mustSignIn ? null : (
+          <button
+            type="button"
+            className="chip"
+            aria-expanded={listOpen}
+            onClick={() => setListOpen((o) => !o)}
+          >
+            {listOpen ? "Close" : `Notes (${notes.length})`}
+          </button>
+        )}
 
         <span className="name" data-tauri-drag-region>
-          {active ? titleOf(active) || "New note" : ""}
+          {mustSignIn ? "Tougather note" : active ? titleOf(active) || "New note" : ""}
         </span>
 
-        <button type="button" className="icon" title="New note" onClick={startNew}>
-          <span aria-hidden="true">+</span>
-          <span className="sr-only">New note</span>
-        </button>
+        {mustSignIn ? null : (
+          <button type="button" className="icon" title="New note" onClick={startNew}>
+            <span aria-hidden="true">+</span>
+            <span className="sr-only">New note</span>
+          </button>
+        )}
         <button
           type="button"
           className="icon"
@@ -246,7 +299,11 @@ export function App() {
         </button>
       </header>
 
-      {listOpen ? (
+      {workingAlone ? <p className="banner">{workingAlone}</p> : null}
+
+      {mustSignIn && account ? (
+        <SignIn standing={account} onSignedIn={setAccount} />
+      ) : listOpen ? (
         <ul className="list">
           {notes.map((note) => (
             <li key={note.id}>
@@ -291,7 +348,9 @@ export function App() {
       )}
 
       <footer className="foot">
-        {undo ? (
+        {mustSignIn ? (
+          <span>Your notes stay on this computer until you sign in.</span>
+        ) : undo ? (
           <>
             <span>Deleted.</span>
             <button type="button" className="link" onClick={() => void undoDelete()}>
@@ -299,14 +358,24 @@ export function App() {
             </button>
           </>
         ) : (
-          <Saved status={status} where={where} />
+          <Saved status={status} where={where} account={account} onSignOut={setAccount} />
         )}
       </footer>
     </div>
   );
 }
 
-function Saved({ status, where }: { status: Status; where: string | null }) {
+function Saved({
+  status,
+  where,
+  account,
+  onSignOut,
+}: {
+  status: Status;
+  where: string | null;
+  account: Standing | null;
+  onSignOut: (next: Standing) => void;
+}) {
   if (status.kind === "failed")
     return (
       <span className="bad" role="alert">
@@ -314,15 +383,27 @@ function Saved({ status, where }: { status: Status; where: string | null }) {
       </span>
     );
   if (status.kind === "saving") return <span>Saving…</span>;
-  if (status.kind === "saved")
-    return (
-      <span title={where ?? undefined}>
-        Saved {when(status.at)} · on this computer
-      </span>
-    );
+  // Signed in, but nothing has left this machine yet: sync is step 4. Saying
+  // "saved to your account" now would be the exact untruth the web app spent
+  // a week undoing.
+  const whose = account?.email ? ` · ${account.email}` : "";
   return (
-    <span title={where ?? undefined}>
-      On this computer only — sign in comes in step 3
-    </span>
+    <>
+      <span title={where ?? undefined}>
+        {status.kind === "saved"
+          ? `Saved ${when(status.at)} · on this computer`
+          : "On this computer — syncing comes in step 4"}
+        {whose}
+      </span>
+      {account?.signed_in ? (
+        <button
+          type="button"
+          className="link"
+          onClick={() => void signOut().then(onSignOut)}
+        >
+          Sign out
+        </button>
+      ) : null}
+    </>
   );
 }

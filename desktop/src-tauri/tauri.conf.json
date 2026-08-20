@@ -45,6 +45,13 @@
       "menuOnLeftClick": false
     }
   },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["tougather"]
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

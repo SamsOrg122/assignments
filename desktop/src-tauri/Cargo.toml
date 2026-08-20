@@ -33,6 +33,27 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 # coincidence: a client minting ids the database rejects is exactly the bug
 # that stopped every save from landing.
 nanoid = "0.4"
+# The webview never touches the network. Every call to Supabase is made here,
+# which keeps the session out of JavaScript entirely and lets the window's
+# content policy stay at `default-src 'self'` with no exceptions at all.
+# rustls rather than the system OpenSSL: one less thing that has to be present
+# on a user's machine, and one less thing that can be an old version of itself.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+# The OS keychain — Keychain on macOS, Credential Manager on Windows,
+# Secret Service on Linux. A refresh token in a file is a refresh token
+# anything running as you can read.
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+sha2 = "0.10"
+base64 = "0.22"
+url = "2"
+getrandom = "0.3"
+tauri-plugin-deep-link = "2"
+
+# Desktop only, and only for one job: on Windows and Linux the browser's
+# `tougather://` link starts a *second* copy of the app, which has to hand the
+# link to the one already running rather than opening a second note window.
+[target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 # The always-on-top behaviour macOS actually needs is not in the cross-platform
 # API: joining every Space *and* staying up over a fullscreen app is a

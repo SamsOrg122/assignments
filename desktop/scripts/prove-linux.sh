@@ -21,7 +21,7 @@
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
-DISPLAY_NUM=":77"
+DISPLAY_NUM="${TOUGATHER_DISPLAY:-:77}"
 STORE="${XDG_DATA_HOME:-$HOME/.local/share}/com.tougather.note/notes.sqlite3"
 BIN="./src-tauri/target/debug/tougather-desktop"
 
@@ -61,6 +61,22 @@ echo "starting on a virtual display…"
 rm -f "$STORE" "$STORE-wal" "$STORE-shm"
 nohup Xvfb "$DISPLAY_NUM" -screen 0 1280x800x24 > /tmp/tougather-xvfb.log 2>&1 &
 sleep 2
+
+# A session bus, even though nothing in step 2 needs one.
+#
+# The app does now: the tray, the deep-link plugin and the keychain all reach
+# for D-Bus, and on a machine without it the global shortcut never fires here
+# — the app runs and the note saves, but the hotkey is dead. A developer
+# machine always has a bus; this container does not, and a test harness that
+# differs from every real machine in a way that fails is worse than no
+# harness. If `dbus-launch` is missing the script carries on and says so,
+# because the note checks below are still worth running.
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v dbus-launch > /dev/null; then
+  eval "$(dbus-launch --sh-syntax)"
+  export DBUS_SESSION_BUS_ADDRESS
+elif [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+  echo "note: no dbus-launch, so the hotkey check may fail for that reason alone"
+fi
 DISPLAY="$DISPLAY_NUM" nohup "$BIN" > /tmp/tougather-app.log 2>&1 &
 export DISPLAY="$DISPLAY_NUM"
 sleep 18

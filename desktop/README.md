@@ -16,8 +16,8 @@ Built in five steps, each one testable on its own.
 | --- | --- | --- |
 | 1 | Window behaviour, global hotkey, tray | **done** |
 | 2 | Local SQLite and the note itself, fully offline | **done** |
-| 3 | Device-code pairing with tougather.com | next |
-| 4 | Sync queue, and the notes section in the web Library | |
+| 3 | Signing in, through your own browser | **done** |
+| 4 | Sync queue, and the notes section in the web Library | next |
 | 5 | GitHub Actions matrix build for macOS, Windows, Linux | |
 
 ## Running it
@@ -29,6 +29,44 @@ npm run app        # tauri dev — builds the Rust side the first time, so give 
 ```
 
 `npm run app:build` makes a real bundle. Unsigned for now — see *Signing*.
+
+### What to check in step 3
+
+Signing in happens in your own browser, not in this window.
+
+- **Click a provider.** Your browser opens at tougather.com — where you can
+  see the address bar and are probably signed in already — and comes back to
+  the app on its own. The window raises itself when it does.
+- **Quit and start again.** Still signed in. The refresh token is in the OS
+  keychain, and the app trades it for a session at startup.
+- **Sign out**, bottom right. The keychain entry goes, and so does the session
+  on the server.
+- **Pull the network out and start the app.** It says it can't reach
+  tougather.com and lets you write anyway. Same if this machine has no
+  keychain. Being unable to sign in is not the same as being signed out, and
+  refusing to take a note because a server is down would defeat the point of
+  the whole thing.
+
+The footer says *on this computer* even when signed in, because nothing is
+being synced yet — that is step 4. Saying "saved to your account" now would be
+untrue, and the web app spent a week undoing exactly that sentence.
+
+#### Why not the short code you asked for
+
+The original plan was a device-code flow: the app shows `K7P2-M9QX`, you type
+it on tougather.com, the app polls. That flow ends with the server minting a
+session on your behalf, and minting sessions needs Supabase's service-role
+key — the one that bypasses every rule keeping accounts apart. It would have
+to exist, and be guarded, forever.
+
+The browser flow needs no such key. The app makes a secret, sends only its
+hash to the browser, and trades the authorization code plus the original
+secret for a session. A code intercepted on the way back is half a pair and
+worth nothing. That is standard PKCE, and it is fewer steps for the person
+signing in.
+
+Device-code is the right answer for a device with no browser — a TV, a
+headless server. A laptop is not that.
 
 ### What to check in step 2
 
@@ -102,6 +140,7 @@ desktop/
     src/tray.rs       the tray icon and its menu
     src/visibility.rs show / hide / toggle, in one place
     src/store/        SQLite: the schema, its migrations, and notes CRUD
+    src/auth/         signing in: the HTTP calls, PKCE, and the OS keychain
     src/commands.rs   what the window may ask for — eight verbs, no SQL
     src/config_check.rs  tests that the config still says what it must
     tauri.conf.json   the window, the bundle, the policy
@@ -127,9 +166,20 @@ push upwards, never sit between a keystroke and the disk.
 ## Testing
 
 ```sh
-cargo test --manifest-path src-tauri/Cargo.toml   # store, schema, config
+cargo test --manifest-path src-tauri/Cargo.toml   # store, schema, config, PKCE
 ./scripts/prove-linux.sh                          # the real app, on a virtual display
+./scripts/prove-auth-linux.sh                     # the whole sign-in, against a stand-in
 ```
+
+`prove-auth-linux.sh` needs a build pointed at its stand-in:
+
+```sh
+TOUGATHER_SITE=http://localhost:4599 cargo build --manifest-path src-tauri/Cargo.toml
+```
+
+Both scripts need a D-Bus session. So does the app: the tray, the deep-link
+handler and the keychain all use it, and on a Linux box without one the global
+hotkey never fires. Every real desktop has one; a bare container does not.
 
 The unit tests cover the schema and its migrations, the tombstones, the id
 shape, and — on the TypeScript side — the autosave's ordering, which is where
@@ -145,6 +195,12 @@ you could type into it and nothing happened.
 It is Linux-only and that is fine: the wiring it tests is the same everywhere.
 The part that genuinely differs is the macOS window behaviour, which needs a
 Mac and a pair of eyes.
+
+The sign-in script earned its place the same way, twice over. It found that a
+failed sign-in showed nothing at all — the window sat on "Waiting for your
+browser…" while the reason sat one prop away — and that a *locked* keychain
+was being reported as a *missing* one, which would have sent somebody off to
+install a keyring they already had.
 
 ## Signing
 

@@ -64,6 +64,7 @@ interface ProjectsState {
   /** Delete a folder; its contents move up to its parent, never away. */
   removeFolder: (folderId: string) => void;
   moveFolder: (folderId: string, parentId: string | null) => void;
+  setFolderGlyph: (folderId: string, glyph: string) => void;
   moveProject: (projectId: string, folderId: string | null) => void;
   setLabels: (projectId: string, labels: string[]) => void;
 
@@ -464,6 +465,13 @@ export const useProjects = create<ProjectsState>()(
             ),
           };
         }),
+
+      setFolderGlyph: (folderId, glyph) =>
+        set((s) => ({
+          folders: s.folders.map((f) =>
+            f.id === folderId ? { ...f, glyph } : f,
+          ),
+        })),
 
       moveProject: (projectId, folderId) =>
         set((s) => ({

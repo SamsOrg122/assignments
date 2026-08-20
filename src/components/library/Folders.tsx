@@ -21,6 +21,7 @@ import { useUI } from "@/lib/ui-store";
 import { useMenu } from "@/components/ui/Menu";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar, AvatarDialog } from "@/components/ui/Avatar";
 import { t } from "@/lib/i18n";
 
 /** Every folder id at or under `id`, so a parent shows its whole subtree. */
@@ -61,7 +62,9 @@ export function FolderRail({
   const moveFolder = useProjects((s) => s.moveFolder);
   const notify = useUI((s) => s.notify);
   const menu = useMenu();
+  const setFolderGlyph = useProjects((s) => s.setFolderGlyph);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [iconFor, setIconFor] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
   /** How many projects are in a folder including everything under it. */
@@ -89,6 +92,12 @@ export function FolderRail({
           setRenaming(folder.id);
           setDraft(folder.name);
         },
+      },
+      {
+        kind: "item",
+        label: t("folder.icon"),
+        icon: "sparkle",
+        onSelect: () => setIconFor(folder.id),
       },
       {
         kind: "item",
@@ -172,7 +181,11 @@ export function FolderRail({
               )}
               style={{ paddingLeft: 6 + depth * 12 }}
             >
-              <Icon name="folder" size={11} className="shrink-0 text-fg-subtle" />
+              {folder.glyph ? (
+                <Avatar glyph={folder.glyph} size={12} className="text-fg-subtle" />
+              ) : (
+                <Icon name="folder" size={11} className="shrink-0 text-fg-subtle" />
+              )}
               <span className="min-w-0 flex-1 truncate">{folder.name}</span>
               <span className="shrink-0 font-mono text-[9.5px] text-fg-subtle">
                 {counts.get(folder.id) ?? 0}
@@ -188,9 +201,19 @@ export function FolderRail({
   if (!tree.length && unfiled === projects.length && projects.length === 0)
     return null;
 
+  const iconFolder = folders.find((f) => f.id === iconFor);
+
   return (
     <>
       {menu.node}
+      {iconFolder && (
+        <AvatarDialog
+          title={`Icon for “${iconFolder.name}”`}
+          value={iconFolder.glyph}
+          onPick={(g) => setFolderGlyph(iconFolder.id, g)}
+          onClose={() => setIconFor(null)}
+        />
+      )}
       <div className="flex flex-col gap-0.5">
         <div className="mb-1 flex items-center gap-2">
           <span className="label-mono flex-1">{t("library.folders")}</span>

@@ -20,6 +20,7 @@
 
 import type { Block, BoardItem, Project, SlideObject } from "./types";
 import { sanitizeHtml, safeImageSrc } from "./sanitize";
+import { sanitizeGlyph } from "./avatars";
 
 /**
  * What the sender is offering.
@@ -319,7 +320,7 @@ function validate(input: unknown): Project | null {
     id: str(raw.id),
     name: str(raw.name).slice(0, 200),
     kind: oneOf(raw.kind, KINDS, "doc"),
-    glyph: str(raw.glyph, "◇").slice(0, 4),
+    glyph: sanitizeGlyph(raw.glyph),
     createdAt: num(raw.createdAt, Date.now()),
     updatedAt: num(raw.updatedAt, Date.now()),
     // Read like everything else here: never trusted, only coerced. A payload

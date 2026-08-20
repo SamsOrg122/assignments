@@ -1131,3 +1131,148 @@
 .col-letter::before {
   content: attr(data-letter);
 }
+
+/* ── Avatars ─────────────────────────────────────────────
+   The animated marks a document can wear (components/ui/Avatar). Everything
+   here is sized in percentages of the container so one set of rules serves a
+   28px Library tile and a 12px sidebar row alike. `--av` is the mark's
+   colour, set inline from the stored name. Every animation is written so its
+   base state — what reduced-motion leaves on screen — is a complete, legible
+   mark, not a mid-frame. */
+
+.avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.avatar-glyph {
+  line-height: 1;
+}
+
+.avatar-pixels {
+  display: grid;
+  width: 68%;
+  height: 68%;
+  grid-template-columns: 1fr 1fr;
+  gap: 14%;
+}
+.avatar-pixels span {
+  background: var(--av);
+  border-radius: 22%;
+  animation: avatar-ripple 1.6s ease-in-out infinite;
+}
+.avatar-pixels span:nth-child(2) { animation-delay: 0.15s; }
+.avatar-pixels span:nth-child(3) { animation-delay: 0.3s; }
+.avatar-pixels span:nth-child(4) { animation-delay: 0.45s; }
+@keyframes avatar-ripple {
+  0%, 60%, 100% { opacity: 0.45; transform: scale(0.82); }
+  20% { opacity: 1; transform: scale(1); }
+}
+
+.avatar-pulse {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+.avatar-pulse span {
+  grid-area: 1 / 1;
+  width: 38%;
+  height: 38%;
+  border-radius: 9999px;
+}
+.avatar-pulse span:first-child {
+  background: var(--av);
+}
+.avatar-pulse span:last-child {
+  border: 1.5px solid var(--av);
+  animation: avatar-pulse 1.8s ease-out infinite;
+}
+@keyframes avatar-pulse {
+  from { transform: scale(1); opacity: 0.9; }
+  to { transform: scale(2.3); opacity: 0; }
+}
+
+.avatar-orbit {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+.avatar-orbit-ring {
+  grid-area: 1 / 1;
+  width: 66%;
+  height: 66%;
+  border: 1.5px solid color-mix(in srgb, var(--av) 45%, transparent);
+  border-radius: 9999px;
+}
+.avatar-orbit-rotor {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  animation: avatar-spin 2.6s linear infinite;
+}
+.avatar-orbit-rotor span {
+  position: absolute;
+  top: 4%;
+  left: 50%;
+  width: 26%;
+  height: 26%;
+  margin-left: -13%;
+  border-radius: 9999px;
+  background: var(--av);
+}
+@keyframes avatar-spin {
+  to { transform: rotate(360deg); }
+}
+
+.avatar-spark {
+  color: var(--av);
+  font-size: 78%;
+  line-height: 1;
+  animation: avatar-twinkle 1.9s ease-in-out infinite;
+}
+@keyframes avatar-twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(0.72) rotate(24deg); opacity: 0.6; }
+}
+
+.avatar-wave {
+  display: flex;
+  align-items: center;
+  gap: 16%;
+  width: 62%;
+  height: 68%;
+}
+.avatar-wave span {
+  flex: 1;
+  height: 55%;
+  border-radius: 2px;
+  background: var(--av);
+  animation: avatar-wave 1.1s ease-in-out infinite;
+}
+.avatar-wave span:nth-child(2) { animation-delay: 0.18s; }
+.avatar-wave span:nth-child(3) { animation-delay: 0.36s; }
+@keyframes avatar-wave {
+  0%, 100% { height: 40%; }
+  50% { height: 100%; }
+}
+
+.avatar-ring {
+  width: 66%;
+  height: 66%;
+  border-radius: 9999px;
+  background: conic-gradient(from 0deg, color-mix(in srgb, var(--av) 15%, transparent), var(--av));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+  animation: avatar-spin 1.5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar *,
+  .avatar-spark,
+  .avatar-ring {
+    animation: none !important;
+  }
+}

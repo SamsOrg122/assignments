@@ -34,7 +34,7 @@ import { useOffline } from "@/lib/offline";
 import { useRemoteConfigured } from "@/lib/db/use-config";
 import { t } from "@/lib/i18n";
 import { KeepPromptCompact } from "@/components/account/KeepPrompt";
-import { KINDS } from "@/lib/kinds";
+import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { LogoTile } from "@/components/ui/Logo";
@@ -434,9 +434,10 @@ export function Sidebar() {
                       : "text-fg-muted hover:bg-surface hover:text-fg",
                   )}
                 >
-                  <Icon
-                    name={KINDS[p.kind].icon}
-                    size={12}
+                  <Avatar
+                    glyph={p.glyph}
+                    kind={p.kind}
+                    size={13}
                     className="shrink-0 text-fg-subtle"
                   />
                   <span className="truncate">{p.name}</span>

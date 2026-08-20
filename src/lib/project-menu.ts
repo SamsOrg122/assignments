@@ -25,6 +25,8 @@ export function projectMenu(
     open: (id: string) => void;
     settings: () => void;
     rename: () => void;
+    /** Opens the avatar picker. Surfaces without one route to settings. */
+    icon?: () => void;
     /** Only the Library offers these; elsewhere the entries are left out. */
     labels?: () => void;
     saveAsTemplate?: () => void;
@@ -79,6 +81,14 @@ export function projectMenu(
       label: "Rename…",
       icon: "type",
       onSelect: actions.rename,
+    },
+    {
+      kind: "item",
+      label: "Icon…",
+      icon: "sparkle",
+      // Every surface can change the icon: without a dedicated dialog the
+      // settings sheet holds the same picker.
+      onSelect: actions.icon ?? actions.settings,
     },
     {
       kind: "item",

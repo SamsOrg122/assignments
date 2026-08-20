@@ -29,6 +29,7 @@ import { ProjectSettings } from "@/components/shell/ProjectSettings";
 import { projectMenu } from "@/lib/project-menu";
 import { Button, Dialog, fieldClass } from "@/components/ui/Dialog";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar, AvatarDialog } from "@/components/ui/Avatar";
 import { cn } from "@/lib/cn";
 import type { Project, ProjectKind } from "@/lib/types";
 import { projectSummary } from "@/lib/summary";
@@ -53,7 +54,9 @@ export default function LibraryPage() {
   const router = useRouter();
 
   const menu = useMenu();
+  const setGlyph = useProjects((s) => s.setProjectGlyph);
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
+  const [iconFor, setIconFor] = useState<string | null>(null);
   const [templating, setTemplating] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -71,12 +74,14 @@ export default function LibraryPage() {
         open: (id) => router.push(`/p/${id}`),
         settings: () => setSettingsFor(project.id),
         rename: () => setRenaming(project.id),
+        icon: () => setIconFor(project.id),
         labels: () => setLabelling(project.id),
         saveAsTemplate: () => setTemplatingFrom(project.id),
       }),
     );
 
   const settingsProject = projects.find((p) => p.id === settingsFor);
+  const iconProject = projects.find((p) => p.id === iconFor);
   const renamingProject = projects.find((p) => p.id === renaming);
   const labellingProject = projects.find((p) => p.id === labelling);
   const templateSource = projects.find((p) => p.id === templatingFrom);
@@ -152,6 +157,14 @@ export default function LibraryPage() {
         <RenameDialog
           project={renamingProject}
           onClose={() => setRenaming(null)}
+        />
+      )}
+      {iconProject && (
+        <AvatarDialog
+          title={`Icon for “${iconProject.name}”`}
+          value={iconProject.glyph}
+          onPick={(g) => setGlyph(iconProject.id, g)}
+          onClose={() => setIconFor(null)}
         />
       )}
       {labellingProject && (
@@ -435,7 +448,7 @@ function LibraryRow({
         aria-hidden="true"
         className="grid size-7 shrink-0 place-items-center rounded-md border border-line bg-surface-2 text-fg-muted"
       >
-        <Icon name={meta.icon} size={13} />
+        <Avatar glyph={project.glyph} kind={project.kind} size={15} />
       </span>
 
       <span className="min-w-0 flex-1">

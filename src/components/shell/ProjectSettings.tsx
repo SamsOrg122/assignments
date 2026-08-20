@@ -17,6 +17,7 @@ import { useUI } from "@/lib/ui-store";
 import type { CitationStyle, Project, ProjectKind } from "@/lib/types";
 import { Button, Dialog, Row, fieldClass } from "@/components/ui/Dialog";
 import { Icon } from "@/components/ui/Icon";
+import { AvatarPicker } from "@/components/ui/Avatar";
 import { cn } from "@/lib/cn";
 
 const CITATION_STYLES: Array<[CitationStyle, string]> = [
@@ -26,8 +27,6 @@ const CITATION_STYLES: Array<[CitationStyle, string]> = [
   ["harvard", "Harvard"],
 ];
 
-/** A few glyphs rather than an emoji picker — the sidebar has one type scale. */
-const GLYPHS = ["◆", "◇", "▲", "△", "■", "□", "●", "○", "✳", "✦", "▸", "§"];
 
 export function ProjectSettings({
   project,
@@ -123,26 +122,14 @@ export function ProjectSettings({
         </div>
       </Row>
 
-      <Row label="Glyph" hint="Shown in the sidebar and on Library rows.">
-        <div className="flex flex-wrap gap-1">
-          {GLYPHS.map((g) => (
-            <button
-              key={g}
-              type="button"
-              aria-label={`Glyph ${g}`}
-              aria-pressed={project.glyph === g}
-              onClick={() => setGlyph(project.id, g)}
-              className={cn(
-                "grid size-8 place-items-center rounded-sm border text-[13px] transition-colors duration-150",
-                project.glyph === g
-                  ? "border-accent bg-accent-soft text-fg"
-                  : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
-              )}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
+      <Row
+        label="Icon"
+        hint="Shown in the sidebar and on Library rows, so this project is findable at a glance."
+      >
+        <AvatarPicker
+          value={project.glyph}
+          onPick={(g) => setGlyph(project.id, g)}
+        />
       </Row>
 
       <Row

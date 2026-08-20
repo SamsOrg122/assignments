@@ -70,6 +70,7 @@ export const EN = {
 
   /* Folders and labels */
   "folder.rename": "Rename",
+  "folder.icon": "Icon…",
   "folder.newInside": "New folder inside",
   "folder.moveTo": "Move to",
   "folder.topLevel": "Top level",

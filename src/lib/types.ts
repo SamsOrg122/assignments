@@ -726,6 +726,11 @@ export interface Folder {
   name: string;
   /** Null at the top level. */
   parentId: string | null;
+  /**
+   * Same vocabulary as a project's glyph (see `lib/avatars`): a character,
+   * or a `~motif-color` animated mark. Absent draws the plain folder icon.
+   */
+  glyph?: string;
   createdAt: number;
 }
 

@@ -108,27 +108,60 @@ export function previewOf(note: Note): string {
 /* ── Where the desktop app comes from ─────────────────────────────────── */
 
 /**
- * The releases page.
+ * The version the download links point at.
  *
- * One constant rather than a URL typed into a component, because the day this
- * moves — to a CDN, to a download service, to a signed installer host — it has
- * to move in one place, and a link that quietly points at the old one is how
- * people end up installing a build from last year.
+ * One constant, and it has to match the `version` in
+ * `desktop/src-tauri/tauri.conf.json` — the release is named from that file,
+ * and the built filenames carry it. When a new one is cut, this changes with
+ * it. If it ever drifts the links 404, which is why every one of them sits
+ * beside a link to the releases page that cannot go stale.
  */
-export const RELEASES_URL =
-  "https://github.com/SamsOrg122/assignments/releases/latest";
+export const DESKTOP_VERSION = "0.1.0";
+
+const REPO = "https://github.com/SamsOrg122/assignments";
+
+/** Every build, for anyone who wants a format that is not offered below. */
+export const RELEASES_URL = `${REPO}/releases/latest`;
+
+const asset = (name: string) =>
+  `${REPO}/releases/download/desktop-v${DESKTOP_VERSION}/${name}`;
 
 /**
- * What to offer, per platform.
+ * What to offer, per machine.
  *
- * All four point at the same releases page for now rather than at direct
- * asset URLs. A direct link is nicer right up until a release is cut with a
- * different filename, at which point it 404s and looks like the product is
- * broken. When there is a stable naming scheme worth relying on, these become
- * direct links and nothing else changes.
+ * Direct links to the files rather than to the releases page. A page listing
+ * seven files with names like `aarch64` and `amd64` is a puzzle to somebody
+ * who wanted the app — and "Download" that lands you on a list is not a
+ * download.
+ *
+ * Two Macs, because a Mac owner does not necessarily know which one they
+ * have, and giving them the wrong one produces an error that says nothing
+ * useful. Two Linux entries, because a `.deb` is the right answer on Ubuntu
+ * and the AppImage is the right answer nearly everywhere else.
  */
-export const DOWNLOADS: Array<{ label: string; href: string }> = [
-  { label: "macOS", href: RELEASES_URL },
-  { label: "Windows", href: RELEASES_URL },
-  { label: "Linux", href: RELEASES_URL },
+export const DOWNLOADS: Array<{ label: string; note?: string; href: string }> = [
+  {
+    label: "macOS",
+    note: "Apple silicon",
+    href: asset(`Tougather.note_${DESKTOP_VERSION}_aarch64.dmg`),
+  },
+  {
+    label: "macOS",
+    note: "Intel",
+    href: asset(`Tougather.note_${DESKTOP_VERSION}_x64.dmg`),
+  },
+  {
+    label: "Windows",
+    href: asset(`Tougather.note_${DESKTOP_VERSION}_x64-setup.exe`),
+  },
+  {
+    label: "Linux",
+    note: "AppImage",
+    href: asset(`Tougather.note_${DESKTOP_VERSION}_amd64.AppImage`),
+  },
+  {
+    label: "Linux",
+    note: ".deb",
+    href: asset(`Tougather.note_${DESKTOP_VERSION}_amd64.deb`),
+  },
 ];

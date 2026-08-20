@@ -19,6 +19,7 @@ import { formatDateTime } from "@/lib/format";
 import { useRemoteConfigured } from "@/lib/db/use-config";
 import { useAuth } from "@/lib/auth/store";
 import {
+  DESKTOP_VERSION,
   DOWNLOADS,
   RELEASES_URL,
   deleteNote,
@@ -301,21 +302,23 @@ function Desktop() {
       <div className="mt-3 flex flex-wrap gap-1.5">
         {DOWNLOADS.map((platform) => (
           <a
-            key={platform.label}
+            key={platform.label + (platform.note ?? "")}
             href={platform.href}
-            target="_blank"
-            rel="noreferrer"
             className="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-accent hover:text-fg"
           >
             <Icon name="download" size={12} className="shrink-0" />
-            {platform.label}
+            <span className="text-fg">{platform.label}</span>
+            {platform.note ? (
+              <span className="text-[11px] text-fg-subtle">{platform.note}</span>
+            ) : null}
           </a>
         ))}
       </div>
 
       <p className="mt-3 text-[11.5px] leading-relaxed text-fg-subtle">
-        Opens with <kbd className="rounded-xs border border-line px-1">⌘⇧N</kbd>{" "}
-        on a Mac and{" "}
+        Version {DESKTOP_VERSION}. Opens with{" "}
+        <kbd className="rounded-xs border border-line px-1">⌘⇧N</kbd> on a Mac
+        and{" "}
         <kbd className="rounded-xs border border-line px-1">Ctrl+Shift+N</kbd>{" "}
         everywhere else.
       </p>

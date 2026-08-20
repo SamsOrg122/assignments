@@ -143,7 +143,11 @@ export function App() {
       void stood.then((off) => off());
       void changed.then((off) => off());
     };
-  }, []);
+    // `pending` belongs here even though it never changes: the autosave is
+    // built once, so this is a stable value and listing it costs a comparison
+    // rather than a re-subscription. Leaving it out would be claiming a
+    // guarantee about another module's internals from this one.
+  }, [pending]);
 
   useEffect(() => {
     // Rust does the signing in, so it is Rust that knows when it finished —

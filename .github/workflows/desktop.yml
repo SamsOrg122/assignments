@@ -91,6 +91,13 @@ jobs:
       - name: Frontend
         run: npm run build
 
+      # The window's TypeScript, by its own rules. This did not exist until
+      # the web app's deploy failed and turned out to be typechecking this
+      # directory — finding two real React mistakes in here on its way to
+      # failing for an unrelated reason. Nothing was watching this code.
+      - name: Lint the window
+        run: npm run lint
+
       - name: Formatting
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 

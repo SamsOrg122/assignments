@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The desktop app is a separate application with its own dependencies,
+    // its own tsconfig and its own eslint config. Linting it from here means
+    // judging it by the web app's rules and, worse, walking a few hundred
+    // files of Rust build output under `src-tauri/target`.
+    "desktop/**",
   ]),
 ]);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   beginSignIn,
   providerName,
@@ -28,21 +28,34 @@ export function SignIn({
   onSignedIn: (next: Standing) => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
-  const [problem, setProblem] = useState<string | null>(standing.problem);
-
-  // The sign-in that failed did so in another process entirely: the browser
-  // came back through a link this window never sees, Rust tried to finish it,
-  // and said so. An earlier version read `standing.problem` once at mount, so
-  // the window sat on "Waiting for your browser…" forever with the reason
-  // sitting one prop away — which is how a failure becomes a mystery.
-  useEffect(() => {
-    if (standing.problem) {
-      setProblem(standing.problem);
-      setBusy(null);
-    }
-  }, [standing.problem]);
+  const [mine, setMine] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  /*
+   * A failure that arrives from outside this window.
+   *
+   * The browser comes back through a link this window never sees; Rust
+   * finishes the sign-in, or fails to, and says so through the prop. Two
+   * earlier attempts got this wrong in opposite directions — one read the
+   * prop once at mount, so the panel sat on "Waiting for your browser…"
+   * forever with the reason one prop away; the next synced it in an effect,
+   * which is the cascade React's own lint refuses.
+   *
+   * This is the pattern React documents for exactly this: notice the prop
+   * changed *while rendering*, and adjust. No effect, no cascade, and the
+   * message is on screen in the same paint as the change.
+   */
+  const [seen, setSeen] = useState(standing.problem);
+  if (seen !== standing.problem) {
+    setSeen(standing.problem);
+    setMine(null);
+    if (standing.problem) setBusy(null);
+  }
+
+  // What is shown: whatever came from outside, or whatever happened in here.
+  const problem = standing.problem ?? mine;
+  const setProblem = setMine;
 
   const viaBrowser = async (provider: string) => {
     setProblem(null);
@@ -77,7 +90,7 @@ export function SignIn({
       <div className="gate">
         <p className="lead">This computer has no keychain.</p>
         <p className="quiet">
-          Signing in can't be remembered safely here, so the app won't ask you
+          Signing in can&apos;t be remembered safely here, so the app won&apos;t ask you
           to. On Linux that usually means no Secret Service is running — install
           gnome-keyring or KeePassXC and start the app again.
         </p>
@@ -88,7 +101,7 @@ export function SignIn({
   if (!standing.configured)
     return (
       <div className="gate">
-        <p className="lead">Can't reach tougather.com.</p>
+        <p className="lead">Can&apos;t reach tougather.com.</p>
         <p className="quiet">
           {problem ?? "The app will keep trying. Notes you write are saved here meanwhile."}
         </p>

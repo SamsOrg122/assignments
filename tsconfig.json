@@ -30,5 +30,6 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "//": "`desktop` is a separate application with its own tsconfig, its own dependencies and its own build. This config's `include` is `**/*.ts(x)`, so without this line the web app's typecheck reaches into it and fails on imports it was never meant to resolve — which is exactly what broke the deploy: locally `desktop/node_modules` exists, on a hosting build it does not.",
+  "exclude": ["node_modules", "desktop"]
 }

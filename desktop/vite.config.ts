@@ -21,6 +21,20 @@ export default defineConfig({
       ignored: ["**/src-tauri/**"],
     },
   },
+  css: {
+    // No PostCSS, stated rather than left to be discovered.
+    //
+    // Vite searches *upwards* for a PostCSS config, and the web app lives one
+    // directory above this one — so without this line the desktop build picks
+    // up `../postcss.config.mjs` and tries to load Tailwind's plugin out of a
+    // `node_modules` it does not have. It works on a machine where the web
+    // app's dependencies happen to be installed and fails everywhere else,
+    // which is exactly how CI found it and local builds never did.
+    //
+    // This window's stylesheet is plain CSS with no directives in it. An
+    // empty object stops the search rather than configuring anything.
+    postcss: {},
+  },
   build: {
     // What the two webviews Tauri ships can actually parse: WebKit on macOS
     // and Linux, WebView2 (Chromium) on Windows.

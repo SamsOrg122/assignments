@@ -32,7 +32,18 @@ on:
   # does not happen is worse than one that takes an extra click. Instead:
   # push the tag, then run this from the Actions tab with that tag selected.
   # `github.ref` is the tag, and the release job below picks it up.
+  #
+  # A tag is not required, though. Some environments cannot push one — a
+  # proxy that only allows the working branch, for instance — and "there is
+  # no way to cut a release from here" is a bad place to end up. Tick
+  # `publish_release` and the same four bundles are attached to a release
+  # named from the app's own version.
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Attach the bundles to a release (published, not draft)"
+        type: boolean
+        default: false
 
 # A second push to the same branch makes the first one pointless. Tags are
 # excluded: a cancelled release build leaves a half-published release.
@@ -245,28 +256,60 @@ jobs:
             desktop/src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm
             desktop/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
 
-  # Only on a tag. Draft, so a release is never published by a push — somebody
-  # looks at the four artifacts and presses the button.
+  # A tag, or somebody asking for it. Never a plain push: a release that
+  # happens because code was merged is a release nobody decided to make.
   release:
-    name: Draft release
+    name: Release
     needs: bundle
-    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    if: >
+      startsWith(github.ref, 'refs/tags/desktop-v') ||
+      inputs.publish_release
     runs-on: ubuntu-22.04
     permissions:
       contents: write
     steps:
+      # Needed for the version step below: this job builds nothing, so
+      # without it there is no `tauri.conf.json` to read the version out of.
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
-      - name: Draft
+      # The version the app calls itself, so the release and the thing inside
+      # it cannot disagree. Read from the config rather than typed here.
+      - name: Version
+        id: version
+        run: |
+          version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          echo "tag=desktop-v$version" >> "$GITHUB_OUTPUT"
+          echo "name=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Publish
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
-          name: Tougather note ${{ github.ref_name }}
+          # Draft when it came from a tag push, so nobody publishes by
+          # tagging. Published when somebody ticked the box, because that is
+          # what the box says.
+          draft: ${{ !inputs.publish_release }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.version.outputs.tag }}
+          name: Tougather note ${{ steps.version.outputs.name }}
           files: artifacts/**/*
           body: |
-            Unsigned builds. macOS will call this damaged until it is opened
-            through right-click → Open; Windows SmartScreen will warn. Signing
-            is wired in the workflow and waiting on certificates.
+            The floating desktop note — a small window that stays above every
+            other app, opens with ⌘⇧N (Ctrl+Shift+N elsewhere), and keeps what
+            you write in your Tougather account.
+
+            **These builds are not code-signed.** macOS will say the app is
+            damaged until you right-click it and choose *Open*; Windows
+            SmartScreen will warn once. Both are the message every unsigned
+            app gets, and signing is wired into the build waiting on
+            certificates.
+
+            | You have | Download |
+            | --- | --- |
+            | A Mac with Apple silicon | the `aarch64` `.dmg` |
+            | An Intel Mac | the `x64` `.dmg` |
+            | Windows | the `.exe` or `.msi` |
+            | Linux | the `.AppImage`, `.deb` or `.rpm` |

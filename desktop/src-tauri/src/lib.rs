@@ -251,21 +251,35 @@ pub const SIGN_IN_FAILED_EVENT: &str = "auth:failed";
 fn wake_up_the_account<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let config = match auth::gotrue::config(&auth::site(&app)).await {
-            Ok(config) => config,
-            Err(problem) => {
-                eprintln!("Tougather note: {problem}");
-                {
-                    // Written down as well as announced. The window may not
-                    // be listening yet — it is still being built — and a
-                    // failure nobody hears is a window that says nothing is
-                    // wrong.
-                    let held = app.state::<auth::Auth>();
-                    let mut state = held.0.lock().unwrap_or_else(|p| p.into_inner());
-                    state.problem = Some(problem.clone());
+        // Keep trying until the site answers. The first release fetched the
+        // configuration once, and a machine that started before its network
+        // was up — or before the domain was serving — sat on an error until
+        // somebody found the Fix link and pressed a button. An app whose sync
+        // retries forever but whose *setup* gives up after one attempt is
+        // half a promise.
+        let mut wait = std::time::Duration::from_secs(15);
+        let config = loop {
+            // Fetched fresh each round: pressing "use this address" mid-loop
+            // must be picked up, not ignored until a restart.
+            let address = auth::site(&app);
+            match auth::gotrue::config(&address).await {
+                Ok(config) => break config,
+                Err(problem) => {
+                    eprintln!("Tougather note: {problem}");
+                    {
+                        let held = app.state::<auth::Auth>();
+                        let mut state = held.0.lock().unwrap_or_else(|p| p.into_inner());
+                        // The panel's own attempts may have succeeded while
+                        // this round was in flight; do not shout over them.
+                        if state.config.is_some() {
+                            break state.config.clone().expect("just checked");
+                        }
+                        state.problem = Some(problem.clone());
+                    }
+                    let _ = app.emit(SIGN_IN_FAILED_EVENT, problem);
+                    tokio::time::sleep(wait).await;
+                    wait = (wait * 2).min(std::time::Duration::from_secs(300));
                 }
-                let _ = app.emit(SIGN_IN_FAILED_EVENT, problem);
-                return;
             }
         };
         {

@@ -809,3 +809,50 @@ create policy notes_own on public.notes
   for all
   using (owner_id = auth.uid())
   with check (owner_id = auth.uid());
+
+-- ── The agenda ────────────────────────────────────────────────────────────
+--
+-- Events for the calendar. Same shape and reasoning as `notes` above: a
+-- narrow owner-only table, client-minted text ids, client clocks, tombstones.
+-- Day as a date and times as minutes from midnight, because a lecture at
+-- 09:30 is at 09:30 whatever timezone the laptop wakes up in.
+
+create table if not exists public.events (
+  id           text primary key
+               check (id ~ '^[A-Za-z0-9_-]{8,64}$'),
+  owner_id     uuid not null default auth.uid()
+               references public.profiles(id) on delete cascade,
+  title        text not null default '',
+  day          date not null,
+  start_minute integer not null check (start_minute between 0 and 1440),
+  end_minute   integer not null check (end_minute between 0 and 1440),
+  color        text not null default 'slate'
+               check (color in ('slate', 'red', 'gold', 'blue', 'green', 'purple')),
+  location     text,
+  notes        text,
+  repeat       text not null default 'none'
+               check (repeat in ('none', 'weekly')),
+  updated_at   timestamptz not null,
+  deleted_at   timestamptz,
+  created_at   timestamptz not null default now(),
+
+  -- An event that ends before it starts is not an event; refusing it here
+  -- means a client bug becomes an error somebody sees rather than a block
+  -- that renders upside down.
+  check (end_minute > start_minute)
+);
+
+create index if not exists events_owner_idx
+  on public.events(owner_id, day);
+
+create index if not exists events_live_idx
+  on public.events(owner_id, day)
+  where deleted_at is null;
+
+alter table public.events enable row level security;
+
+drop policy if exists events_own on public.events;
+create policy events_own on public.events
+  for all
+  using (owner_id = auth.uid())
+  with check (owner_id = auth.uid());

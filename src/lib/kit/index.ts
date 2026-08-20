@@ -31,7 +31,7 @@ import { versioned } from "../persistence/versioned";
 import { uid } from "../factories";
 import { deleteBlob, getBlob, putBlob } from "./blobs";
 
-export type KitKind = "font" | "image" | "piece";
+export type KitKind = "font" | "image" | "piece" | "file";
 
 interface KitBase {
   id: string;
@@ -67,7 +67,21 @@ export interface KitPiece extends KitBase {
   payload: Block | Slide;
 }
 
-export type KitAsset = KitFont | KitImage | KitPiece;
+/**
+ * Any other file somebody dropped — a PDF, a .docx from a teacher, a zip of
+ * sources. The kit keeps it and hands it back; it does not pretend to
+ * understand it. What makes this worth having is the drop: the kit is where
+ * files land, whatever they are, rather than "sorry, only fonts and images".
+ */
+export interface KitFile extends KitBase {
+  kind: "file";
+  /** The mime type as the browser reported it; empty when it had no idea. */
+  mime: string;
+  /** The original filename with its extension, for downloading back out. */
+  filename: string;
+}
+
+export type KitAsset = KitFont | KitImage | KitPiece | KitFile;
 
 interface KitState {
   assets: KitAsset[];
@@ -170,6 +184,57 @@ export async function addImage(image: {
   await putBlob(asset.id, image.src);
   useKit.getState().add(asset);
   return asset;
+}
+
+/** Keep any file, as it came. */
+export async function addFile(file: File): Promise<KitFile> {
+  const src = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error(`Couldn't read ${file.name}.`));
+    reader.readAsDataURL(file);
+  });
+  const asset: KitFile = {
+    id: uid(),
+    kind: "file",
+    name: file.name.replace(/\.[a-z0-9]+$/i, "") || "File",
+    filename: file.name,
+    mime: file.type,
+    createdAt: Date.now(),
+    bytes: file.size,
+  };
+  await putBlob(asset.id, src);
+  useKit.getState().add(asset);
+  return asset;
+}
+
+/**
+ * Route a dropped file to the right shelf.
+ *
+ * Fonts become fonts and pictures become pictures, because the specific kinds
+ * can do more — a font is registered with the browser, a picture knows its
+ * size. Everything else is kept as it came. Nothing is refused: a drop that
+ * bounces some of its files is a drop somebody has to re-sort by hand, which
+ * is the chore this exists to remove.
+ */
+export async function addDropped(file: File): Promise<KitAsset> {
+  if (/\.(woff2?|ttf|otf)$/i.test(file.name)) return addFont(file);
+  if (file.type.startsWith("image/")) {
+    const src = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error(`Couldn't read ${file.name}.`));
+      reader.readAsDataURL(file);
+    });
+    const size = await new Promise<{ width: number; height: number }>((resolve) => {
+      const probe = new Image();
+      probe.onload = () => resolve({ width: probe.naturalWidth, height: probe.naturalHeight });
+      probe.onerror = () => resolve({ width: 0, height: 0 });
+      probe.src = src;
+    });
+    return addImage({ src, name: file.name, bytes: file.size, ...size });
+  }
+  return addFile(file);
 }
 
 export function addPiece(

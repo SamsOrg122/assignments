@@ -29,6 +29,7 @@ export const EN = {
   /* Shell and navigation */
   "nav.library": "Library",
   "nav.chat": "Chat",
+  "nav.agenda": "Agenda",
   "nav.notes": "Notes",
   "nav.kit": "Kit",
   "nav.team": "Team",

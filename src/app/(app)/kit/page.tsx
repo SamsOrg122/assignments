@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { TopBar } from "@/components/shell/TopBar";
 import {
   KitError,
+  addDropped,
   addFont,
   addImage,
   assetData,
@@ -18,6 +19,7 @@ import {
   removeAsset,
   useKit,
   type KitAsset,
+  type KitFile,
   type KitFont,
 } from "@/lib/kit";
 import { pickImage } from "@/lib/images";
@@ -31,12 +33,73 @@ export default function KitPage() {
   const rename = useKit((s) => s.rename);
   const notify = useUI((s) => s.notify);
   const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const fontRef = useRef<HTMLInputElement>(null);
+  const anyRef = useRef<HTMLInputElement>(null);
+  const guardRef = useRef<(work: () => Promise<unknown>) => Promise<void>>(
+    async () => {},
+  );
+  const notifyRef = useRef<(message: string) => void>(() => {});
 
   const fonts = assets.filter((a) => a.kind === "font");
   const images = assets.filter((a) => a.kind === "image");
   const pieces = assets.filter((a) => a.kind === "piece");
+  const files = assets.filter((a) => a.kind === "file");
   const total = assets.reduce((n, a) => n + a.bytes, 0);
+
+  /*
+   * The drop. Listens on the window rather than on a target somebody has to
+   * find: the promise is "drop it anywhere on this page and it is kept", and
+   * a promise with a bullseye attached is a smaller promise. Fonts become
+   * fonts, pictures become pictures, everything else is kept as it came —
+   * nothing bounces, because a drop that rejects half its files is a chore
+   * handed back.
+   */
+  useEffect(() => {
+    let depth = 0;
+    const hasFiles = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types ?? []).includes("Files");
+    const over = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+    };
+    const enter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      depth += 1;
+      setDragging(true);
+    };
+    const leave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) setDragging(false);
+    };
+    const drop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth = 0;
+      setDragging(false);
+      const dropped = Array.from(e.dataTransfer?.files ?? []);
+      if (dropped.length === 0) return;
+      void guardRef.current(async () => {
+        for (const file of dropped) await addDropped(file);
+        notifyRef.current(
+          dropped.length === 1
+            ? `${dropped[0]!.name} added to your kit`
+            : `${dropped.length} files added to your kit`,
+        );
+      });
+    };
+    window.addEventListener("dragover", over);
+    window.addEventListener("dragenter", enter);
+    window.addEventListener("dragleave", leave);
+    window.addEventListener("drop", drop);
+    return () => {
+      window.removeEventListener("dragover", over);
+      window.removeEventListener("dragenter", enter);
+      window.removeEventListener("dragleave", leave);
+      window.removeEventListener("drop", drop);
+    };
+  }, []);
 
   const guard = async (work: () => Promise<unknown>) => {
     setBusy(true);
@@ -52,6 +115,14 @@ export default function KitPage() {
       setBusy(false);
     }
   };
+
+  // The drop listener is bound once and must not rebind per render, so it
+  // reaches the current guard and notify through refs — updated in an
+  // effect, which is the only place React allows a ref to be written.
+  useEffect(() => {
+    guardRef.current = guard;
+    notifyRef.current = notify;
+  });
 
   return (
     <>
@@ -81,7 +152,12 @@ export default function KitPage() {
           <p className="mt-2 max-w-[62ch] text-[12px] leading-relaxed text-fg-subtle">
             Using a piece copies it into the project. Editing it there
             doesn&apos;t change what&apos;s here, and clearing this shelf never
-            touches work you&apos;ve already handed in.
+            touches work you&apos;ve already handed in.{" "}
+            <strong className="font-medium text-fg-muted">
+              Drop any file anywhere on this page
+            </strong>{" "}
+            — fonts and pictures are sorted onto their shelves, everything else
+            is kept below.
           </p>
 
           <Section
@@ -190,6 +266,65 @@ export default function KitPage() {
           </Section>
 
           <Section
+            title="Files"
+            hint="Anything you dropped, kept as it came — a PDF, a brief, a zip."
+            action={
+              <>
+                <input
+                  ref={anyRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const chosen = Array.from(e.target.files ?? []);
+                    e.target.value = "";
+                    if (chosen.length === 0) return;
+                    void guard(async () => {
+                      for (const file of chosen) await addDropped(file);
+                      notify(
+                        chosen.length === 1
+                          ? `${chosen[0]!.name} added to your kit`
+                          : `${chosen.length} files added to your kit`,
+                      );
+                    });
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => anyRef.current?.click()}
+                  className="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors hover:border-line-strong hover:text-fg disabled:opacity-40"
+                >
+                  <Icon name="plus" size={11} />
+                  Add files
+                </button>
+              </>
+            }
+          >
+            {files.length === 0 ? (
+              <Empty>
+                Nothing yet. Drag anything onto this page — it lands here and
+                stays until you take it out again.
+              </Empty>
+            ) : (
+              <ul className="space-y-1.5">
+                {files.map((asset) => (
+                  <li
+                    key={asset.id}
+                    className="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface px-3 py-2.5"
+                  >
+                    <Icon name="file" size={13} className="shrink-0 text-fg-subtle" />
+                    <NameField asset={asset} onRename={rename} grow />
+                    <Meta asset={asset} />
+                    <Download file={asset as KitFile} />
+                    <Remove asset={asset} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
+          <Section
             title="Pieces"
             hint="Saved from a project. Insert one from the / menu or ⌘K."
           >
@@ -230,6 +365,17 @@ export default function KitPage() {
           </Section>
         </div>
       </main>
+
+      {dragging ? (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center border-2 border-dashed border-accent bg-canvas/70"
+        >
+          <p className="rounded-md border border-line bg-surface px-4 py-2.5 text-[13px] text-fg">
+            Drop to add to your kit
+          </p>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -294,6 +440,38 @@ function Meta({ asset }: { asset: KitAsset }) {
     <span className="shrink-0 font-mono text-[10px] text-fg-subtle">
       {formatBytes(asset.bytes)}
     </span>
+  );
+}
+
+/**
+ * Hand the file back, exactly as it went in.
+ *
+ * The bytes sit in IndexedDB as a data URL; a temporary anchor with the
+ * original filename is the whole mechanism. A shelf you can put things on but
+ * not take things off is a trap, not a shelf.
+ */
+function Download({ file }: { file: KitFile }) {
+  const notify = useUI((s) => s.notify);
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        void assetData(file.id).then((data) => {
+          if (!data) {
+            notify("That file's data is missing from this browser.");
+            return;
+          }
+          const a = document.createElement("a");
+          a.href = data;
+          a.download = file.filename;
+          a.click();
+        })
+      }
+      aria-label={`Download ${file.name}`}
+      className="shrink-0 rounded-xs p-1 text-fg-subtle transition-colors hover:text-fg"
+    >
+      <Icon name="download" size={12} />
+    </button>
   );
 }
 

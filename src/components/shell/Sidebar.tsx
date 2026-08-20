@@ -301,6 +301,13 @@ export function Sidebar() {
               only when there were some — so anybody without the desktop app
               saw nothing and had no way to learn the thing existed. */}
           <NavLink
+            href="/agenda"
+            icon="calendar"
+            label={t("nav.agenda")}
+            active={pathname === "/agenda"}
+            onNavigate={closeOnMobile}
+          />
+          <NavLink
             href="/notes"
             icon="sticky"
             label={t("nav.notes")}

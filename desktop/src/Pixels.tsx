@@ -8,7 +8,7 @@
  * stylesheet without any JS knowing.
  */
 
-export function Pixels({ tone }: { tone: "amber" | "green" | "blue" | "red" }) {
+export function Pixels({ tone }: { tone: "amber" | "green" | "brass" | "red" }) {
   return (
     <span className={`pixels pixels-${tone}`} aria-hidden="true">
       {Array.from({ length: 16 }, (_, i) => {

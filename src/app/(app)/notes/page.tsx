@@ -3,22 +3,23 @@
 /**
  * The notepad.
  *
- * It used to be a page *about* the desktop app with a read-only list under
- * it: no way to start a note, no way to search one, and a Save button under
- * every textarea. That was honest when the only way to write a note was to
- * install something, and it stopped being honest the moment the account grew
- * a table both ends could write to. A notepad you cannot write in is a
- * viewer, and calling it Notes in the sidebar was the tool over-promising.
+ * The layout is three blocks on a dark ground: the rail of notes, the sheet
+ * somebody writes on, and the assistant when it is open. Everything that used
+ * to be a hairline dividing two flat greys is now an edge on a real block —
+ * the page reads as objects rather than as regions, which is the whole
+ * difference between this and a settings screen.
  *
- * So: a rail of notes you can search, a note that saves itself, and an
- * assistant beside it that can either rewrite what is there or make a real
- * document out of it — the same endpoint, the same tools and the same
- * refusals as the floating desktop window, because two assistants with
- * different rules is two sets of bugs.
+ * It deliberately does not use the app accent. That is a *preference*, and a
+ * writing surface whose character changes when somebody picks teal has no
+ * character. What it had instead was the default blue carrying the design: a
+ * saturated slab for New note and a blue send button, with nothing else
+ * holding any weight. The palette is in `globals.css` under `.pad`.
  *
- * The desktop app moved to Settings. It was the first thing on this page and
- * the least urgent thing on it; somebody who came here to write does not
- * want a download table first.
+ * Motion is doing real work here, not decoration. The selection in the rail
+ * is one block that slides between rows, so switching notes reads as a
+ * mechanism rather than as a repaint; the sheet lands when the note changes;
+ * the assistant comes in from its own edge. All of it collapses under
+ * `prefers-reduced-motion`.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -62,18 +63,13 @@ export default function NotesPage() {
   const [asking, setAsking] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  /** Ids that arrived after the first read, so only they animate in. */
+  const [fresh, setFresh] = useState<string[]>([]);
 
   const box = useRef<HTMLTextAreaElement>(null);
+  const rail = useRef<HTMLUListElement>(null);
+  const marker = useRef<HTMLDivElement>(null);
 
-  /*
-   * Writing, and what the list is told afterwards.
-   *
-   * The row in the rail carries the note's first line, so it has to move as
-   * the note is typed — but re-reading the table on every save would be a
-   * round trip per pause and would fight the caret. The list is patched from
-   * what was just written instead, which is the same thing the database now
-   * holds.
-   */
   const write = useCallback(async (id: string, body: string) => {
     setSaved("saving");
     try {
@@ -129,6 +125,52 @@ export default function NotesPage() {
     return notes.filter((n) => n.body.toLowerCase().includes(needle));
   }, [notes, query]);
 
+  /*
+   * Put the selection block over whichever row is open.
+   *
+   * Written straight onto the element rather than held in state: this is a
+   * measurement, nothing renders from it, and a `setState` here would be a
+   * second render on every keystroke that changes a row's height. The
+   * transition lives in CSS, so all this does is name the destination.
+   */
+  useEffect(() => {
+    const list = rail.current;
+    const mark = marker.current;
+    if (!list || !mark) return;
+
+    const row = activeId
+      ? list.querySelector<HTMLElement>(`[data-row="${CSS.escape(activeId)}"]`)
+      : null;
+
+    if (!row) {
+      mark.style.opacity = "0";
+      return;
+    }
+    mark.style.opacity = "1";
+    mark.style.height = `${row.offsetHeight}px`;
+    mark.style.transform = `translate3d(0, ${row.offsetTop}px, 0)`;
+    // `railOpen` matters even though nothing here reads it: until the rail is
+    // opened on a narrow screen it is `display: none`, and a hidden element
+    // measures zero. Without this the block is placed against nothing and
+    // never appears for anyone on a phone.
+  }, [activeId, shown, load, railOpen]);
+
+  /*
+   * The sheet grows with the note.
+   *
+   * Set from the content rather than fixed, because a two-line note in a
+   * 52vh box reads as an empty container somebody forgot to fill. Written
+   * onto the element for the same reason the marker is: it is a measurement,
+   * and routing it through state would re-render the page on every keystroke
+   * to arrive at the number the browser already knows.
+   */
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft, activeId]);
+
   const open = async (note: Note) => {
     if (note.id === activeId) {
       setRailOpen(false);
@@ -148,6 +190,7 @@ export default function NotesPage() {
     try {
       const note = await createNote(body);
       setNotes((all) => [note, ...all]);
+      setFresh((all) => [...all, note.id]);
       setActiveId(note.id);
       setDraft(note.body);
       setSaved("clean");
@@ -191,6 +234,7 @@ export default function NotesPage() {
       await saveNote(undo.id, undo.body);
       const back = { ...undo, updatedAt: Date.now() };
       setNotes((all) => [back, ...all.filter((n) => n.id !== back.id)]);
+      setFresh((all) => [...all, back.id]);
       setUndo(null);
     } catch (error) {
       setProblem(String((error as Error).message ?? error));
@@ -206,11 +250,7 @@ export default function NotesPage() {
 
   /** What the assistant asked for, applied to the note it was asked about. */
   const apply = async (change: AssistNote) => {
-    if (change.kind === "new") {
-      await startNew(change.body);
-      return;
-    }
-    if (!activeId) {
+    if (change.kind === "new" || !activeId) {
       await startNew(change.body);
       return;
     }
@@ -265,14 +305,10 @@ export default function NotesPage() {
             type="button"
             onClick={() => setAsking((o) => !o)}
             aria-pressed={asking}
-            className={cn(
-              "flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[12px] transition-colors duration-150",
-              asking
-                ? "border-accent text-fg"
-                : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
-            )}
+            data-on={asking}
+            className="pad-chip flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium"
           >
-            <Icon name="sparkle" size={12} className={asking ? "text-accent" : undefined} />
+            <Icon name="sparkle" size={12} />
             Ask
           </button>
         }
@@ -280,7 +316,7 @@ export default function NotesPage() {
         <button
           type="button"
           onClick={() => setRailOpen((o) => !o)}
-          className="rounded-xs p-1 text-fg-subtle transition-colors duration-150 hover:text-fg md:hidden"
+          className="pad-ghost p-1.5 md:hidden"
           aria-label={railOpen ? "Hide the list" : "Show the list"}
           aria-expanded={railOpen}
         >
@@ -288,51 +324,74 @@ export default function NotesPage() {
         </button>
         <span className="text-[13px] font-medium text-fg">Notes</span>
         {notes.length > 0 && (
-          <span className="rounded-xs border border-line px-1.5 py-0.5 text-[10.5px] text-fg-muted">
+          <span className="rounded-full border border-line px-2 py-0.5 text-[10.5px] tabular-nums text-fg-muted">
             {notes.length}
           </span>
         )}
       </TopBar>
 
-      <main className="relative flex min-h-0 flex-1">
+      <main className="pad relative flex min-h-0 flex-1">
+        {railOpen && (
+          <button
+            type="button"
+            aria-label="Close the list"
+            onClick={() => setRailOpen(false)}
+            className="absolute inset-0 z-10 md:hidden"
+            style={{ background: "rgba(0, 0, 0, 0.45)" }}
+          />
+        )}
+
         {/* ── The rail ─────────────────────────────────────────────── */}
         <aside
           className={cn(
-            "w-[248px] shrink-0 flex-col border-r border-line bg-canvas",
+            "w-[270px] shrink-0 flex-col",
             "absolute inset-y-0 left-0 z-20 md:static md:z-auto",
             railOpen ? "flex" : "hidden md:flex",
           )}
+          style={{ background: "var(--pad-void)" }}
         >
-          <div className="shrink-0 border-b border-line p-2">
+          <div className="shrink-0 px-3 pt-3 pb-2">
             <div className="relative">
               <Icon
                 name="search"
-                size={12}
-                className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-fg-subtle"
+                size={13}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+                style={{ color: "var(--pad-ink-3)" }}
               />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search your notes"
                 aria-label="Search your notes"
-                className="w-full rounded-sm border border-line bg-surface py-1.5 pl-7 pr-2 text-[12px] text-fg outline-none placeholder:text-fg-subtle focus:border-accent"
+                className="pad-field w-full py-2 pl-8 pr-3 text-[12.5px]"
               />
             </div>
             <button
               type="button"
               onClick={() => void startNew()}
-              className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-sm bg-accent px-2 py-1.5 text-[12px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+              className="pad-primary mt-2 flex w-full items-center justify-center gap-1.5 px-3 py-2.5 text-[12.5px]"
             >
-              <Icon name="plus" size={12} />
+              <Icon name="plus" size={13} />
               New note
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-1">
+          <div className="relative min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
+            {/* The block that slides. Behind the rows, moved by the effect. */}
+            <div ref={marker} className="pad-marker" style={{ opacity: 0 }} />
+
             {load === "reading" ? (
-              <p className="px-2 py-3 text-[11.5px] text-fg-subtle">Looking…</p>
+              <p
+                className="px-3 py-4 text-[12px]"
+                style={{ color: "var(--pad-ink-3)" }}
+              >
+                Looking…
+              </p>
             ) : shown.length === 0 ? (
-              <p className="px-2 py-3 text-[11.5px] leading-relaxed text-fg-subtle">
+              <p
+                className="px-3 py-4 text-[12px] leading-relaxed"
+                style={{ color: "var(--pad-ink-3)" }}
+              >
                 {query.trim()
                   ? "Nothing matches that."
                   : email
@@ -340,21 +399,33 @@ export default function NotesPage() {
                     : "No notes yet. Sign in and they will follow you between machines."}
               </p>
             ) : (
-              <ul className="grid gap-px">
+              <ul ref={rail} className="relative z-[1] grid gap-0.5">
                 {shown.map((note) => (
-                  <li key={note.id} className="group relative">
+                  <li
+                    key={note.id}
+                    data-row={note.id}
+                    className={cn("group relative", fresh.includes(note.id) && "pad-row-in")}
+                  >
                     <button
                       type="button"
                       onClick={() => void open(note)}
-                      className={cn(
-                        "w-full rounded-xs px-2 py-1.5 pr-7 text-left transition-colors duration-150",
-                        note.id === activeId ? "bg-surface-2" : "hover:bg-surface",
-                      )}
+                      className="pad-row w-full px-3 py-2.5 pr-9 text-left"
                     >
-                      <span className="block truncate text-[12.5px] text-fg">
+                      <span
+                        className="block truncate text-[13px] font-medium"
+                        style={{
+                          color:
+                            note.id === activeId
+                              ? "var(--pad-ink)"
+                              : "var(--pad-ink-2)",
+                        }}
+                      >
                         {titleOf(note) || "Empty note"}
                       </span>
-                      <span className="mt-0.5 block truncate text-[10.5px] text-fg-subtle">
+                      <span
+                        className="mt-1 block truncate text-[11px]"
+                        style={{ color: "var(--pad-ink-3)" }}
+                      >
                         {previewOf(note) || formatDateTime(note.updatedAt)}
                       </span>
                     </button>
@@ -362,9 +433,9 @@ export default function NotesPage() {
                       type="button"
                       onClick={() => void remove(note)}
                       aria-label={`Delete ${titleOf(note) || "empty note"}`}
-                      className="absolute right-1 top-1.5 rounded-xs p-1 text-fg-subtle opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-fg"
+                      className="pad-ghost absolute right-2 top-2.5 p-1.5 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
                     >
-                      <Icon name="trash" size={11} />
+                      <Icon name="trash" size={12} />
                     </button>
                   </li>
                 ))}
@@ -372,14 +443,18 @@ export default function NotesPage() {
             )}
           </div>
 
-          <div className="shrink-0 border-t border-line px-2 py-1.5">
+          <div className="shrink-0 px-3 py-2.5">
             {undo ? (
-              <p className="flex items-center gap-2 text-[11px] text-fg-subtle">
-                Deleted.
+              <p
+                className="pad-turn flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-[11.5px]"
+                style={{ background: "var(--pad-slab-2)", color: "var(--pad-ink-2)" }}
+              >
+                Note deleted.
                 <button
                   type="button"
                   onClick={() => void undoDelete()}
-                  className="text-accent hover:underline"
+                  className="font-medium underline underline-offset-2"
+                  style={{ color: "var(--pad-signal)" }}
                 >
                   Undo
                 </button>
@@ -387,26 +462,38 @@ export default function NotesPage() {
             ) : (
               <Link
                 href="/settings#desktop"
-                className="flex items-center gap-1.5 text-[11px] text-fg-subtle transition-colors duration-150 hover:text-fg"
+                className="pad-ghost flex items-center gap-2 px-2 py-1.5 text-[11.5px]"
               >
-                <Icon name="download" size={11} />
+                <Icon name="download" size={12} />
                 Get the floating note
               </Link>
             )}
           </div>
         </aside>
 
-        {/* ── The note ─────────────────────────────────────────────── */}
+        {/* ── The sheet ────────────────────────────────────────────── */}
         <section
-          className={cn(
-            "min-w-0 flex-1 flex-col",
-            asking ? "hidden lg:flex" : "flex",
-          )}
+          className={cn("min-w-0 flex-1 flex-col", asking ? "hidden lg:flex" : "flex")}
         >
           {active ? (
-            <>
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className="mx-auto w-full max-w-[720px] px-5 py-6 sm:px-8">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="mx-auto w-full max-w-[780px] px-5 py-7 sm:px-8">
+                {/*
+                 * Keyed on the note so switching plays the landing animation.
+                 * Without the key React reuses the element and the change is a
+                 * silent text swap — correct, and it looks like a glitch.
+                 */}
+                <article key={active.id} className="pad-sheet px-7 py-6 sm:px-9 sm:py-8">
+                  <header className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                    <span
+                      className="text-[11px] tracking-wide uppercase"
+                      style={{ color: "var(--pad-ink-3)" }}
+                    >
+                      {formatDateTime(active.updatedAt)}
+                    </span>
+                    <State state={saved} />
+                  </header>
+
                   <textarea
                     ref={box}
                     value={draft}
@@ -414,84 +501,68 @@ export default function NotesPage() {
                     placeholder="Write it down…"
                     onChange={(e) => type_(e.target.value)}
                     onBlur={() => void flush()}
-                    className="min-h-[60vh] w-full resize-none bg-transparent text-[14.5px] leading-[1.75] text-fg outline-none placeholder:text-fg-subtle"
+                    className="pad-write w-full bg-transparent text-[15px] leading-[1.8] outline-none"
+                    style={{ color: "var(--pad-ink)" }}
                   />
-                </div>
-              </div>
+                </article>
 
-              <footer className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-3 py-1.5 sm:px-4">
-                <span className="text-[11px] text-fg-subtle">
-                  {saved === "saving"
-                    ? "Saving…"
-                    : saved === "failed"
-                      ? "Not saved"
-                      : saved === "saved"
-                        ? "Saved"
-                        : formatDateTime(active.updatedAt)}
-                </span>
-                <span className="text-[11px] text-fg-subtle">
-                  {words} {words === 1 ? "word" : "words"}
-                </span>
+                <footer className="pad-slab mt-3 flex flex-wrap items-center gap-x-1 gap-y-1 px-2.5 py-2">
+                  <span
+                    className="px-2 text-[11.5px] tabular-nums"
+                    style={{ color: "var(--pad-ink-3)" }}
+                  >
+                    {words} {words === 1 ? "word" : "words"}
+                  </span>
+                  <span className="flex-1" />
+                  <Tool onClick={() => void copy()} icon="copy">
+                    {copied ? "Copied" : "Copy"}
+                  </Tool>
+                  <Tool
+                    onClick={() =>
+                      download(
+                        `${(titleOf(active) || "note").replace(/[^\w \-.]+/g, "").slice(0, 60) || "note"}.txt`,
+                        draft,
+                        "text/plain;charset=utf-8",
+                      )
+                    }
+                    icon="download"
+                  >
+                    Download
+                  </Tool>
+                  <Tool
+                    onClick={() => setAsking(true)}
+                    icon="sparkle"
+                    title="Ask the assistant to make a document out of this note"
+                  >
+                    Make something
+                  </Tool>
+                  <Tool onClick={() => void remove(active)} icon="trash">
+                    Delete
+                  </Tool>
+                </footer>
 
-                <span className="flex-1" />
-
-                <Tool onClick={() => void copy()} icon="copy">
-                  {copied ? "Copied" : "Copy"}
-                </Tool>
-                <Tool
-                  onClick={() =>
-                    download(
-                      `${(titleOf(active) || "note").replace(/[^\w \-.]+/g, "").slice(0, 60) || "note"}.txt`,
-                      draft,
-                      "text/plain;charset=utf-8",
-                    )
-                  }
-                  icon="download"
-                >
-                  Download
-                </Tool>
-                <Tool
-                  onClick={() => setAsking(true)}
-                  icon="sparkle"
-                  title="Ask the assistant to make a document out of this note"
-                >
-                  Make something
-                </Tool>
-                <Tool onClick={() => void remove(active)} icon="trash">
-                  Delete
-                </Tool>
-              </footer>
-            </>
-          ) : (
-            <div className="flex flex-1 items-center justify-center p-8">
-              <div className="max-w-[380px] text-center">
-                <Icon name="sticky" size={22} className="mx-auto text-fg-subtle" />
-                <p className="mt-3 text-[13px] text-fg">Nothing open.</p>
-                <p className="mt-1.5 text-[12px] leading-relaxed text-fg-subtle">
-                  Notes are kept in your account and reach the floating desktop
-                  window within a minute — and it reaches back here.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void startNew()}
-                  className="mt-4 rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
-                >
-                  Write one
-                </button>
+                {problem && (
+                  <p
+                    className="pad-turn mt-3 rounded-xl px-3 py-2 text-[11.5px]"
+                    style={{
+                      background: "var(--pad-slab)",
+                      color: "var(--pad-danger)",
+                    }}
+                    role="alert"
+                  >
+                    {problem}
+                  </p>
+                )}
               </div>
             </div>
-          )}
-
-          {problem && (
-            <p className="shrink-0 border-t border-line px-3 py-1.5 text-[11px] text-warn" role="alert">
-              {problem}
-            </p>
+          ) : (
+            <Empty onWrite={() => void startNew()} />
           )}
         </section>
 
         {/* ── The assistant ────────────────────────────────────────── */}
         {asking && (
-          <aside className="flex min-w-0 flex-1 flex-col border-line lg:w-[356px] lg:flex-none lg:border-l">
+          <aside className="pad-panel flex min-w-0 flex-1 flex-col lg:w-[380px] lg:flex-none">
             <NoteAssistant
               note={active ? { id: active.id, body: draft } : null}
               onApply={apply}
@@ -504,7 +575,43 @@ export default function NotesPage() {
   );
 }
 
-/** One of the small buttons under the note. */
+/**
+ * Where the note stands, as one object rather than three.
+ *
+ * The dot pulses while writing is in flight and settles when it lands, so
+ * "saving" and "saved" are the same thing in two states instead of two labels
+ * swapping places.
+ */
+function State({ state }: { state: Saved }) {
+  const label =
+    state === "saving"
+      ? "Saving"
+      : state === "failed"
+        ? "Not saved"
+        : state === "saved"
+          ? "Saved"
+          : "In your account";
+
+  return (
+    <span
+      className="pad-state text-[11px]"
+      data-state={state}
+      style={{
+        color:
+          state === "failed"
+            ? "var(--pad-danger)"
+            : state === "saved"
+              ? "var(--pad-signal)"
+              : "var(--pad-ink-3)",
+      }}
+    >
+      <i className="pad-state-dot" />
+      <span>{label}</span>
+    </span>
+  );
+}
+
+/** One of the small buttons under the sheet. */
 function Tool({
   icon,
   children,
@@ -521,11 +628,43 @@ function Tool({
       type="button"
       onClick={onClick}
       title={title}
-      className="flex items-center gap-1 rounded-xs px-1.5 py-1 text-[11px] text-fg-subtle transition-colors duration-150 hover:text-fg"
+      className="pad-ghost flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px]"
     >
-      <Icon name={icon} size={11} />
+      <Icon name={icon} size={12} />
       {children}
     </button>
+  );
+}
+
+function Empty({ onWrite }: { onWrite: () => void }) {
+  return (
+    <div className="flex flex-1 items-center justify-center p-8">
+      <div className="pad-sheet max-w-[420px] px-8 py-9 text-center">
+        <div
+          className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl"
+          style={{ background: "var(--pad-slab-3)", color: "var(--pad-signal)" }}
+        >
+          <Icon name="sticky" size={18} />
+        </div>
+        <p className="mt-4 text-[15px] font-medium" style={{ color: "var(--pad-ink)" }}>
+          Nothing open.
+        </p>
+        <p
+          className="mt-2 text-[12.5px] leading-relaxed"
+          style={{ color: "var(--pad-ink-3)" }}
+        >
+          Notes are kept in your account and reach the floating desktop window
+          within a minute — and it reaches back here.
+        </p>
+        <button
+          type="button"
+          onClick={onWrite}
+          className="pad-primary mt-5 px-4 py-2.5 text-[12.5px]"
+        >
+          Write one
+        </button>
+      </div>
+    </div>
   );
 }
 

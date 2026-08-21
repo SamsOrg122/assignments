@@ -36,14 +36,6 @@ type Turn =
   | { id: string; who: "bad"; text: string };
 
 /**
- * The things people actually ask a notepad, as buttons.
- *
- * Not a tutorial and not a menu of features — a blank prompt box next to a
- * note is a small blank-page problem of its own, and four openers are enough
- * to show what the thing is for. They fill the box rather than sending, so
- * the first one can be edited into the real question.
- */
-/**
  * A recogniser's error code, in words somebody can act on.
  *
  * The codes come straight from the Web Speech API and are not for reading:
@@ -62,6 +54,14 @@ function sayWhy(code: string): string {
   return `Couldn't hear you — ${code}`;
 }
 
+/**
+ * The things people actually ask a notepad, as buttons.
+ *
+ * Not a tutorial and not a menu of features — a blank prompt box next to a
+ * note is a small blank-page problem of its own, and four openers are enough
+ * to show what the thing is for. They fill the box rather than sending, so
+ * the first one can be edited into the real question.
+ */
 const OPENERS = [
   { label: "Summarise this note", prompt: "Summarise this note in a few lines." },
   { label: "Tidy the writing", prompt: "Tidy up the writing in this note. Keep my meaning and my voice." },
@@ -286,38 +286,69 @@ export function NoteAssistant({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-surface">
-      <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line px-3">
-        <Icon name="sparkle" size={13} className="shrink-0 text-accent" />
-        <span className="flex-1 text-[12.5px] font-medium text-fg">Assistant</span>
+      <header className="flex h-14 shrink-0 items-center gap-2.5 px-4">
+        <span
+          className="flex h-7 w-7 items-center justify-center rounded-[10px]"
+          style={{ background: "var(--pad-slab-3)", color: "var(--pad-signal)" }}
+        >
+          <Icon name="sparkle" size={13} />
+        </span>
+        <span
+          className="flex-1 text-[13px] font-medium"
+          style={{ color: "var(--pad-ink)" }}
+        >
+          Assistant
+        </span>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-xs p-1 text-fg-subtle transition-colors duration-150 hover:text-fg"
+          className="pad-ghost p-1.5"
           aria-label="Close the assistant"
         >
-          <Icon name="x" size={13} />
+          <Icon name="x" size={14} />
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-3",
+          // Nothing said yet: keep the invitation down by the box it is
+          // inviting you to type into, rather than stranded at the top of an
+          // otherwise empty column.
+          turns.length === 0 && "justify-end",
+        )}
+      >
         {turns.length === 0 ? (
           <div>
-            <p className="text-[12px] leading-relaxed text-fg-subtle">
+            <p
+              className="text-[12.5px] leading-relaxed"
+              style={{ color: "var(--pad-ink-2)" }}
+            >
               Ask it to change what you have written, or to make something out
               of it — an analysis, a report, a deck. Attach a file and it reads
               that too.
             </p>
-            <ul className="mt-3 grid gap-1">
-              {OPENERS.map((opener) => (
-                <li key={opener.label}>
+            <ul className="mt-4 grid gap-1.5">
+              {OPENERS.map((opener, i) => (
+                <li
+                  key={opener.label}
+                  className="pad-turn"
+                  style={{ animationDelay: `${60 + i * 55}ms` }}
+                >
                   <button
                     type="button"
                     onClick={() => {
                       setQuestion(opener.prompt);
                       box.current?.focus();
                     }}
-                    className="w-full rounded-xs border border-line px-2 py-1.5 text-left text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                    className="pad-chip flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12px]"
                   >
+                    <Icon
+                      name="arrow-right"
+                      size={11}
+                      className="shrink-0"
+                      style={{ color: "var(--pad-signal)" }}
+                    />
                     {opener.label}
                   </button>
                 </li>
@@ -325,9 +356,9 @@ export function NoteAssistant({
             </ul>
           </div>
         ) : (
-          <ul className="grid gap-2.5">
+          <ul className="grid gap-3">
             {turns.map((turn) => (
-              <li key={turn.id}>
+              <li key={turn.id} className="pad-turn">
                 <Bubble turn={turn} />
               </li>
             ))}
@@ -335,8 +366,15 @@ export function NoteAssistant({
         )}
 
         {busy && (
-          <p className="mt-2.5 flex items-center gap-1.5 text-[11px] text-fg-subtle">
-            <Icon name="sparkle" size={11} className="animate-pulse text-accent" />
+          <p
+            className="mt-3 flex items-center gap-2 text-[11.5px]"
+            style={{ color: "var(--pad-ink-3)" }}
+          >
+            <span className="pad-thinking" aria-hidden>
+              <i />
+              <i />
+              <i />
+            </span>
             Thinking…
           </p>
         )}
@@ -344,7 +382,7 @@ export function NoteAssistant({
         <div ref={foot} />
       </div>
 
-      <div className="shrink-0 border-t border-line p-2.5">
+      <div className="shrink-0 p-3">
         <div className="flex items-end justify-between gap-2">
           <AttachMenu
             attached={attached}
@@ -365,29 +403,34 @@ export function NoteAssistant({
                 ? `Listening via ${speechProviderName()} — click to stop`
                 : "Dictate your question"
             }
-            className={cn(
-              "flex shrink-0 items-center gap-1 rounded-xs border px-1.5 py-1 text-[11px] transition-colors duration-150",
-              voice
-                ? "border-accent text-fg"
-                : "border-line text-fg-subtle hover:text-fg",
-            )}
+            data-on={voice !== null}
+            className="pad-chip flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[11.5px]"
           >
             <Icon
               name={voice ? "stop" : "mic"}
               size={11}
-              className={voice ? "animate-pulse text-accent" : undefined}
+              style={voice ? { color: "var(--pad-signal)" } : undefined}
             />
             {voice ? "Listening…" : "Speak"}
           </button>
         </div>
 
         {deaf && (
-          <p className="mt-1.5 text-[10.5px] leading-relaxed text-warn" role="status">
+          <p
+            className="pad-turn mt-2 rounded-lg px-2.5 py-1.5 text-[10.5px] leading-relaxed"
+            style={{ background: "var(--pad-slab-2)", color: "var(--pad-ink-2)" }}
+            role="status"
+          >
             {deaf}
           </p>
         )}
 
-        <div className="mt-2 flex items-end gap-1.5">
+        {/*
+          * The box and its button are one block, not a field with a button
+          * beside it: the send control lives *inside* the field's border, so
+          * the composer reads as a single object you type into.
+          */}
+        <div className={cn("pad-field mt-2.5 flex items-end gap-2 p-2", voice && "pad-live")}>
           <textarea
             ref={box}
             value={question}
@@ -402,7 +445,8 @@ export function NoteAssistant({
                 void send(question);
               }
             }}
-            className="min-h-[52px] w-full flex-1 resize-none rounded-sm border border-line bg-canvas px-2 py-1.5 text-[12px] leading-relaxed text-fg outline-none focus:border-accent"
+            className="min-h-[48px] w-full flex-1 resize-none bg-transparent px-1 py-0.5 text-[12.5px] leading-relaxed outline-none"
+            style={{ color: "var(--pad-ink)" }}
           />
           <button
             type="button"
@@ -410,10 +454,8 @@ export function NoteAssistant({
             disabled={!busy && !question.trim()}
             aria-label={busy ? "Stop" : "Ask"}
             className={cn(
-              "mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-[filter,opacity] duration-150",
-              busy
-                ? "border border-line text-fg-muted hover:text-fg"
-                : "bg-accent text-on-accent hover:brightness-110 disabled:opacity-40",
+              "flex h-8 w-8 shrink-0 items-center justify-center",
+              busy ? "pad-chip" : "pad-primary disabled:opacity-30",
             )}
           >
             <Icon name={busy ? "stop" : "arrow-up"} size={14} />
@@ -427,36 +469,63 @@ export function NoteAssistant({
 function Bubble({ turn }: { turn: Turn }) {
   if (turn.who === "you")
     return (
-      <p className="ml-6 rounded-sm bg-surface-2 px-2.5 py-1.5 text-[12px] leading-relaxed whitespace-pre-wrap text-fg">
+      <p
+        className="ml-7 rounded-2xl rounded-br-md px-3.5 py-2.5 text-[12.5px] leading-relaxed whitespace-pre-wrap"
+        style={{ background: "var(--pad-slab-3)", color: "var(--pad-ink)" }}
+      >
         {turn.text}
       </p>
     );
 
   if (turn.who === "ai")
     return (
-      <p className="text-[12px] leading-relaxed whitespace-pre-wrap text-fg-muted">
+      <p
+        className="px-0.5 text-[12.5px] leading-[1.65] whitespace-pre-wrap"
+        style={{ color: "var(--pad-ink-2)" }}
+      >
         {turn.text}
       </p>
     );
 
+  /*
+   * What it did, as a receipt rather than as a sentence.
+   *
+   * The brass rule down the left is the only place this palette raises its
+   * voice, and it earns it: these two are the lines that say the note or the
+   * account actually changed, which is the difference between a chat window
+   * and a tool.
+   */
   if (turn.who === "did")
     return (
-      <p className="flex items-center gap-1.5 text-[11.5px] text-fg-subtle">
-        <Icon name="check" size={11} className="shrink-0 text-accent" />
+      <p
+        className="flex items-center gap-2 border-l-2 py-0.5 pl-2.5 text-[11.5px]"
+        style={{ borderColor: "var(--pad-signal)", color: "var(--pad-ink-2)" }}
+      >
+        <Icon name="check" size={11} style={{ color: "var(--pad-signal)" }} />
         {turn.text}
       </p>
     );
 
   if (turn.who === "made")
     return (
-      <div className="rounded-sm border border-line px-2.5 py-2">
-        <p className="flex items-center gap-1.5 text-[11.5px] text-fg-subtle">
-          <Icon name="check" size={11} className="shrink-0 text-accent" />
+      <div
+        className="rounded-2xl border-l-2 px-3.5 py-3"
+        style={{
+          background: "var(--pad-slab-2)",
+          borderColor: "var(--pad-signal)",
+        }}
+      >
+        <p
+          className="flex items-center gap-2 text-[11.5px]"
+          style={{ color: "var(--pad-ink-2)" }}
+        >
+          <Icon name="check" size={11} style={{ color: "var(--pad-signal)" }} />
           {turn.text}
         </p>
         <Link
           href={`/p/${turn.projectId}`}
-          className="mt-1.5 flex items-center gap-1 text-[12px] text-accent hover:underline"
+          className="pad-chip mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium"
+          style={{ color: "var(--pad-ink)" }}
         >
           Open {turn.name}
           <Icon name="arrow-right" size={11} />
@@ -465,7 +534,11 @@ function Bubble({ turn }: { turn: Turn }) {
     );
 
   return (
-    <p className="text-[11.5px] leading-relaxed text-warn" role="alert">
+    <p
+      className="rounded-xl px-3 py-2 text-[11.5px] leading-relaxed"
+      style={{ background: "var(--pad-slab-2)", color: "var(--pad-danger)" }}
+      role="alert"
+    >
       {turn.text}
     </p>
   );

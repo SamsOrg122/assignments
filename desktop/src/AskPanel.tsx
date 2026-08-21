@@ -23,6 +23,20 @@ import { Pixels } from "./Pixels";
  * renderer for a chart, and claiming otherwise would be the lie.
  */
 
+/*
+ * Openers, as buttons rather than as three lines of grey text.
+ *
+ * They looked like a menu and were not one, which in a window this small is
+ * the difference between somebody trying the thing and closing it again.
+ * Pressing one fills the box instead of sending, so the wording can be
+ * changed before it costs anything.
+ */
+const HINTS = [
+  "Tidy this into bullet points",
+  "Analyse the spreadsheet I dropped",
+  "Turn these notes into a short presentation",
+];
+
 type Turn =
   | { who: "you"; text: string }
   | { who: "it"; text: string; model?: string; done: boolean }
@@ -97,9 +111,19 @@ export function AskPanel({
           <div className="ai-blank">
             <p className="ai-blank-lead">Ask it to do something.</p>
             <ul className="ai-hints">
-              <li>Tidy this into bullet points</li>
-              <li>Analyse the spreadsheet I dropped</li>
-              <li>Turn these notes into a short presentation</li>
+              {HINTS.map((hint) => (
+                <li key={hint}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraft(hint);
+                      box.current?.focus();
+                    }}
+                  >
+                    {hint}
+                  </button>
+                </li>
+              ))}
             </ul>
             <p className="ai-blank-note">
               It can rewrite what is in the note, and it can make a document in
@@ -112,7 +136,7 @@ export function AskPanel({
         )}
         {busy ? (
           <p className="ai-thinking">
-            <Pixels tone="blue" />
+            <Pixels tone="brass" />
             Thinking
           </p>
         ) : null}

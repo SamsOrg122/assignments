@@ -1464,3 +1464,478 @@
     animation: none !important;
   }
 }
+
+/* ───────────────────────────────────────────────────────────
+   The notepad
+
+   Its own small palette, scoped to `.pad`, and deliberately not
+   the app accent. The accent is a *setting* — somebody can put it
+   on violet or teal — and a writing surface that changes colour
+   with a preference has no character of its own. What it had
+   instead was the default blue doing all the work: a saturated
+   slab for New note, a blue sparkle, a blue send button, and
+   nothing else carrying any weight. Remove the blue from that and
+   there is no design left, which is the definition of leaning on
+   it.
+
+   So: graphite ground, bone ink, one warm brass signal. The
+   hierarchy is made of *blocks* — real elevation, real edges,
+   generous radii — rather than hairlines on flat grey. The
+   primary action is bone-on-graphite, because reversed ink reads
+   as deliberate where a bright fill reads as a default.
+   ─────────────────────────────────────────────────────────── */
+
+:root {
+  --pad-void: #16171a;
+  --pad-slab: #212327;
+  --pad-slab-2: #282b30;
+  --pad-slab-3: #31343a;
+  --pad-edge: rgba(255, 255, 255, 0.06);
+  --pad-edge-lit: rgba(255, 255, 255, 0.13);
+  /* Warm rather than neutral: paper is never #fff, and a note that
+     is the coldest thing on screen reads as a dialog. */
+  --pad-ink: #f4f1ea;
+  --pad-ink-2: #b5b1a9;
+  --pad-ink-3: #817e78;
+  --pad-signal: #d9b168;
+  --pad-signal-soft: rgba(217, 177, 104, 0.14);
+  --pad-danger: #e8787c;
+
+  /* One overshoot curve for everything that moves, so the whole
+     surface feels like it has the same weight behind it. */
+  --pad-spring: cubic-bezier(0.22, 1.28, 0.32, 1);
+  --pad-glide: cubic-bezier(0.32, 0.9, 0.24, 1);
+
+  --pad-lift:
+    0 1px 0 0 rgba(255, 255, 255, 0.05) inset,
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 24px -8px rgba(0, 0, 0, 0.55);
+  --pad-lift-high:
+    0 1px 0 0 rgba(255, 255, 255, 0.07) inset,
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    0 20px 48px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* The ground the blocks sit on. */
+.pad {
+  background: var(--pad-void);
+  color: var(--pad-ink);
+}
+
+:root[data-theme="light"] {
+  --pad-void: #e9e7e2;
+  --pad-slab: #fdfcfa;
+  --pad-slab-2: #f4f2ee;
+  --pad-slab-3: #e7e4dd;
+  --pad-edge: rgba(0, 0, 0, 0.08);
+  --pad-edge-lit: rgba(0, 0, 0, 0.16);
+  --pad-ink: #1c1b19;
+  --pad-ink-2: #57544f;
+  --pad-ink-3: #86827b;
+  --pad-signal: #9a6b16;
+  --pad-signal-soft: rgba(154, 107, 22, 0.12);
+  --pad-danger: #b3272d;
+
+  --pad-lift:
+    0 1px 0 0 rgba(255, 255, 255, 0.9) inset,
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 8px 20px -10px rgba(0, 0, 0, 0.18);
+  --pad-lift-high:
+    0 1px 0 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    0 22px 44px -14px rgba(0, 0, 0, 0.26);
+}
+
+/* ── Blocks ─────────────────────────────────────────────── */
+
+.pad-slab {
+  background: var(--pad-slab);
+  border: 1px solid var(--pad-edge);
+  border-radius: 16px;
+  box-shadow: var(--pad-lift);
+}
+
+/*
+ * The sheet somebody writes on.
+ *
+ * A real block with a lid: the top edge catches light, the body
+ * sits on a shadow. Before this the note was text floating in an
+ * empty panel with nothing under it, which is why the page read as
+ * unfinished rather than as minimal.
+ */
+.pad-sheet {
+  position: relative;
+  background: linear-gradient(180deg, var(--pad-slab-3) 0%, var(--pad-slab) 140px);
+  border: 1px solid var(--pad-edge);
+  border-radius: 18px;
+  box-shadow: var(--pad-lift-high);
+  animation: pad-sheet-in 0.42s var(--pad-spring) both;
+}
+
+/* Switching notes should feel like a new block landing, not like
+   text being replaced. Keyed on the note id in the page. */
+@keyframes pad-sheet-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── The rail ───────────────────────────────────────────── */
+
+.pad-row {
+  position: relative;
+  border-radius: 12px;
+  transition:
+    background-color 0.18s var(--pad-glide),
+    transform 0.18s var(--pad-spring);
+}
+
+.pad-row:hover {
+  background: var(--pad-slab-2);
+}
+
+.pad-row:active {
+  transform: scale(0.985);
+}
+
+/*
+ * The selected block, and why it is one element rather than a
+ * background on the active row.
+ *
+ * A background that simply appears on whichever row is current
+ * teleports. One block that slides between them is the thing that
+ * makes the rail feel like a mechanism — and it is cheap: the page
+ * measures the row and moves this by transform, so it never lays
+ * out.
+ */
+.pad-marker {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 0;
+  border-radius: 12px;
+  background: var(--pad-slab-3);
+  box-shadow: var(--pad-lift);
+  transition:
+    transform 0.42s var(--pad-spring),
+    height 0.42s var(--pad-spring),
+    opacity 0.2s linear;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* The brass edge that says which one is open. */
+.pad-marker::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--pad-signal);
+}
+
+.pad-row-in {
+  animation: pad-row-in 0.4s var(--pad-spring) both;
+}
+
+@keyframes pad-row-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-8px, 0, 0);
+    clip-path: inset(0 0 100% 0 round 12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 0 0 0 round 12px);
+  }
+}
+
+/* ── Controls ───────────────────────────────────────────── */
+
+/*
+ * Bone on graphite. The old primary was a saturated blue slab —
+ * the loudest thing on a page whose subject is somebody's own
+ * words. Reversed ink is quieter and reads as more deliberate.
+ */
+.pad-primary {
+  background: var(--pad-ink);
+  color: var(--pad-void);
+  border-radius: 12px;
+  font-weight: 560;
+  box-shadow: var(--pad-lift);
+  transition:
+    transform 0.18s var(--pad-spring),
+    filter 0.18s var(--pad-glide),
+    box-shadow 0.18s var(--pad-glide);
+}
+
+.pad-primary:hover {
+  filter: brightness(1.06);
+  box-shadow: var(--pad-lift-high);
+}
+
+.pad-primary:active {
+  transform: scale(0.97);
+}
+
+.pad-ghost {
+  border-radius: 10px;
+  color: var(--pad-ink-2);
+  transition:
+    background-color 0.16s var(--pad-glide),
+    color 0.16s var(--pad-glide),
+    transform 0.16s var(--pad-spring);
+}
+
+.pad-ghost:hover {
+  background: var(--pad-slab-2);
+  color: var(--pad-ink);
+}
+
+.pad-ghost:active {
+  transform: scale(0.94);
+}
+
+.pad-chip {
+  border-radius: 10px;
+  border: 1px solid var(--pad-edge);
+  background: var(--pad-slab);
+  color: var(--pad-ink-2);
+  transition:
+    border-color 0.16s var(--pad-glide),
+    color 0.16s var(--pad-glide),
+    transform 0.16s var(--pad-spring),
+    background-color 0.16s var(--pad-glide);
+}
+
+.pad-chip:hover {
+  border-color: var(--pad-edge-lit);
+  color: var(--pad-ink);
+  background: var(--pad-slab-2);
+}
+
+.pad-chip:active {
+  transform: scale(0.96);
+}
+
+.pad-chip[data-on="true"] {
+  border-color: color-mix(in srgb, var(--pad-signal) 55%, transparent);
+  background: var(--pad-signal-soft);
+  color: var(--pad-ink);
+}
+
+.pad-field {
+  background: var(--pad-void);
+  border: 1px solid var(--pad-edge);
+  border-radius: 12px;
+  color: var(--pad-ink);
+  transition:
+    border-color 0.18s var(--pad-glide),
+    box-shadow 0.18s var(--pad-glide);
+}
+
+.pad-field::placeholder {
+  color: var(--pad-ink-3);
+}
+
+.pad-field:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--pad-signal) 60%, transparent);
+  box-shadow: 0 0 0 3px var(--pad-signal-soft);
+}
+
+/* ── The saving state ───────────────────────────────────── */
+
+/*
+ * One pill that changes what it says, rather than three that
+ * appear and disappear. The dot is the only thing that moves, so
+ * "saving → saved" reads as the same object settling.
+ */
+.pad-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  transition: color 0.24s var(--pad-glide);
+}
+
+.pad-state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  transition:
+    transform 0.4s var(--pad-spring),
+    background-color 0.24s var(--pad-glide);
+}
+
+.pad-state[data-state="saving"] .pad-state-dot {
+  animation: pad-pulse 1.1s ease-in-out infinite;
+}
+
+.pad-state[data-state="saved"] .pad-state-dot {
+  animation: pad-settle 0.5s var(--pad-spring) both;
+}
+
+@keyframes pad-pulse {
+  0%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+@keyframes pad-settle {
+  0% {
+    transform: scale(2.1);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ── The assistant ──────────────────────────────────────── */
+
+.pad-panel {
+  background: var(--pad-slab);
+  border-left: 1px solid var(--pad-edge);
+  animation: pad-panel-in 0.44s var(--pad-spring) both;
+}
+
+@keyframes pad-panel-in {
+  from {
+    opacity: 0;
+    transform: translate3d(34px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.pad-turn {
+  animation: pad-turn-in 0.36s var(--pad-spring) both;
+}
+
+@keyframes pad-turn-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * Three bars that breathe while a model is thinking. Not a
+ * spinner: a spinner says "blocked", and this is a thing you can
+ * keep writing through.
+ */
+.pad-thinking {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 11px;
+}
+
+.pad-thinking i {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--pad-signal);
+  transform-origin: bottom;
+  animation: pad-bar 1s ease-in-out infinite;
+}
+
+.pad-thinking i:nth-child(2) {
+  animation-delay: 0.13s;
+}
+
+.pad-thinking i:nth-child(3) {
+  animation-delay: 0.26s;
+}
+
+@keyframes pad-bar {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* While it listens, the whole box should look live. */
+.pad-live {
+  position: relative;
+}
+
+.pad-live::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid var(--pad-signal);
+  opacity: 0;
+  animation: pad-breathe 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pad-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pad-sheet,
+  .pad-row-in,
+  .pad-panel,
+  .pad-turn {
+    animation: none;
+  }
+  .pad-marker {
+    transition: none;
+  }
+  .pad-thinking i,
+  .pad-live::after,
+  .pad-state-dot {
+    animation: none;
+  }
+}
+
+/*
+ * The writing surface, which grows.
+ *
+ * A fixed tall box makes a two-line note look like an empty container
+ * somebody forgot to fill. The page sets the height from the content on every
+ * keystroke, so the block breathes as the note gets longer, and the minimum
+ * keeps a new note from being a slot rather than a page.
+ */
+.pad-write {
+  min-height: 320px;
+  overflow: hidden;
+  resize: none;
+}

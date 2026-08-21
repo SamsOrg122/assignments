@@ -9,7 +9,7 @@ import type { SyncStanding } from "./notes";
  * The footer used to carry this as a static line, which meant the
  * interesting moment — your words leaving for the account — looked identical
  * to nothing happening. The pill only exists during a moment: saving
- * (amber), saved (green, briefly), sending and landed (blue then green), a
+ * (amber), saved (green, briefly), sending and landed (brass then green), a
  * dropped file kept, a failure (red, and it stays, because a failure that
  * fades is a failure nobody saw).
  *
@@ -22,12 +22,12 @@ import type { SyncStanding } from "./notes";
 export interface Flash {
   /** Changes per flash so the same label can fire twice in a row. */
   id: number;
-  tone: "amber" | "green" | "blue" | "red";
+  tone: "amber" | "green" | "brass" | "red";
   label: string;
 }
 
 interface Moment {
-  tone: "amber" | "green" | "blue" | "red";
+  tone: "amber" | "green" | "brass" | "red";
   label: string;
   /** How long it stays; absent means until replaced. */
   hold?: number;
@@ -86,7 +86,7 @@ export function StatusPill({
     } else if (!saving && seen.saving && !failed) {
       next = { tone: "green", label: "Saved", hold: 1400 };
     } else if (waiting > 0 && waiting !== seen.waiting && !saving && !failed) {
-      next = { tone: "blue", label: `Sending ${waiting}` };
+      next = { tone: "brass", label: `Sending ${waiting}` };
     } else if (waiting === 0 && seen.waiting > 0 && !failed) {
       next = { tone: "green", label: "In your account", hold: 1800 };
     }

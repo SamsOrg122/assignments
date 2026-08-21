@@ -1,27 +1,37 @@
 "use client";
 
 /**
- * The Notes page.
+ * The notepad.
  *
- * Notes used to appear only as a strip inside the Library, and only when
- * there were some — so anybody who had not installed the desktop app saw
- * nothing at all and had no way to find out the thing existed. A feature you
- * can only discover by already using it is not a feature.
+ * It used to be a page *about* the desktop app with a read-only list under
+ * it: no way to start a note, no way to search one, and a Save button under
+ * every textarea. That was honest when the only way to write a note was to
+ * install something, and it stopped being honest the moment the account grew
+ * a table both ends could write to. A notepad you cannot write in is a
+ * viewer, and calling it Notes in the sidebar was the tool over-promising.
  *
- * So: a page of its own, in the sidebar, that says what this is whether or
- * not there is anything in it, and that carries the app itself.
+ * So: a rail of notes you can search, a note that saves itself, and an
+ * assistant beside it that can either rewrite what is there or make a real
+ * document out of it — the same endpoint, the same tools and the same
+ * refusals as the floating desktop window, because two assistants with
+ * different rules is two sets of bugs.
+ *
+ * The desktop app moved to Settings. It was the first thing on this page and
+ * the least urgent thing on it; somebody who came here to write does not
+ * want a download table first.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { TopBar } from "@/components/shell/TopBar";
 import { Icon } from "@/components/ui/Icon";
+import { cn } from "@/lib/cn";
+import { download } from "@/lib/export";
 import { formatDateTime } from "@/lib/format";
 import { useRemoteConfigured } from "@/lib/db/use-config";
 import { useAuth } from "@/lib/auth/store";
 import {
-  DESKTOP_VERSION,
-  DOWNLOADS,
-  RELEASES_URL,
+  createNote,
   deleteNote,
   listNotes,
   previewOf,
@@ -29,9 +39,12 @@ import {
   titleOf,
   type Note,
 } from "@/lib/db/notes";
-import Link from "next/link";
+import { useAutosave } from "@/components/notes/useAutosave";
+import { NoteAssistant } from "@/components/notes/NoteAssistant";
+import type { AssistNote } from "@/lib/ai/assist/client";
 
 type Load = "reading" | "ready" | "unavailable";
+type Saved = "clean" | "saving" | "saved" | "failed";
 
 export default function NotesPage() {
   const configured = useRemoteConfigured();
@@ -39,39 +52,68 @@ export default function NotesPage() {
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [load, setLoad] = useState<Load>("reading");
-  const [open, setOpen] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [saved, setSaved] = useState<Saved>("clean");
+  const [query, setQuery] = useState("");
+  const [undo, setUndo] = useState<Note | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [railOpen, setRailOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const box = useRef<HTMLTextAreaElement>(null);
+
+  /*
+   * Writing, and what the list is told afterwards.
+   *
+   * The row in the rail carries the note's first line, so it has to move as
+   * the note is typed — but re-reading the table on every save would be a
+   * round trip per pause and would fight the caret. The list is patched from
+   * what was just written instead, which is the same thing the database now
+   * holds.
+   */
+  const write = useCallback(async (id: string, body: string) => {
+    setSaved("saving");
     try {
-      setNotes(await listNotes());
-      setLoad("ready");
+      await saveNote(id, body);
+      const updatedAt = Date.now();
+      setNotes((all) =>
+        all
+          .map((n) => (n.id === id ? { ...n, body, updatedAt } : n))
+          .sort((a, b) => b.updatedAt - a.updatedAt),
+      );
+      setSaved("saved");
       setProblem(null);
     } catch (error) {
-      // A deployment without migration 0005 has no `notes` table, which is
-      // not a fault — it is a feature that has not been switched on. Say so
-      // rather than showing an alarm.
-      setLoad("unavailable");
+      // Never silently. The words are still in the box, and saying so is the
+      // difference between somebody retyping them and losing them.
+      setSaved("failed");
       setProblem(String((error as Error).message ?? error));
     }
   }, []);
+
+  const { schedule, flush, forget } = useAutosave(write);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const all = await listNotes();
-        if (alive) {
-          setNotes(all);
-          setLoad("ready");
+        if (!alive) return;
+        setNotes(all);
+        setLoad("ready");
+        if (all[0]) {
+          setActiveId(all[0].id);
+          setDraft(all[0].body);
         }
       } catch (error) {
-        if (alive) {
-          setLoad("unavailable");
-          setProblem(String((error as Error).message ?? error));
-        }
+        if (!alive) return;
+        // A deployment without migration 0005 has no `notes` table, which is
+        // not a fault — it is a feature nobody has switched on yet.
+        setLoad("unavailable");
+        setProblem(String((error as Error).message ?? error));
       }
     })();
     return () => {
@@ -79,35 +121,171 @@ export default function NotesPage() {
     };
   }, []);
 
-  const save = async (note: Note) => {
-    setBusy(true);
+  const active = notes.find((n) => n.id === activeId) ?? null;
+
+  const shown = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return notes;
+    return notes.filter((n) => n.body.toLowerCase().includes(needle));
+  }, [notes, query]);
+
+  const open = async (note: Note) => {
+    if (note.id === activeId) {
+      setRailOpen(false);
+      return;
+    }
+    // The note being left almost always has an unwritten keystroke in it.
+    await flush();
+    setActiveId(note.id);
+    setDraft(note.body);
+    setSaved("clean");
+    setRailOpen(false);
+    requestAnimationFrame(() => box.current?.focus());
+  };
+
+  const startNew = async (body = "") => {
+    await flush();
     try {
-      await saveNote(note.id, draft);
-      setOpen(null);
-      await reload();
+      const note = await createNote(body);
+      setNotes((all) => [note, ...all]);
+      setActiveId(note.id);
+      setDraft(note.body);
+      setSaved("clean");
+      setRailOpen(false);
+      requestAnimationFrame(() => box.current?.focus());
+      return note;
     } catch (error) {
       setProblem(String((error as Error).message ?? error));
-    } finally {
-      setBusy(false);
+      return null;
     }
   };
 
   const remove = async (note: Note) => {
-    setBusy(true);
+    // Deliberately no "are you sure". A note is small, and a confirmation on
+    // every delete trains people to click through confirmations. The undo
+    // below is the safety net, and it is a better one.
+    if (note.id === activeId) forget();
+    else await flush();
+
     try {
       await deleteNote(note.id);
-      if (open === note.id) setOpen(null);
-      await reload();
+      const left = notes.filter((n) => n.id !== note.id);
+      setNotes(left);
+      setUndo(note);
+      if (note.id === activeId) {
+        setActiveId(left[0]?.id ?? null);
+        setDraft(left[0]?.body ?? "");
+        setSaved("clean");
+      }
     } catch (error) {
       setProblem(String((error as Error).message ?? error));
-    } finally {
-      setBusy(false);
     }
   };
 
+  const undoDelete = async () => {
+    if (!undo) return;
+    try {
+      // Saving a note clears its tombstone — see `saveNote`. So bringing one
+      // back is writing its own text over itself, which is also what makes it
+      // reappear on every other machine at the next sync round.
+      await saveNote(undo.id, undo.body);
+      const back = { ...undo, updatedAt: Date.now() };
+      setNotes((all) => [back, ...all.filter((n) => n.id !== back.id)]);
+      setUndo(null);
+    } catch (error) {
+      setProblem(String((error as Error).message ?? error));
+    }
+  };
+
+  const type_ = (body: string) => {
+    if (!activeId) return;
+    setDraft(body);
+    setSaved("saving");
+    schedule(activeId, body);
+  };
+
+  /** What the assistant asked for, applied to the note it was asked about. */
+  const apply = async (change: AssistNote) => {
+    if (change.kind === "new") {
+      await startNew(change.body);
+      return;
+    }
+    if (!activeId) {
+      await startNew(change.body);
+      return;
+    }
+    const body =
+      change.kind === "append"
+        ? draft.trim()
+          ? `${draft.replace(/\s+$/, "")}\n\n${change.body}`
+          : change.body
+        : change.body;
+    setDraft(body);
+    forget();
+    await write(activeId, body);
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(draft);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setProblem("This browser wouldn't let the page use the clipboard.");
+    }
+  };
+
+  const words = useMemo(
+    () => draft.trim().split(/\s+/).filter(Boolean).length,
+    [draft],
+  );
+
+  /* ── When there is no notepad to show ──────────────────────────────── */
+
+  if (!configured || load === "unavailable")
+    return (
+      <>
+        <TopBar>
+          <span className="text-[13px] font-medium text-fg">Notes</span>
+        </TopBar>
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-[640px] px-5 py-9 sm:px-8">
+            <h1 className="text-[17px] font-medium tracking-tight text-fg">Notes</h1>
+            <Unavailable configured={configured} problem={problem} />
+          </div>
+        </main>
+      </>
+    );
+
   return (
     <>
-      <TopBar>
+      <TopBar
+        right={
+          <button
+            type="button"
+            onClick={() => setAsking((o) => !o)}
+            aria-pressed={asking}
+            className={cn(
+              "flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[12px] transition-colors duration-150",
+              asking
+                ? "border-accent text-fg"
+                : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
+            )}
+          >
+            <Icon name="sparkle" size={12} className={asking ? "text-accent" : undefined} />
+            Ask
+          </button>
+        }
+      >
+        <button
+          type="button"
+          onClick={() => setRailOpen((o) => !o)}
+          className="rounded-xs p-1 text-fg-subtle transition-colors duration-150 hover:text-fg md:hidden"
+          aria-label={railOpen ? "Hide the list" : "Show the list"}
+          aria-expanded={railOpen}
+        >
+          <Icon name="sticky" size={14} />
+        </button>
         <span className="text-[13px] font-medium text-fg">Notes</span>
         {notes.length > 0 && (
           <span className="rounded-xs border border-line px-1.5 py-0.5 text-[10.5px] text-fg-muted">
@@ -116,138 +294,246 @@ export default function NotesPage() {
         )}
       </TopBar>
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[760px] px-5 py-9 sm:px-8">
-          <h1 className="text-[17px] font-medium tracking-tight text-fg">
-            Notes
-          </h1>
-          <p className="mt-2 text-[12px] leading-relaxed text-fg-subtle">
-            A small window that sits above every other app on your computer.
-            Press a key, write the thing down, press it again. What you write
-            is kept on that machine first and reaches this account a moment
-            later — so it works on a train, and it is here when you get back.
-          </p>
+      <main className="relative flex min-h-0 flex-1">
+        {/* ── The rail ─────────────────────────────────────────────── */}
+        <aside
+          className={cn(
+            "w-[248px] shrink-0 flex-col border-r border-line bg-canvas",
+            "absolute inset-y-0 left-0 z-20 md:static md:z-auto",
+            railOpen ? "flex" : "hidden md:flex",
+          )}
+        >
+          <div className="shrink-0 border-b border-line p-2">
+            <div className="relative">
+              <Icon
+                name="search"
+                size={12}
+                className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-fg-subtle"
+              />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search your notes"
+                aria-label="Search your notes"
+                className="w-full rounded-sm border border-line bg-surface py-1.5 pl-7 pr-2 text-[12px] text-fg outline-none placeholder:text-fg-subtle focus:border-accent"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => void startNew()}
+              className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-sm bg-accent px-2 py-1.5 text-[12px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+            >
+              <Icon name="plus" size={12} />
+              New note
+            </button>
+          </div>
 
-          {/* ── The app ───────────────────────────────────────────────── */}
-          <Desktop />
-
-          {/* ── What is in the account ────────────────────────────────── */}
-          <section className="mt-9" aria-labelledby="your-notes">
-            <h2 id="your-notes" className="label-mono">
-              In your account
-            </h2>
-
-            {/* Order matters. With no database `listNotes` returns an empty
-                list rather than failing, so a plain "nothing here yet" would
-                be told to somebody whose deployment has nowhere to put a note
-                at all — true, and pointing at the wrong problem. */}
-            {!configured ? (
-              <Unavailable configured={false} problem={null} />
-            ) : load === "reading" ? (
-              <p className="mt-3 text-[12px] text-fg-subtle">Looking…</p>
-            ) : load === "unavailable" ? (
-              <Unavailable configured={configured} problem={problem} />
-            ) : notes.length === 0 ? (
-              <p className="mt-3 text-[12px] leading-relaxed text-fg-subtle">
-                Nothing here yet.{" "}
-                {email
-                  ? "Notes you write in the desktop app will appear here within a minute."
-                  : "Sign in on both this browser and the app, and they will meet here."}
+          <div className="min-h-0 flex-1 overflow-y-auto p-1">
+            {load === "reading" ? (
+              <p className="px-2 py-3 text-[11.5px] text-fg-subtle">Looking…</p>
+            ) : shown.length === 0 ? (
+              <p className="px-2 py-3 text-[11.5px] leading-relaxed text-fg-subtle">
+                {query.trim()
+                  ? "Nothing matches that."
+                  : email
+                    ? "No notes yet. Press New note."
+                    : "No notes yet. Sign in and they will follow you between machines."}
               </p>
             ) : (
-              <ul className="mt-3 grid gap-1.5">
-                {notes.map((note) => (
-                  <li
-                    key={note.id}
-                    className="rounded-sm border border-line bg-surface px-3 py-2.5"
-                  >
-                    {open === note.id ? (
-                      <div className="grid gap-2">
-                        <label className="grid gap-1">
-                          <span className="sr-only">Note</span>
-                          <textarea
-                            value={draft}
-                            rows={6}
-                            autoFocus
-                            onChange={(e) => setDraft(e.target.value)}
-                            className="w-full resize-y rounded-sm border border-line bg-canvas px-2.5 py-2 text-[13px] leading-relaxed text-fg outline-none focus:border-accent"
-                          />
-                        </label>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void save(note)}
-                            className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
-                          >
-                            {busy ? "Saving…" : "Save"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setOpen(null)}
-                            className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-                          >
-                            Cancel
-                          </button>
-                          <span className="text-[11px] text-fg-subtle">
-                            Your desktop app picks this up within a minute.
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start gap-2">
-                        <button
-                          type="button"
-                          className="min-w-0 flex-1 text-left"
-                          onClick={() => {
-                            setOpen(note.id);
-                            setDraft(note.body);
-                          }}
-                        >
-                          <span className="block truncate text-[13px] text-fg">
-                            {titleOf(note) || "Empty note"}
-                          </span>
-                          <span className="mt-0.5 flex gap-2 text-[11px] text-fg-subtle">
-                            <span className="min-w-0 flex-1 truncate">
-                              {previewOf(note)}
-                            </span>
-                            <span className="shrink-0">
-                              {formatDateTime(note.updatedAt)}
-                            </span>
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void remove(note)}
-                          className="shrink-0 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-60"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
+              <ul className="grid gap-px">
+                {shown.map((note) => (
+                  <li key={note.id} className="group relative">
+                    <button
+                      type="button"
+                      onClick={() => void open(note)}
+                      className={cn(
+                        "w-full rounded-xs px-2 py-1.5 pr-7 text-left transition-colors duration-150",
+                        note.id === activeId ? "bg-surface-2" : "hover:bg-surface",
+                      )}
+                    >
+                      <span className="block truncate text-[12.5px] text-fg">
+                        {titleOf(note) || "Empty note"}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[10.5px] text-fg-subtle">
+                        {previewOf(note) || formatDateTime(note.updatedAt)}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void remove(note)}
+                      aria-label={`Delete ${titleOf(note) || "empty note"}`}
+                      className="absolute right-1 top-1.5 rounded-xs p-1 text-fg-subtle opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-fg"
+                    >
+                      <Icon name="trash" size={11} />
+                    </button>
                   </li>
                 ))}
               </ul>
             )}
+          </div>
 
-            {problem && load === "ready" ? (
-              <p className="mt-2 text-[11px] text-warn" role="alert">
-                {problem}
+          <div className="shrink-0 border-t border-line px-2 py-1.5">
+            {undo ? (
+              <p className="flex items-center gap-2 text-[11px] text-fg-subtle">
+                Deleted.
+                <button
+                  type="button"
+                  onClick={() => void undoDelete()}
+                  className="text-accent hover:underline"
+                >
+                  Undo
+                </button>
               </p>
-            ) : null}
-          </section>
-        </div>
+            ) : (
+              <Link
+                href="/settings#desktop"
+                className="flex items-center gap-1.5 text-[11px] text-fg-subtle transition-colors duration-150 hover:text-fg"
+              >
+                <Icon name="download" size={11} />
+                Get the floating note
+              </Link>
+            )}
+          </div>
+        </aside>
+
+        {/* ── The note ─────────────────────────────────────────────── */}
+        <section
+          className={cn(
+            "min-w-0 flex-1 flex-col",
+            asking ? "hidden lg:flex" : "flex",
+          )}
+        >
+          {active ? (
+            <>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="mx-auto w-full max-w-[720px] px-5 py-6 sm:px-8">
+                  <textarea
+                    ref={box}
+                    value={draft}
+                    spellCheck
+                    placeholder="Write it down…"
+                    onChange={(e) => type_(e.target.value)}
+                    onBlur={() => void flush()}
+                    className="min-h-[60vh] w-full resize-none bg-transparent text-[14.5px] leading-[1.75] text-fg outline-none placeholder:text-fg-subtle"
+                  />
+                </div>
+              </div>
+
+              <footer className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-3 py-1.5 sm:px-4">
+                <span className="text-[11px] text-fg-subtle">
+                  {saved === "saving"
+                    ? "Saving…"
+                    : saved === "failed"
+                      ? "Not saved"
+                      : saved === "saved"
+                        ? "Saved"
+                        : formatDateTime(active.updatedAt)}
+                </span>
+                <span className="text-[11px] text-fg-subtle">
+                  {words} {words === 1 ? "word" : "words"}
+                </span>
+
+                <span className="flex-1" />
+
+                <Tool onClick={() => void copy()} icon="copy">
+                  {copied ? "Copied" : "Copy"}
+                </Tool>
+                <Tool
+                  onClick={() =>
+                    download(
+                      `${(titleOf(active) || "note").replace(/[^\w \-.]+/g, "").slice(0, 60) || "note"}.txt`,
+                      draft,
+                      "text/plain;charset=utf-8",
+                    )
+                  }
+                  icon="download"
+                >
+                  Download
+                </Tool>
+                <Tool
+                  onClick={() => setAsking(true)}
+                  icon="sparkle"
+                  title="Ask the assistant to make a document out of this note"
+                >
+                  Make something
+                </Tool>
+                <Tool onClick={() => void remove(active)} icon="trash">
+                  Delete
+                </Tool>
+              </footer>
+            </>
+          ) : (
+            <div className="flex flex-1 items-center justify-center p-8">
+              <div className="max-w-[380px] text-center">
+                <Icon name="sticky" size={22} className="mx-auto text-fg-subtle" />
+                <p className="mt-3 text-[13px] text-fg">Nothing open.</p>
+                <p className="mt-1.5 text-[12px] leading-relaxed text-fg-subtle">
+                  Notes are kept in your account and reach the floating desktop
+                  window within a minute — and it reaches back here.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void startNew()}
+                  className="mt-4 rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+                >
+                  Write one
+                </button>
+              </div>
+            </div>
+          )}
+
+          {problem && (
+            <p className="shrink-0 border-t border-line px-3 py-1.5 text-[11px] text-warn" role="alert">
+              {problem}
+            </p>
+          )}
+        </section>
+
+        {/* ── The assistant ────────────────────────────────────────── */}
+        {asking && (
+          <aside className="flex min-w-0 flex-1 flex-col border-line lg:w-[356px] lg:flex-none lg:border-l">
+            <NoteAssistant
+              note={active ? { id: active.id, body: draft } : null}
+              onApply={apply}
+              onClose={() => setAsking(false)}
+            />
+          </aside>
+        )}
       </main>
     </>
   );
 }
 
+/** One of the small buttons under the note. */
+function Tool({
+  icon,
+  children,
+  onClick,
+  title,
+}: {
+  icon: "copy" | "download" | "trash" | "sparkle";
+  children: React.ReactNode;
+  onClick: () => void;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="flex items-center gap-1 rounded-xs px-1.5 py-1 text-[11px] text-fg-subtle transition-colors duration-150 hover:text-fg"
+    >
+      <Icon name={icon} size={11} />
+      {children}
+    </button>
+  );
+}
+
 /**
- * Why there is nothing to show, in the terms of whoever is reading.
+ * Why there is no notepad, in the terms of whoever is reading.
  *
- * Three different causes with three different fixes, and lumping them into
- * "something went wrong" would leave all three unfixed.
+ * Two different causes with two different fixes, and lumping them into
+ * "something went wrong" would leave both unfixed.
  */
 function Unavailable({
   configured,
@@ -260,12 +546,12 @@ function Unavailable({
     return (
       <p className="mt-3 text-[12px] leading-relaxed text-fg-subtle">
         This deployment has no database configured, so there is nowhere for
-        notes to be kept. The desktop app still works — everything stays on
-        that computer.{" "}
-        <Link href="/settings" className="text-accent hover:underline">
+        notes to be kept.{" "}
+        <Link href="/settings#connection" className="text-accent hover:underline">
           Settings
         </Link>{" "}
-        says what is missing.
+        says what is missing. The desktop app still works — everything stays on
+        that computer until there is an account to reach.
       </p>
     );
 
@@ -282,65 +568,5 @@ function Unavailable({
         <p className="mt-1.5 text-[11px] text-fg-subtle">{problem}</p>
       ) : null}
     </div>
-  );
-}
-
-/** Where to get the app. */
-function Desktop() {
-  return (
-    <section
-      className="mt-7 rounded-md border border-line bg-surface p-4"
-      aria-labelledby="get-the-app"
-    >
-      <div className="flex items-center gap-2">
-        <Icon name="sticky" size={13} className="shrink-0 text-accent" />
-        <h2 id="get-the-app" className="text-[13px] font-medium text-fg">
-          Get the floating note
-        </h2>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {DOWNLOADS.map((platform) => (
-          <a
-            key={platform.label + (platform.note ?? "")}
-            href={platform.href}
-            className="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-accent hover:text-fg"
-          >
-            <Icon name="download" size={12} className="shrink-0" />
-            <span className="text-fg">{platform.label}</span>
-            {platform.note ? (
-              <span className="text-[11px] text-fg-subtle">{platform.note}</span>
-            ) : null}
-          </a>
-        ))}
-      </div>
-
-      <p className="mt-3 text-[11.5px] leading-relaxed text-fg-subtle">
-        Version {DESKTOP_VERSION}. Opens with{" "}
-        <kbd className="rounded-xs border border-line px-1">⌘⇧N</kbd> on a Mac
-        and{" "}
-        <kbd className="rounded-xs border border-line px-1">Ctrl+Shift+N</kbd>{" "}
-        everywhere else.
-      </p>
-
-      {/* Said here rather than discovered at the moment of installing. An
-          unsigned build is not dangerous, but it looks exactly like one that
-          is, and somebody who has not been warned is right to stop. */}
-      <p className="mt-2 text-[11.5px] leading-relaxed text-fg-subtle">
-        The builds aren&apos;t code-signed yet. macOS will say the app is
-        damaged until you right-click it and choose <em>Open</em>; Windows
-        SmartScreen will warn once. Both are the same message every unsigned
-        app gets.{" "}
-        <a
-          href={RELEASES_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="text-accent hover:underline"
-        >
-          All builds
-        </a>
-        .
-      </p>
-    </section>
   );
 }

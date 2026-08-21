@@ -109,6 +109,13 @@ jobs:
       - name: Lint the window
         run: npm run lint
 
+      # Two modules whose names differ only in case compile fine on this
+      # runner and break every case-insensitive one. Cheap to check here;
+      # otherwise it is found by three simultaneously failing release builds.
+      - name: Filenames that only work on Linux
+        working-directory: .
+        run: node scripts/no-case-collisions.mjs
+
       - name: Formatting
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 

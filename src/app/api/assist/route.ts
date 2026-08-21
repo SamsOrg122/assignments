@@ -58,7 +58,19 @@ interface Body {
   prompt?: unknown;
   note?: unknown;
   files?: unknown;
+  where?: unknown;
 }
+
+/**
+ * Which notepad is asking.
+ *
+ * Same tools, same frames, same account check — the only difference is how
+ * much room the answer has to land in and what "open it" means afterwards.
+ * A reply sized for a 340-pixel window reads as curt in a browser tab, and a
+ * reply sized for a tab does not fit in the window at all, so the one thing
+ * that varies is told to the model rather than left to it.
+ */
+type Surface = "desktop" | "web";
 
 interface AskFile {
   id: string;
@@ -277,7 +289,7 @@ const TOOLS = [
   ),
 ];
 
-function systemPrompt(note: string, files: AskFile[]): string {
+function systemPrompt(note: string, files: AskFile[], where: Surface): string {
   const shelf = files.length
     ? files
         .map((f) => {
@@ -285,16 +297,34 @@ function systemPrompt(note: string, files: AskFile[]): string {
           return f.text ? `${head}\n<<<\n${f.text}\n>>>` : `${head} — contents not readable as text`;
         })
         .join("\n")
-    : "(nothing dropped on the note)";
+    : where === "web"
+      ? "(no file attached to this question)"
+      : "(nothing dropped on the note)";
+
+  const here =
+    where === "web"
+      ? [
+          "You are the assistant inside Tougather's notepad, open in a browser tab beside the note somebody is writing.",
+          "",
+          "Answer in the reply itself, briefly — a short paragraph, or a handful of sentences at most. The panel is a column beside the note, not a document.",
+        ]
+      : [
+          "You are the assistant inside Tougather's floating desktop note — a small always-on-top window somebody writes in while doing something else.",
+          "",
+          "Answer briefly in the reply itself. The window is 340 pixels wide, so two or three sentences is a long answer.",
+        ];
+
+  const opens =
+    where === "web"
+      ? "which opens straight away in the tab they are already in"
+      : "which they open in the full app";
 
   return [
-    "You are the assistant inside Tougather's floating desktop note — a small always-on-top window somebody writes in while doing something else.",
-    "",
-    "Answer briefly in the reply itself. The window is 340 pixels wide, so two or three sentences is a long answer.",
+    ...here,
     "",
     "When the person asks you to change what is written, use append_note, replace_note or new_note rather than printing the new text in the reply — the note is the thing they are looking at.",
     "",
-    "When they ask for something bigger than a note — an analysis, a report, a summary of a file, a presentation — use make_document. That makes a real document in their account with prose, tables, charts and slides, which they open in the full app. Say in your reply that you have made it and what is in it.",
+    `When they ask for something bigger than a note — an analysis, a report, a summary of a file, a presentation — use make_document. That makes a real document in their account with prose, tables, charts and slides, ${opens}. Say in your reply that you have made it and what is in it.`,
     "",
     "For an analysis of data: give the numbers a table, and give the table a chart. A chart's `of` must be the exact title of a table you put in the same list, or it is dropped.",
     "",
@@ -303,7 +333,7 @@ function systemPrompt(note: string, files: AskFile[]): string {
     "The note currently says:",
     note.trim() ? `<<<\n${note.slice(0, 40_000)}\n>>>` : "(empty)",
     "",
-    "Files dropped on this note:",
+    where === "web" ? "Files attached to this question:" : "Files dropped on this note:",
     shelf,
   ].join("\n");
 }
@@ -355,9 +385,10 @@ export async function POST(request: Request) {
     40_000,
   );
   const files = readFiles(body.files);
+  const where: Surface = body.where === "web" ? "web" : "desktop";
 
   const messages = [
-    { role: "system" as const, content: systemPrompt(noteBody, files) },
+    { role: "system" as const, content: systemPrompt(noteBody, files, where) },
     { role: "user" as const, content: prompt },
   ];
 

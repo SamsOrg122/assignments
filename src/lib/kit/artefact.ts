@@ -74,6 +74,20 @@ export function readArtefact(
       ? shape.name.trim()
       : fallbackName;
 
+  return { name, blocks: reviewBlocks(name, shape.blocks) };
+}
+
+/**
+ * Reduce blocks nobody here wrote to blocks that are safe to keep.
+ *
+ * Shared by both ways a made document arrives: as a file the desktop wrote,
+ * and as frames the assistant streamed into this tab. The second one has
+ * already been through `buildBlocks` on the server, and goes through this
+ * anyway — the server is where the model's answer is *shaped*, not where it
+ * earns trust, and a browser that skipped the check because "the server
+ * already did it" is one deployment mistake away from adopting anything.
+ */
+export function reviewBlocks(name: string, blocks: unknown): Block[] {
   const safe = validateSharedProject({
     id: uid(),
     name,
@@ -81,16 +95,42 @@ export function readArtefact(
     glyph: "◇",
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    blocks: Array.isArray(shape.blocks) ? shape.blocks : [],
+    blocks: Array.isArray(blocks) ? blocks : [],
     board: [],
   });
   if (!safe || safe.blocks.length === 0)
     throw new Error("There was nothing in that document that could be opened.");
 
-  return { name, blocks: safe.blocks as Block[] };
+  return safe.blocks as Block[];
 }
 
-/** Turn one into a project, and hand back its id. */
+/**
+ * Put reviewed blocks into a new project, and hand back its id.
+ *
+ * A new project ships with a starter block. Insert first and remove after, so
+ * the project is never momentarily empty — the same order the editor's own
+ * create-project path uses, and the reason a reader watching the library
+ * never sees a document flash through blank.
+ */
+export function makeProject(name: string, blocks: Block[]): string {
+  const store = useProjects.getState();
+  const id = store.addProject("doc", name);
+
+  const project = useProjects.getState().projects.find((p) => p.id === id);
+  const starters = (project?.blocks ?? []).map((b) => b.id);
+  for (const block of blocks) store.insertBlock(id, block);
+  for (const starter of starters) store.removeBlock(id, starter);
+
+  useProjects.setState((s) => ({
+    projects: s.projects.map((p) =>
+      p.id === id ? { ...p, scope: currentWorld() } : p,
+    ),
+  }));
+
+  return id;
+}
+
+/** Turn a file the desktop wrote into a project, and hand back its id. */
 export async function adoptArtefact(file: AccountFile): Promise<string> {
   const data = await accountFileData(file);
   const comma = data.indexOf(",");
@@ -106,24 +146,5 @@ export async function adoptArtefact(file: AccountFile): Promise<string> {
   }
 
   const safe = readArtefact(decoded, artefactName(file));
-  const name = safe.name;
-
-  const store = useProjects.getState();
-  const id = store.addProject("doc", name);
-
-  // A new project ships with a starter block. Insert first and remove after,
-  // so the project is never momentarily empty — the same order the editor's
-  // own create-project path uses.
-  const project = useProjects.getState().projects.find((p) => p.id === id);
-  const starters = (project?.blocks ?? []).map((b) => b.id);
-  for (const block of safe.blocks as Block[]) store.insertBlock(id, block);
-  for (const starter of starters) store.removeBlock(id, starter);
-
-  useProjects.setState((s) => ({
-    projects: s.projects.map((p) =>
-      p.id === id ? { ...p, scope: currentWorld() } : p,
-    ),
-  }));
-
-  return id;
+  return makeProject(safe.name, safe.blocks);
 }

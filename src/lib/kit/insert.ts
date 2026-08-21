@@ -19,6 +19,7 @@ import type { Block, Slide, SlideObject } from "../types";
 import { createBlock, createImageBlock, uid } from "../factories";
 import { useProjects } from "../store";
 import { familyOf, labelFor } from "./mime";
+import { textOfDataUrl } from "./text";
 import {
   assetData,
   formatBytes,
@@ -169,7 +170,7 @@ export async function insertKitFile(
   if (block.type !== "text") return null;
   return store.insertBlock(
     projectId,
-    { ...block, html: await attachmentHtml(asset, data) },
+    { ...block, html: attachmentHtml(asset, data) },
     afterBlockId,
   );
 }
@@ -191,12 +192,12 @@ export async function insertKitFile(
  * says which file this is and the bytes stay on the shelf, where there is a
  * download button and nothing has to be trusted.
  */
-async function attachmentHtml(asset: KitFile, dataUrl: string): Promise<string> {
+function attachmentHtml(asset: KitFile, dataUrl: string): string {
   const kind = escapeHtml(labelFor(asset.mime, asset.filename));
   const size = escapeHtml(formatBytes(asset.bytes));
   const label = escapeHtml(asset.name);
 
-  const text = await textOf(asset, dataUrl);
+  const text = textOfDataUrl(dataUrl, asset.mime, asset.filename);
   if (text !== null) {
     const body = text
       .split(/\n{2,}/)
@@ -206,29 +207,6 @@ async function attachmentHtml(asset: KitFile, dataUrl: string): Promise<string> 
   }
 
   return `<p><strong>${label}</strong> — ${kind}, ${size}, kept in your kit</p>`;
-}
-
-/** How much of a text file is worth putting in a paragraph. */
-const MAX_INLINE_TEXT = 200_000;
-
-/** The file's text, or null when it is not text at all. */
-async function textOf(asset: KitFile, dataUrl: string): Promise<string | null> {
-  if (familyOf(asset.mime, asset.filename) !== "text") return null;
-  const comma = dataUrl.indexOf(",");
-  if (comma < 0) return null;
-  try {
-    const body = dataUrl.slice(comma + 1);
-    const decoded = /;base64/i.test(dataUrl.slice(0, comma))
-      ? new TextDecoder().decode(
-          Uint8Array.from(atob(body), (c) => c.charCodeAt(0)),
-        )
-      : decodeURIComponent(body);
-    return decoded.length > MAX_INLINE_TEXT
-      ? `${decoded.slice(0, MAX_INLINE_TEXT)}\n\n…`
-      : decoded;
-  } catch {
-    return null;
-  }
 }
 
 const escapeHtml = (raw: string): string =>

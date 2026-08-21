@@ -9,11 +9,13 @@
  * blocks, board items and a search index. Sharing a table would have meant
  * pushing all of that over the wire for a changed word.
  *
- * Read-only from here, near enough. The browser can edit a note's text and
- * delete one — because a note you can see and cannot fix is worse than one
- * you cannot see — but the desktop app is where they are made.
+ * Both ends write. The desktop app is where most notes get taken — that is
+ * what a window above every other window is for — but the browser makes,
+ * edits and deletes them too, and the two meet through last-write-wins on
+ * the clients' own clocks.
  */
 
+import { uid } from "../factories";
 import { supabase } from "./client";
 
 export interface Note {
@@ -66,6 +68,36 @@ export async function saveNote(id: string, body: string): Promise<void> {
     .update({ body, updated_at: new Date().toISOString(), deleted_at: null })
     .eq("id", id);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Start a note here rather than on the laptop.
+ *
+ * This module used to say notes were "read-only from here, near enough",
+ * which was true when the only way to write one was the desktop app. It made
+ * the web page a viewer: somebody who had not installed anything could look
+ * at an empty list and had no button to press. A notepad you cannot write in
+ * is not a notepad.
+ *
+ * The id is minted here, in the shape the column's check constraint wants,
+ * for the same reason the desktop mints its own: the row has to exist before
+ * anything can be typed into it, and asking the database for a number first
+ * would put a network round trip between pressing New and the caret landing.
+ * `owner_id` is left off deliberately — the column defaults from the session,
+ * so this cannot get it wrong, and the policy checks it regardless.
+ */
+export async function createNote(body = ""): Promise<Note> {
+  const client = supabase();
+  if (!client) throw new Error("Supabase isn't configured.");
+
+  const id = uid();
+  const updatedAt = Date.now();
+  const { error } = await client
+    .from("notes")
+    .insert({ id, body, updated_at: new Date(updatedAt).toISOString() });
+  if (error) throw new Error(error.message);
+
+  return { id, body, updatedAt };
 }
 
 /**

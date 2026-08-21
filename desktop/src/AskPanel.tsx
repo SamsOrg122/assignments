@@ -5,6 +5,12 @@ import { Pixels } from "./Pixels";
 /**
  * The assistant, in a 340-pixel window.
  *
+ * Named for the panel rather than for the thing behind it: `assistant.ts`
+ * next door is the IPC surface, and a component file called `Assistant.tsx`
+ * beside it is the same filename twice on any case-insensitive disk. Linux
+ * compiles both happily and macOS and Windows refuse — which is how this got
+ * found, three platforms into a release build.
+ *
  * A transcript and one box. No settings, no model picker, no history
  * sidebar — this is a thing you open, ask, and close again, and every
  * control that is not the box is a control in the way.
@@ -24,7 +30,7 @@ type Turn =
   | { who: "doc"; text: string }
   | { who: "bad"; text: string };
 
-export function Assistant({
+export function AskPanel({
   noteId,
   onClose,
   onNotesChanged,

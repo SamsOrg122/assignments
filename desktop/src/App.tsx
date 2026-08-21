@@ -23,7 +23,7 @@ import { signOut, standing as readStanding, type Standing } from "./auth";
 import { SignIn } from "./SignIn";
 import { StatusPill, type Flash } from "./StatusPill";
 import { Connection } from "./Connection";
-import { Assistant } from "./Assistant";
+import { AskPanel } from "./AskPanel";
 import { cancel as cancelAssistant } from "./assistant";
 
 type Status =
@@ -437,7 +437,7 @@ export function App() {
       ) : mustSignIn && account ? (
         <SignIn standing={account} onSignedIn={setAccount} />
       ) : askingAI && activeId ? (
-        <Assistant
+        <AskPanel
           noteId={activeId}
           onClose={() => {
             void cancelAssistant();

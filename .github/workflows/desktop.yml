@@ -116,6 +116,13 @@ jobs:
         working-directory: .
         run: node scripts/no-case-collisions.mjs
 
+      # The release is named from tauri.conf.json and the site's download
+      # links are built from DESKTOP_VERSION. If those drift, every Download
+      # button 404s, and nothing else in this job would notice.
+      - name: The version agrees with itself
+        working-directory: .
+        run: node scripts/desktop-version-agrees.mjs
+
       - name: Formatting
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 

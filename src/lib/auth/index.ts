@@ -30,6 +30,7 @@
 import { supabase } from "../db/client";
 import { isRemoteConfigured } from "../db";
 import { explainAuthError } from "./errors";
+import { setRemembering } from "./remember";
 
 export interface Identity {
   /** Stable id used by comments, presence and mentions. */
@@ -391,7 +392,14 @@ export const signUp = (email: string, password: string) =>
   pick().signUp(email, password);
 export const signIn = (email: string, password: string) =>
   pick().signIn(email, password);
-export const signOut = () => pick().signOut();
+export const signOut = () => {
+  // Back to remembering. "Don't remember me" is a statement about one
+  // sign-in on one machine, not a standing preference — and leaving it set
+  // would put the *next* session, possibly an anonymous one with nothing to
+  // sign back in with, into a store that dies with the browser.
+  setRemembering(true);
+  return pick().signOut();
+};
 export const resetPassword = (email: string) => pick().resetPassword(email);
 export const resendConfirmation = (email: string) =>
   pick().resendConfirmation(email);

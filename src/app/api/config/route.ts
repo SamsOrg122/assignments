@@ -39,7 +39,49 @@ const list = (raw: string | undefined) =>
     .map((part) => part.trim().toLowerCase())
     .filter(Boolean);
 
-export function GET() {
+/**
+ * Which providers the Supabase project *actually* has switched on.
+ *
+ * This used to be declared by hand in `AUTH_PROVIDERS`, which meant enabling
+ * Google was two steps in two places and forgetting the second one looked
+ * exactly like the feature not existing. Supabase publishes the answer at
+ * `/auth/v1/settings` — unauthenticated, because a browser has to know which
+ * buttons to draw before anybody has signed in — so the app can simply ask.
+ *
+ * The old reasoning still holds and is why this is a *lookup* rather than a
+ * default list: a "Continue with Google" button on a project where Google was
+ * never enabled is a dead end dressed up as a feature. Reading the truth
+ * satisfies that better than declaring it twice.
+ */
+const TTL_MS = 60_000;
+let cached: { at: number; providers: string[] } | null = null;
+
+async function enabledProviders(url: string, anonKey: string): Promise<string[]> {
+  if (cached && Date.now() - cached.at < TTL_MS) return cached.providers;
+
+  // A slow or unreachable project must not hold this route open — the rest of
+  // the answer (the database keys) is what the app cannot start without.
+  const stop = AbortSignal.timeout(4_000);
+  try {
+    const response = await fetch(`${url.replace(/\/+$/, "")}/auth/v1/settings`, {
+      headers: { apikey: anonKey },
+      signal: stop,
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error(String(response.status));
+    const body = (await response.json()) as { external?: Record<string, unknown> };
+    const external = body.external ?? {};
+    const providers = KNOWN_PROVIDERS.filter((name) => external[name] === true);
+    cached = { at: Date.now(), providers: [...providers] };
+    return cached.providers;
+  } catch {
+    // Unreachable is not the same as "none configured", so a previous good
+    // answer outlives a blip rather than making the buttons flicker away.
+    return cached?.providers ?? [];
+  }
+}
+
+export async function GET() {
   // Unprefixed names are accepted too. Someone who sets `SUPABASE_URL` has
   // configured their database by any reasonable reading, and refusing it on a
   // naming technicality helps nobody.
@@ -48,19 +90,21 @@ export function GET() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
 
   /*
-   * Single sign-on is *declared* here and configured in Supabase.
+   * Which ways in to offer.
    *
-   * Nothing in this app can make a provider work; the dashboard does that.
-   * What this variable decides is whether the buttons are offered at all —
-   * and that matters, because a "Continue with Microsoft" button on a
-   * deployment where Microsoft was never enabled is a dead end dressed up as
-   * a feature. No variable, no buttons, and the password form stands alone.
+   * Asked of the project itself, so switching Google on in the Supabase
+   * dashboard is the whole job. `AUTH_PROVIDERS` survives as a *narrowing*:
+   * a deployment that wants only some of what its project has enabled names
+   * them, and anything it names that isn't actually on is still dropped —
+   * the point has always been that no button is offered which cannot work.
    */
-  const providers = list(
+  const wanted = list(
     process.env.AUTH_PROVIDERS ?? process.env.NEXT_PUBLIC_AUTH_PROVIDERS,
-  ).filter((name): name is (typeof KNOWN_PROVIDERS)[number] =>
-    (KNOWN_PROVIDERS as readonly string[]).includes(name),
   );
+  const live = url && anonKey ? await enabledProviders(url, anonKey) : [];
+  const providers = wanted.length
+    ? live.filter((name) => wanted.includes(name))
+    : live;
 
   // SAML domains, for organisations whose identity provider is their own.
   // `signInWithSSO` takes the domain; Supabase resolves it to the connection

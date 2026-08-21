@@ -31,7 +31,9 @@ import {
   type Identity,
 } from "@/lib/auth";
 import { useAuth } from "@/lib/auth/store";
+import { remembering, setRemembering } from "@/lib/auth/remember";
 import { useRemoteConfigured } from "@/lib/db/use-config";
+import { Icon } from "@/components/ui/Icon";
 import { ensureSyncMemory, handOver, startFresh, syncOwner } from "@/lib/db/sync";
 import { exportWorkspace } from "@/lib/persistence";
 import { allBlobs } from "@/lib/kit/blobs";
@@ -49,6 +51,16 @@ interface Props {
   onDone?: () => void;
   /** Where to send them afterwards. Settings stays put; /signin goes to work. */
   destination?: string;
+  /**
+   * Which skin. `panel` is the bordered card Settings shows inline; `stage`
+   * is the full-height treatment on `/signin` — underlined fields, a
+   * remember-me, and one large circular commit.
+   *
+   * A skin, not a fork: every rule above about what happens when somebody
+   * signs in is shared, which is the entire reason this component is used in
+   * both places rather than written twice.
+   */
+  variant?: "panel" | "stage";
 }
 
 /** What the form is showing right now, beyond which credentials it wants. */
@@ -59,18 +71,29 @@ type Step =
   /** Signed in, but this browser is holding work that isn't in that account. */
   | { kind: "handover"; identity: Identity; count: number };
 
-export function AccountForm({ mode, onMode, onDone, destination }: Props) {
+export function AccountForm({
+  mode,
+  onMode,
+  onDone,
+  destination,
+  variant = "panel",
+}: Props) {
   const configured = useRemoteConfigured();
   const identity = useAuth((s) => s.identity);
   const signedIn = useAuth((s) => s.signedIn);
   const notify = useUI((s) => s.notify);
   const router = useRouter();
 
+  const stage = variant === "stage";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<Step>({ kind: "form" });
   const [backedUp, setBackedUp] = useState(false);
+  const [reveal, setReveal] = useState(false);
+  // Ticked by default, and honest either way — see `lib/auth/remember.ts`.
+  const [remember, setRemember] = useState(() => remembering());
 
   // Both of these hydrate on request, and this screen lives outside the app
   // shell that normally asks. Started here so the answers are ready by the time
@@ -181,6 +204,10 @@ export function AccountForm({ mode, onMode, onDone, destination }: Props) {
       return;
     }
 
+    // Before the call, not after: this decides which store the session token
+    // is written into, and it is written by the call itself.
+    setRemembering(remember);
+
     setBusy(true);
     const result = await (mode === "sign-up"
       ? signUp(email, password)
@@ -196,9 +223,16 @@ export function AccountForm({ mode, onMode, onDone, destination }: Props) {
 
   /* ── The work-already-here question ── */
 
+  // The two stop-screens keep one layout and swap their ground, because on
+  // the black stage the app's grey surface reads as a smudge rather than a
+  // card.
+  const sheet = stage
+    ? "rounded-md border border-white/15 bg-white/[0.04] p-3.5"
+    : "rounded-md border border-line bg-surface p-3.5";
+
   if (step.kind === "handover")
     return (
-      <div className="rounded-md border border-line bg-surface p-3.5">
+      <div className={sheet}>
         <p className="text-[13px] font-medium text-fg">
           Signed in as {step.identity.email}
         </p>
@@ -277,7 +311,7 @@ export function AccountForm({ mode, onMode, onDone, destination }: Props) {
 
   if (step.kind === "note")
     return (
-      <div className="rounded-md border border-line bg-surface p-3.5">
+      <div className={sheet}>
         <p className="rounded-sm border border-accent/35 bg-accent-soft p-2.5 text-[12.5px] leading-relaxed text-fg-muted">
           {step.note}
         </p>
@@ -306,6 +340,179 @@ export function AccountForm({ mode, onMode, onDone, destination }: Props) {
   const failure = step.kind === "failed" ? step.failure : null;
   const wantsEmail = mode !== "new-password";
   const wantsPassword = mode !== "reset";
+
+  const commit = busy
+    ? "One moment…"
+    : mode === "sign-up"
+      ? "Create it"
+      : mode === "reset"
+        ? "Send the link"
+        : mode === "new-password"
+          ? "Save it"
+          : "Sign in";
+
+  /* ── The stage: the door, rather than a panel inside a page ── */
+
+  if (stage)
+    return (
+      <form onSubmit={submit} noValidate className="flex flex-1 flex-col">
+        {/* Above the fields, not below them. One click beats eight
+            characters, and burying it under the typing is how a sign-in
+            screen ends up with people resetting passwords they need not
+            have had. */}
+        {(mode === "sign-in" || mode === "sign-up") && (
+          <div className="mb-8">
+            <SingleSignOn
+              variant="stage"
+              email={email}
+              destination={destination ?? "/library"}
+            />
+          </div>
+        )}
+
+        <div className="grid gap-x-10 gap-y-7 sm:grid-cols-2">
+          {wantsEmail && (
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium tracking-[0.02em] text-white/55">
+                Email
+              </span>
+              <input
+                type="email"
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="signin-field"
+              />
+            </label>
+          )}
+          {wantsPassword && (
+            <label className="relative block">
+              <span className="mb-1 block text-[11px] font-medium tracking-[0.02em] text-white/55">
+                {mode === "new-password" ? "New password" : "Password"}
+              </span>
+              <input
+                type={reveal ? "text" : "password"}
+                autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+                placeholder={mode === "sign-in" ? "••••••••" : `At least ${MIN_PASSWORD} characters`}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="signin-field pr-7"
+              />
+              <button
+                type="button"
+                onClick={() => setReveal((v) => !v)}
+                aria-label={reveal ? "Hide password" : "Show password"}
+                title={reveal ? "Hide password" : "Show password"}
+                className="absolute right-0 bottom-[9px] text-white/40 transition-colors hover:text-white/80"
+              >
+                <Icon name={reveal ? "eye-off" : "eye"} size={14} />
+              </button>
+            </label>
+          )}
+        </div>
+
+        {mode === "sign-in" && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-[12px] text-white/55 transition-colors hover:text-white/85">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="peer sr-only"
+              />
+              <span
+                aria-hidden="true"
+                className="grid size-[15px] place-items-center rounded-full border border-white/35 text-[9px] leading-none text-transparent transition-colors peer-checked:border-white peer-checked:bg-white peer-checked:text-black peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-white"
+              >
+                ✓
+              </span>
+              Remember me
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                onMode("reset");
+                reset();
+              }}
+              className="text-[12px] text-white/45 transition-colors hover:text-white/85"
+            >
+              Forgot?
+            </button>
+          </div>
+        )}
+
+        {mode === "reset" && (
+          <p className="mt-4 max-w-[46ch] text-[12.5px] leading-relaxed text-white/50">
+            We&apos;ll email a link that signs you in and lets you set a new one.
+          </p>
+        )}
+
+        {failure && (
+          <div
+            className={cn(
+              "mt-5 max-w-[56ch] rounded-sm border p-3 text-[12.5px] leading-relaxed",
+              failure.setup
+                ? "border-warn/40 bg-warn/[0.08] text-white/75"
+                : "border-danger/45 bg-danger/[0.09] text-danger",
+            )}
+            role="alert"
+          >
+            {failure.reason}
+            {failure.fix && <span className="mt-1 block text-white/50">{failure.fix}</span>}
+            {failure.unconfirmed && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setBusy(true);
+                  const again = await resendConfirmation(
+                    step.kind === "failed" ? step.email : email,
+                  );
+                  setBusy(false);
+                  setStep(
+                    again.ok
+                      ? { kind: "note", note: again.note ?? "Sent." }
+                      : { kind: "failed", failure: again, email },
+                  );
+                }}
+                className="mt-1.5 block text-[12px] text-white/70 underline underline-offset-2 hover:text-white"
+              >
+                Send the confirmation email again
+              </button>
+            )}
+          </div>
+        )}
+
+        {!configured && (
+          <p className="mt-5 max-w-[56ch] rounded-sm border border-warn/40 bg-warn/[0.08] p-3 text-[12.5px] leading-relaxed text-white/75">
+            No database is configured, so there is nothing to sign in to yet.
+            Your work is safe in this browser meanwhile —{" "}
+            <Link
+              href="/settings#connection"
+              className="underline underline-offset-2 hover:text-white"
+            >
+              Settings → Connection
+            </Link>{" "}
+            says exactly what is missing.
+          </p>
+        )}
+
+        {/* Pushed to the floor of the panel, so the button sits in the same
+            corner whatever the form above it is currently asking. */}
+        <div className="mt-auto flex items-end justify-between gap-6 pt-10">
+          <p className="max-w-[34ch] text-[11.5px] leading-relaxed text-white/35">
+            {mode === "sign-up"
+              ? "An account carries your work between machines. Everything works without one."
+              : "No account? The tool still works — everything stays in this browser."}
+          </p>
+          <button type="submit" disabled={busy} className="signin-go shrink-0">
+            {busy ? "…" : commit}
+          </button>
+        </div>
+      </form>
+    );
 
   return (
     <form
@@ -429,15 +636,7 @@ export function AccountForm({ mode, onMode, onDone, destination }: Props) {
           disabled={busy}
           className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
         >
-          {busy
-            ? "One moment…"
-            : mode === "sign-up"
-              ? "Create it"
-              : mode === "reset"
-                ? "Send the link"
-                : mode === "new-password"
-                  ? "Save it"
-                  : "Sign in"}
+          {commit}
         </button>
 
         {mode !== "new-password" && (

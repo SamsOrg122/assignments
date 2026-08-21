@@ -58,6 +58,8 @@ export type IconName =
   | "map"
   | "folder"
   | "tag"
+  | "eye"
+  | "eye-off"
   | "list";
 
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -226,6 +228,19 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   map: <path d="M2.5 4 6 2.5 10 4.5 13.5 3v9L10 13.5 6 11.5 2.5 13zM6 2.5v9M10 4.5v9" />,
+  eye: (
+    <>
+      <path d="M1.5 8s2.4-4 6.5-4 6.5 4 6.5 4-2.4 4-6.5 4-6.5-4-6.5-4z" />
+      <circle cx="8" cy="8" r="1.9" />
+    </>
+  ),
+  "eye-off": (
+    <>
+      <path d="M6.3 4.2A6.9 6.9 0 0 1 8 4c4.1 0 6.5 4 6.5 4a12 12 0 0 1-2 2.4M4.2 5.5A12 12 0 0 0 1.5 8s2.4 4 6.5 4a6.8 6.8 0 0 0 2.4-.42" />
+      <path d="M6.7 6.7a1.9 1.9 0 0 0 2.6 2.6" />
+      <path d="m2.5 2.5 11 11" />
+    </>
+  ),
 };
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, "name"> {

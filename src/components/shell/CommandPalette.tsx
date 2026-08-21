@@ -586,8 +586,19 @@ function PaletteDialog({ seed }: { seed: string }) {
         title: "Open settings",
         group: "Navigate",
         icon: "settings",
-        keywords: "preferences appearance theme accent providers",
+        keywords:
+          "preferences appearance theme accent providers shortcuts offline desktop ai model",
         run: () => router.push("/settings"),
+      },
+      {
+        // Administration lost its sidebar link when it became a group inside
+        // Settings, so the palette is now how people find it.
+        id: "nav:admin",
+        title: "Administration",
+        group: "Navigate",
+        icon: "lock",
+        keywords: "admin members roles audit log retention purge who is here",
+        run: () => router.push("/settings#administration"),
       },
       {
         id: "nav:chat",

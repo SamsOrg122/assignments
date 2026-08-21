@@ -32,7 +32,6 @@ import { LOCAL_USER } from "@/lib/realtime";
 import { useAuth } from "@/lib/auth/store";
 import { subscribeSync, syncStatus } from "@/lib/db/sync";
 import { useOffline } from "@/lib/offline";
-import { useRemoteConfigured } from "@/lib/db/use-config";
 import { t } from "@/lib/i18n";
 import { KeepPromptCompact } from "@/components/account/KeepPrompt";
 import { Avatar } from "@/components/ui/Avatar";
@@ -79,7 +78,6 @@ function useSyncBadge(): { label: string; wrong: boolean } {
 
 export function Sidebar() {
   const identity = useAuth((s) => s.identity);
-  const configured = useRemoteConfigured();
   const badge = useSyncBadge();
   const projects = useProjects((s) => s.projects);
   const addProject = useProjects((s) => s.addProject);
@@ -388,18 +386,11 @@ export function Sidebar() {
             active={pathname === "/community"}
             onNavigate={closeOnMobile}
           />
-          {/* Only where there is something to administer. A console that says
-              "administration needs a database" every time you click it is a
-              permanent piece of furniture teaching people to ignore it. */}
-          {configured && (
-            <NavLink
-              href="/admin"
-              icon="lock"
-              label={t("nav.admin")}
-              active={pathname === "/admin"}
-              onNavigate={closeOnMobile}
-            />
-          )}
+          {/* Administration is a group inside Settings now. The rule that
+              used to hide this link when there was no database says the same
+              thing about the link itself: a permanent item for a screen most
+              people open once teaches everybody to skip that part of the nav.
+              ⌘K still finds it, and /admin still resolves. */}
           {assistant && (
             <NavLink
               href={`/chat/${assistant.channel.id}`}

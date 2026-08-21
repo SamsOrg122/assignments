@@ -347,15 +347,13 @@ export function SafeKeeping() {
                 // The kit's fonts and pictures live in IndexedDB, so they are
                 // replaced separately — and the reload waits for them, or the
                 // page would come back with a shelf full of broken entries.
+                //
+                // A full reload rather than a router navigation: the stores
+                // read localStorage once, at mount, so navigating would leave
+                // them showing the workspace that was just replaced.
                 void replaceBlobs(backupBlobs(backup))
                   .catch(() => {})
                   .then(() => window.location.reload());
-                return;
-                // The stores read localStorage once, at mount, so a router
-                // navigation would leave them showing the replaced workspace.
-                // A full reload is the honest way to adopt a wholesale
-                // replacement of everything underneath them.
-                window.location.reload();
               }}
               className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
             >

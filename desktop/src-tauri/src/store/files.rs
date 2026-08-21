@@ -98,6 +98,38 @@ pub fn mark_sent(connection: &Connection, id: &str, sent_at: i64) -> Result<(), 
     Ok(())
 }
 
+/// What the assistant is allowed to know about, newest first.
+///
+/// Bounded on both axes deliberately. Twelve files because a note window has
+/// a handful at most and a hundred would be a prompt nobody can afford, and
+/// the bytes because they are only read to be *described* — a PDF's raw
+/// bytes tell a model nothing, so what travels is the text of the things
+/// that have text and a line of metadata for everything else.
+pub fn recent(connection: &Connection, limit: usize) -> Result<Vec<DroppedFile>, String> {
+    let mut statement = connection
+        .prepare(
+            "select id, name, mime, content, updated_at
+               from files
+              where deleted_at is null
+              order by updated_at desc
+              limit ?1",
+        )
+        .map_err(|e| format!("could not read your files: {e}"))?;
+    let rows = statement
+        .query_map([limit as i64], |row| {
+            Ok(DroppedFile {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                mime: row.get(2)?,
+                content: row.get(3)?,
+                updated_at: row.get(4)?,
+            })
+        })
+        .map_err(|e| format!("could not read your files: {e}"))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("a file could not be read: {e}"))
+}
+
 /// How many are waiting, for the pill.
 pub fn waiting(connection: &Connection) -> Result<i64, String> {
     connection

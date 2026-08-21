@@ -109,8 +109,14 @@ export function SignIn({
     );
 
   return (
-    <div className="gate">
-      <p className="lead">Sign in to keep your notes in your account.</p>
+    <div className="gate door">
+      <Face />
+
+      <div className="door-body">
+        <h1 className="door-title">Sign in</h1>
+        <p className="quiet">
+          So your notes are in your account rather than only on this computer.
+        </p>
 
       {standing.providers.length > 0 ? (
         <>
@@ -171,6 +177,37 @@ export function SignIn({
           {problem}
         </p>
       ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The mark, as the web sign-in screen wears it.
+ *
+ * Drawn rather than imported, for the same reason everything else in this
+ * window is: the bundle must not reach the network, and at this size a
+ * raster would need three exports and still soften. Anisotropic on purpose
+ * — the vertical arm longest, the diagonals shortest — which is the whole
+ * character of it; equal arms would be a snowflake.
+ */
+function Face() {
+  return (
+    <div className="door-face" aria-hidden="true">
+      <span className="door-rule door-rule-h" />
+      <span className="door-rule door-rule-v" />
+      <svg
+        className="door-mark"
+        viewBox="-120 -120 240 240"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="4"
+      >
+        <path d="M0 -112V112" />
+        <path d="M-92 0H92" />
+        <path d="M-45 -45L45 45" />
+        <path d="M45 -45L-45 45" />
+      </svg>
     </div>
   );
 }

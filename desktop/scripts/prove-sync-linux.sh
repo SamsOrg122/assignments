@@ -111,7 +111,7 @@ xdotool windowactivate --sync "$WIN" 2>/dev/null; sleep 1
 #
 # It has to be queued, not lost. Somebody installs the app, writes something,
 # and signs in afterwards — that note belongs in their account too.
-xdotool mousemove --window "$WIN" 170 105 click 1; sleep 2
+xdotool mousemove --window "$WIN" 170 277 click 1; sleep 2
 # The gate is up, so the note goes in after signing in. Sign in first.
 timeout 25 "$BIN" "tougather://auth?code=the-code-from-the-browser" > /tmp/tougather-second.log 2>&1
 sleep 5

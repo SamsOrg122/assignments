@@ -1,6 +1,6 @@
 [package]
 name = "tougather-desktop"
-version = "0.1.4"
+version = "0.1.5"
 description = "Tougather's floating note"
 authors = ["Tougather"]
 edition = "2021"

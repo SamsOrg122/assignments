@@ -5,6 +5,7 @@
 //! four — and in that order on purpose, so that the note works before it is
 //! ever asked to depend on a network.
 
+mod assistant;
 mod auth;
 mod commands;
 mod config_check;
@@ -97,6 +98,8 @@ pub fn run() {
             auth::commands::site_set,
             auth::commands::site_retry,
             auth::commands::site_reset,
+            assistant::commands::assistant_ask,
+            assistant::commands::assistant_cancel,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -117,6 +120,7 @@ pub fn run() {
             tray::build(&handle)?;
 
             app.manage(auth::Auth::default());
+            app.manage(assistant::Assistant::default());
             sync::keep_in_step(&handle);
             wake_up_the_account(&handle);
 

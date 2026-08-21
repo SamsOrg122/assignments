@@ -117,7 +117,7 @@ xdotool windowactivate --sync "$WIN" 2>/dev/null; sleep 1
 #
 # The stand-in offers one provider, so the button is where the first wide
 # button in the panel is.
-xdotool mousemove --window "$WIN" 170 105 click 1
+xdotool mousemove --window "$WIN" 170 277 click 1
 sleep 3
 if grep -q "did not finish" /tmp/tougather-app.log; then
   bad "clicking the provider produced an error before the browser was even involved"

@@ -45,8 +45,10 @@ import {
   renameAccountFile,
   type AccountFile,
 } from "@/lib/kit/account";
+import { adoptArtefact, artefactName, isArtefact } from "@/lib/kit/artefact";
 import { useUI } from "@/lib/ui-store";
 import { useRemoteConfigured } from "@/lib/db/use-config";
+import { useRouter } from "next/navigation";
 import { Card, CardAction, Meta, NameField, Preview } from "@/components/kit/AssetCard";
 import { InsertMenu } from "@/components/kit/InsertMenu";
 import { cn } from "@/lib/cn";
@@ -574,6 +576,56 @@ function DesktopCard({
   onRenamed: (name: string) => void;
 }) {
   const notify = useUI((s) => s.notify);
+  const router = useRouter();
+  const [opening, setOpening] = useState(false);
+
+  // A document the note's assistant made. It is a file in the account like
+  // any other until somebody opens it, at which point it becomes a project.
+  if (isArtefact(file))
+    return (
+      <Card className="border-accent/40">
+        <span className="grid aspect-[5/3] w-full place-items-center bg-accent-soft">
+          <Icon name="sparkle" size={24} className="text-accent" />
+        </span>
+        <div className="flex min-w-0 flex-col gap-1 border-t border-line px-2 py-2">
+          <p className="truncate text-[12.5px] text-fg">{artefactName(file)}</p>
+          <p className="truncate font-mono text-[10px] text-fg-subtle">
+            Made on your note · {formatBytes(file.size)}
+          </p>
+          <div className="mt-0.5 flex items-center gap-1">
+            <button
+              type="button"
+              disabled={opening}
+              onClick={() => {
+                setOpening(true);
+                adoptArtefact(file)
+                  .then((id) => {
+                    notify(`Opened “${artefactName(file)}”`);
+                    router.push(`/p/${id}`);
+                  })
+                  .catch((error) => {
+                    setOpening(false);
+                    notify(error instanceof Error ? error.message : "Couldn't open it.");
+                  });
+              }}
+              className="flex-1 rounded-sm bg-accent px-2 py-1 text-[11.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
+            >
+              {opening ? "Opening…" : "Open as a document"}
+            </button>
+            <CardAction
+              icon="trash"
+              danger
+              label={`Delete ${artefactName(file)}`}
+              onClick={() =>
+                void deleteAccountFile(file.id)
+                  .then(onGone)
+                  .catch(() => notify("Couldn't delete that."))
+              }
+            />
+          </div>
+        </div>
+      </Card>
+    );
 
   return (
     <Card className="border-dashed">

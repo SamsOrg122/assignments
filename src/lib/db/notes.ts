@@ -116,7 +116,7 @@ export function previewOf(note: Note): string {
  * it. If it ever drifts the links 404, which is why every one of them sits
  * beside a link to the releases page that cannot go stale.
  */
-export const DESKTOP_VERSION = "0.1.4";
+export const DESKTOP_VERSION = "0.1.5";
 
 const REPO = "https://github.com/SamsOrg122/assignments";
 

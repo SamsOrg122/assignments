@@ -23,6 +23,8 @@ import { signOut, standing as readStanding, type Standing } from "./auth";
 import { SignIn } from "./SignIn";
 import { StatusPill, type Flash } from "./StatusPill";
 import { Connection } from "./Connection";
+import { Assistant } from "./Assistant";
+import { cancel as cancelAssistant } from "./assistant";
 
 type Status =
   | { kind: "ready" }
@@ -53,6 +55,7 @@ export function App() {
   const [showConnection, setShowConnection] = useState(false);
   const [dropping, setDropping] = useState(false);
   const [flash, setFlash] = useState<Flash | null>(null);
+  const [askingAI, setAskingAI] = useState(false);
 
   const box = useRef<HTMLTextAreaElement>(null);
   // The id the pending write belongs to. Switching notes flushes first, but a
@@ -115,6 +118,9 @@ export function App() {
     // timer still fires — but quitting inside those 800ms would take the last
     // sentence with it.
     const stop = listen("note:flush", async () => {
+      // A streaming answer is abandoned rather than waited for: the quit
+      // path allows one second, and a model being thoughtful takes minutes.
+      void cancelAssistant();
       await flush();
       await readyToQuit();
     });
@@ -341,21 +347,49 @@ export function App() {
             type="button"
             className="chip"
             aria-expanded={listOpen}
-            onClick={() => setListOpen((o) => !o)}
+            onClick={() => {
+              setAskingAI(false);
+              setListOpen((o) => !o);
+            }}
           >
             {listOpen ? "Close" : `Notes (${notes.length})`}
           </button>
         )}
 
         <span className="name" data-tauri-drag-region>
-          {mustSignIn ? "Tougather note" : active ? titleOf(active) || "New note" : ""}
+          {mustSignIn
+            ? "Tougather note"
+            : askingAI
+              ? "Assistant"
+              : active
+                ? titleOf(active) || "New note"
+                : ""}
         </span>
 
         {mustSignIn ? null : (
-          <button type="button" className="icon" title="New note" onClick={startNew}>
-            <span aria-hidden="true">+</span>
-            <span className="sr-only">New note</span>
-          </button>
+          <>
+            <button
+              type="button"
+              className={askingAI ? "chip on" : "chip"}
+              aria-pressed={askingAI}
+              title="Ask the assistant"
+              onClick={() => {
+                setListOpen(false);
+                setAskingAI((open) => {
+                  // Leaving the panel abandons anything in flight rather than
+                  // letting an answer arrive into a window nobody is reading.
+                  if (open) void cancelAssistant();
+                  return !open;
+                });
+              }}
+            >
+              Ask
+            </button>
+            <button type="button" className="icon" title="New note" onClick={startNew}>
+              <span aria-hidden="true">+</span>
+              <span className="sr-only">New note</span>
+            </button>
+          </>
         )}
         <button
           type="button"
@@ -402,6 +436,25 @@ export function App() {
         />
       ) : mustSignIn && account ? (
         <SignIn standing={account} onSignedIn={setAccount} />
+      ) : askingAI && activeId ? (
+        <Assistant
+          noteId={activeId}
+          onClose={() => {
+            void cancelAssistant();
+            setAskingAI(false);
+          }}
+          onNotesChanged={() => {
+            // The assistant writes straight to the store, so the window has
+            // to read it back — the same reload a sync round triggers.
+            listNotes()
+              .then((all) => {
+                setNotes(all);
+                const fresh = all.find((n) => n.id === writingFor.current);
+                if (fresh && !pending()) setDraft(fresh.body);
+              })
+              .catch(() => {});
+          }}
+        />
       ) : listOpen ? (
         <ul className="list">
           {notes.map((note) => (

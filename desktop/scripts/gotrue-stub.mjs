@@ -64,6 +64,34 @@ createServer((req, res) => {
 
     if (url.pathname === "/auth/v1/logout") return say(204, {});
 
+    /*
+     * The assistant endpoint, standing in for tougather.com's.
+     *
+     * Answers with whatever frames STUB_FRAMES names, one JSON object per
+     * line, exactly as the real route streams them — so the app's read loop,
+     * its note-applying and its artefact-writing are all exercised without a
+     * model, a key or a penny being spent.
+     */
+    if (url.pathname === "/api/assist") {
+      if (!req.headers.authorization?.startsWith("Bearer "))
+        return say(401, { error: "no token was sent" });
+      let sent = {};
+      try { sent = JSON.parse(body || "{}"); } catch { return say(400, { error: "unreadable" }); }
+      writeFileSync("/tmp/stub-asked.json", JSON.stringify(sent, null, 2));
+
+      if (process.env.STUB_ASSIST_REFUSE)
+        return say(501, { error: process.env.STUB_ASSIST_REFUSE });
+
+      const frames = (() => {
+        try { return JSON.parse(process.env.STUB_FRAMES ?? "[]"); } catch { return []; }
+      })();
+      res.writeHead(200, { "Content-Type": "application/x-ndjson" });
+      // Written one at a time, so the app's line-splitting is exercised
+      // rather than handed a single tidy buffer.
+      for (const frame of frames) res.write(`${JSON.stringify(frame)}\n`);
+      return res.end();
+    }
+
     if (url.pathname === "/rest/v1/kit_files") {
       if (!req.headers.authorization?.startsWith("Bearer "))
         return say(401, { message: "no token was sent" });

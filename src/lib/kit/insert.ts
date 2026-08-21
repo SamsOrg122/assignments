@@ -16,9 +16,16 @@
  */
 
 import type { Block, Slide, SlideObject } from "../types";
-import { uid } from "../factories";
+import { createBlock, createImageBlock, uid } from "../factories";
 import { useProjects } from "../store";
-import { assetData, type KitPiece } from ".";
+import { familyOf, labelFor } from "./mime";
+import {
+  assetData,
+  formatBytes,
+  type KitFile,
+  type KitImage,
+  type KitPiece,
+} from ".";
 
 /** A block with every id inside it made new. */
 function freshBlock(block: Block): Block {
@@ -100,6 +107,136 @@ export async function kitImage(
   const src = await assetData(id);
   return src ? { src, width, height, name } : null;
 }
+
+/**
+ * Put a kept file into a document.
+ *
+ * The kind the drop-anything promise exists to serve was the one kind that
+ * could not reach a document at all: a PDF a teacher sent, a spreadsheet of
+ * results, a zip of sources — all findable on the shelf and impossible to
+ * cite in the essay they belong to.
+ *
+ * Deliberately routed through the two block types that already exist rather
+ * than adding a third. A `"file"` block would be a twenty-seven file change
+ * across every switch, every `Record<BlockType, …>` and a persisted-data
+ * migration, for a shape that is a paragraph with a link in it. So:
+ *
+ *   • Anything the browser can draw becomes an image block, captioned with
+ *     the original filename, so it prints and exports like any picture.
+ *   • Everything else becomes a paragraph carrying the file's name, its
+ *     size and its bytes as a download link — which survives export,
+ *     search and a round-trip through the editor with no new machinery.
+ *
+ * The copy rule holds either way: the bytes are embedded, never referenced.
+ * Deleting the file from the shelf afterwards cannot gut the document.
+ */
+export async function insertKitFile(
+  projectId: string,
+  asset: KitFile | KitImage,
+  afterBlockId?: string,
+): Promise<string | null> {
+  const data = await assetData(asset.id);
+  if (!data) return null;
+
+  const store = useProjects.getState();
+
+  if (asset.kind === "image") {
+    const block = createImageBlock();
+    return store.insertBlock(
+      projectId,
+      {
+        ...block,
+        src: data,
+        alt: asset.name,
+        naturalWidth: asset.width,
+        naturalHeight: asset.height,
+        bytes: asset.bytes,
+      },
+      afterBlockId,
+    );
+  }
+
+  if (familyOf(asset.mime, asset.filename) === "image") {
+    const block = createImageBlock();
+    return store.insertBlock(
+      projectId,
+      { ...block, src: data, alt: asset.name, caption: asset.filename, bytes: asset.bytes },
+      afterBlockId,
+    );
+  }
+
+  const block = createBlock("text");
+  if (block.type !== "text") return null;
+  return store.insertBlock(
+    projectId,
+    { ...block, html: await attachmentHtml(asset, data) },
+    afterBlockId,
+  );
+}
+
+/**
+ * What a file becomes when it is not a picture.
+ *
+ * Two answers, and the difference matters.
+ *
+ * A file that *is* text — a brief, a set of notes, a CSV of results — goes
+ * in as its text. That is what somebody inserting it wanted: the words, in
+ * the document, editable.
+ *
+ * Everything else goes in as a line naming it. Deliberately not a download
+ * link: an anchor with the bytes in its href is a `data:` URL, and the
+ * sanitiser refuses those on links for a good reason — `data:text/html` is
+ * a whole document with scripts in it, and the rule cannot be relaxed for
+ * "just attachments" without relaxing it for everything. So the document
+ * says which file this is and the bytes stay on the shelf, where there is a
+ * download button and nothing has to be trusted.
+ */
+async function attachmentHtml(asset: KitFile, dataUrl: string): Promise<string> {
+  const kind = escapeHtml(labelFor(asset.mime, asset.filename));
+  const size = escapeHtml(formatBytes(asset.bytes));
+  const label = escapeHtml(asset.name);
+
+  const text = await textOf(asset, dataUrl);
+  if (text !== null) {
+    const body = text
+      .split(/\n{2,}/)
+      .map((para) => `<p>${escapeHtml(para.trim()).replace(/\n/g, "<br>")}</p>`)
+      .join("");
+    return `<p><strong>${label}</strong> — ${kind}, ${size}</p>${body}`;
+  }
+
+  return `<p><strong>${label}</strong> — ${kind}, ${size}, kept in your kit</p>`;
+}
+
+/** How much of a text file is worth putting in a paragraph. */
+const MAX_INLINE_TEXT = 200_000;
+
+/** The file's text, or null when it is not text at all. */
+async function textOf(asset: KitFile, dataUrl: string): Promise<string | null> {
+  if (familyOf(asset.mime, asset.filename) !== "text") return null;
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) return null;
+  try {
+    const body = dataUrl.slice(comma + 1);
+    const decoded = /;base64/i.test(dataUrl.slice(0, comma))
+      ? new TextDecoder().decode(
+          Uint8Array.from(atob(body), (c) => c.charCodeAt(0)),
+        )
+      : decodeURIComponent(body);
+    return decoded.length > MAX_INLINE_TEXT
+      ? `${decoded.slice(0, MAX_INLINE_TEXT)}\n\n…`
+      : decoded;
+  } catch {
+    return null;
+  }
+}
+
+const escapeHtml = (raw: string): string =>
+  raw
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
 /** A slide object for a kit picture, at its own proportions. */
 export function imageObject(

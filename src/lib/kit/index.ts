@@ -29,7 +29,9 @@ import { persist } from "zustand/middleware";
 import type { Block, Slide } from "../types";
 import { versioned } from "../persistence/versioned";
 import { uid } from "../factories";
+import { prepareImage } from "../images";
 import { deleteBlob, getBlob, putBlob } from "./blobs";
+import { makeThumb, thumbKey } from "./thumbs";
 
 export type KitKind = "font" | "image" | "piece" | "file";
 
@@ -54,6 +56,9 @@ export interface KitImage extends KitBase {
   kind: "image";
   width: number;
   height: number;
+  /** Whether `${id}:thumb` was written. Absent on anything stored before
+   *  thumbnails existed, and on anything that could not be rasterised. */
+  thumb?: boolean;
 }
 
 /**
@@ -79,6 +84,8 @@ export interface KitFile extends KitBase {
   mime: string;
   /** The original filename with its extension, for downloading back out. */
   filename: string;
+  /** See `KitImage.thumb`. A PDF or a zip never has one. */
+  thumb?: boolean;
 }
 
 export type KitAsset = KitFont | KitImage | KitPiece | KitFile;
@@ -97,7 +104,24 @@ export const useKit = create<KitState>()(
       add: (asset) => set((s) => ({ assets: [asset, ...s.assets] })),
       rename: (id, name) =>
         set((s) => ({
-          assets: s.assets.map((a) => (a.id === id ? { ...a, name } : a)),
+          assets: s.assets.map((a) => {
+            if (a.id !== id) return a;
+            // An empty name is not a rename, it is a field somebody cleared
+            // before typing. Keeping the old one matches `addPiece`, which
+            // has always refused to store a blank.
+            const next = name.trim();
+            if (!next) return a;
+            // A file's download name follows its label. Without this a file
+            // renamed to "Rubric" still comes back down as "Scan_0042.pdf",
+            // which is the one place the rename was supposed to matter.
+            if (a.kind === "file") {
+              const extension = a.filename.includes(".")
+                ? a.filename.slice(a.filename.lastIndexOf("."))
+                : "";
+              return { ...a, name: next, filename: `${next}${extension}` };
+            }
+            return { ...a, name: next };
+          }),
         })),
       remove: (id) =>
         set((s) => ({ assets: s.assets.filter((a) => a.id !== id) })),
@@ -172,40 +196,90 @@ export async function addImage(image: {
   name: string;
   bytes: number;
 }): Promise<KitImage> {
+  const id = uid();
+  const mime = mimeOfDataUrl(image.src);
+  const thumb = await makeThumb(image.src, mime);
   const asset: KitImage = {
-    id: uid(),
+    id,
     kind: "image",
     name: image.name.replace(/\.[a-z0-9]+$/i, "") || "Picture",
     width: image.width,
     height: image.height,
     createdAt: Date.now(),
     bytes: image.bytes,
+    ...(thumb ? { thumb: true } : {}),
   };
   await putBlob(asset.id, image.src);
+  if (thumb) await putBlob(thumbKey(asset.id), thumb).catch(() => {});
   useKit.getState().add(asset);
   return asset;
 }
 
+/**
+ * What a data URL says it is.
+ *
+ * Only used to decide whether a thumbnail is worth attempting, so a wrong
+ * answer costs one skipped thumbnail rather than a wrong file.
+ */
+function mimeOfDataUrl(dataUrl: string): string {
+  const match = /^data:([^;,]+)/.exec(dataUrl);
+  return match ? match[1] : "";
+}
+
 /** Keep any file, as it came. */
 export async function addFile(file: File): Promise<KitFile> {
+  refuseUnstorable(file);
   const src = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
     reader.onerror = () => reject(new Error(`Couldn't read ${file.name}.`));
     reader.readAsDataURL(file);
   });
+  const id = uid();
+  // An image arriving through this path rather than `addImage` — a HEIC the
+  // browser cannot decode, say — still gets a thumbnail if it can.
+  const thumb = await makeThumb(src, file.type);
   const asset: KitFile = {
-    id: uid(),
+    id,
     kind: "file",
     name: file.name.replace(/\.[a-z0-9]+$/i, "") || "File",
     filename: file.name,
     mime: file.type,
     createdAt: Date.now(),
     bytes: file.size,
+    ...(thumb ? { thumb: true } : {}),
   };
   await putBlob(asset.id, src);
+  if (thumb) await putBlob(thumbKey(asset.id), thumb).catch(() => {});
   useKit.getState().add(asset);
   return asset;
+}
+
+/**
+ * The two files the shelf must not accept.
+ *
+ * The ceiling matches the desktop's exactly (`store/files.rs`), and for the
+ * same reason it is enforced at the door rather than at the write: the
+ * person is standing there having just dropped something, which is the only
+ * moment "that one is too big" is useful information. Postgres refuses over
+ * 12M base64 characters, so a file that cannot be stored here could not have
+ * reached the account either.
+ *
+ * Empty is refused for a different reason: `kit_files.size` carries a
+ * `> 0` check, so a zero-byte file kept here would fail on push with a
+ * constraint message nobody can act on.
+ */
+export const MAX_FILE_BYTES = 8 * 1024 * 1024;
+
+function refuseUnstorable(file: File): void {
+  if (file.size === 0)
+    throw new KitError(`${file.name} is empty, so there is nothing to keep.`);
+  if (file.size > MAX_FILE_BYTES)
+    throw new KitError(
+      `${file.name} is ${formatBytes(file.size)}. The shelf holds files up to ${formatBytes(
+        MAX_FILE_BYTES,
+      )} — bigger than that belongs somewhere built for it.`,
+    );
 }
 
 /**
@@ -220,19 +294,20 @@ export async function addFile(file: File): Promise<KitFile> {
 export async function addDropped(file: File): Promise<KitAsset> {
   if (/\.(woff2?|ttf|otf)$/i.test(file.name)) return addFont(file);
   if (file.type.startsWith("image/")) {
-    const src = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error(`Couldn't read ${file.name}.`));
-      reader.readAsDataURL(file);
+    refuseUnstorable(file);
+    // Through `prepareImage`, like every other way a picture gets in. This
+    // path used to read the raw data URL and keep it whole, so a photo
+    // dropped straight from a phone was stored at full resolution while the
+    // same photo added with the button was scaled down — the shelf's size
+    // depended on which gesture you happened to use.
+    const prepared = await prepareImage(file);
+    return addImage({
+      src: prepared.src,
+      name: file.name,
+      bytes: prepared.bytes,
+      width: prepared.width,
+      height: prepared.height,
     });
-    const size = await new Promise<{ width: number; height: number }>((resolve) => {
-      const probe = new Image();
-      probe.onload = () => resolve({ width: probe.naturalWidth, height: probe.naturalHeight });
-      probe.onerror = () => resolve({ width: 0, height: 0 });
-      probe.src = src;
-    });
-    return addImage({ src, name: file.name, bytes: file.size, ...size });
   }
   return addFile(file);
 }
@@ -261,12 +336,38 @@ export function addPiece(
 export async function removeAsset(id: string) {
   const asset = useKit.getState().assets.find((a) => a.id === id);
   useKit.getState().remove(id);
-  if (asset && asset.kind !== "piece") await deleteBlob(id).catch(() => {});
+  if (asset && asset.kind !== "piece") {
+    await deleteBlob(id).catch(() => {});
+    // The thumbnail is a second row under a second key, so deleting the
+    // asset alone would leave it in IndexedDB with nothing pointing at it,
+    // forever.
+    await deleteBlob(thumbKey(id)).catch(() => {});
+  }
 }
 
 /** The stored bytes for a font or a picture. */
 export function assetData(id: string): Promise<string | null> {
   return getBlob(id);
+}
+
+/**
+ * The small copy if there is one, the whole thing if there is not.
+ *
+ * Never assumes: a workspace restored from a backup taken before thumbnails
+ * existed has assets whose `thumb` flag is absent *and* assets whose flag is
+ * set but whose thumbnail row did not survive the restore, since
+ * `replaceBlobs` clears the store wholesale.
+ */
+export async function assetPreview(asset: KitAsset): Promise<string | null> {
+  if (asset.kind === "piece") return null;
+  if (asset.kind === "image" || asset.kind === "file") {
+    const small = await getBlob(thumbKey(asset.id)).catch(() => null);
+    if (small) return small;
+    // A file with no thumbnail is a PDF or a zip — there is nothing to show
+    // and pulling megabytes to discover that would be the bug this avoids.
+    if (asset.kind === "file" && !asset.thumb) return null;
+  }
+  return getBlob(asset.id).catch(() => null);
 }
 
 function readDataUrl(file: Blob): Promise<string> {

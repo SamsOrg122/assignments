@@ -1,7 +1,7 @@
 {
   "name": "tougather-desktop",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "description": "Tougather's floating note \u2014 a small window that stays above everything else.",
   "scripts": {

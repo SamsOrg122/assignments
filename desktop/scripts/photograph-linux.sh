@@ -15,7 +15,20 @@ cd "$(dirname "$0")/.."
 OUT="${1:-/tmp/note-shots}"
 STUB_PORT=4599
 DISPLAY_NUM=":83"
-BIN="./src-tauri/target/debug/tougather-desktop"
+
+#
+# Which binary to look at, and why it matters.
+#
+# A debug build points the webview at the dev server, so photographing one
+# tells you what the *source tree* looks like right now. The thing people
+# download is a release build with the frontend compiled into it. Those two
+# can disagree — a release cut before a restyle carries the old stylesheet
+# no matter what the working copy says — so the question "does the download
+# look like this?" can only be answered by the release binary.
+#
+#   NOTE_BIN=./src-tauri/target/release/tougather-desktop ./scripts/photograph-linux.sh
+#
+BIN="${NOTE_BIN:-./src-tauri/target/debug/tougather-desktop}"
 STORE="${XDG_DATA_HOME:-$HOME/.local/share}/com.tougather.note/notes.sqlite3"
 
 mkdir -p "$OUT"
@@ -36,11 +49,21 @@ for tool in Xvfb xdotool import node dbus-launch gnome-keyring-daemon; do
 done
 [ -x "$BIN" ] || { echo "no debug build — build it first"; exit 1; }
 
-if ! curl -sf --noproxy '*' -o /dev/null http://localhost:1420/; then
-  echo "starting the dev server…"
-  nohup npm run dev > /tmp/tougather-vite.log 2>&1 &
-  for _ in $(seq 1 30); do curl -sf --noproxy '*' -o /dev/null http://localhost:1420/ && break; sleep 1; done
-fi
+# Only a debug build needs the dev server; a release build would ignore it,
+# and leaving it running while photographing one is how you convince yourself
+# the download looks right when it does not.
+case "$BIN" in
+  *release*)
+    echo "release build — the frontend is inside the binary, no dev server"
+    ;;
+  *)
+    if ! curl -sf --noproxy '*' -o /dev/null http://localhost:1420/; then
+      echo "starting the dev server…"
+      nohup npm run dev > /tmp/tougather-vite.log 2>&1 &
+      for _ in $(seq 1 30); do curl -sf --noproxy '*' -o /dev/null http://localhost:1420/ && break; sleep 1; done
+    fi
+    ;;
+esac
 
 rm -f "$STORE" "$STORE-wal" "$STORE-shm"
 STUB_PORT=$STUB_PORT STUB_FRAMES="$FRAMES" \

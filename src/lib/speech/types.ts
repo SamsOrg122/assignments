@@ -12,8 +12,17 @@
  */
 
 export interface TranscriptChunk {
+  /**
+   * The transcript *so far*, not the newest piece — every chunk replaces the
+   * last, final ones included. Both providers accumulate internally and emit
+   * the running total, which is what a caller has to render.
+   *
+   * This said "interim results are replaced; final ones are appended" until a
+   * second caller believed it and concatenated every final chunk onto the one
+   * before, repeating the whole sentence each time somebody paused.
+   */
   text: string;
-  /** Interim results are replaced; final ones are appended. */
+  /** Whether the recogniser has stopped revising what it has heard so far. */
   isFinal: boolean;
 }
 

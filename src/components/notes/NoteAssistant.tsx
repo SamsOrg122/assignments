@@ -25,6 +25,7 @@ import { cn } from "@/lib/cn";
 import { uid } from "@/lib/factories";
 import { askAssistant, type AssistFile, type AssistNote } from "@/lib/ai/assist/client";
 import { makeProject, reviewBlocks } from "@/lib/kit/artefact";
+import { listen, speechProviderName, type SpeechSession } from "@/lib/speech";
 import { AttachMenu } from "./AttachMenu";
 
 type Turn =
@@ -42,6 +43,25 @@ type Turn =
  * to show what the thing is for. They fill the box rather than sending, so
  * the first one can be edited into the real question.
  */
+/**
+ * A recogniser's error code, in words somebody can act on.
+ *
+ * The codes come straight from the Web Speech API and are not for reading:
+ * "not-allowed" is what Chrome says both when somebody denied the microphone
+ * and when the speech service it quietly depends on is unreachable, which are
+ * different problems with the same name. The sentence covers both rather than
+ * confidently naming the wrong one.
+ */
+function sayWhy(code: string): string {
+  if (/not-allowed/.test(code))
+    return "This browser wouldn't let the page listen — check the microphone permission for this site.";
+  if (/audio-capture/.test(code)) return "No microphone was found.";
+  if (/network/.test(code)) return "The speech service couldn't be reached.";
+  if (/language-not-supported/.test(code))
+    return "This browser can't transcribe that language.";
+  return `Couldn't hear you — ${code}`;
+}
+
 const OPENERS = [
   { label: "Summarise this note", prompt: "Summarise this note in a few lines." },
   { label: "Tidy the writing", prompt: "Tidy up the writing in this note. Keep my meaning and my voice." },
@@ -69,10 +89,21 @@ export function NoteAssistant({
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [attached, setAttached] = useState<AssistFile[]>([]);
+  const [voice, setVoice] = useState<SpeechSession | null>(null);
+  const [deaf, setDeaf] = useState<string | null>(null);
 
   const stop = useRef<AbortController | null>(null);
   const foot = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
+  /*
+   * Whatever was typed before dictation started.
+   *
+   * Both speech providers emit the transcript *so far* on every chunk, final
+   * ones included — so what arrives replaces the dictated part rather than
+   * extending it. Anything already in the box has to be held aside or the
+   * first chunk would eat it.
+   */
+  const typedBefore = useRef("");
 
   useEffect(() => {
     foot.current?.scrollIntoView({ block: "end" });
@@ -86,9 +117,75 @@ export function NoteAssistant({
     setBusy(false);
   }, []);
 
+  /*
+   * Talking to it, rather than typing at it.
+   *
+   * Dictation lands in the box instead of sending straight off. A recogniser
+   * mishears names and numbers, and a question that sends itself the moment
+   * you stop speaking gives nobody the chance to fix "Ana" before it becomes
+   * part of a document. So: speak, glance, press send.
+   *
+   * The seam underneath already falls back to a simulated provider when the
+   * browser's recogniser is present but not actually working — Chrome routes
+   * it through a network service that is missing offline and behind some
+   * proxies. Which one answered is on screen while it listens, because
+   * "listening" from a recogniser that cannot hear is the worst of the
+   * possible lies.
+   */
+  const talk = async () => {
+    if (voice) {
+      const session = voice;
+      setVoice(null);
+      setDeaf(null);
+      await session.stop().catch(() => "");
+      return;
+    }
+
+    typedBefore.current = question.trim() ? `${question.trimEnd()} ` : "";
+    setDeaf(null);
+    try {
+      const session = await listen({
+        onChunk: ({ text }) => {
+          // Replaced, not appended — see `typedBefore`.
+          setQuestion(typedBefore.current + text);
+          // Words are arriving, so whatever went wrong has been recovered
+          // from. Leaving the warning up would be the app describing a
+          // failure that is visibly not happening.
+          if (text.trim()) setDeaf(null);
+        },
+        /*
+         * Deliberately a line by the microphone rather than a turn in the
+         * transcript, and deliberately not the end of the session.
+         *
+         * A microphone problem is not something the assistant said, so it
+         * does not belong in the conversation. And the seam underneath
+         * recovers from most of these on its own — it swaps to the simulated
+         * provider a couple of seconds in — so tearing the session down here
+         * would cancel the recovery, and announcing a failure permanently
+         * would be a lie the moment words start arriving.
+         */
+        onError: (message) => setDeaf(sayWhy(message)),
+      });
+      setVoice(session);
+    } catch (error) {
+      setDeaf(sayWhy(String((error as Error).message ?? error)));
+    }
+  };
+
+  // A panel that closes mid-sentence must not leave the microphone open.
+  useEffect(() => () => voice?.cancel(), [voice]);
+
   const send = async (asked: string) => {
     const prompt = asked.trim();
     if (!prompt || busy) return;
+
+    // Sending is done talking. Leaving the recogniser running would type the
+    // next thing said into a box that is about to be answered into.
+    if (voice) {
+      const session = voice;
+      setVoice(null);
+      await session.stop().catch(() => "");
+    }
 
     setQuestion("");
     setTurns((all) => [...all, { id: uid(), who: "you", text: prompt }]);
@@ -248,15 +345,47 @@ export function NoteAssistant({
       </div>
 
       <div className="shrink-0 border-t border-line p-2.5">
-        <AttachMenu
-          attached={attached}
-          onAttach={(file) =>
-            setAttached((all) =>
-              all.some((f) => f.id === file.id) ? all : [...all, file],
-            )
-          }
-          onDetach={(id) => setAttached((all) => all.filter((f) => f.id !== id))}
-        />
+        <div className="flex items-end justify-between gap-2">
+          <AttachMenu
+            attached={attached}
+            onAttach={(file) =>
+              setAttached((all) =>
+                all.some((f) => f.id === file.id) ? all : [...all, file],
+              )
+            }
+            onDetach={(id) => setAttached((all) => all.filter((f) => f.id !== id))}
+          />
+
+          <button
+            type="button"
+            onClick={() => void talk()}
+            aria-pressed={voice !== null}
+            title={
+              voice
+                ? `Listening via ${speechProviderName()} — click to stop`
+                : "Dictate your question"
+            }
+            className={cn(
+              "flex shrink-0 items-center gap-1 rounded-xs border px-1.5 py-1 text-[11px] transition-colors duration-150",
+              voice
+                ? "border-accent text-fg"
+                : "border-line text-fg-subtle hover:text-fg",
+            )}
+          >
+            <Icon
+              name={voice ? "stop" : "mic"}
+              size={11}
+              className={voice ? "animate-pulse text-accent" : undefined}
+            />
+            {voice ? "Listening…" : "Speak"}
+          </button>
+        </div>
+
+        {deaf && (
+          <p className="mt-1.5 text-[10.5px] leading-relaxed text-warn" role="status">
+            {deaf}
+          </p>
+        )}
 
         <div className="mt-2 flex items-end gap-1.5">
           <textarea

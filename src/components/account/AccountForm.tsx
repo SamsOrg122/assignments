@@ -370,10 +370,17 @@ export function AccountForm({
           </div>
         )}
 
-        <div className="grid gap-x-10 gap-y-7 sm:grid-cols-2">
+        {/* Stacked, not side by side. Email beside password is the shape of a
+            search bar with a filter, not of a sign-in — and on the phone it
+            stacked anyway, so the two-column version only ever existed to
+            look like something. */}
+        <div className="grid gap-4">
           {wantsEmail && (
             <label className="block">
-              <span className="mb-1 block text-[11px] font-medium tracking-[0.02em] text-white/55">
+              <span
+                className="mb-1.5 block text-[11.5px] font-medium"
+                style={{ color: "var(--pad-ink-2)" }}
+              >
                 Email
               </span>
               <input
@@ -384,13 +391,16 @@ export function AccountForm({
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="signin-field"
+                className="pad-field w-full px-3.5 py-2.5 text-[13.5px]"
               />
             </label>
           )}
           {wantsPassword && (
             <label className="relative block">
-              <span className="mb-1 block text-[11px] font-medium tracking-[0.02em] text-white/55">
+              <span
+                className="mb-1.5 block text-[11.5px] font-medium"
+                style={{ color: "var(--pad-ink-2)" }}
+              >
                 {mode === "new-password" ? "New password" : "Password"}
               </span>
               <input
@@ -399,14 +409,14 @@ export function AccountForm({
                 placeholder={mode === "sign-in" ? "••••••••" : `At least ${MIN_PASSWORD} characters`}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="signin-field pr-7"
+                className="pad-field w-full py-2.5 pr-10 pl-3.5 text-[13.5px]"
               />
               <button
                 type="button"
                 onClick={() => setReveal((v) => !v)}
                 aria-label={reveal ? "Hide password" : "Show password"}
                 title={reveal ? "Hide password" : "Show password"}
-                className="absolute right-0 bottom-[9px] text-white/40 transition-colors hover:text-white/80"
+                className="pad-ghost absolute right-1.5 bottom-[7px] p-1.5"
               >
                 <Icon name={reveal ? "eye-off" : "eye"} size={14} />
               </button>
@@ -416,7 +426,10 @@ export function AccountForm({
 
         {mode === "sign-in" && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <label className="flex cursor-pointer items-center gap-2 text-[12px] text-white/55 transition-colors hover:text-white/85">
+            <label
+              className="flex cursor-pointer items-center gap-2 text-[12.5px]"
+              style={{ color: "var(--pad-ink-2)" }}
+            >
               <input
                 type="checkbox"
                 checked={remember}
@@ -425,7 +438,7 @@ export function AccountForm({
               />
               <span
                 aria-hidden="true"
-                className="grid size-[15px] place-items-center rounded-full border border-white/35 text-[9px] leading-none text-transparent transition-colors peer-checked:border-white peer-checked:bg-white peer-checked:text-black peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-white"
+                className="signin-tick grid size-[16px] place-items-center rounded-[5px] text-[9px] leading-none text-transparent"
               >
                 ✓
               </span>
@@ -437,7 +450,8 @@ export function AccountForm({
                 onMode("reset");
                 reset();
               }}
-              className="text-[12px] text-white/45 transition-colors hover:text-white/85"
+              className="text-[12.5px] underline underline-offset-2 transition-opacity hover:opacity-75"
+              style={{ color: "var(--pad-ink-3)" }}
             >
               Forgot?
             </button>
@@ -499,18 +513,34 @@ export function AccountForm({
           </p>
         )}
 
-        {/* Pushed to the floor of the panel, so the button sits in the same
-            corner whatever the form above it is currently asking. */}
-        <div className="mt-auto flex items-end justify-between gap-6 pt-10">
-          <p className="max-w-[34ch] text-[11.5px] leading-relaxed text-white/35">
-            {mode === "sign-up"
-              ? "An account carries your work between machines. Everything works without one."
-              : "No account? The tool still works — everything stays in this browser."}
-          </p>
-          <button type="submit" disabled={busy} className="signin-go shrink-0">
-            {busy ? "…" : commit}
-          </button>
-        </div>
+        {/*
+          * The button, directly under the thing it submits.
+          *
+          * It used to be a 76-pixel white circle pinned to the floor of the
+          * panel with `mt-auto`, which on a tall screen left four hundred
+          * pixels of nothing between the password field and the way in. A
+          * circle also cannot say what it does — "SIGN IN" had to be set in
+          * 10px capitals to fit, so the most important control on the page
+          * carried the smallest text on it.
+          */}
+        <button
+          type="submit"
+          disabled={busy}
+          className="pad-primary mt-6 w-full px-4 py-3 text-[13.5px]"
+        >
+          {busy ? "One moment…" : commit}
+        </button>
+
+        {/* The reassurance goes to the floor. It is worth saying and it is
+            not worth putting between somebody and the button. */}
+        <p
+          className="mt-auto max-w-[46ch] pt-8 text-[11.5px] leading-relaxed"
+          style={{ color: "var(--pad-ink-3)" }}
+        >
+          {mode === "sign-up"
+            ? "An account carries your work between machines. Everything works without one."
+            : "No account? The tool still works — everything stays in this browser."}
+        </p>
       </form>
     );
 

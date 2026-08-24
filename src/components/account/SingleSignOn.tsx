@@ -64,22 +64,37 @@ export function SingleSignOn({
 
   const stage = variant === "stage";
 
+  /*
+   * Google is the button, not one of the buttons.
+   *
+   * On this deployment it is how nearly everybody gets in, and a row of
+   * identically-weighted outlined pills makes somebody read three labels to
+   * find the one they were always going to press. So the first provider is
+   * a filled block and the rest are quiet — the shape of the decision people
+   * are actually making, rather than a tidy list.
+   */
+  const primaryId = providers[0]?.id ?? null;
+
   /* The rule reads as "or do it the other way", so which side of the buttons
      it belongs on follows from which side the alternative is. On the stage
      the buttons come first and the typing is the alternative; in the panel
      it is the other way round. */
   const rule = (
     <div className="flex items-center gap-2">
-      <span className={cn("h-px flex-1", stage ? "bg-white/15" : "bg-line")} />
       <span
-        className={cn(
-          "font-mono text-[10px]",
-          stage ? "text-white/35" : "text-fg-subtle",
-        )}
+        className="h-px flex-1"
+        style={{ background: stage ? "var(--pad-edge)" : "var(--color-line)" }}
+      />
+      <span
+        className="font-mono text-[10px]"
+        style={{ color: stage ? "var(--pad-ink-3)" : "var(--color-fg-subtle)" }}
       >
-        OR
+        or
       </span>
-      <span className={cn("h-px flex-1", stage ? "bg-white/15" : "bg-line")} />
+      <span
+        className="h-px flex-1"
+        style={{ background: stage ? "var(--pad-edge)" : "var(--color-line)" }}
+      />
     </div>
   );
 
@@ -87,17 +102,17 @@ export function SingleSignOn({
     <div className={stage ? "" : "mt-3.5"}>
       {!stage && rule}
 
-      <div className={cn("flex flex-col gap-1.5", stage ? "" : "mt-2.5")}>
+      <div className={cn("flex flex-col", stage ? "gap-2" : "mt-2.5 gap-1.5")}>
         {sso && (
           <button
             type="button"
             disabled={busy !== null}
             onClick={() => go("sso", () => signInWithSSO(sso, destination))}
             className={cn(
-              "flex items-center justify-center gap-2 transition-colors duration-150 disabled:opacity-60",
+              "flex items-center justify-center gap-2 disabled:opacity-60",
               stage
-                ? "rounded-full border border-white/25 px-3 py-2.5 text-[13px] text-white hover:border-white/60 hover:bg-white/5"
-                : "rounded-sm border border-accent/50 bg-accent-soft px-2.5 py-1.5 text-[12.5px] text-accent hover:border-accent",
+                ? "pad-chip px-4 py-2.5 text-[13px]"
+                : "rounded-sm border border-accent/50 bg-accent-soft px-2.5 py-1.5 text-[12.5px] text-accent transition-colors duration-150 hover:border-accent",
             )}
           >
             <Icon name="lock" size={stage ? 13 : 11} />
@@ -105,27 +120,32 @@ export function SingleSignOn({
           </button>
         )}
 
-        {providers.map((provider) => (
-          <button
-            key={provider.id}
-            type="button"
-            disabled={busy !== null}
-            onClick={() =>
-              go(provider.id, () => signInWithProvider(provider.id, destination))
-            }
-            className={cn(
-              "flex items-center justify-center gap-2.5 transition-colors duration-150 disabled:opacity-60",
-              stage
-                ? "rounded-full border border-white/25 px-3 py-2.5 text-[13px] font-medium text-white hover:border-white/60 hover:bg-white/5"
-                : "rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted hover:border-line-strong hover:text-fg",
-            )}
-          >
-            <BrandMark id={provider.id} size={stage ? 17 : 14} />
-            {busy === provider.id
-              ? "Taking you there…"
-              : `Continue with ${provider.label}`}
-          </button>
-        ))}
+        {providers.map((provider) => {
+          const lead = stage && provider.id === primaryId;
+          return (
+            <button
+              key={provider.id}
+              type="button"
+              disabled={busy !== null}
+              onClick={() =>
+                go(provider.id, () => signInWithProvider(provider.id, destination))
+              }
+              className={cn(
+                "flex items-center justify-center gap-2.5 disabled:opacity-60",
+                stage
+                  ? lead
+                    ? "pad-primary px-4 py-3 text-[13.5px]"
+                    : "pad-chip px-4 py-2.5 text-[13px]"
+                  : "rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg",
+              )}
+            >
+              <BrandMark id={provider.id} size={stage ? 17 : 14} />
+              {busy === provider.id
+                ? "Taking you there…"
+                : `Continue with ${provider.label}`}
+            </button>
+          );
+        })}
       </div>
 
       {problem && (
@@ -134,7 +154,7 @@ export function SingleSignOn({
         </p>
       )}
 
-      {stage && <div className="mt-7">{rule}</div>}
+      {stage && <div className="mt-6">{rule}</div>}
     </div>
   );
 }

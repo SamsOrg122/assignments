@@ -1139,155 +1139,59 @@
    border doing the work. */
 
 .signin-stage {
-  --stage-ink: #ffffff;
-  background: #000;
-  color: var(--stage-ink);
+  /*
+   * The door wears the tool's own palette.
+   *
+   * It used to be pure #000 with white-alpha hairlines — a look borrowed from
+   * a bank's marketing page, and nothing anybody saw afterwards resembled it.
+   * A sign-in screen that belongs to a different product than the one behind
+   * it is a seam people feel without being able to name.
+   */
+  background: var(--pad-void);
+  color: var(--pad-ink);
 }
 
 .signin-panel {
-  background: #131315;
-  /* A single soft light from the top-left corner, so the panel has a
-     direction rather than being a flat rectangle. */
-  background-image: radial-gradient(
-    120% 100% at 8% 0%,
-    rgba(255, 255, 255, 0.05),
-    transparent 60%
-  );
+  background: var(--pad-slab);
+  border: 1px solid var(--pad-edge);
+  box-shadow: var(--pad-lift-high);
 }
 
-/* The underlined field. A box would fight the panel's flatness; a rule under
-   the text is the whole decoration, and it thickens on focus rather than
-   growing a ring. */
-.signin-field {
-  width: 100%;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
-  padding: 6px 0 9px;
-  color: var(--stage-ink);
-  font-size: 15px;
-  letter-spacing: -0.01em;
-  outline: none;
+/*
+ * Autofill.
+ *
+ * Chrome paints autofilled inputs a solid pale blue, which is both the wrong
+ * colour and the one colour this screen is supposed not to have. The inset
+ * shadow is the only way to override it.
+ */
+.pad-field:-webkit-autofill,
+.pad-field:-webkit-autofill:hover,
+.pad-field:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--pad-ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--pad-void) inset;
+  caret-color: var(--pad-ink);
+}
+
+/* Remember me. A square rather than a circle: a round tick reads as a radio,
+   and this is not one of a set. */
+.signin-tick {
+  border: 1px solid var(--pad-edge-lit);
+  background: var(--pad-void);
   transition:
-    border-color 220ms var(--ease-out-fast),
-    box-shadow 220ms var(--ease-out-fast);
-}
-.signin-field::placeholder {
-  color: rgba(255, 255, 255, 0.3);
-}
-.signin-field:focus {
-  border-bottom-color: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.85);
-}
-.signin-field:-webkit-autofill,
-.signin-field:-webkit-autofill:focus {
-  /* Chrome paints autofilled inputs a solid pale blue, which on a black
-     panel is a bright rectangle where a hairline should be. */
-  -webkit-text-fill-color: var(--stage-ink);
-  -webkit-box-shadow: 0 0 0 1000px #131315 inset;
-  caret-color: var(--stage-ink);
+    background-color 160ms var(--pad-glide),
+    border-color 160ms var(--pad-glide),
+    color 160ms var(--pad-glide);
 }
 
-/* The circular commit. Big, white, bottom-right — the one solid object on
-   the panel, so there is never a question about what to press. */
-.signin-go {
-  display: grid;
-  place-items: center;
-  width: 76px;
-  height: 76px;
-  border-radius: 9999px;
-  background: var(--stage-ink);
-  color: #000;
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  transition:
-    transform 240ms var(--spring, cubic-bezier(0.34, 1.4, 0.64, 1)),
-    opacity 180ms var(--ease-out-fast);
-}
-.signin-go:hover:not(:disabled) {
-  transform: scale(1.06);
-}
-.signin-go:active:not(:disabled) {
-  transform: scale(0.95);
-}
-.signin-go:disabled {
-  opacity: 0.45;
+.peer:checked ~ .signin-tick {
+  background: var(--pad-ink);
+  border-color: var(--pad-ink);
+  color: var(--pad-void);
 }
 
-/* ── The mark ── */
-
-.starburst-stage {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.92);
-  pointer-events: none;
-}
-.starburst-rule {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.07);
-}
-.starburst-rule-h {
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-}
-.starburst-rule-v {
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-}
-/* The diagonal is what keeps the quadrants from reading as a plus sign. */
-.starburst-rule-d {
-  top: 50%;
-  left: 50%;
-  width: 1px;
-  height: 200%;
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.starburst-mark {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(38%, 300px);
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-}
-/* Deliberately not rotating. The mark reads as a compass — two true axes and
-   four diagonals — and any angle other than square throws that away; a slow
-   turn just means it is wrong in a different way every time you look. The
-   life comes from the breath instead. */
-.starburst-spin {
-  transform-origin: 0 0;
-}
-.starburst-arm {
-  transform-origin: 0 0;
-  animation: starburst-breathe 7s ease-in-out infinite;
-}
-.starburst-arm-short {
-  animation-delay: -3.5s;
-}
-@keyframes starburst-breathe {
-  0%,
-  100% {
-    opacity: 0.92;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.045);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .starburst-spin,
-  .starburst-arm {
-    animation: none;
-  }
+.peer:focus-visible ~ .signin-tick {
+  outline: 2px solid var(--pad-signal);
+  outline-offset: 2px;
 }
 
 /* ── Looks ───────────────────────────────────────────────

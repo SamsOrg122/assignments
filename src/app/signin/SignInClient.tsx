@@ -22,14 +22,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AccountForm, type AccountMode } from "@/components/account/AccountForm";
-import { Starburst } from "@/components/account/Starburst";
+import { Grove } from "@/components/account/Grove";
 import { useAuth, useAuthHydrated } from "@/lib/auth/store";
 import { useAccountSession } from "@/lib/auth/session";
 import { LogoTile } from "@/components/ui/Logo";
 
 /** The heading, and the way back out of whichever mode you are in. */
 const HEADINGS: Record<AccountMode, string> = {
-  "sign-in": "Login",
+  "sign-in": "Sign in",
   "sign-up": "Sign up",
   reset: "Reset",
   "new-password": "New password",
@@ -70,11 +70,11 @@ export function SignInClient() {
 
   return (
     <main className="signin-stage min-h-dvh p-2.5 sm:p-3.5">
-      <div className="grid min-h-[calc(100dvh-20px)] grid-cols-1 gap-2.5 sm:min-h-[calc(100dvh-28px)] sm:gap-3.5 lg:grid-cols-[1fr_minmax(430px,45%)]">
+      <div className="grid min-h-[calc(100dvh-20px)] grid-cols-1 gap-2.5 sm:min-h-[calc(100dvh-28px)] sm:gap-3.5 lg:grid-cols-[1fr_minmax(400px,38%)]">
         {/* The face. Decorative on a phone, so it collapses to a band that
             still carries the wordmark rather than disappearing entirely. */}
-        <section className="relative min-h-[112px] overflow-hidden rounded-lg lg:min-h-0">
-          <Starburst className="hidden lg:block" />
+        <section className="relative min-h-[132px] overflow-hidden rounded-lg lg:min-h-0">
+          <Grove />
 
           <Link
             href="/"
@@ -87,8 +87,8 @@ export function SignInClient() {
             </span>
           </Link>
 
-          <p className="absolute bottom-5 left-5 hidden text-[10.5px] text-white/35 sm:bottom-7 sm:left-7 lg:block">
-            © Tougather {year}. All rights reserved.
+          <p className="absolute bottom-5 left-5 hidden text-[10.5px] text-white/45 sm:bottom-7 sm:left-7 lg:block">
+            © Tougather {year}
           </p>
         </section>
 
@@ -99,7 +99,7 @@ export function SignInClient() {
               <button
                 type="button"
                 onClick={() => setMode("sign-up")}
-                className="text-[12px] text-white/55 transition-colors hover:text-white"
+                className="text-[12.5px] transition-opacity hover:opacity-75" style={{ color: "var(--pad-ink-2)" }}
               >
                 Create an account
               </button>
@@ -107,14 +107,17 @@ export function SignInClient() {
               <button
                 type="button"
                 onClick={() => setMode("sign-in")}
-                className="text-[12px] text-white/55 transition-colors hover:text-white"
+                className="text-[12.5px] transition-opacity hover:opacity-75" style={{ color: "var(--pad-ink-2)" }}
               >
                 {mode === "sign-up" ? "I have one already" : "Back to login"}
               </button>
             )}
           </div>
 
-          <h1 className="mt-14 mb-9 text-[54px] leading-[0.95] font-light tracking-[-0.035em] text-white sm:mt-20 sm:mb-11 sm:text-[64px]">
+          <h1
+            className="mt-9 mb-7 text-[30px] leading-[1.1] font-medium tracking-[-0.02em] sm:mt-12 sm:text-[34px]"
+            style={{ color: "var(--pad-ink)" }}
+          >
             {HEADINGS[mode]}
           </h1>
 

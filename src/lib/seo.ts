@@ -602,8 +602,9 @@ export function breadcrumbTrail(slug: Slug): Crumb[] {
  *
  * No `images` here. There is no 1200×630 card in this repo — `public/logo.png`
  * is a 512-square mark, which crops badly into every social preview.
- * FOUNDER: adding `src/app/(marketing)/opengraph-image.tsx` (see `next/og`)
- * gives all twenty pages a card at once, and this function needs no change.
+ * The card itself is `src/app/(marketing)/opengraph-image.tsx` — one file for
+ * all twenty pages, drawn with `next/og` at request time rather than checked
+ * in as a PNG somebody has to remember to re-cut.
  */
 export function pageMetadata(slug: Slug): Metadata {
   const entry = PAGES[slug];

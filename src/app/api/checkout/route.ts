@@ -13,6 +13,9 @@ import { NextResponse } from "next/server";
 import { PLANS, type PlanId } from "@/lib/impact/config";
 import { STRIPE_PRICE_IDS, type Interval } from "@/lib/billing";
 import { overLimit } from "@/lib/api/guard";
+import { whoIsAsking } from "@/lib/api/who";
+import { memberOf } from "@/lib/billing/workspace";
+import Stripe from "stripe";
 
 /**
  * Nobody checks out twenty times a minute. Once this route talks to Stripe it
@@ -25,6 +28,14 @@ interface Body {
   planId?: string;
   seats?: number;
   interval?: string;
+  /**
+   * Which workspace is being upgraded.
+   *
+   * Checked against the caller before anything is created — see `memberOf`.
+   * It travels on into the session's metadata so the webhook knows whose
+   * plan to grant without trusting anything the browser says later.
+   */
+  workspaceId?: string;
 }
 
 const PLAN_IDS = new Set(PLANS.map((p) => p.id));
@@ -84,25 +95,66 @@ export async function POST(request: Request) {
       { status: 501 },
     );
 
-  /* ── FOUNDER: the real call goes here ───────────────────
+  /*
+   * Whose workspace, and are they allowed to spend on it.
    *
-   *   const stripe = new Stripe(secret);
-   *   const session = await stripe.checkout.sessions.create({
-   *     mode: "subscription",
-   *     line_items: [{ price: priceId, quantity: seats }],
-   *     success_url: `${origin}/checkout/done?session_id={CHECKOUT_SESSION_ID}`,
-   *     cancel_url: `${origin}/pricing`,
-   *     // Needed by the webhook to write the impact ledger row against the
-   *     // right workspace — the share is computed from the amount Stripe
-   *     // actually captured, never from what the client claimed.
-   *     metadata: { planId, seats: String(seats), interval },
-   *     automatic_tax: { enabled: true },
-   *   });
-   *   return NextResponse.json({ url: session.url });
+   * Checked here rather than trusted from the body, and checked *as the
+   * caller* so the database's own membership policy is what answers — this
+   * project has no service-role key and does not want one. Somebody who
+   * posts a stranger's workspace id gets a 403 before a session exists.
    */
+  const who = await whoIsAsking(request);
+  if (!who.ok) return who.response;
 
-  return NextResponse.json(
-    { error: "Payments aren't switched on yet." },
-    { status: 501 },
-  );
+  const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : "";
+  if (!workspaceId)
+    return NextResponse.json({ error: "No workspace named." }, { status: 400 });
+
+  const allowed = await memberOf(who.caller.token, workspaceId);
+  if (!allowed)
+    return NextResponse.json(
+      { error: "That workspace isn't yours to upgrade." },
+      { status: 403 },
+    );
+
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ??
+    new URL(request.url).origin;
+
+  try {
+    const stripe = new Stripe(secret);
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: seats }],
+      success_url: `${origin}/checkout/done?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/pricing`,
+      /*
+       * Everything the webhook needs, carried by Stripe rather than by the
+       * browser. The webhook reads these back off the event, so the plan
+       * granted is the plan paid for — a client cannot post one price and
+       * claim another afterwards. The *amount* is never taken from here; it
+       * comes from what Stripe actually captured.
+       */
+      metadata: { planId, seats: String(seats), interval, workspaceId },
+      subscription_data: { metadata: { workspaceId } },
+      // So a repeat customer is one customer rather than a new one per
+      // checkout, which is what makes "cancel my subscription" findable.
+      client_reference_id: who.caller.userId,
+      automatic_tax: { enabled: true },
+    });
+
+    if (!session.url)
+      return NextResponse.json(
+        { error: "Stripe made a session with nowhere to send you." },
+        { status: 502 },
+      );
+
+    return NextResponse.json({ url: session.url });
+  } catch (error) {
+    // Stripe's own message is the useful one — a wrong price id, a card
+    // rule, a disabled account all say so precisely, and replacing that with
+    // "checkout failed" costs whoever has to fix it an afternoon.
+    const reason = error instanceof Error ? error.message : "Checkout failed.";
+    return NextResponse.json({ error: reason }, { status: 502 });
+  }
 }

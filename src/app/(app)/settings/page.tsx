@@ -48,6 +48,7 @@ import { SHORTCUTS } from "@/lib/shortcuts";
 import { DESKTOP_VERSION, DOWNLOADS, RELEASES_URL } from "@/lib/db/notes";
 import { TopBar } from "@/components/shell/TopBar";
 import { Icon } from "@/components/ui/Icon";
+import { EraseAccount } from "@/components/settings/EraseAccount";
 import { SafeKeeping } from "@/components/settings/SafeKeeping";
 import { WorkIsSafe } from "@/components/settings/WorkIsSafe";
 import { Dictionary } from "@/components/settings/Dictionary";
@@ -139,6 +140,7 @@ const RAIL: Array<{ id: string; label: string; admin?: boolean }> = [
   { id: "appearance", label: "Appearance" },
   { id: "shortcuts", label: "Shortcuts" },
   { id: "account", label: "Account" },
+  { id: "erase", label: "Delete your account" },
   { id: "connection", label: "Connection" },
   { id: "signin-methods", label: "Sign-in methods" },
   { id: "ai", label: "AI" },
@@ -351,6 +353,14 @@ export default function SettingsPage() {
               hint="Two ways to keep your work, and you pick. Neither one is a trial version of the other."
             >
               <AccountPanel />
+            </Section>
+
+            <Section
+              id="erase"
+              title="Delete your account"
+              hint="The one thing in here that cannot be undone, kept where somebody looking for it would look."
+            >
+              <EraseAccount />
             </Section>
 
             <Section

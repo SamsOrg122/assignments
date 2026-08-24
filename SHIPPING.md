@@ -31,6 +31,8 @@ Supabase → **SQL Editor** → paste and run, in this order:
 
 - `supabase/migrations/0010-a-ceiling-on-the-model.sql`
 - `supabase/migrations/0011-a-way-out.sql`
+- `supabase/migrations/0012-money-arrives-from-outside.sql` — only needed if
+  you are taking payments; harmless to run either way
 
 Both are re-runnable. Each ends with a **Proof** block in comments — run those
 lines too, signed in as an ordinary user. 0010's proof should refuse the
@@ -60,6 +62,10 @@ On the hosting dashboard, for **production**:
 | `OPENROUTER_API_KEY` | without it the assistant answers with a refusal |
 | `NEXT_PUBLIC_SITE_URL` | `https://tougather.com` — sign-in redirects are built from it |
 | `AI_DAILY_LIMIT` | optional; defaults to 120 |
+| `STRIPE_SECRET_KEY` | only if you are taking payments — see 7 |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | as above |
+| `STRIPE_WEBHOOK_SECRET` | as above |
+| `STRIPE_HOOK_DB_SECRET` | as above |
 
 Never add a Supabase **service-role** key. Nothing here needs one and its
 presence would undo the reason the two new migrations are shaped the way they
@@ -94,19 +100,44 @@ this, and people will read that as "the site is broken".
 4. Send yourself a password reset and a fresh signup, and check both land in
    an inbox rather than spam.
 
-## 7. Before you take money
+## 7. Switching payments on
 
-Not needed to launch free, and launching free is a fine choice — but do not
-put a Buy button up before all of this is true:
+The code is written and tested; it stays 501 until these exist. Nothing
+breaks while it is off, and launching free is still a fine choice.
 
-- `src/lib/billing/index.ts` — price ids from your Stripe dashboard
-- `src/app/api/checkout/route.ts` — the marked block; it returns 501 today
-- The Stripe **webhook** route does not exist yet. Without it a payment
-  succeeds and the plan is never granted, which is the worst possible bug to
-  have in public.
-- The twelve `status: "placeholder"` entries in `src/lib/impact/config.ts`
-  are working assumptions. Claiming them as fact while charging for them is
-  the kind of thing that ends a project.
+1. **Stripe → Products.** Create a product and a price per plan, monthly and
+   yearly. Copy the price ids into `STRIPE_PRICE_IDS` in
+   `src/lib/billing/index.ts`.
+2. **Keys.** Set `STRIPE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+   on the deployment.
+3. **Run `supabase/migrations/0012-money-arrives-from-outside.sql`**, then set
+   the secret the webhook writes with:
+   ```sql
+   select public.set_billing_secret('<paste 32+ random characters>');
+   ```
+   Put that same value in the deployment as `STRIPE_HOOK_DB_SECRET`. To
+   rotate later, run it again with a new value and update the variable.
+4. **Stripe → Developers → Webhooks → Add endpoint**, pointing at
+   `https://tougather.com/api/stripe/webhook`. Send these events:
+   `checkout.session.completed`, `invoice.paid`,
+   `customer.subscription.updated`, `customer.subscription.deleted`.
+   Copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
+5. **Test with a card before telling anyone.** Stripe's `4242 4242 4242 4242`
+   in test mode. Then check the database: one row in `subscriptions` for the
+   workspace, one in `impact_ledger` for the payment. Stripe's dashboard will
+   show whether the webhook returned 200.
+
+Why there is no service-role key in that list: a webhook has no session, and
+the usual fix bypasses row-level security on every table. Instead it calls
+one function that can do nothing but record a subscription. If
+`STRIPE_HOOK_DB_SECRET` leaks, somebody can grant a plan nobody paid for.
+They cannot read a document. Rotate it and move on.
+
+**Still yours before you charge:** the twelve `status: "placeholder"` entries
+in `src/lib/impact/config.ts` are working assumptions, including the 10%
+share of revenue. Claiming them as fact while taking money is the kind of
+thing that ends a project — either confirm them or mark them clearly as
+intentions on the page.
 
 ## 8. Code signing for the desktop app
 
@@ -143,3 +174,7 @@ So you do not redo it:
   carries the redesign.
 - CI refuses a build where the version disagrees across the four files that
   state it, and refuses two modules whose names differ only in case.
+- Checkout and the Stripe webhook are written and tested — signature checks,
+  membership checks, and a retry from Stripe that cannot double-count a
+  payment. They need the keys in 7 and nothing else.
+- `npm audit` reports zero vulnerabilities.

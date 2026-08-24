@@ -23,6 +23,7 @@ import { TOOLS, buildChange } from "@/lib/ai/openrouter/tools";
 import { encodeFrame, type AIFrame } from "@/lib/ai/openrouter/wire";
 import type { AIContext } from "@/lib/ai/types";
 import { overLimit, readBody } from "@/lib/api/guard";
+import { chargeOne, overAllowance, whoIsAsking } from "@/lib/api/who";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +50,23 @@ const TIMEOUT_MS = 120_000;
  * person types and far below anything a loop wants.
  */
 const AI_LIMIT = { name: "ai", limit: 12, windowMs: 60_000 };
+
+/*
+ * And the ceiling that survives a deploy.
+ *
+ * The limit above is a counter in one process's memory: it resets whenever
+ * this function is replaced, and on serverless every instance keeps its own.
+ * It raises the cost of the casual attack and nothing more. What stops the
+ * patient one is being somebody — every request now carries the caller's
+ * Supabase token, and every request is charged against that account's day in
+ * Postgres, where the count cannot be reset by the person being counted.
+ *
+ * Anonymous sessions count and are allowed. The free plan has no login and
+ * the app signs each browser in anonymously; refusing those would make "no
+ * account needed" untrue. Somebody willing to clear their browser gets a
+ * fresh allowance, which is a real limit of this and the reason the
+ * deployment notes insist on a spend limit at the model key as well.
+ */
 
 /**
  * And a ceiling on the size of one, for the same reason: the bill scales with
@@ -88,6 +106,14 @@ export async function POST(request: Request) {
    */
   const read = await readBody(request, MAX_REQUEST_BYTES);
   if ("tooLarge" in read) return read.tooLarge;
+
+  const who = await whoIsAsking(request);
+  if (!who.ok) return who.response;
+
+  // Before the key is even read: a refusal that costs nothing should not
+  // depend on whether this deployment happens to be configured.
+  const charge = await chargeOne(who.caller);
+  if (!charge.allowed) return overAllowance();
 
   const key = process.env.OPENROUTER_API_KEY;
   if (!key)

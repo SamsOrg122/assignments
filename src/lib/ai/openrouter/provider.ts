@@ -15,6 +15,7 @@
 
 import { sanitizeHtml } from "../../sanitize";
 import type { AIChange, AIChunk, AIProvider, AIRequest } from "../types";
+import { supabaseDatabase } from "@/lib/db/supabase";
 import { frameReader } from "./wire";
 
 /** Pass any HTML a change carries through the document allowlist. */
@@ -42,6 +43,32 @@ function clean(change: AIChange): AIChange {
   }
 }
 
+/**
+ * The caller's own session, for the endpoint to charge the request to.
+ *
+ * `/api/ai` spends money, so it stopped answering strangers — every request
+ * has to say whose day to count it against. `session()` signs this browser in
+ * anonymously if it has not been already, which is what the free plan runs
+ * on, so this is not a sign-in prompt in disguise.
+ *
+ * A deployment with no database configured has nobody to be. The header is
+ * left off and the endpoint answers with its own explanation, which is a
+ * better message than anything invented here.
+ */
+async function bearer(): Promise<Record<string, string>> {
+  try {
+    const { supabase } = await import("@/lib/db/client");
+    const client = supabase();
+    if (!client) return {};
+    await supabaseDatabase.session();
+    const { data } = await client.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 class OpenRouterProvider implements AIProvider {
   /** Which model last answered — worth showing, since it can change per request. */
   private model = "";
@@ -61,7 +88,10 @@ class OpenRouterProvider implements AIProvider {
       response = await fetch("/api/ai", {
         method: "POST",
         signal,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(await bearer()),
+        },
         body: JSON.stringify({ prompt, context }),
       });
     } catch {

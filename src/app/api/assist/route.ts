@@ -29,6 +29,7 @@ import {
 } from "@/lib/ai/openrouter/models";
 import { buildBlocks } from "@/lib/ai/assist/build";
 import { overLimit, readBody } from "@/lib/api/guard";
+import { chargeOne, overAllowance, whoIsAsking } from "@/lib/api/who";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,73 +104,6 @@ function readFiles(raw: unknown): AskFile[] {
       ...(typeof f.text === "string" ? { text: f.text.slice(0, 120_000) } : {}),
     }))
     .filter((f) => f.id && f.name);
-}
-
-/**
- * Who is asking.
- *
- * The token is the one the desktop already holds for sync, checked against
- * the project rather than merely parsed — an unverified JWT is a string
- * anybody can type. Without a configured project there is nobody to check
- * against, and the endpoint refuses rather than answering for free.
- */
-async function whoIsAsking(request: Request): Promise<
-  { ok: true; userId: string } | { ok: false; response: Response }
-> {
-  const header = request.headers.get("authorization") ?? "";
-  const token = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
-  if (!token)
-    return {
-      ok: false,
-      response: Response.json(
-        { error: "Sign in on the note before asking." },
-        { status: 401 },
-      ),
-    };
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const anonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
-  if (!url || !anonKey)
-    return {
-      ok: false,
-      response: Response.json(
-        { error: "This deployment has no account database, so there is nobody to ask as." },
-        { status: 501 },
-      ),
-    };
-
-  try {
-    const check = await fetch(`${url.replace(/\/+$/, "")}/auth/v1/user`, {
-      headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(8_000),
-      cache: "no-store",
-    });
-    if (!check.ok)
-      return {
-        ok: false,
-        response: Response.json(
-          { error: "That sign-in is no longer valid. Sign in again on the note." },
-          { status: 401 },
-        ),
-      };
-    const user = (await check.json()) as { id?: unknown };
-    const id = typeof user.id === "string" ? user.id : "";
-    if (!id)
-      return {
-        ok: false,
-        response: Response.json({ error: "Couldn't identify you." }, { status: 401 }),
-      };
-    return { ok: true, userId: id };
-  } catch {
-    return {
-      ok: false,
-      response: Response.json(
-        { error: "Couldn't check that sign-in just now. Try again in a moment." },
-        { status: 503 },
-      ),
-    };
-  }
 }
 
 /* ── What the model may do ──────────────────────────────── */
@@ -369,6 +303,11 @@ export async function POST(request: Request) {
 
   const who = await whoIsAsking(request);
   if (!who.ok) return who.response;
+
+  // Charged before a token is spent, not after — a request that is refused
+  // upstream still cost this endpoint a model call to find that out.
+  const charge = await chargeOne(who.caller);
+  if (!charge.allowed) return overAllowance();
 
   let body: Body;
   try {

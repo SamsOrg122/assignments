@@ -33,7 +33,17 @@ const APP_SURFACES = [
   "/team",
   "/settings",
   "/admin",
+  // The two hubs. Both render an empty shell to anything without local data,
+  // exactly like /library, and /more is a list of doors into a workspace a
+  // crawler does not have.
+  "/due",
+  "/more",
   "/present",
+  "/notes",
+  "/study",
+  "/agenda",
+  "/assignments",
+  "/community",
   // Anchored with `$`: a Disallow is a *prefix* match, so a bare "/f" would
   // also hide a future /features or /faq. Both of these are leaf routes.
   "/f$",

@@ -135,24 +135,43 @@ function useSyncLine(): string {
   return status.at ? `last synced ${formatTime(status.at)}` : "connected";
 }
 
-/** The rail. Ids match the sections; nothing here invents a destination. */
-const RAIL: Array<{ id: string; label: string; admin?: boolean }> = [
-  { id: "appearance", label: "Appearance" },
-  { id: "shortcuts", label: "Shortcuts" },
-  { id: "account", label: "Account" },
-  { id: "erase", label: "Delete your account" },
+/**
+ * The rail, in the order the page is now in.
+ *
+ * Every label matches the heading it scrolls to, word for word. Four of them
+ * used not to — "Is it in your account?" pointed at a section called "Is your
+ * work in your account?", "Account" at "Your account", "Shortcuts" at
+ * "Keyboard" — which defeats the whole argument for anchors, since the thing
+ * you read here is the thing you are meant to find below.
+ *
+ * The three administration sections with actual controls in them — who is
+ * here, how long things are kept, what has been done — were missing
+ * entirely, so every route into administration (this rail, ⌘K, and /admin's
+ * redirect) landed on the one section that holds nothing but a headcount.
+ */
+const RAIL: Array<{ id: string; label: string; group?: string; admin?: boolean }> = [
+  { id: "account", label: "Your account", group: "you" },
+  { id: "signin-methods", label: "How people sign in" },
+
+  { id: "safe", label: "Is your work in your account?", group: "where your work is kept" },
   { id: "connection", label: "Connection" },
-  { id: "signin-methods", label: "Sign-in methods" },
-  { id: "ai", label: "AI" },
-  { id: "templates", label: "Templates" },
-  { id: "words", label: "Your words" },
-  { id: "safe", label: "Is it in your account?" },
   { id: "keeping", label: "Keeping your work" },
   { id: "offline", label: "Offline" },
-  { id: "desktop", label: "The desktop note" },
+  { id: "workspace", label: "This browser's copy" },
+  { id: "erase", label: "Delete your account" },
+
+  { id: "appearance", label: "Appearance", group: "how the app behaves" },
+  { id: "shortcuts", label: "Shortcuts" },
+  { id: "words", label: "Your words" },
+  { id: "ai", label: "AI" },
   { id: "providers", label: "Providers" },
-  { id: "administration", label: "Administration", admin: true },
-  { id: "workspace", label: "Workspace" },
+  { id: "templates", label: "Templates" },
+  { id: "desktop", label: "The desktop note" },
+
+  { id: "administration", label: "Administration", group: "the shared workspace", admin: true },
+  { id: "members", label: "Roles the database enforces", admin: true },
+  { id: "retention", label: "How long things are kept", admin: true },
+  { id: "audit", label: "What has been done", admin: true },
 ];
 
 export default function SettingsPage() {
@@ -182,25 +201,178 @@ export default function SettingsPage() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[1000px] gap-10 px-5 py-10 sm:px-8">
-          {/* Plain anchors, so find-in-page and a bookmarked #connection both
-              still work. Hidden below xl, where it would cost more width than
-              it saves scrolling. */}
+          {/*
+            * Plain anchors, so find-in-page and a bookmarked #connection both
+            * still work.
+            *
+            * It used to be `hidden … xl:flex`, on the argument that 172px
+            * costs more width than it saves scrolling. True — but the result
+            * was that the only map of a page with a hundred controls on it
+            * disappeared below 1280px, which is most laptops. So it changes
+            * SHAPE instead of disappearing: a column beside the content where
+            * there is room, and a scrolling row above it where there is not.
+            */}
           <nav
             aria-label="Settings sections"
             className="sticky top-4 hidden h-fit w-[172px] shrink-0 flex-col gap-0.5 xl:flex"
           >
             {RAIL.filter((item) => !item.admin || configured).map((item) => (
-              <a
-                key={item.id}
-                href={`#${item.id}`}
-                className="rounded-xs px-2 py-1 text-[12px] text-fg-subtle transition-colors duration-150 hover:bg-surface hover:text-fg"
-              >
-                {item.label}
-              </a>
+              <span key={item.id} className="contents">
+                {item.group && (
+                  <span className="label-mono mt-3 px-2 py-1 text-fg-subtle/60 first:mt-0">
+                    {item.group}
+                  </span>
+                )}
+                <a
+                  href={`#${item.id}`}
+                  className="rounded-xs px-2 py-1 text-[12px] text-fg-subtle transition-colors duration-150 hover:bg-surface hover:text-fg"
+                >
+                  {item.label}
+                </a>
+              </span>
             ))}
           </nav>
 
           <div className="min-w-0 max-w-[760px] flex-1">
+            {/* The same rail, laid on its side, for every width below xl. */}
+            <nav
+              aria-label="Settings sections"
+              className="no-scrollbar -mx-5 mb-8 flex gap-1 overflow-x-auto px-5 sm:-mx-8 sm:px-8 xl:hidden"
+            >
+              {RAIL.filter((item) => !item.admin || configured).map((item) => (
+                <a
+                  key={item.id}
+                  href={`#${item.id}`}
+                  className="shrink-0 rounded-xs border border-line px-2 py-1 text-[11.5px] whitespace-nowrap text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+
+            <h2 className="label-mono mt-14 mb-4 border-b border-line pb-2 text-fg-subtle first:mt-0">
+              you <span className="ml-2 normal-case text-fg-subtle/70">who you are</span>
+            </h2>
+
+            <Section
+              id="account"
+              title={t("settings.account")}
+              hint="Two ways to keep your work, and you pick. Neither one is a trial version of the other."
+            >
+              <AccountPanel />
+            </Section>
+
+
+            {/* Needs no database: it reads what the deployment has switched
+                on. It used to disappear whenever administration was blocked,
+                which is precisely when somebody is trying to find out why. */}
+            <SignInMethods />
+
+            <h2 className="label-mono mt-14 mb-4 border-b border-line pb-2 text-fg-subtle first:mt-0">
+              where your work is kept <span className="ml-2 normal-case text-fg-subtle/70">and whether it is anywhere but this browser</span>
+            </h2>
+
+            <Section
+              id="safe"
+              title="Is your work in your account?"
+              hint="Counted, not claimed. Every project either has a version the server agreed to or it does not, and the ones that do not are named."
+            >
+              <WorkIsSafe />
+            </Section>
+
+            <Section
+              id="connection"
+              title="Connection"
+              hint="Whether accounts and sync actually work on this deployment — asked of the project itself, not guessed from a variable."
+            >
+              <ConnectionPanel />
+            </Section>
+
+            <Section
+              id="keeping"
+              title="Keeping your work"
+              hint="What this browser is holding, and how safe that is on its own."
+            >
+              <SafeKeeping />
+            </Section>
+
+            <Section
+              id="offline"
+              title="Offline"
+              hint="The app keeps working with no network. What it cannot do is reach your account, and it says so rather than pretending the last thing you typed went somewhere."
+            >
+              <Row label="Right now">
+                <span className="text-[12.5px] text-fg-muted">
+                  {!isClient
+                    ? "…"
+                    : offline
+                      ? "No network. Everything you write is kept here and goes up when it returns."
+                      : "Online."}
+                </span>
+              </Row>
+              <Row label="Installed">
+                <span className="text-[12.5px] text-fg-muted">
+                  {!isClient
+                    ? "…"
+                    : installed
+                      ? "Running as an installed app."
+                      : "Running in a browser tab. Your browser's install button puts it in the dock."}
+                </span>
+              </Row>
+              {isClient && offlineSupported() && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void clearOffline().then(() =>
+                      notify("Offline cache cleared — reload to fetch fresh"),
+                    );
+                  }}
+                  className="flex w-fit items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                >
+                  <Icon name="refresh" size={12} />
+                  Clear the offline cache
+                </button>
+              )}
+            </Section>
+
+            {/* Called "Workspace" until now, which is also what the shared
+                server workspace is called two groups down — one word for two
+                unrelated things on one page. */}
+            <Section
+              id="workspace"
+              title="This browser's copy"
+              hint="Everything lives in this browser."
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  resetWorkspace();
+                  notify("Workspace reset to the samples");
+                  router.push("/library");
+                }}
+                className="flex w-fit items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-danger/50 hover:text-danger"
+              >
+                <Icon name="refresh" size={12} />
+                Reset projects to the samples
+              </button>
+              <p className="font-mono text-[10px] leading-relaxed text-fg-subtle">
+                Discards local project changes. Chat history and appearance are
+                kept separately and survive this.
+              </p>
+            </Section>
+
+            <Section
+              id="erase"
+              title="Delete your account"
+              hint="The one thing in here that cannot be undone, kept where somebody looking for it would look."
+            >
+              <EraseAccount />
+            </Section>
+
+            <h2 className="label-mono mt-14 mb-4 border-b border-line pb-2 text-fg-subtle first:mt-0">
+              how the app behaves <span className="ml-2 normal-case text-fg-subtle/70">preferences for the tool, not for any document</span>
+            </h2>
+
             <Section
               id="appearance"
               title="Appearance"
@@ -268,13 +440,20 @@ export default function SettingsPage() {
                 />
               </Row>
 
+              {/* "System" and "Mono" each used to label two different things
+                  within four rows of each other: System is a Theme option
+                  (follow the OS light/dark setting) and was also a typeface,
+                  and Mono is an accent colour and was also a typeface. All
+                  four were visible at once. The typefaces say what they are
+                  instead — the theme and the accent keep the short words,
+                  because those are the ones people already say out loud. */}
               <Row label="Interface type">
                 <Segmented<UIFont>
                   value={a.font}
                   options={[
                     ["geist", "Geist"],
-                    ["system", "System"],
-                    ["mono", "Mono"],
+                    ["system", "Your system's"],
+                    ["mono", "Monospace"],
                   ]}
                   onChange={(v) => a.set("font", v)}
                 />
@@ -323,7 +502,7 @@ export default function SettingsPage() {
 
             <Section
               id="shortcuts"
-              title="Keyboard"
+              title="Shortcuts"
               hint="The ones that work anywhere. Each editor has its own, and ⌘/ lists whichever set applies to what you are looking at."
             >
               <ul className="flex flex-col gap-1.5">
@@ -348,33 +527,12 @@ export default function SettingsPage() {
             </Section>
 
             <Section
-              id="account"
-              title={t("settings.account")}
-              hint="Two ways to keep your work, and you pick. Neither one is a trial version of the other."
+              id="words"
+              title="Your words"
+              hint="Names, terms and spellings that are deliberate."
             >
-              <AccountPanel />
+              <Dictionary />
             </Section>
-
-            <Section
-              id="erase"
-              title="Delete your account"
-              hint="The one thing in here that cannot be undone, kept where somebody looking for it would look."
-            >
-              <EraseAccount />
-            </Section>
-
-            <Section
-              id="connection"
-              title="Connection"
-              hint="Whether accounts and sync actually work on this deployment — asked of the project itself, not guessed from a variable."
-            >
-              <ConnectionPanel />
-            </Section>
-
-            {/* Needs no database: it reads what the deployment has switched
-                on. It used to disappear whenever administration was blocked,
-                which is precisely when somebody is trying to find out why. */}
-            <SignInMethods />
 
             <Section
               id="ai"
@@ -416,74 +574,48 @@ export default function SettingsPage() {
             </Section>
 
             <Section
+              id="providers"
+              title="Providers"
+              hint="Every capability sits behind an interface. These are what's wired in right now."
+            >
+              <ProviderRow
+                name="AI"
+                value={aiProvider}
+                detail="askAI(prompt, context) — streaming, accept/reject"
+              />
+              <ProviderRow
+                name="Storage"
+                value={isClient ? backendName() : "…"}
+                detail={sync}
+              />
+              <ProviderRow
+                name="Speech"
+                value={isClient ? speechProviderName() : "…"}
+                detail="Web Speech where available, simulated otherwise"
+              />
+              <ProviderRow
+                name="Realtime"
+                value={isClient ? getRealtimeProviderName() : "…"}
+                detail="Awareness-shaped; a Yjs provider drops in"
+              />
+              <ProviderRow
+                name="Chat"
+                value={isClient ? chatProviderName() : "…"}
+                detail="Websocket-shaped: send, subscribe, typing"
+              />
+              <ProviderRow
+                name="Sources"
+                value={isClient ? sourceResolverName() : "…"}
+                detail="Local parsing; a metadata service replaces it"
+              />
+            </Section>
+
+            <Section
               id="templates"
               title={t("settings.templates")}
               hint="Shapes to start from. Yours stay in this browser; the workspace's are published by an admin and everybody here gets them."
             >
               <TemplatesPanel />
-            </Section>
-
-            <Section
-              id="words"
-              title="Your words"
-              hint="Names, terms and spellings that are deliberate."
-            >
-              <Dictionary />
-            </Section>
-
-            <Section
-              id="safe"
-              title="Is your work in your account?"
-              hint="Counted, not claimed. Every project either has a version the server agreed to or it does not, and the ones that do not are named."
-            >
-              <WorkIsSafe />
-            </Section>
-
-            <Section
-              id="keeping"
-              title="Keeping your work"
-              hint="What this browser is holding, and how safe that is on its own."
-            >
-              <SafeKeeping />
-            </Section>
-
-            <Section
-              id="offline"
-              title="Offline"
-              hint="The app keeps working with no network. What it cannot do is reach your account, and it says so rather than pretending the last thing you typed went somewhere."
-            >
-              <Row label="Right now">
-                <span className="text-[12.5px] text-fg-muted">
-                  {!isClient
-                    ? "…"
-                    : offline
-                      ? "No network. Everything you write is kept here and goes up when it returns."
-                      : "Online."}
-                </span>
-              </Row>
-              <Row label="Installed">
-                <span className="text-[12.5px] text-fg-muted">
-                  {!isClient
-                    ? "…"
-                    : installed
-                      ? "Running as an installed app."
-                      : "Running in a browser tab. Your browser's install button puts it in the dock."}
-                </span>
-              </Row>
-              {isClient && offlineSupported() && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void clearOffline().then(() =>
-                      notify("Offline cache cleared — reload to fetch fresh"),
-                    );
-                  }}
-                  className="flex w-fit items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-                >
-                  <Icon name="refresh" size={12} />
-                  Clear the offline cache
-                </button>
-              )}
             </Section>
 
             <Section
@@ -523,71 +655,15 @@ export default function SettingsPage() {
               </p>
             </Section>
 
-            <Section
-              id="providers"
-              title="Providers"
-              hint="Every capability sits behind an interface. These are what's wired in right now."
-            >
-              <ProviderRow
-                name="AI"
-                value={aiProvider}
-                detail="askAI(prompt, context) — streaming, accept/reject"
-              />
-              <ProviderRow
-                name="Storage"
-                value={isClient ? backendName() : "…"}
-                detail={sync}
-              />
-              <ProviderRow
-                name="Speech"
-                value={isClient ? speechProviderName() : "…"}
-                detail="Web Speech where available, simulated otherwise"
-              />
-              <ProviderRow
-                name="Realtime"
-                value={isClient ? getRealtimeProviderName() : "…"}
-                detail="Awareness-shaped; a Yjs provider drops in"
-              />
-              <ProviderRow
-                name="Chat"
-                value={isClient ? chatProviderName() : "…"}
-                detail="Websocket-shaped: send, subscribe, typing"
-              />
-              <ProviderRow
-                name="Sources"
-                value={isClient ? sourceResolverName() : "…"}
-                detail="Local parsing; a metadata service replaces it"
-              />
-            </Section>
+            <h2 className="label-mono mt-14 mb-4 border-b border-line pb-2 text-fg-subtle first:mt-0">
+              the shared workspace <span className="ml-2 normal-case text-fg-subtle/70">what changes for everyone, not just for you</span>
+            </h2>
 
             {/* Only where there is something to administer. The console that
                 used to live in the sidebar was hidden by the same rule, and
                 for the same reason: a permanently present group that only
                 ever says "this needs a database" teaches people to skip it. */}
             {configured && <Administration data={admin} />}
-
-            <Section
-              id="workspace"
-              title="Workspace"
-              hint="Everything lives in this browser."
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  resetWorkspace();
-                  notify("Workspace reset to the samples");
-                  router.push("/library");
-                }}
-                className="flex w-fit items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-danger/50 hover:text-danger"
-              >
-                <Icon name="refresh" size={12} />
-                Reset projects to the samples
-              </button>
-              <p className="font-mono text-[10px] leading-relaxed text-fg-subtle">
-                Discards local project changes. Chat history and appearance are
-                kept separately and survive this.
-              </p>
-            </Section>
           </div>
         </div>
       </main>

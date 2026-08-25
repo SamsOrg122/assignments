@@ -5,6 +5,11 @@
 -- beside it. Anything missing means a piece of `schema.sql` or of
 -- `migrations/0001-forms-and-administration.sql` did not run.
 --
+-- The last result set is the one to read first: it names every migration and
+-- whether it has visibly been applied. Anything there that is NOT APPLIED is
+-- fixed by running `supabase/catch-up.sql`, which is 0003–0014 in one paste
+-- and is safe to run however many times it has already been run.
+--
 -- The expected list is not a guess: it was taken from a Postgres 16 that had
 -- the schema applied to it from empty.
 
@@ -144,4 +149,66 @@ select
     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.proname = 'schema_report'
   ) then 'applied' else 'not applied — Settings cannot self-check' end
+union all
+select
+  '0005 — notes that follow you',
+  case when to_regclass('public.notes') is not null
+       then 'applied' else 'NOT APPLIED — the desktop note cannot sync' end
+union all
+select
+  '0006 — an agenda of your own',
+  case when to_regclass('public.events') is not null
+       then 'applied' else 'NOT APPLIED — the agenda stays in one browser' end
+union all
+select
+  '0007 — team agendas and daily tasks',
+  case when to_regclass('public.agenda_tasks') is not null
+       then 'applied' else 'NOT APPLIED — tasks stay in one browser' end
+union all
+select
+  '0008 — files that follow you',
+  case when to_regclass('public.kit_files') is not null
+       then 'applied' else 'NOT APPLIED — dropped files stay in one browser' end
+union all
+select
+  '0009 — a commons',
+  case when to_regclass('public.community_posts') is not null
+       then 'applied' else 'NOT APPLIED — nothing can be shared publicly' end
+union all
+select
+  '0010 — a ceiling on the model',
+  case when exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'ai_spend'
+  ) then 'applied' else 'NOT APPLIED — AI use is uncounted and uncapped' end
+union all
+select
+  '0011 — a way out',
+  case when exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'delete_my_account'
+  ) then 'applied' else 'NOT APPLIED — nobody can erase themselves' end
+union all
+select
+  '0012 — money arrives from outside',
+  -- Deliberately not "…and a secret has been set", tempting though it is:
+  -- naming `public.billing_secret` here is an error at parse time on a
+  -- database where 0012 has not run, and that would take this whole report
+  -- down on exactly the database that needs it most. So the reminder is
+  -- unconditional instead.
+  case when exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'record_subscription'
+  ) then 'applied — set_billing_secret() still has to be called once'
+    else 'not applied — only needed if you take payments' end
+union all
+select
+  '0013 — a thing with a deadline',
+  case when to_regclass('public.assignments') is not null
+       then 'applied' else 'NOT APPLIED — assignments stay in one browser' end
+union all
+select
+  '0014 — cards to learn from',
+  case when to_regclass('public.study_sets') is not null
+       then 'applied' else 'NOT APPLIED — study sets stay in one browser' end
 order by migration;

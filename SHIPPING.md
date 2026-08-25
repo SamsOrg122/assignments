@@ -25,29 +25,48 @@ Neither is proof of personhood: somebody willing to clear their browser gets
 a fresh anonymous account and a fresh allowance. The spend limit is the floor
 under all of it, and no code in this repository can set it.
 
-## 2. Run the new migrations
+## 2. Run the SQL
 
-Supabase → **SQL Editor** → paste and run, in this order:
+**One paste answers this whole section.** Supabase → **SQL Editor** → run
+`supabase/catch-up.sql`. It is migrations 0003 to 0014 concatenated in order,
+every section is idempotent, and running it on a database that already has
+some or all of it changes nothing. When in doubt, run it.
 
-- `supabase/migrations/0010-a-ceiling-on-the-model.sql`
-- `supabase/migrations/0011-a-way-out.sql`
-- `supabase/migrations/0012-money-arrives-from-outside.sql` — only needed if
-  you are taking payments; harmless to run either way
-- `supabase/migrations/0013-a-thing-with-a-deadline.sql` — the assignments
-  table. Without it the board still works, but only on the machine it was
-  typed on, and the page says so.
-- `supabase/migrations/0014-cards-to-learn-from.sql` — study sets. Same deal:
-  without it the cards stay on one machine and the page names the file.
+If you would rather see what you are running, the same thing one file at a
+time, in this order:
 
-All of them are re-runnable. Each ends with a **Proof** block in comments — run those
-lines too, signed in as an ordinary user. 0010's proof should refuse the
-fourth request and refuse to let you reset your own counter; 0011's should
-empty your account.
+| File | What it gives you |
+| --- | --- |
+| `0003-ids-the-client-can-actually-make.sql` | saving works at all |
+| `0004-let-the-app-check-its-own-database.sql` | Settings can self-check |
+| `0005-notes-that-follow-you.sql` | the desktop note syncs |
+| `0006-an-agenda-of-your-own.sql` | the agenda syncs |
+| `0007-team-agendas-and-daily-tasks.sql` | team agendas, daily tasks |
+| `0008-files-that-follow-you.sql` | dropped files reach the account |
+| `0009-a-commons.sql` | the community page |
+| `0010-a-ceiling-on-the-model.sql` | AI use is counted and capped |
+| `0011-a-way-out.sql` | Delete my account works |
+| `0012-money-arrives-from-outside.sql` | the payment webhook can grant a plan — only if you take payments |
+| `0013-a-thing-with-a-deadline.sql` | Assignments sync |
+| `0014-cards-to-learn-from.sql` | Study sets sync |
 
-If you are not sure the earlier migrations ever ran, `supabase/catch-up.sql`
-is 0003–0009 in one re-runnable file. Run that first.
+**Then check what actually landed.** Run `supabase/check.sql` — it changes
+nothing and its last table names every migration with `applied` or
+`NOT APPLIED`. That table is the answer to "what still needs running", and it
+is worth keeping the tab open: each file also ends with a **Proof** block in
+comments you can run as an ordinary signed-in user.
 
-Symptoms of skipping this: the assistant keeps working but nothing is
+The one thing no file can do for you is the payment secret, because it is a
+value only you have. After 0012, once:
+
+```sql
+select public.set_billing_secret('<paste 32+ random characters>');
+```
+
+and the same value goes in the deployment as `STRIPE_HOOK_DB_SECRET`. Skip it
+entirely if you are not charging yet.
+
+Symptoms of skipping the rest: the assistant keeps working but nothing is
 counted, Delete my account answers *"Could not find the function"*, and
 Assignments and Study show a line naming the file they need.
 

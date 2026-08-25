@@ -19,7 +19,7 @@ import type { Block, Slide, SlideObject } from "../types";
 import { createBlock, createImageBlock, uid } from "../factories";
 import { useProjects } from "../store";
 import { familyOf, labelFor } from "./mime";
-import { textOfDataUrl } from "./text";
+import { readAsText } from "./text";
 import {
   assetData,
   formatBytes,
@@ -170,7 +170,7 @@ export async function insertKitFile(
   if (block.type !== "text") return null;
   return store.insertBlock(
     projectId,
-    { ...block, html: attachmentHtml(asset, data) },
+    { ...block, html: await attachmentHtml(asset, data) },
     afterBlockId,
   );
 }
@@ -180,9 +180,9 @@ export async function insertKitFile(
  *
  * Two answers, and the difference matters.
  *
- * A file that *is* text — a brief, a set of notes, a CSV of results — goes
- * in as its text. That is what somebody inserting it wanted: the words, in
- * the document, editable.
+ * A file whose words can be got at — a brief, a set of notes, a CSV of
+ * results, a PDF — goes in as its text. That is what somebody inserting it
+ * wanted: the words, in the document, editable.
  *
  * Everything else goes in as a line naming it. Deliberately not a download
  * link: an anchor with the bytes in its href is a `data:` URL, and the
@@ -192,14 +192,18 @@ export async function insertKitFile(
  * says which file this is and the bytes stay on the shelf, where there is a
  * download button and nothing has to be trusted.
  */
-function attachmentHtml(asset: KitFile, dataUrl: string): string {
+async function attachmentHtml(asset: KitFile, dataUrl: string): Promise<string> {
   const kind = escapeHtml(labelFor(asset.mime, asset.filename));
   const size = escapeHtml(formatBytes(asset.bytes));
   const label = escapeHtml(asset.name);
 
-  const text = textOfDataUrl(dataUrl, asset.mime, asset.filename);
-  if (text !== null) {
-    const body = text
+  // A PDF that will not give up its words — locked, or a photograph of a
+  // page — lands on the naming line below rather than stopping the insert.
+  // Somebody dragged a file into a document; the worst outcome is not being
+  // told the file is there.
+  const read = await readAsText(dataUrl, asset.mime, asset.filename).catch(() => null);
+  if (read !== null) {
+    const body = read.text
       .split(/\n{2,}/)
       .map((para) => `<p>${escapeHtml(para.trim()).replace(/\n/g, "<br>")}</p>`)
       .join("");

@@ -7,14 +7,18 @@
  * locally it reads properly; what it can't, it says so about rather than
  * storing an empty record that quietly contributes nothing to context.
  *
- * A server-side extractor (PDF, DOCX, OCR) implements the same interface and
- * replaces `setFileExtractor` — nothing above this file changes.
+ * The reading itself is `files/extract`, shared with the notepad's file
+ * picker. This module is the part that is about *a message*: minting a
+ * record, naming who attached it, and turning a failure into a status
+ * somebody can see on the attachment rather than an exception.
+ *
+ * A server-side extractor — OCR for scanned pages, say — implements the same
+ * interface and replaces `setFileExtractor`; nothing above this file changes.
  */
 
-import { unzipSync, strFromU8 } from "fflate";
 import { uid } from "../factories";
 import { LOCAL_USER } from "../realtime";
-import { importPptx } from "../pptx";
+import { canExtract, extractText } from "./extract";
 import type { TeamFile } from "../team/types";
 
 export interface FileExtractor {
@@ -25,66 +29,17 @@ export interface FileExtractor {
 /** Anything larger is truncated — context has a budget, and so does storage. */
 const MAX_TEXT = 60_000;
 
-const TEXTUAL =
-  /^(text\/|application\/(json|xml|x-yaml|yaml|javascript|typescript|sql))/;
-
-const TEXT_EXTENSIONS =
-  /\.(txt|md|markdown|csv|tsv|json|ya?ml|xml|html?|css|js|jsx|ts|tsx|py|r|sql|bib|tex|log)$/i;
-
-const clip = (text: string) =>
-  text.length > MAX_TEXT
-    ? text.slice(0, MAX_TEXT) + "\n… [truncated for length]"
-    : text;
-
-/** DOCX, like PPTX, is a ZIP of XML — document.xml holds the prose. */
-function extractDocx(data: Uint8Array): string {
-  const files = unzipSync(data);
-  const doc = files["word/document.xml"];
-  if (!doc) throw new Error("No document.xml");
-  const xml = strFromU8(doc);
-  return xml
-    .replace(/<w:p[ >]/g, "\n<w:p ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 const localExtractor: FileExtractor = {
   name: "local",
 
   async extract(file) {
-    const name = file.name.toLowerCase();
-
-    if (name.endsWith(".pptx")) {
-      const deck = importPptx(new Uint8Array(await file.arrayBuffer()));
-      const text = deck.slides
-        .map(
-          (s, i) =>
-            `Slide ${i + 1}: ${s.title}\n` +
-            s.bullets.map((b) => `- ${b}`).join("\n") +
-            (s.note ? `\nNotes: ${s.note}` : ""),
-        )
-        .join("\n\n");
-      return {
-        text: clip(text),
-        note: `${deck.slideCount} slides read as text`,
-      };
-    }
-
-    if (name.endsWith(".docx")) {
-      const text = extractDocx(new Uint8Array(await file.arrayBuffer()));
-      return { text: clip(text), note: "Text extracted; formatting dropped" };
-    }
-
-    if (TEXTUAL.test(file.type) || TEXT_EXTENSIONS.test(name)) {
-      return { text: clip(await file.text()) };
-    }
-
-    // PDF needs a real parser; claiming to have read one would be a lie.
-    return null;
+    if (!canExtract(file.type, file.name)) return null;
+    return extractText(
+      new Uint8Array(await file.arrayBuffer()),
+      file.type,
+      file.name,
+      MAX_TEXT,
+    );
   },
 };
 

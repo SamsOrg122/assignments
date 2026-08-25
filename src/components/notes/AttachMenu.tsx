@@ -9,10 +9,11 @@
  * including everything the desktop app has sent up — because from the
  * asking side that distinction is the tool's problem, not the person's.
  *
- * Only what can be read as text is offered. A PDF or a .docx on the shelf is
- * shown greyed with the reason, rather than hidden: somebody who cannot find
- * the file they just uploaded assumes the picker is broken, and "PDF text
- * isn't read yet" is a smaller disappointment than a list that lies.
+ * Only what can be read is offered, and what can be read is now whatever the
+ * team chat could already read — text, .docx, .pptx and PDFs. A spreadsheet
+ * on the shelf is shown greyed with the reason, rather than hidden: somebody
+ * who cannot find the file they just uploaded assumes the picker is broken,
+ * and a reason is a smaller disappointment than a list that lies.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -20,9 +21,10 @@ import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 import { assetData, formatBytes, useKit, type KitAsset } from "@/lib/kit";
 import { accountFileData, listAccountFiles, type AccountFile } from "@/lib/kit/account";
-import { familyOf, iconFor, labelFor } from "@/lib/kit/mime";
+import { iconFor, labelFor } from "@/lib/kit/mime";
 import { isArtefact } from "@/lib/kit/artefact";
-import { textOfDataUrl } from "@/lib/kit/text";
+import { canExtract } from "@/lib/files/extract";
+import { readAsText } from "@/lib/kit/text";
 import type { AssistFile } from "@/lib/ai/assist/client";
 
 /** What the model is given of one file, at most. */
@@ -44,7 +46,7 @@ interface Candidate {
  * Nothing here reads an image — there is no vision model behind this
  * endpoint — and offering a photo greyed out with "text can't be read" would
  * be a strange thing to say about a photo. Fonts are the same. The greying is
- * for files somebody would reasonably expect to work: the PDF, the .docx.
+ * for files somebody would reasonably expect to work: the .xlsx, the .odt.
  */
 const candidateOfAsset = (asset: KitAsset): Candidate | null => {
   if (asset.kind !== "file") return null;
@@ -54,7 +56,7 @@ const candidateOfAsset = (asset: KitAsset): Candidate | null => {
     mime: asset.mime,
     bytes: asset.bytes,
     where: "here",
-    readable: familyOf(asset.mime, asset.filename) === "text",
+    readable: canExtract(asset.mime, asset.filename),
   };
 };
 
@@ -64,7 +66,7 @@ const candidateOfAccountFile = (file: AccountFile): Candidate => ({
   mime: file.mime,
   bytes: file.size,
   where: "account",
-  readable: familyOf(file.mime, file.name) === "text",
+  readable: canExtract(file.mime, file.name),
 });
 
 export function AttachMenu({
@@ -80,6 +82,7 @@ export function AttachMenu({
   const [account, setAccount] = useState<AccountFile[]>([]);
   const [reading, setReading] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [noted, setNoted] = useState<string | null>(null);
   const assets = useKit((s) => s.assets);
   const box = useRef<HTMLDivElement>(null);
 
@@ -127,6 +130,7 @@ export function AttachMenu({
 
   const pick = async (candidate: Candidate) => {
     setProblem(null);
+    setNoted(null);
     setReading(candidate.id);
     try {
       const data =
@@ -137,14 +141,20 @@ export function AttachMenu({
             );
       if (!data) throw new Error("Those bytes aren't here any more.");
 
-      const text = textOfDataUrl(data, candidate.mime, candidate.name, PER_FILE_CEILING);
+      const read = await readAsText(
+        data,
+        candidate.mime,
+        candidate.name,
+        PER_FILE_CEILING,
+      );
       onAttach({
         id: candidate.id,
         name: candidate.name,
         mime: candidate.mime,
         bytes: candidate.bytes,
-        ...(text === null ? {} : { text }),
+        ...(read === null ? {} : { text: read.text }),
       });
+      setNoted(read?.note ?? null);
       setOpen(false);
     } catch (error) {
       setProblem(String((error as Error).message ?? error));
@@ -174,6 +184,10 @@ export function AttachMenu({
             </li>
           ))}
         </ul>
+      )}
+
+      {noted && (
+        <p className="mb-2 text-[10.5px] leading-relaxed text-fg-subtle">{noted}</p>
       )}
 
       <button

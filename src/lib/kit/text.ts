@@ -3,47 +3,60 @@
 /**
  * Reading a kept file back as text.
  *
- * Two callers want the same thing for different reasons: inserting a file
- * into a document puts its words in the page, and asking the assistant about
- * a file has to send its words to the model. Both have to answer the same
- * question first — *is this text at all* — and both have to decode a data URL
- * that may or may not be base64.
- *
- * It lived inside `insert.ts` as a private function until the assistant
- * needed it too. Copying it would have been two decoders and one of them
- * eventually wrong about `;base64`.
+ * The shelf stores bytes as data URLs, which is what makes a file survive a
+ * reload without a server; every caller that wants a file's words therefore
+ * has to decode one first. That decoding is the whole of this module. The
+ * reading itself belongs to `files/extract`, which the team chat uses too —
+ * there is one answer to "what does this file say", not one per surface.
  */
 
-import { familyOf } from "./mime";
+import { extractText, type Extracted } from "../files/extract";
 
 /** How much of a file is worth carrying. Callers pass their own ceiling. */
 export const TEXT_CEILING = 200_000;
 
 /**
- * The file's text, or null when it is not text at all.
+ * The bytes behind a data URL, base64 or percent-encoded.
  *
- * Deliberately decided by family rather than by trying to decode and seeing
- * whether it looks like words: a PDF decodes to something, and that something
- * is binary noise that would be sent to a model as if it were a document.
+ * Both forms turn up: the shelf writes base64, and a hand-made URL in a test
+ * or a paste is often not. Getting `;base64` wrong produces plausible-looking
+ * mojibake rather than an error, which is why there is one decoder.
  */
-export function textOfDataUrl(
+export function bytesOfDataUrl(dataUrl: string): Uint8Array | null {
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) return null;
+
+  const body = dataUrl.slice(comma + 1);
+  try {
+    if (/;base64/i.test(dataUrl.slice(0, comma))) {
+      const raw = atob(body);
+      const out = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
+      return out;
+    }
+    return new TextEncoder().encode(decodeURIComponent(body));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A kept file's words, or null when that kind of file has none.
+ *
+ * Null and a thrown error mean different things, and the difference is what
+ * somebody is told. Null is a fact about pictures and fonts and archives, and
+ * needs no apology. A throw is a file that should have had words and did not
+ * give them up — a locked PDF, a .docx that is not really one — which is
+ * worth a sentence, because the person can act on it and otherwise concludes
+ * the tool is broken.
+ */
+export async function readAsText(
   dataUrl: string,
   mime: string,
   filename: string,
   cap: number = TEXT_CEILING,
-): string | null {
-  if (familyOf(mime, filename) !== "text") return null;
-
-  const comma = dataUrl.indexOf(",");
-  if (comma < 0) return null;
-
-  try {
-    const body = dataUrl.slice(comma + 1);
-    const decoded = /;base64/i.test(dataUrl.slice(0, comma))
-      ? new TextDecoder().decode(Uint8Array.from(atob(body), (c) => c.charCodeAt(0)))
-      : decodeURIComponent(body);
-    return decoded.length > cap ? `${decoded.slice(0, cap)}\n\n…` : decoded;
-  } catch {
-    return null;
-  }
+): Promise<Extracted | null> {
+  const data = bytesOfDataUrl(dataUrl);
+  if (!data) return null;
+  return extractText(data, mime, filename, cap);
 }

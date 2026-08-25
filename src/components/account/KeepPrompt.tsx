@@ -9,9 +9,10 @@
  * changes nothing, because "I'll stay here" is a decision and a prompt that
  * reappears after it is a nag.
  *
- * Two shapes, one condition. The wide row sits at the top of the Library; the
- * compact block sits in the sidebar, so the question is present while you are
- * actually working rather than only on the way in. Both are *in the layout* —
+ * Two shapes, one condition, never both at once. The wide row sits at the top
+ * of the Library; the compact block sits in the sidebar everywhere else, so
+ * the question is present while you are actually working rather than only on
+ * the way in. Both are *in the layout* —
  * the app already has three bottom-anchored surfaces (selection bars, voice,
  * toasts), and a floating fourth is how a fair question becomes an obstacle.
  *
@@ -20,6 +21,7 @@
  */
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/store";
 import { useProjects } from "@/lib/store";
 import { SEED_TS } from "@/lib/seed";
@@ -77,8 +79,14 @@ export function KeepPromptCompact() {
   const choiceMade = useAuth((s) => s.choiceMade);
   const keepOnDevice = useAuth((s) => s.keepOnDevice);
   const theirs = useHasOwnWork();
+  // Not on the page that already asks. The two shapes exist so that somebody
+  // who never returns to the library still gets the question once — but on
+  // the library itself they render forty centimetres apart, the same sentence
+  // over the same two buttons, and one question asked twice reads as a nag
+  // rather than as a choice.
+  const onLibrary = usePathname() === "/library";
 
-  if (choiceMade || !theirs) return null;
+  if (choiceMade || !theirs || onLibrary) return null;
 
   return (
     <div className="anim-slide-up mx-2.5 mb-2 rounded-md border border-line bg-surface p-2.5">

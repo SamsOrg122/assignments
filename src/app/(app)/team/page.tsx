@@ -295,7 +295,7 @@ function InvitesSection({
 
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("editor");
-  const [link, setLink] = useState<string | null>(null);
+  const [noted, setNoted] = useState<string | null>(null);
 
   const options = assignableRoles(myRole).filter((r) => r !== "owner");
   const pending = invites.filter((i) => i.status === "pending");
@@ -307,8 +307,8 @@ function InvitesSection({
       return;
     }
     setEmail("");
-    setLink(`${window.location.origin}/join/${created.token}`);
-    notify(`Invited ${created.email}`);
+    setNoted(created.email);
+    notify(`Noted ${created.email}`);
   };
 
   if (!canManage)
@@ -363,21 +363,36 @@ function InvitesSection({
 
       <p className="text-[11.5px] text-fg-subtle">{ROLE_HINTS[role]}</p>
 
-      {link && (
-        <div className="flex items-center gap-2 rounded-sm border border-line bg-surface px-2.5 py-2">
-          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-fg-muted">
-            {link}
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              void navigator.clipboard?.writeText(link);
-              notify("Invite link copied");
-            }}
-            className="shrink-0 rounded-xs border border-line px-2 py-1 text-[11px] text-fg-muted transition-colors hover:text-fg"
-          >
-            Copy
-          </button>
+      {/*
+        * What this button actually did, said out loud.
+        *
+        * It used to produce `${origin}/join/<token>` in a box with a Copy
+        * button beside it. There is no `/join` route and never was, and
+        * `acceptInvite` in `lib/team` describes itself as simulating the
+        * invitee following the link. So the most confident-looking control on
+        * the page handed somebody a URL that 404s, for a mechanism that does
+        * not exist.
+        *
+        * A dead link is worse than an absent one: the person copies it,
+        * sends it, and finds out from their classmate. This says instead
+        * exactly what happened — a name was written down — and what is
+        * missing. Sending real invitations needs a token the database can
+        * check, which is a feature, not a label.
+        */}
+      {noted && (
+        <div className="rounded-sm border border-line bg-surface px-2.5 py-2">
+          <p className="text-[12px] text-fg">
+            {noted} is on the list below.
+          </p>
+          <p className="mt-1 text-[11.5px] leading-relaxed text-fg-subtle">
+            Emailed invitations aren&apos;t built yet, so nothing has been sent.
+            The roles here decide what this browser offers; the ones the
+            database enforces are in{" "}
+            <Link href="/admin" className="text-accent hover:underline">
+              Administration
+            </Link>
+            .
+          </p>
         </div>
       )}
 

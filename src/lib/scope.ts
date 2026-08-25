@@ -74,3 +74,35 @@ export function hasTeamNow(): boolean {
 export function currentWorld(): Scope {
   return hasTeamNow() ? useScope.getState().scope : "personal";
 }
+
+/**
+ * The world to filter on, inside a component.
+ *
+ * Exists because every page needs it and each of them wrote the same
+ * expression out by hand — and the library's due-soon strip wrote it wrong,
+ * filtering on the stored value and going silently empty for anybody whose
+ * stored value said "team" while they had none. One expression, one place.
+ */
+export function useWorld(): Scope {
+  const chosen = useScope((s) => s.scope);
+  return useHasTeam() ? chosen : "personal";
+}
+
+/**
+ * Forget a team world that is no longer there.
+ *
+ * The switch only renders once there is a team, so a stored "team" with no
+ * team behind it is a value nobody can reach a control for. It is ordinary to
+ * arrive in: flip the switch to look at what a team would be, leave it, and
+ * the setting outlives the reason for it. Left alone it makes the library's
+ * "no team yet" panel a permanent notice that cannot be dismissed.
+ *
+ * Called after both stores have rehydrated — zustand's `rehydrate()` against
+ * localStorage is synchronous, so "the line after" is enough, and this must
+ * not run before the team store has loaded or it would reset the scope of
+ * everybody who does have a team.
+ */
+export function settleScope() {
+  if (!hasTeamNow() && useScope.getState().scope !== "personal")
+    useScope.setState({ scope: "personal" });
+}

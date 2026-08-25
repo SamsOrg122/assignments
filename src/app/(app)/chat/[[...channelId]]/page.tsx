@@ -3,6 +3,12 @@
 /**
  * Chat. An optional-catch-all route so `/chat` picks the most recent channel
  * and `/chat/<id>` opens a specific one — no redirect flash either way.
+ *
+ * The page carries its own room list now (`RoomsRail`), because the sidebar
+ * that used to hold it is a nav column for the whole product and is a closed
+ * drawer below 1024px — which left chat on a phone with no way to reach a
+ * second conversation. The rail draws in every state, including the one where
+ * there is no conversation at all.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -26,6 +32,7 @@ import { Composer } from "@/components/chat/Composer";
 import { TeamAssistant } from "@/components/chat/TeamAssistant";
 import { ChannelGate } from "@/components/chat/ChannelGate";
 import { ChannelSettings } from "@/components/chat/ChannelSettings";
+import { RoomsRail } from "@/components/chat/RoomsRail";
 import { Icon } from "@/components/ui/Icon";
 
 export default function ChatPage() {
@@ -85,28 +92,25 @@ export default function ChatPage() {
   /** A closed channel shows its gate instead of its history. */
   const locked = active ? !canOpen(active, unlocked) : false;
 
-  if (!active) {
-    return (
-      <>
-        <TopBar>
-          <span className="text-[13px] font-medium text-fg">Chat</span>
-        </TopBar>
-        <div className="grid flex-1 place-items-center px-6 text-center">
-          <p className="text-[13px] text-fg-subtle">
-            {hydrated ? "No conversations yet." : ""}
-          </p>
-        </div>
-      </>
-    );
-  }
-
-  const others = active.memberIds.filter((id) => id !== LOCAL_USER.id);
+  /*
+   * Computed for whatever is open, or empty when nothing is.
+   *
+   * There used to be an early return above this for the no-channel case, which
+   * meant the rail could not be drawn in the one state where it matters most:
+   * a workspace with nothing in it needs the "+" and "message someone" more
+   * than a workspace full of rooms does. Now the page always renders its
+   * chrome and the conversation half is what changes.
+   */
+  const others = active
+    ? active.memberIds.filter((id) => id !== LOCAL_USER.id)
+    : [];
   const parent = threadId ? messages.find((m) => m.id === threadId) : null;
 
   return (
     <>
       <TopBar
         right={
+          active ? (
           <div className="flex items-center gap-2">
             <div className="flex -space-x-1.5">
               {others.slice(0, 4).map((id) => {
@@ -149,35 +153,50 @@ export default function ChatPage() {
               </button>
             )}
           </div>
+          ) : undefined
         }
       >
-        <Icon
-          name={
-            active.kind === "ai"
-              ? "sparkle"
-              : active.kind === "dm"
-                ? "users"
-                : "board"
-          }
-          size={13}
-          className="shrink-0 text-fg-subtle"
-        />
-        <span className="truncate text-[13px] font-medium text-fg">
-          {active.kind === "channel" ? `#${active.name}` : active.name}
-        </span>
-        {active.topic && (
-          <span className="hidden min-w-0 truncate text-[12px] text-fg-subtle md:block">
-            {active.topic}
-          </span>
+        {active ? (
+          <>
+            <Icon
+              name={
+                active.kind === "ai"
+                  ? "sparkle"
+                  : active.kind === "dm"
+                    ? "users"
+                    : "board"
+              }
+              size={13}
+              className="shrink-0 text-fg-subtle"
+            />
+            <span className="truncate text-[13px] font-medium text-fg">
+              {active.kind === "channel" ? `#${active.name}` : active.name}
+            </span>
+            {active.topic && (
+              <span className="hidden min-w-0 truncate text-[12px] text-fg-subtle md:block">
+                {active.topic}
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="text-[13px] font-medium text-fg">Chat</span>
         )}
       </TopBar>
 
-      {settingsOpen && (
+      {settingsOpen && active && (
         <ChannelSettings channel={active} onClose={() => setSettingsOpen(false)} />
       )}
 
-      <main className="flex min-h-0 flex-1">
-        {locked ? (
+      <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <RoomsRail activeId={active?.id} />
+
+        {!active ? (
+          <div className="grid min-h-0 flex-1 place-items-center px-6 text-center">
+            <p className="text-[13px] text-fg-subtle">
+              {hydrated ? "No conversations yet." : ""}
+            </p>
+          </div>
+        ) : locked ? (
           <ChannelGate channel={active} />
         ) : active.kind === "ai" ? (
           <TeamAssistant channelId={active.id} />
@@ -197,7 +216,7 @@ export default function ChatPage() {
         </div>
         )}
 
-        {parent && active.kind !== "ai" && (
+        {parent && active && active.kind !== "ai" && (
           <aside className="hidden w-[380px] shrink-0 flex-col border-l border-line lg:flex">
             <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
               <span className="label-mono">Thread</span>
@@ -240,7 +259,7 @@ export default function ChatPage() {
       </main>
 
       {/* Mobile: the thread takes the whole screen. */}
-      {parent && (
+      {parent && active && (
         <div className="fixed inset-0 z-[60] flex flex-col bg-canvas lg:hidden">
           <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
             <button
@@ -265,7 +284,7 @@ export default function ChatPage() {
       )}
 
       {/* Keeps the unread badge honest while the channel is on screen. */}
-      <UnreadSync channelId={active.id} readAt={readAt[active.id]} />
+      {active && <UnreadSync channelId={active.id} readAt={readAt[active.id]} />}
     </>
   );
 }

@@ -1,12 +1,27 @@
 "use client";
 
 /**
- * The Library — sorted, findable, finished work.
+ * The Library — where the work is, and now where the day starts.
  *
- * Rows rather than a card grid: a library is for scanning names quickly, and
- * rows fit far more on screen without shrinking the type. Filtering is
- * client-side over the same fuzzy matcher the palette uses, so search here and
- * search in ⌘K rank identically.
+ * The address is `/library` and stays `/library` whatever the sidebar calls
+ * the row. `public/sw.js` precaches that exact path and hands it back for
+ * every navigation it cannot reach the network for; `manifest.ts` uses it for
+ * `start_url` and the installed shortcut; the landing page iframes
+ * `/library?demo=1`. A rename would take the offline fallback down silently,
+ * because `cache.add()` follows the redirect and a redirected response handed
+ * to `respondWith` for a navigation is a network error rather than a page.
+ *
+ * Top to bottom the page is: anything actually wrong, then anything that
+ * arrived while you were away, then where you were, then what is due, then
+ * the work itself, then the shelf of rooms that are not projects. Each band
+ * above the grid hides when it has nothing to say — which is only safe
+ * because the shelf at the bottom never does.
+ *
+ * Rows rather than a card grid for the work itself: a library is for scanning
+ * names quickly, and rows fit far more on screen without shrinking the type.
+ * The cards are the six-item band at the top, which is a different job.
+ * Filtering is client-side over the same fuzzy matcher the palette uses, so
+ * search here and search in ⌘K rank identically.
  */
 
 import { useMemo, useState } from "react";
@@ -36,13 +51,14 @@ import { projectSummary } from "@/lib/summary";
 import { KeepPrompt } from "@/components/account/KeepPrompt";
 import { TemplatePicker } from "@/components/library/TemplatePicker";
 import type { Block } from "@/lib/types";
-import { formatDayMonth } from "@/lib/format";
 import { ImportZone, openImportPicker } from "@/components/library/ImportZone";
 import { ReturnedNotes } from "@/components/library/ReturnedNotes";
 import { DueSoon } from "@/components/library/DueSoon";
 import { SaveWarning } from "@/components/library/SaveWarning";
 import { WhereIsMyWork } from "@/components/library/WhereIsMyWork";
 import { DesktopNotes } from "@/components/library/DesktopNotes";
+import { PickUpWhere, relativeTime } from "@/components/library/PickUpWhere";
+import { Shelf } from "@/components/library/Shelf";
 
 type Sort = "recent" | "name" | "kind";
 
@@ -172,11 +188,22 @@ export default function LibraryPage() {
             </h1>
           </div>
 
-          {chosen === "team" && !hasTeam ? (
-            /* Team world, no team behind it: the two doors rather than an
-               empty shelf that looks broken. Creating a team is the paid
-               plan; joining takes a link from someone who has one. */
-            <div className="hairline rounded-lg bg-surface px-6 py-14 text-center">
+          {chosen === "team" && !hasTeam && (
+            /*
+             * Team world, no team behind it: the two doors, said before the
+             * library rather than instead of it.
+             *
+             * This panel used to replace the whole page, which was survivable
+             * only while the sidebar's Personal | Team switch was always on
+             * screen to turn back with. It is not there any more — it renders
+             * only once a team exists — so a scope of "team" persisted from
+             * before somebody left one would strand them here for good, on an
+             * upsell, with every document they own on the other side of a
+             * control that no longer exists. `world` already downgrades to
+             * personal; the page now agrees with it and shows their work
+             * underneath. Both doors keep their words and their addresses.
+             */
+            <div className="hairline mb-6 rounded-lg bg-surface px-6 py-14 text-center">
               <p className="display text-[19px] text-fg">No team yet.</p>
               <p className="mx-auto mt-2 max-w-[46ch] text-[13px] leading-relaxed text-fg-muted">
                 Team documents live in a team: everyone in it sees this
@@ -198,24 +225,35 @@ export default function LibraryPage() {
                 </Link>
               </div>
             </div>
-          ) : (
-          <>
+          )}
+
           <KeepPrompt />
 
           {/* Work that is not reaching the account, said where the work is. */}
           <SaveWarning />
 
+          {/* Both of these are arrivals, not rooms — a comment somebody left
+              on your document, a note the desktop window put here — and an
+              arrival that has to be scrolled to is one nobody sees. They sat
+              below the grid for a while, which put them several screens down
+              on a workspace with forty projects, behind a shelf line that
+              reads like the end of the page. Each renders nothing when there
+              is nothing. */}
+          <ReturnedNotes />
+          <DesktopNotes />
+
+          {/* Above the deadlines on purpose: "where was I" is the question
+              somebody opens this page with, and the sidebar no longer answers
+              it. Renders nothing until there are two projects. */}
+          <PickUpWhere
+            projects={projects}
+            showTime={hydrated}
+            onMenu={openMenu}
+          />
+
           {/* Deadlines, on the page people actually land on. Renders nothing
               when nothing is due inside a fortnight. */}
           <DueSoon />
-
-          {/* Notes left through a comment link while nobody was here. */}
-          <ReturnedNotes />
-
-          {/* What the floating desktop note has put in this account. Renders
-              nothing at all when there are none, which is everybody who has
-              not installed it. */}
-          <DesktopNotes />
 
           {/* Listens on the window, so a folder can be dropped anywhere on
               this page rather than onto a target somebody has to find. */}
@@ -410,9 +448,10 @@ export default function LibraryPage() {
               ))}
             </ul>
           )}
-          </>
-          )}
 
+          {/* Never hidden, empty or not — see Shelf's own note. The picker it
+              opens is the one the New menu opens. */}
+          <Shelf onTemplates={() => setTemplating(true)} />
         </div>
       </main>
     </>
@@ -633,18 +672,5 @@ function NewProjectButton({
       )}
     </div>
   );
-}
-
-/** Rendered only after hydration — `Date.now()` differs between server and client. */
-function relativeTime(ts: number): string {
-  const seconds = Math.round((Date.now() - ts) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return formatDayMonth(ts);
 }
 

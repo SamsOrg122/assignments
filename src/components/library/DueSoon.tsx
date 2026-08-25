@@ -22,14 +22,17 @@ import { cn } from "@/lib/cn";
 import { keyOf, type DayKey } from "@/lib/agenda/model";
 import { hydrateAssignments, pullAssignments, useAssignments } from "@/lib/assignments";
 import { pressing, standing } from "@/lib/assignments/model";
-import { useScope } from "@/lib/scope";
+import { useWorld } from "@/lib/scope";
 
 /** How far ahead is worth worrying about on a page that is not the board. */
 const HORIZON = 14;
 
 export function DueSoon() {
   const assignments = useAssignments((s) => s.assignments);
-  const scope = useScope((s) => s.scope);
+  // The downgraded world, not the stored one: somebody who once looked at a
+  // team and left had a stored scope of "team" and got an empty strip here
+  // with nothing on screen to change it back.
+  const world = useWorld();
   const [today, setToday] = useState<DayKey>("");
 
   useEffect(() => {
@@ -41,7 +44,7 @@ export function DueSoon() {
   if (!today) return null;
 
   const soon = pressing(
-    assignments.filter((a) => (a.scope ?? "personal") === scope),
+    assignments.filter((a) => (a.scope ?? "personal") === world),
     today,
     HORIZON,
   );
@@ -55,7 +58,9 @@ export function DueSoon() {
       <div className="mb-1.5 flex items-center gap-2">
         <span className="label-mono text-fg-subtle">Due soon</span>
         <Link
-          href="/assignments"
+          /* /due, not /assignments: this strip is a dated list and /due is the
+             dated list. The board is one of /due's two doors. */
+          href="/due"
           className="ml-auto text-[11px] text-fg-subtle transition-colors hover:text-fg"
         >
           All of it

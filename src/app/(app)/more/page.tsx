@@ -119,7 +119,7 @@ export default function MorePage() {
                 path={null}
                 name="Direct messages"
                 answers="One conversation with one person, kept out of the channels."
-                unlocks="Appears under Direct messages in the sidebar once there is somebody to message. Start one with the + beside that heading."
+                unlocks="Start one with “message someone” on the chat page. It then shows up there, and in the recent list in the sidebar."
               />
             </Group>
 
@@ -169,7 +169,7 @@ export default function MorePage() {
                 href="/pricing"
                 name="Pricing"
                 answers="What it costs and what changes when you pay."
-                unlocks="The other way you meet it: switch the sidebar to Team without having one, and both panels offer Create a team, which is this page. Nothing in the tool interrupts you about a plan."
+                unlocks="The other ways you meet it: “Your plan” in settings, and the Create a team button on a library or chat page that is looking at a team you do not have. Nothing in the tool interrupts you about a plan."
               />
             </Group>
 

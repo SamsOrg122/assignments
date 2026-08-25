@@ -32,6 +32,7 @@ export const EN = {
   "nav.agenda": "Agenda",
   "nav.assignments": "Assignments",
   "nav.notes": "Notes",
+  "nav.study": "Study",
   "nav.kit": "Kit",
   "nav.team": "Team",
   "nav.community": "Community",

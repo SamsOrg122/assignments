@@ -36,6 +36,8 @@ Supabase → **SQL Editor** → paste and run, in this order:
 - `supabase/migrations/0013-a-thing-with-a-deadline.sql` — the assignments
   table. Without it the board still works, but only on the machine it was
   typed on, and the page says so.
+- `supabase/migrations/0014-cards-to-learn-from.sql` — study sets. Same deal:
+  without it the cards stay on one machine and the page names the file.
 
 All of them are re-runnable. Each ends with a **Proof** block in comments — run those
 lines too, signed in as an ordinary user. 0010's proof should refuse the
@@ -47,7 +49,7 @@ is 0003–0009 in one re-runnable file. Run that first.
 
 Symptoms of skipping this: the assistant keeps working but nothing is
 counted, Delete my account answers *"Could not find the function"*, and
-Assignments shows a line naming 0013.
+Assignments and Study show a line naming the file they need.
 
 ## 3. Deploy the site
 

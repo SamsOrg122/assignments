@@ -374,6 +374,15 @@ export function Sidebar() {
             active={pathname === "/notes"}
             onNavigate={closeOnMobile}
           />
+          {/* Two stacked rectangles — a deck of cards. Not the sparkle, which
+              is already the team assistant two rows down. */}
+          <NavLink
+            href="/study"
+            icon="copy"
+            label={t("nav.study")}
+            active={pathname === "/study"}
+            onNavigate={closeOnMobile}
+          />
           <NavLink
             href="/kit"
             icon="group"

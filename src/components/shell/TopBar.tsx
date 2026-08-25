@@ -20,13 +20,19 @@ export function TopBar({
         "border-b border-line bg-canvas/85 backdrop-blur-md print:hidden",
       )}
     >
+      {/*
+        * The toggle, at every width and in both directions.
+        *
+        * It used to take `lg:hidden` while the sidebar was open, and the
+        * sidebar's own X is `lg:hidden` always — so on a desktop the sidebar
+        * could be opened with a pointer and closed only with ⌘B. Somebody who
+        * had never found that shortcut had no way back to a full-width
+        * document once they had opened the column.
+        */}
       <button
         type="button"
         onClick={toggleSidebar}
-        className={cn(
-          "rounded-sm p-1.5 text-fg-subtle transition-colors duration-150 hover:text-fg",
-          sidebarOpen && "lg:hidden",
-        )}
+        className="rounded-sm p-1.5 text-fg-subtle transition-colors duration-150 hover:text-fg"
         aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
       >
         <Icon name="panel-left" size={15} />

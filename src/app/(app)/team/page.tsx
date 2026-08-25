@@ -313,7 +313,7 @@ function InvitesSection({
 
   if (!canManage)
     return (
-      <Section title="Invites" hint="Admins and owners can invite people.">
+      <Section id="join" title="Invites" hint="Admins and owners can invite people.">
         <p className="text-[12px] text-fg-subtle">
           {pending.length} invitation{pending.length === 1 ? "" : "s"} pending.
         </p>
@@ -321,7 +321,10 @@ function InvitesSection({
     );
 
   return (
-    <Section title="Invites" hint="They join with the role you pick here.">
+    /* `id="join"` because two links elsewhere already point at /team#join —
+       the sidebar's "Join a team" and the Library's — and until now both
+       landed on the top of a page with no such anchor on it. */
+    <Section id="join" title="Invites" hint="They join with the role you pick here.">
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="email"
@@ -707,14 +710,17 @@ function FilesSection({ count }: { count: number }) {
 function Section({
   title,
   hint,
+  id,
   children,
 }: {
   title: string;
   hint?: string;
+  /** An address other pages can send somebody to. */
+  id?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-9">
+    <section id={id} className="scroll-mt-20 mb-9">
       <h2 className="text-[15px] font-medium tracking-[-0.01em] text-fg">
         {title}
       </h2>

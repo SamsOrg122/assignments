@@ -22,6 +22,7 @@ import { useAppearance } from "@/lib/theme-store";
 import { hydrateScope, useHasTeam, useScope } from "@/lib/scope";
 import { hydrateTeam } from "@/lib/team";
 import {
+  HUMANS,
   lastActivity,
   personById,
   unreadCount,
@@ -101,10 +102,12 @@ export function Sidebar() {
   const messages = useChat((s) => s.messages);
   const readAt = useChat((s) => s.readAt);
   const createChannel = useChat((s) => s.createChannel);
+  const openDM = useChat((s) => s.openDM);
 
   const [newChannel, setNewChannel] = useState(false);
   const [channelName, setChannelName] = useState("");
   const [showAllProjects, setShowAllProjects] = useState(false);
+  const [pickingPerson, setPickingPerson] = useState(false);
   const notify = useUI.getState().notify;
   const menu = useMenu();
   const [channelSettingsFor, setChannelSettingsFor] = useState<string | null>(null);
@@ -199,8 +202,23 @@ export function Sidebar() {
         )
         .sort(byRecency),
       dms: withMeta.filter((c) => c.channel.kind === "dm").sort(byRecency),
+      /*
+       * Counted over exactly the rooms the list below shows, plus the
+       * assistant and direct messages, which are not scoped.
+       *
+       * It used to sum every unarchived channel regardless of scope, so an
+       * unread team channel put a number on "Chat" while you were in personal
+       * — a badge with no row underneath it to open, and clicking it landed
+       * you in the other world. A badge that counts something you cannot see
+       * is worse than no badge.
+       */
       totalUnread: withMeta
-        .filter((c) => !c.channel.archived)
+        .filter(
+          (c) =>
+            !c.channel.archived &&
+            (c.channel.kind !== "channel" ||
+              (c.channel.scope ?? "personal") === scope),
+        )
         .reduce((n, c) => n + c.unread, 0),
     };
   }, [channels, messages, readAt, scope]);
@@ -325,11 +343,15 @@ export function Sidebar() {
         </div>
 
         <nav className="flex shrink-0 flex-col gap-0.5 px-2.5 pb-3">
+          {/* `pathname === "/"` was the marketing page, which lives outside
+              this shell — so the app's home row could never render as the
+              current one, and on the app's home screen no row was highlighted
+              at all. */}
           <NavLink
             href="/library"
             icon="home"
             label={t("nav.library")}
-            active={!activeProject && !onChat && pathname === "/"}
+            active={!activeProject && !onChat && pathname === "/library"}
             onNavigate={closeOnMobile}
           />
           <NavLink
@@ -416,6 +438,9 @@ export function Sidebar() {
           {/* Projects */}
           <div className="mb-1 flex items-center justify-between px-4">
             <span className="label-mono">{t("nav.projects")}</span>
+            {/* Disabled, and saying why. The panel below explains the state,
+                but a button that goes grey with a tooltip still promising
+                "New project" is the one thing on screen that does not. */}
             <button
               type="button"
               disabled={scope === "team" && !hasTeam}
@@ -423,9 +448,17 @@ export function Sidebar() {
                 closeOnMobile();
                 router.push(`/p/${addProject("doc")}`);
               }}
-              className="rounded-xs p-0.5 text-fg-subtle transition-colors duration-150 hover:text-fg"
-              aria-label="New project"
-              title="New project"
+              className="rounded-xs p-0.5 text-fg-subtle transition-colors duration-150 hover:text-fg disabled:opacity-40"
+              aria-label={
+                scope === "team" && !hasTeam
+                  ? "New document — needs a team first"
+                  : "New document"
+              }
+              title={
+                scope === "team" && !hasTeam
+                  ? "Team documents need a team first"
+                  : "New document"
+              }
             >
               <Icon name="plus" size={13} />
             </button>
@@ -499,9 +532,17 @@ export function Sidebar() {
               type="button"
               disabled={scope === "team" && !hasTeam}
               onClick={() => setNewChannel(true)}
-              className="rounded-xs p-0.5 text-fg-subtle transition-colors duration-150 hover:text-fg"
-              aria-label="New channel"
-              title="New channel"
+              className="rounded-xs p-0.5 text-fg-subtle transition-colors duration-150 hover:text-fg disabled:opacity-40"
+              aria-label={
+                scope === "team" && !hasTeam
+                  ? "New channel — needs a team first"
+                  : "New channel"
+              }
+              title={
+                scope === "team" && !hasTeam
+                  ? "Channels need a team first"
+                  : "New channel"
+              }
             >
               <Icon name="plus" size={13} />
             </button>
@@ -585,10 +626,55 @@ export function Sidebar() {
           </ul>
           )}
 
-          {/* Direct messages */}
-          <div className="mt-4 mb-1 px-4">
+          {/*
+            * Direct messages, with a way to start one.
+            *
+            * The heading has always been permanent and `openDM` had exactly
+            * one caller in the whole product — a command-palette row. So the
+            * sidebar advertised a section for something you could only do by
+            * keyboard, and a new person saw a header for a feature that, as
+            * far as the pointer was concerned, did not exist.
+            */}
+          <div className="mt-4 mb-1 flex items-center justify-between px-4">
             <span className="label-mono">{t("nav.dms")}</span>
+            <button
+              type="button"
+              onClick={() => setPickingPerson((v) => !v)}
+              aria-expanded={pickingPerson}
+              aria-label="Message someone"
+              title="Message someone"
+              className="rounded-xs p-0.5 text-fg-subtle transition-colors hover:text-fg"
+            >
+              <Icon name="plus" size={12} />
+            </button>
           </div>
+
+          {pickingPerson && (
+            <ul className="mb-1 flex flex-col gap-0.5 px-2.5">
+              {HUMANS.filter((person) => person.id !== LOCAL_USER.id).map(
+                (person) => (
+                  <li key={person.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPickingPerson(false);
+                        closeOnMobile();
+                        router.push(`/chat/${openDM(person.id)}`);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-left text-[13px] text-fg-muted transition-colors duration-150 hover:bg-surface hover:text-fg"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="size-1.5 shrink-0 rounded-full"
+                        style={{ background: person.color }}
+                      />
+                      <span className="truncate">{person.name}</span>
+                    </button>
+                  </li>
+                ),
+              )}
+            </ul>
+          )}
           <ul className="flex flex-col gap-0.5 px-2.5">
             {dms.map(({ channel, unread }) => {
               const other = channel.memberIds.find((id) => id !== LOCAL_USER.id);
@@ -686,6 +772,9 @@ function NavLink({
     <Link
       href={href}
       onClick={onNavigate}
+      /* The highlight had no programmatic twin, so which page you were on was
+         information available only to people who could see the shade. */
+      aria-current={active ? "page" : undefined}
       className={cn(
         "flex items-center gap-2 rounded-md px-2 text-[13px] transition-colors duration-150",
         "py-[var(--ui-row-y)]",

@@ -18,6 +18,7 @@ import {
   canOpen,
 } from "@/lib/chat";
 import { LOCAL_USER } from "@/lib/realtime";
+import { useHasTeam, useScope } from "@/lib/scope";
 import { useUI } from "@/lib/ui-store";
 import { TopBar } from "@/components/shell/TopBar";
 import { MessageList } from "@/components/chat/MessageList";
@@ -41,15 +42,36 @@ export default function ChatPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const unlocked = useChat((s) => s.unlocked);
 
-  // With no channel in the URL, open whichever has spoken most recently.
+  // The same downgrade the sidebar and the Library make: without a team there
+  // is no team world, so the switch cannot strand you in an empty one.
+  const chosenScope = useScope((s) => s.scope);
+  const hasTeam = useHasTeam();
+  const world = hasTeam ? chosenScope : "personal";
+
+  /*
+   * With no channel in the URL, open whichever has spoken most recently —
+   * among the ones the sidebar is actually showing you.
+   *
+   * The filter applies to the LANDING PICK ONLY, never to the lookup by id.
+   * An invite link into an archived room, or a link to a team channel opened
+   * while the switch says personal, must still open the room it names; what
+   * it must not do is pick that room for you when you asked for no room in
+   * particular. Before this, /chat and the installed app's Chat shortcut
+   * could drop you into an archived channel, or into the other world.
+   */
   const active = useMemo(() => {
     if (routeId) return channels.find((c) => c.id === routeId) ?? null;
+    const reachable = channels.filter(
+      (c) =>
+        !c.archived &&
+        (c.kind !== "channel" || (c.scope ?? "personal") === world),
+    );
     return (
-      [...channels].sort(
+      [...reachable].sort(
         (a, b) => lastActivity(messages, b.id) - lastActivity(messages, a.id),
       )[0] ?? null
     );
-  }, [routeId, channels, messages]);
+  }, [routeId, channels, messages, world]);
 
   // Adjust during render rather than in an effect: switching channel must not
   // leave the previous channel's thread open for a frame.

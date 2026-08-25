@@ -45,8 +45,14 @@ const APP_SURFACES = [
   "/assignments",
   "/community",
   // Anchored with `$`: a Disallow is a *prefix* match, so a bare "/f" would
-  // also hide a future /features or /faq. Both of these are leaf routes.
+  // also hide a future /features or /faq. These are all leaf routes — and the
+  // last two are the aliases in next.config.ts for the rows labelled "work"
+  // and "people", which land on /library and /team above. A redirect to a
+  // disallowed page is still a URL worth not crawling, and unanchored they
+  // would swallow a future /workshop or /people-we-work-with.
   "/f$",
+  "/work$",
+  "/people$",
   // A shared project lives in the URL fragment, which a crawler never receives
   // — so /v is always an empty page to anything indexing it. Kept out of the
   // index so that empty page never becomes a search result for someone's

@@ -142,4 +142,31 @@ nextConfig.headers = async () => [
   { source: "/:path*", headers: SECURITY_HEADERS },
 ];
 
+/**
+ * Two aliases for the two rows that were renamed.
+ *
+ * The sidebar rows are labelled "work" and "people"; the pages behind them
+ * stay at /library and /team. People type the label they can see, so the
+ * label needs an address — but the address itself may not move:
+ *
+ *  - `/library` is precached by `public/sw.js` and returned by its navigation
+ *    fallback. `cache.add()` follows a redirect, and handing a response with
+ *    `redirected: true` to `respondWith` for a navigation is a network error
+ *    rather than a page — so making /library the *source* of a redirect would
+ *    silently break the offline promise. It is only ever a target.
+ *  - `/library` is also `start_url` in the manifest, an installed app
+ *    shortcut, and what the landing page iframes as `/library?demo=1`.
+ *  - `/team` stays because `robots.ts` disallows it by name, and a net-new
+ *    /people page would be the one app surface a crawler could index.
+ *
+ * Here rather than in a page component, and 308 rather than 307: a
+ * `redirect()` inside a page drops the query string, which is exactly how the
+ * marketing site's live demo would lose its `?demo=1` and render an empty
+ * workspace. A config redirect preserves it.
+ */
+nextConfig.redirects = async () => [
+  { source: "/work", destination: "/library", permanent: true },
+  { source: "/people", destination: "/team", permanent: true },
+];
+
 export default nextConfig;

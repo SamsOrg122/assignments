@@ -127,14 +127,20 @@ export function BlockShell({
     const onPointerDown = (e: PointerEvent) => {
       if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
     };
+    // Capture, and marked handled: this listener is added when the menu opens,
+    // which is long after the page's own window listeners, so in the bubble
+    // phase it would run last and Esc would close the menu *and* leave focus
+    // mode. Capturing puts it in front of them.
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setMenuOpen(false);
     };
     window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
     return () => {
       window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDown, true);
     };
   }, [menuOpen]);
 

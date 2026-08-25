@@ -23,6 +23,54 @@ import { useSync } from "@/lib/db/sync";
 import { useKitFonts } from "@/lib/kit/use-kit-fonts";
 import type { BlockType } from "@/lib/types";
 
+/**
+ * The chords that stay live inside a text editor.
+ *
+ * Everything else in the global listener stands down there — see the guard in
+ * `onKeyDown`. These are in because no editing surface binds them and they are
+ * how you get *out* of a document: the palette, this sheet, the assistant on
+ * the selection, and voice.
+ */
+const LIVE_WHILE_EDITING = new Set(["k", "/", "j", "v"]);
+
+/**
+ * The thing that edits text under `target`, if there is one.
+ *
+ * Walks up instead of testing the target alone: a caret in ProseMirror puts
+ * the event on the contenteditable host, but a press on one of its atoms — a
+ * note marker, an equation — lands on a child marked `contenteditable=false`,
+ * and only the walk finds the editor above it. A read-only or disabled field
+ * is not editing anything, so it doesn't count.
+ */
+/** The input types that hold text. A checkbox, a slider and a file button are
+ *  all `<input>`, none of them is editing anything, and `readOnly` is
+ *  meaningless on all three — so testing the tag alone would stand the global
+ *  shortcuts down over a tickbox. */
+const TEXTUAL_INPUT = new Set([
+  "text", "search", "email", "url", "tel", "password", "number", "", 
+]);
+
+function editingHost(target: EventTarget | null): HTMLElement | null {
+  for (
+    let el: Element | null = target instanceof Element ? target : null;
+    el;
+    el = el.parentElement
+  ) {
+    if (!(el instanceof HTMLElement)) continue;
+    if (el.isContentEditable) return el;
+    if (el instanceof HTMLTextAreaElement && !el.readOnly && !el.disabled)
+      return el;
+    if (
+      el instanceof HTMLInputElement &&
+      TEXTUAL_INPUT.has(el.type) &&
+      !el.readOnly &&
+      !el.disabled
+    )
+      return el;
+  }
+  return null;
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   // Keeps <html data-*> in step with stored preferences.
   useAppearanceSync();
@@ -65,13 +113,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const onKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
+      const key = e.key.toLowerCase();
 
-      if (e.key.toLowerCase() === "k") {
+      // One test for every binding below, not just for the one that clashed.
+      // A chord typed into something that edits text belongs to that thing
+      // first: ⌘B is bold in a document, ProseMirror preventDefaults it, and
+      // this listener firing as well collapsed the sidebar behind the writer's
+      // back on every bold word.
+      if (!LIVE_WHILE_EDITING.has(key) && editingHost(e.target)) return;
+
+      if (key === "k") {
         e.preventDefault();
         togglePalette();
         return;
       }
-      if (e.key.toLowerCase() === "b") {
+      if (key === "b") {
         e.preventDefault();
         toggleSidebar();
         return;
@@ -83,21 +139,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }
       // ⌘⇧V opens voice mode from anywhere. Once it's open the dock owns the
       // key, so the same press stops talking rather than reopening.
-      if (e.shiftKey && e.key.toLowerCase() === "v") {
+      if (e.shiftKey && key === "v") {
         if (useUI.getState().voiceOpen) return;
         e.preventDefault();
         setVoiceOpen(true);
         return;
       }
-      // ⌘⇧S reads the last answer aloud, which means opening voice if it isn't.
-      if (e.shiftKey && e.key.toLowerCase() === "s") {
-        if (useUI.getState().voiceOpen) return;
-        e.preventDefault();
-        setVoiceOpen(true);
-        return;
-      }
+      // ⌘⇧S is deliberately NOT handled here. It reads the last answer aloud,
+      // and the dock is the only thing that has an answer — so the dock binds
+      // it. This used to open voice instead, which meant a key advertised as
+      // "read the answer aloud" switched on the microphone and recorded, with
+      // nothing to read.
       // ⌘J — ask AI about whatever is selected, wherever the caret is.
-      if (e.key.toLowerCase() === "j") {
+      if (key === "j") {
         if (!projectId) return;
         e.preventDefault();
         const selection = window.getSelection();

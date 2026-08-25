@@ -51,6 +51,7 @@ import { Icon } from "@/components/ui/Icon";
 import { EraseAccount } from "@/components/settings/EraseAccount";
 import { SafeKeeping } from "@/components/settings/SafeKeeping";
 import { WorkIsSafe } from "@/components/settings/WorkIsSafe";
+import { YourPlan } from "@/components/settings/YourPlan";
 import { Dictionary } from "@/components/settings/Dictionary";
 import { AccountPanel } from "@/components/account/AccountPanel";
 import { ConnectionPanel } from "@/components/account/ConnectionPanel";
@@ -152,6 +153,24 @@ function useSyncLine(): string {
 const RAIL: Array<{ id: string; label: string; group?: string; admin?: boolean }> = [
   { id: "account", label: "Your account", group: "you" },
   { id: "signin-methods", label: "How people sign in" },
+
+  /*
+   * Money gets its own group, second, and neither half of that is obvious.
+   *
+   * Its own group, rather than a row under "you", because the rail is the map
+   * of this page and somebody hunting for what they pay scans it for the word.
+   * Filed under "who you are" it would be findable only by people who already
+   * knew where to look, which is the exact failure this section exists to fix
+   * — and `/more` already keeps Pricing under a heading called "money", so
+   * that is the word this product uses for it.
+   *
+   * Second, because a plan is an attribute of the account directly above it:
+   * whether there is an account at all decides whether there is a plan to
+   * read. Below "how the app behaves" it would sit under seven sections about
+   * fonts and shortcuts, which is a long way to scroll to find out whether
+   * your payment landed.
+   */
+  { id: "plan", label: "Your plan", group: "money" },
 
   { id: "safe", label: "Is your work in your account?", group: "where your work is kept" },
   { id: "connection", label: "Connection" },
@@ -267,6 +286,18 @@ export default function SettingsPage() {
                 on. It used to disappear whenever administration was blocked,
                 which is precisely when somebody is trying to find out why. */}
             <SignInMethods />
+
+            <h2 className="label-mono mt-14 mb-4 border-b border-line pb-2 text-fg-subtle first:mt-0">
+              money <span className="ml-2 normal-case text-fg-subtle/70">what you pay, if anything</span>
+            </h2>
+
+            <Section
+              id="plan"
+              title="Your plan"
+              hint="Read from the subscription your workspace actually has, not from what a checkout once said. No row means the free plan, and being unable to ask says so rather than answering Free."
+            >
+              <YourPlan />
+            </Section>
 
             <h2 className="label-mono mt-14 mb-4 border-b border-line pb-2 text-fg-subtle first:mt-0">
               where your work is kept <span className="ml-2 normal-case text-fg-subtle/70">and whether it is anywhere but this browser</span>

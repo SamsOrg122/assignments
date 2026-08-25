@@ -31,8 +31,21 @@ export const SHORTCUTS: ShortcutGroup[] = [
       { keys: "⌘K", what: "Command palette, and search across everything you've written" },
       { keys: "⌘J", what: "Ask AI about the selection" },
       { keys: "⌘⇧V", what: "Talk to the assistant — press again to stop" },
-      { keys: "⌘⇧S", what: "Have the assistant read the answer aloud" },
-      { keys: "⌘B", what: "Show or hide the sidebar" },
+      // Qualified, because it is only true once voice is open: the dock is the
+      // only thing that has an answer to read, so the dock binds this key.
+      // Pressed with voice closed it does nothing — which is better than what
+      // it used to do, which was switch the microphone on with nothing to say.
+      {
+        keys: "⌘⇧S",
+        what: "While voice is open: read the last answer aloud, or stop it",
+      },
+      // ⌘B is deliberately listed here *and* under Writing: it is the sidebar
+      // everywhere else and bold in a document, which is what both audiences
+      // expect. The global listener stands down inside anything that edits
+      // text so only one of them can fire — see `AppShell`. Which is also why
+      // this says "not typing" rather than "bolds instead": in a plain field —
+      // a rename box, a search box — it does neither.
+      { keys: "⌘B", what: "Show or hide the sidebar, anywhere you aren't typing" },
       { keys: "⌘/", what: "This sheet" },
       { keys: "Esc", what: "Close whatever is open" },
     ],
@@ -74,9 +87,11 @@ export const SHORTCUTS: ShortcutGroup[] = [
   {
     where: "deck",
     title: "Slides",
+    // No "P to present": presenting starts from the button in the top bar and
+    // nothing binds the key, so listing it taught a keystroke that did
+    // nothing. It comes back here the day the deck editor binds it.
     items: [
       { keys: "← →", what: "Previous, next slide" },
-      { keys: "P", what: "Present" },
       { keys: "↑ ↓ ← →", what: "Nudge the selected object" },
       { keys: "⇧ + arrows", what: "Nudge further" },
       { keys: "Delete", what: "Remove the selected object" },

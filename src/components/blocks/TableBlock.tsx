@@ -534,6 +534,9 @@ function TableGrid({ projectId, block }: Props) {
       return;
     }
     if (e.key === "Escape") {
+      // Marked handled: focus mode leaves on Esc too, and one press should
+      // drop the selection or the mode, never both.
+      e.preventDefault();
       setSel(null);
       return;
     }

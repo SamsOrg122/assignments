@@ -177,6 +177,25 @@ export const BLOCK_META: Record<
  * The dialog mounts only while open, so "reset on open" is just mount-time
  * state — no effect, no extra render pass.
  */
+/** Above anything the fuzzy scorer produces, so a pasted address wins. */
+const EXACT_PATH_SCORE = 10_000;
+
+/** How many matches inside the work itself the list will carry. */
+const CONTENT_HITS = 15;
+
+/**
+ * The ceiling on rows.
+ *
+ * High on purpose. With an empty query this list is the browsable index of
+ * the whole product — every room, every export, everything you can make — and
+ * a row cut off the bottom of it is a feature nobody finds. It used to be 40,
+ * which fitted until the Navigate group grew to cover every route; after that
+ * a workspace with five projects lost Pricing, the voice command, the
+ * keyboard sheet and the workspace controls off the end, silently. This is a
+ * runaway guard, not a budget.
+ */
+const ROWS = 200;
+
 export function CommandPalette() {
   const paletteOpen = useUI((s) => s.paletteOpen);
   const paletteSeed = useUI((s) => s.paletteSeed);
@@ -580,41 +599,227 @@ function PaletteDialog({ seed }: { seed: string }) {
         ),
     });
 
+    /* ── Navigate ──────────────────────────────────────────────────────
+     *
+     * Every room in the product, in the order /more prints them: your
+     * things, then people, then the app, then money. /more is the written
+     * index this thing gets explained from, so matching it means there is
+     * one shape to learn rather than two. Alphabetical was the alternative
+     * and it opens with Assignments and buries Team in the middle — sorted
+     * by spelling, which is the one thing nobody arrives knowing.
+     *
+     * Every route in the product is here — thirteen of them, plus the three
+     * settings anchors — because the sidebar is being cut to five rows and a
+     * destination that leaves it with no command is a room with no door.
+     * "We could show the row again later" and "we deleted it" look identical
+     * from a chair. Adding a route to the app means adding it here and to
+     * /more in the same change; there is no third list to forget.
+     *
+     * The path is in the keywords of every row on purpose: "/settings#keeping"
+     * is what gets typed into an email or read down a phone, so typing it
+     * back into ⌘K has to land somewhere.
+     *
+     * No row carries a `shortcut`. Nothing in lib/shortcuts.ts binds a key to
+     * a route, and a palette that teaches a shortcut which does not exist is
+     * worse than one that teaches none.
+     */
     list.push(
+      /* your things */
+      {
+        id: "nav:home",
+        title: "Go to the library",
+        subtitle: "Every document, sheet, deck and drawing you have made",
+        group: "Navigate",
+        icon: "home",
+        keywords:
+          "projects list index dashboard home /library files documents folders search",
+        run: () => router.push("/library"),
+      },
+      {
+        id: "nav:due",
+        title: "Due",
+        subtitle: "The deadlines, tasks and cards that want looking at today",
+        group: "Navigate",
+        icon: "list",
+        keywords:
+          "/due deadlines today tomorrow next upcoming overdue todo to do tasks inbox what now",
+        run: () => router.push("/due"),
+      },
+      {
+        id: "nav:notes",
+        title: "Notes",
+        subtitle: "The notepad — for what is not a document yet",
+        group: "Navigate",
+        icon: "sticky",
+        keywords: "/notes notepad scratch jot quick capture scribble sticky",
+        run: () => router.push("/notes"),
+      },
+      {
+        id: "nav:study",
+        title: "Study",
+        subtitle: "Cards from your own reading, asked back at you",
+        group: "Navigate",
+        icon: "copy",
+        keywords:
+          "/study flashcards cards revision revise memorise memorize spaced repetition quiz test learn",
+        run: () => router.push("/study"),
+      },
+      {
+        id: "nav:kit",
+        title: "Kit",
+        subtitle: "Fonts, pictures and files ready to drop into a document",
+        group: "Navigate",
+        icon: "group",
+        keywords:
+          "/kit assets fonts pictures images files logo uploads brand saved pieces",
+        run: () => router.push("/kit"),
+      },
+      {
+        id: "nav:agenda",
+        title: "Agenda",
+        subtitle: "Your week as a timetable — what is on and what repeats",
+        group: "Navigate",
+        icon: "calendar",
+        keywords:
+          "/agenda calendar week timetable schedule diary planner events lectures",
+        run: () => router.push("/agenda"),
+      },
+      {
+        id: "nav:assignments",
+        title: "Assignments",
+        subtitle: "A deadline with the document attached, in three columns",
+        group: "Navigate",
+        icon: "check",
+        keywords:
+          "/assignments coursework homework hand in handed in submit board to do doing deadlines",
+        run: () => router.push("/assignments"),
+      },
+      {
+        id: "nav:community",
+        title: "Community",
+        subtitle: "Ideas, designs and templates other people here have shared",
+        group: "Navigate",
+        icon: "map",
+        keywords:
+          "/community shared templates ideas designs gallery browse explore others public",
+        run: () => router.push("/community"),
+      },
+
+      /* people */
+      {
+        id: "nav:chat",
+        title: "Go to chat",
+        subtitle: "The channels this workspace talks in, and the team assistant",
+        group: "Navigate",
+        icon: "users",
+        keywords: "/chat messages channels conversations dm direct rooms",
+        run: () => router.push("/chat"),
+      },
+      {
+        id: "nav:team",
+        title: "Team",
+        // Not "needs a team first": the sidebar says that on a button it has
+        // genuinely disabled, and this row is not disabled. /team without a
+        // team is the two doors into getting one, which is exactly what
+        // somebody typing "team" is looking for, so the row must not talk
+        // them out of pressing it.
+        subtitle: "Who is here, what each person may do — or how to start one",
+        group: "Navigate",
+        icon: "board",
+        keywords:
+          "/team people members roles permissions who is here invite join workspace knowledge",
+        run: () => router.push("/team"),
+      },
+
+      /* the app */
+      {
+        id: "nav:more",
+        title: "Everything",
+        subtitle: "Every page in here, and the question each one answers",
+        group: "Navigate",
+        icon: "dots",
+        keywords:
+          "/more everything index sitemap all pages what is in here where is how do i find",
+        run: () => router.push("/more"),
+      },
       {
         id: "nav:settings",
         title: "Open settings",
+        subtitle: "Everything you can change about the tool, not a document",
         group: "Navigate",
         icon: "settings",
         keywords:
-          "preferences appearance theme accent providers shortcuts offline desktop ai model",
+          "/settings preferences appearance theme accent providers shortcuts offline desktop ai model",
         run: () => router.push("/settings"),
+      },
+      {
+        id: "nav:account",
+        title: "Account",
+        subtitle: "Who you are signed in as, and the two ways of keeping your work",
+        group: "Navigate",
+        icon: "users",
+        keywords:
+          "/settings#account sign in sign out signed in email profile identity delete account",
+        run: () => router.push("/settings#account"),
+      },
+      {
+        id: "nav:keeping",
+        title: "Keeping your work",
+        subtitle: "What this browser is holding, and how to take a copy of it",
+        group: "Navigate",
+        icon: "download",
+        keywords:
+          "/settings#keeping backup export copy storage browser local sync safe lose data",
+        run: () => router.push("/settings#keeping"),
+      },
+      {
+        id: "nav:appearance",
+        title: "Appearance",
+        subtitle: "Theme, accent, density and typeface",
+        group: "Navigate",
+        icon: "sparkle",
+        keywords:
+          "/settings#appearance theme dark light accent colour color density typeface font size",
+        run: () => router.push("/settings#appearance"),
       },
       {
         // Administration lost its sidebar link when it became a group inside
         // Settings, so the palette is now how people find it.
         id: "nav:admin",
         title: "Administration",
+        subtitle: "Who has signed up here, and what reached the server",
         group: "Navigate",
         icon: "lock",
-        keywords: "admin members roles audit log retention purge who is here",
+        keywords:
+          "/settings#administration admin members roles audit log retention purge who is here",
         run: () => router.push("/settings#administration"),
       },
       {
-        id: "nav:chat",
-        title: "Go to chat",
+        // /more lists this among the settings groups, so it needs a row here
+        // for the same reason every other destination does.
+        id: "nav:desktop",
+        title: "The desktop note",
+        subtitle: "The little window that stays on top of everything else",
         group: "Navigate",
-        icon: "users",
-        keywords: "messages channels conversations dm",
-        run: () => router.push("/chat"),
+        icon: "download",
+        keywords:
+          "/settings#desktop app download install mac windows menu bar tray sticky always on top",
+        run: () => router.push("/settings#desktop"),
       },
+
+      /* money */
       {
-        id: "nav:home",
-        title: "Go to the library",
+        // The only paid door in the app, so the row says what the page is and
+        // stops. A palette row that sells is an advert somebody typed four
+        // letters to summon by accident.
+        id: "nav:pricing",
+        title: "Plans and pricing",
+        subtitle: "What it costs and what changes when you pay",
         group: "Navigate",
-        icon: "home",
-        keywords: "projects list index dashboard home",
-        run: () => router.push("/library"),
+        icon: "tag",
+        keywords:
+          "/pricing plans price cost pay upgrade subscription billing free team plan create a team",
+        run: () => router.push("/pricing"),
       },
       {
         id: "voice:talk",
@@ -699,6 +904,7 @@ function PaletteDialog({ seed }: { seed: string }) {
 
   const results = useMemo(() => {
     const q = query.trim();
+    const exactPath = q.startsWith("/") && q.length > 1;
 
     const scored = commands
       .map((c) => {
@@ -711,6 +917,15 @@ function PaletteDialog({ seed }: { seed: string }) {
         const score = Math.max(
           onTitle ? onTitle.score + 20 : -Infinity,
           onKeywords ? onKeywords.score : -Infinity,
+          // A typed address is not a fuzzy search, it is a destination. Every
+          // Navigate row carries its path as a keyword, and "/settings" is a
+          // prefix of "/settings#account" — so without this, pasting the plain
+          // address of the settings page lands on whichever anchor row the
+          // scorer happened to like. Exact, whitespace-delimited, so
+          // "/settings" cannot claim the anchors and they cannot claim it.
+          exactPath && ` ${c.keywords ?? ""} `.includes(` ${q} `)
+            ? EXACT_PATH_SCORE
+            : -Infinity,
         );
         return { command: c, score, matches: onTitle?.matches ?? [] };
       })
@@ -742,7 +957,13 @@ function PaletteDialog({ seed }: { seed: string }) {
 
     // Content hits ride below the command hits: the palette stays an action
     // launcher first, but three typed words reach inside every table cell.
+    // Capped separately from the rows above, because this is the half with no
+    // natural size — one common word can match a cell on every row of a big
+    // table — and an overall cap would let it push the commands off the end.
+    let hits = 0;
     for (const hit of searchContent(projects, q)) {
+      if (hits >= CONTENT_HITS) break;
+      hits += 1;
       scored.push({
         command: {
           id: `content:${hit.projectId}:${hit.blockId}`,
@@ -757,7 +978,7 @@ function PaletteDialog({ seed }: { seed: string }) {
       });
     }
 
-    return scored.slice(0, 40);
+    return scored.slice(0, ROWS);
   }, [commands, query, addProject, router, projects]);
 
   // Reset the highlight as the query changes, adjusting during render rather

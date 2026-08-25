@@ -119,24 +119,55 @@ export function WritingEditor({
     ? Math.min(1, words / project.wordGoal)
     : null;
 
+  // ⌘F is find & replace here — the browser's own find can't see across
+  // virtualised tables anyway, and a writing tool owns this key. ⌘⇧F is focus
+  // mode: the same two keys the toolbar button and the sheet promise, bound on
+  // the window so they work with the caret in the page, which is the only
+  // place it ever is when you want either of them.
+  useEffect(() => {
+    // Both keys belong to the page, so neither may fire while something is
+    // sitting on top of it. Without this, ⌘⇧F typed into the palette's search
+    // field strips the shell away behind the open palette.
+    const covered = () => {
+      const ui = useUI.getState();
+      return Boolean(
+        ui.paletteOpen || ui.aiTarget || ui.shortcutsOpen || ui.voiceOpen,
+      );
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "f") {
+        if (covered()) return;
+        e.preventDefault();
+        // Shift first: ⌘⇧F is its own shortcut, and letting it fall through
+        // would open find & replace on top of the mode change.
+        if (e.shiftKey) setFocusMode(!focusMode);
+        else setFindOpen(true);
+        return;
+      }
+      // The exit button offers Esc, so Esc has to do it — but this listener is
+      // on the window, which is the last thing in the bubble path, and a lot
+      // of nearer things close on Esc too: the slash menu, a block menu, a
+      // table's cell selection, the name field on a code file. Enumerating
+      // them here would go stale the first time somebody adds another, so the
+      // test is the one the DOM already keeps: whoever handled the press
+      // called preventDefault, and this stands down. The three state flags
+      // below cover the dialogs that close without marking the event.
+      if (e.defaultPrevented) return;
+      if (e.key === "Escape" && focusMode && !findOpen && !timelineOpen) {
+        if (covered()) return;
+        setFocusMode(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusMode, setFocusMode, findOpen, timelineOpen]);
+
   /**
    * Capture history in the background. Debounced well past a keystroke, and
    * the store coalesces anything inside its window, so a session of writing
    * becomes a handful of timeline points rather than hundreds.
    */
-  // ⌘F is find & replace here — the browser's own find can't see across
-  // virtualised tables anyway, and a writing tool owns this key.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        setFindOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
   const blocks = project.blocks;
   const snapshotTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {

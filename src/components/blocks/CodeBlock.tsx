@@ -264,6 +264,9 @@ export function CodeBlock({
               onKeyDown={(e) => {
                 if (e.key === "Enter") addFile();
                 if (e.key === "Escape") {
+                  // Marked handled so an Esc that cancels this field does not
+                  // also drop the writer out of focus mode.
+                  e.preventDefault();
                   setNewName("");
                   setAdding(false);
                 }

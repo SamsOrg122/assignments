@@ -879,7 +879,22 @@ commit;
 
 begin;
 
-create extension if not exists pgcrypto;
+/*
+ * Hashing, without pgcrypto.
+ *
+ * This used to call `digest(secret, 'sha256')`, and that is exactly right on
+ * a plain Postgres and exactly wrong on Supabase. Supabase installs its
+ * extensions into a schema called `extensions`, not into `public` — so
+ * pgcrypto's `digest` is there and not on the search path a `security
+ * definer` function pins. The whole file then failed at the moment this
+ * function was created, on the only kind of database it was written for.
+ *
+ * `sha256(bytea)` needs no extension at all: it has been in `pg_catalog`
+ * since Postgres 11, so it is visible whatever the search path says. And it
+ * returns the same bytes — `digest(t, 'sha256')` hashes the text's UTF-8
+ * encoding, which is what `convert_to(t, 'utf8')` hands over — so a secret
+ * set by the earlier version still matches after this runs.
+ */
 
 /*
  * The one secret, hashed.
@@ -911,7 +926,7 @@ security definer
 set search_path = public, pg_temp
 as $$
   insert into public.billing_secret (id, digest, rotated_at)
-  values (true, digest(secret, 'sha256'), now())
+  values (true, sha256(convert_to(secret, 'utf8')), now())
   on conflict (id) do update
     set digest = excluded.digest, rotated_at = now();
 $$;
@@ -958,7 +973,7 @@ begin
   if known is null then
     raise exception 'billing secret is not set; run set_billing_secret() first';
   end if;
-  if digest(coalesce(secret, ''), 'sha256') <> known then
+  if sha256(convert_to(coalesce(secret, ''), 'utf8')) <> known then
     raise exception 'billing secret does not match';
   end if;
 

@@ -50,6 +50,10 @@ time, in this order:
 | `0013-a-thing-with-a-deadline.sql` | Assignments sync |
 | `0014-cards-to-learn-from.sql` | Study sets sync |
 
+If a paste stops partway, everything before the failing statement has
+already committed — fix the cause and run the whole file again rather than
+trying to find your place in it. That is what "idempotent" is for.
+
 **Then check what actually landed.** Run `supabase/check.sql` — it changes
 nothing and its last table names every migration with `applied` or
 `NOT APPLIED`. That table is the answer to "what still needs running", and it

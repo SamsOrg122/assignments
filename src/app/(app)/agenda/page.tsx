@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { TopBar } from "@/components/shell/TopBar";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
@@ -30,6 +31,8 @@ import {
   useAgenda,
 } from "@/lib/agenda";
 import { parseQuick } from "@/lib/agenda/quick";
+import { hydrateAssignments, pullAssignments, useAssignments } from "@/lib/assignments";
+import { dueClock, standing, type Assignment } from "@/lib/assignments/model";
 import { hydrateScope, useHasTeam, useScope } from "@/lib/scope";
 import {
   addDays,
@@ -63,6 +66,7 @@ const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export default function AgendaPage() {
   const allEvents = useAgenda((s) => s.events);
   const allTasks = useAgenda((s) => s.tasks);
+  const allAssignments = useAssignments((s) => s.assignments);
   const problem = useAgenda((s) => s.problem);
   const chosen = useScope((s) => s.scope);
   const setScope = useScope((s) => s.setScope);
@@ -80,8 +84,10 @@ export default function AgendaPage() {
 
   useEffect(() => {
     hydrateAgenda();
+    hydrateAssignments();
     hydrateScope();
     void pullAgenda();
+    void pullAssignments();
   }, []);
 
   /*
@@ -105,6 +111,20 @@ export default function AgendaPage() {
         ? allTasks
         : allTasks.filter((t) => (t.scope ?? "personal") === scope),
     [allTasks, scope, showBoth, hasTeam],
+  );
+
+  // Deadlines belong on the calendar even though they are kept elsewhere:
+  // somebody planning a week needs the essay due Friday in the same picture
+  // as the lectures, or the picture is wrong. Handed-in work drops out — it
+  // is no longer something to plan around.
+  const due = useMemo(
+    () =>
+      allAssignments.filter(
+        (a) =>
+          a.status !== "handed" &&
+          (showBoth && hasTeam ? true : (a.scope ?? "personal") === scope),
+      ),
+    [allAssignments, scope, showBoth, hasTeam],
   );
 
   const today = keyOf(new Date());
@@ -327,6 +347,7 @@ export default function AgendaPage() {
             today={today}
             events={events}
             tasks={tasks}
+            due={due}
             scope={scope}
             onCreate={startNew}
             onEdit={(event) => setEditing(draftFrom(event))}
@@ -361,6 +382,7 @@ function TimeGrid({
   today,
   events,
   tasks,
+  due,
   scope,
   onCreate,
   onEdit,
@@ -369,6 +391,7 @@ function TimeGrid({
   today: DayKey;
   events: AgendaEvent[];
   tasks: AgendaTask[];
+  due: Assignment[];
   scope: "personal" | "team";
   onCreate: (day: DayKey, minute: number) => void;
   onEdit: (event: AgendaEvent) => void;
@@ -402,6 +425,47 @@ function TimeGrid({
           );
         })}
       </div>
+
+      {/* Deadlines, above everything. A row that is empty most weeks and
+          impossible to miss in the one that matters. */}
+      {due.some((a) => days.includes(a.due)) && (
+        <div
+          role="group"
+          aria-label="Deadlines"
+          className="grid border-b border-line pr-2"
+          style={{ gridTemplateColumns: `48px repeat(${days.length}, 1fr)` }}
+        >
+          <span className="self-center pr-2 text-right text-[9.5px] uppercase tracking-wide text-fg-subtle">
+            due
+          </span>
+          {days.map((day) => (
+            <div key={day} className="min-h-[26px] border-l border-line px-1.5 py-1">
+              {due
+                .filter((assignment) => assignment.due === day)
+                .map((assignment) => {
+                  const how = standing(assignment, today);
+                  const time = dueClock(assignment);
+                  return (
+                    <Link
+                      key={assignment.id}
+                      href="/assignments"
+                      title={`${assignment.title} — ${how.text}`}
+                      className={cn(
+                        "flex items-center gap-1 truncate rounded-xs px-1 py-0.5 text-[11px] transition-colors hover:bg-surface",
+                        how.tone === "late" ? "text-warn" : "text-fg-muted",
+                        (assignment.scope ?? "personal") !== scope && "opacity-60",
+                      )}
+                    >
+                      <Icon name="check" size={9} className="shrink-0" />
+                      <span className="truncate">{assignment.title}</span>
+                      {time && <span className="shrink-0 tabular-nums">{time}</span>}
+                    </Link>
+                  );
+                })}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* The day's tasks, above the hours: things to do that have no time.
           Ticking one is the whole interaction, so it happens here, not in an

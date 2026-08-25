@@ -30,6 +30,7 @@ export const EN = {
   "nav.library": "Library",
   "nav.chat": "Chat",
   "nav.agenda": "Agenda",
+  "nav.assignments": "Assignments",
   "nav.notes": "Notes",
   "nav.kit": "Kit",
   "nav.team": "Team",

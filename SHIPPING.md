@@ -25,7 +25,7 @@ Neither is proof of personhood: somebody willing to clear their browser gets
 a fresh anonymous account and a fresh allowance. The spend limit is the floor
 under all of it, and no code in this repository can set it.
 
-## 2. Run the two new migrations
+## 2. Run the new migrations
 
 Supabase → **SQL Editor** → paste and run, in this order:
 
@@ -33,8 +33,11 @@ Supabase → **SQL Editor** → paste and run, in this order:
 - `supabase/migrations/0011-a-way-out.sql`
 - `supabase/migrations/0012-money-arrives-from-outside.sql` — only needed if
   you are taking payments; harmless to run either way
+- `supabase/migrations/0013-a-thing-with-a-deadline.sql` — the assignments
+  table. Without it the board still works, but only on the machine it was
+  typed on, and the page says so.
 
-Both are re-runnable. Each ends with a **Proof** block in comments — run those
+All of them are re-runnable. Each ends with a **Proof** block in comments — run those
 lines too, signed in as an ordinary user. 0010's proof should refuse the
 fourth request and refuse to let you reset your own counter; 0011's should
 empty your account.
@@ -43,7 +46,8 @@ If you are not sure the earlier migrations ever ran, `supabase/catch-up.sql`
 is 0003–0009 in one re-runnable file. Run that first.
 
 Symptoms of skipping this: the assistant keeps working but nothing is
-counted, and Delete my account answers *"Could not find the function"*.
+counted, Delete my account answers *"Could not find the function"*, and
+Assignments shows a line naming 0013.
 
 ## 3. Deploy the site
 

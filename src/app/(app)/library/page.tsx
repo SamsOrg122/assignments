@@ -41,6 +41,7 @@ import type { Block } from "@/lib/types";
 import { formatDayMonth } from "@/lib/format";
 import { ImportZone, openImportPicker } from "@/components/library/ImportZone";
 import { ReturnedNotes } from "@/components/library/ReturnedNotes";
+import { DueSoon } from "@/components/library/DueSoon";
 import { SaveWarning } from "@/components/library/SaveWarning";
 import { WhereIsMyWork } from "@/components/library/WhereIsMyWork";
 import { DesktopNotes } from "@/components/library/DesktopNotes";
@@ -255,6 +256,10 @@ export default function LibraryPage() {
 
           {/* Work that is not reaching the account, said where the work is. */}
           <SaveWarning />
+
+          {/* Deadlines, on the page people actually land on. Renders nothing
+              when nothing is due inside a fortnight. */}
+          <DueSoon />
 
           {/* Notes left through a comment link while nobody was here. */}
           <ReturnedNotes />

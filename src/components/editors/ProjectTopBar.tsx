@@ -16,6 +16,7 @@ import { Icon } from "@/components/ui/Icon";
 import { KINDS } from "@/lib/kinds";
 import { ShareMenu } from "@/components/share/ShareMenu";
 import { LookPanel } from "./LookPanel";
+import { DeadlineChip } from "@/components/assignments/DeadlineChip";
 import { cn } from "@/lib/cn";
 
 export function ProjectTopBar({
@@ -60,6 +61,9 @@ export function ProjectTopBar({
         aria-label="Project name"
         className="min-w-0 max-w-[38ch] flex-1 truncate rounded-sm bg-transparent px-1 py-1 text-[13px] font-medium text-fg outline-none transition-colors duration-150 hover:bg-surface focus:bg-surface"
       />
+
+      {/* Nothing at all unless this document is somebody's assignment. */}
+      <DeadlineChip projectId={project.id} />
 
       {tools}
 

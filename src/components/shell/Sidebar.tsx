@@ -358,6 +358,15 @@ export function Sidebar() {
             active={pathname === "/agenda"}
             onNavigate={closeOnMobile}
           />
+          {/* Above Notes on purpose: what is due is the first question
+              somebody opens the app with, and the notepad is the second. */}
+          <NavLink
+            href="/assignments"
+            icon="check"
+            label={t("nav.assignments")}
+            active={pathname === "/assignments"}
+            onNavigate={closeOnMobile}
+          />
           <NavLink
             href="/notes"
             icon="sticky"

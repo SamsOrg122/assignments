@@ -68,6 +68,7 @@ On the hosting dashboard, for **production**:
 | `OPENROUTER_API_KEY` | without it the assistant answers with a refusal |
 | `NEXT_PUBLIC_SITE_URL` | `https://tougather.com` — sign-in redirects are built from it |
 | `AI_DAILY_LIMIT` | optional; defaults to 120 |
+| `NEXT_PUBLIC_SIGNIN_PHOTO` | optional; a path under `public/` to use your own photograph on the sign-in screen instead of the one shipped |
 | `STRIPE_SECRET_KEY` | only if you are taking payments — see 7 |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | as above |
 | `STRIPE_WEBHOOK_SECRET` | as above |

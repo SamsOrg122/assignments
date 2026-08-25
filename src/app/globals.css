@@ -1843,3 +1843,154 @@
   overflow: hidden;
   resize: none;
 }
+
+/* ── The arrival ──────────────────────────────────────────────────────────
+ *
+ * The curtain the first visit gets, and only the first. The component
+ * decides *whether* it appears; everything about how it moves is here, where
+ * the rest of the motion in this app lives.
+ *
+ * `position: fixed` with a very high stacking order, because it has to cover
+ * a page that has its own sticky nav. It is `aria-hidden` and takes no focus,
+ * so nothing under it is unreachable — it is a picture over a working page,
+ * not a gate in front of one.
+ */
+.arrival {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: #08090b;
+  will-change: transform;
+}
+
+.arrival[data-phase="lifting"] {
+  /* Out of the way upwards, and the page it uncovers is already laid out
+     underneath. `cubic-bezier(0.76, 0, 0.24, 1)` starts slowly, so the lift
+     reads as something being drawn back rather than something snapping. */
+  transform: translate3d(0, -101%, 0);
+  transition: transform var(--arrival-lift, 760ms) cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+/* The warmth low in the frame — the same evening the sign-in door has, so
+   the two front doors of this thing agree with each other. */
+.arrival::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 52% at 50% 82%,
+    rgba(226, 175, 104, 0.16) 0%,
+    rgba(190, 140, 80, 0.05) 45%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
+.arrival-plate {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.arrival-mark {
+  animation: arrival-mark 640ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes arrival-mark {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+    filter: blur(9px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+/* A hairline that grows out of the mark and pushes the name clear of it. */
+.arrival-rule {
+  display: block;
+  width: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.28);
+  animation: arrival-rule 620ms cubic-bezier(0.65, 0, 0.35, 1) 260ms both;
+}
+
+@keyframes arrival-rule {
+  from {
+    width: 0;
+  }
+  to {
+    width: 26px;
+  }
+}
+
+.arrival-name {
+  font-size: 25px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: #fff;
+  animation: arrival-name 700ms cubic-bezier(0.2, 0.7, 0.2, 1) 400ms both;
+}
+
+@keyframes arrival-name {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 9px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * The horizon: a line of evening across the foot of the curtain, drawn from
+ * the middle outwards. It is what the lift leaves behind for a moment, and
+ * the one detail that makes this feel like a place rather than a splash.
+ */
+.arrival-horizon {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    rgba(226, 175, 104, 0) 0%,
+    rgba(226, 175, 104, 0.55) 50%,
+    rgba(226, 175, 104, 0) 100%
+  );
+  transform: scaleX(0);
+  animation: arrival-horizon 900ms cubic-bezier(0.22, 1, 0.36, 1) 520ms both;
+}
+
+@keyframes arrival-horizon {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/*
+ * Nothing here for anybody who asked for stillness.
+ *
+ * The component already refuses to play in that case, so this is the belt to
+ * that braces — a browser that changes the setting mid-animation stops rather
+ * than finishing the flourish.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .arrival-mark,
+  .arrival-rule,
+  .arrival-name,
+  .arrival-horizon {
+    animation: none;
+  }
+  .arrival[data-phase="lifting"] {
+    transition: none;
+    transform: translate3d(0, -101%, 0);
+  }
+}

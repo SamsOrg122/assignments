@@ -13,8 +13,8 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useProjects } from "@/lib/store";
 import { useMenu, type MenuItem } from "@/components/ui/Menu";
-import { ProjectSettings } from "./ProjectSettings";
-import { SaveAsTemplate } from "@/components/library/SaveAsTemplate";
+import { RowMenuButton } from "@/components/ui/RowMenuButton";
+import { useProjectActions } from "@/components/projects/useProjectActions";
 import { ChannelSettings } from "@/components/chat/ChannelSettings";
 import { projectMenu } from "@/lib/project-menu";
 import { useUI } from "@/lib/ui-store";
@@ -107,12 +107,15 @@ export function Sidebar() {
   const [showAllProjects, setShowAllProjects] = useState(false);
   const notify = useUI.getState().notify;
   const menu = useMenu();
-  const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [channelSettingsFor, setChannelSettingsFor] = useState<string | null>(null);
-  const [templatingFrom, setTemplatingFrom] = useState<string | null>(null);
-  const settingsProject = projects.find((p) => p.id === settingsFor);
   const settingsChannel = channels.find((c) => c.id === channelSettingsFor);
-  const templateSource = projects.find((p) => p.id === templatingFrom);
+  /* The project menu's callbacks and the dialogs they open, shared with the
+     Library so the same menu cannot come out different in two places. The
+     drawer closes behind a menu that navigates, the same as a row tap does —
+     `closeOnMobile` is declared below, so this reads it at call time. */
+  const { actionsFor, dialogs } = useProjectActions({
+    onNavigate: () => closeOnMobile(),
+  });
 
   const channelMenu = (channelId: string): MenuItem[] => {
     const chat = useChat.getState();
@@ -233,18 +236,7 @@ export function Sidebar() {
   return (
     <>
       {menu.node}
-      {settingsProject && (
-        <ProjectSettings
-          project={settingsProject}
-          onClose={() => setSettingsFor(null)}
-        />
-      )}
-      {templateSource && (
-        <SaveAsTemplate
-          project={templateSource}
-          onClose={() => setTemplatingFrom(null)}
-        />
-      )}
+      {dialogs}
       {settingsChannel && (
         <ChannelSettings
           channel={settingsChannel}
@@ -450,23 +442,17 @@ export function Sidebar() {
           ) : (
           <ul className="flex flex-col gap-0.5 px-2.5">
             {visibleProjects.map((p) => (
-              <li key={p.id}>
+              /* `relative` and `group` so the menu button can sit over the
+                 row's right edge as a sibling of the link rather than a
+                 child of it — a button inside an anchor is markup browsers
+                 disagree about, and the two activations fight. */
+              <li key={p.id} className="group relative">
                 <Link
                   href={`/p/${p.id}`}
                   onClick={closeOnMobile}
-                  onContextMenu={(e) =>
-                    menu.open(
-                      e,
-                      projectMenu(p, {
-                        open: (id) => router.push(`/p/${id}`),
-                        settings: () => setSettingsFor(p.id),
-                        rename: () => setSettingsFor(p.id),
-                        saveAsTemplate: () => setTemplatingFrom(p.id),
-                      }),
-                    )
-                  }
+                  onContextMenu={(e) => menu.open(e, projectMenu(p, actionsFor(p)))}
                   className={cn(
-                    "flex items-center gap-2 rounded-md px-2 text-[13px] transition-colors duration-150",
+                    "flex items-center gap-2 rounded-md pr-7 pl-2 text-[13px] transition-colors duration-150",
                     "py-[var(--ui-row-y)]",
                     p.id === activeProject
                       ? "bg-surface-2 text-fg"
@@ -481,6 +467,10 @@ export function Sidebar() {
                   />
                   <span className="truncate">{p.name}</span>
                 </Link>
+                <RowMenuButton
+                  label={`More for ${p.name}`}
+                  onOpen={(e) => menu.open(e, projectMenu(p, actionsFor(p)))}
+                />
               </li>
             ))}
             {worldProjects.length > 7 && (
@@ -553,9 +543,8 @@ export function Sidebar() {
                     channel.access === "closed" && Boolean(channel.passcodeHash)
                   }
                   onNavigate={closeOnMobile}
-                  onContextMenu={(e) =>
-                    menu.open(e, channelMenu(channel.id))
-                  }
+                  onContextMenu={(e) => menu.open(e, channelMenu(channel.id))}
+                  menuLabel={`More for #${channel.name}`}
                 />
               </li>
             ))}
@@ -723,6 +712,7 @@ function ChannelLink({
   locked,
   onNavigate,
   onContextMenu,
+  menuLabel,
 }: {
   href: string;
   label: string;
@@ -732,14 +722,21 @@ function ChannelLink({
   locked?: boolean;
   onNavigate?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  /**
+   * Names the row's menu button. Absent means no button — which is how a
+   * direct message row is drawn until there is a menu worth opening on it.
+   */
+  menuLabel?: string;
 }) {
   return (
+    <span className="group relative block">
     <Link
       href={href}
       onClick={onNavigate}
       onContextMenu={onContextMenu}
       className={cn(
-        "flex items-center gap-2 rounded-md px-2 text-[13px] transition-colors duration-150",
+        "flex items-center gap-2 rounded-md pl-2 text-[13px] transition-colors duration-150",
+        menuLabel ? "pr-7" : "pr-2",
         "py-[var(--ui-row-y)]",
         active
           ? "bg-surface-2 text-fg"
@@ -770,5 +767,9 @@ function ChannelLink({
         </span>
       )}
     </Link>
+      {menuLabel && onContextMenu && (
+        <RowMenuButton label={menuLabel} onOpen={onContextMenu} />
+      )}
+    </span>
   );
 }

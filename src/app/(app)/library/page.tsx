@@ -19,24 +19,22 @@ import { t } from "@/lib/i18n";
 import {
   FolderRail,
   LabelBar,
-  LabelEditor,
   pathTo,
   subtree,
 } from "@/components/library/Folders";
 import { fuzzyMatch } from "@/lib/fuzzy";
 import { TopBar } from "@/components/shell/TopBar";
 import { useMenu } from "@/components/ui/Menu";
-import { ProjectSettings } from "@/components/shell/ProjectSettings";
 import { projectMenu } from "@/lib/project-menu";
-import { Button, Dialog, fieldClass } from "@/components/ui/Dialog";
 import { Icon } from "@/components/ui/Icon";
-import { Avatar, AvatarDialog } from "@/components/ui/Avatar";
+import { Avatar } from "@/components/ui/Avatar";
+import { RowMenuButton } from "@/components/ui/RowMenuButton";
+import { useProjectActions } from "@/components/projects/useProjectActions";
 import { cn } from "@/lib/cn";
 import type { Project, ProjectKind } from "@/lib/types";
 import { projectSummary } from "@/lib/summary";
 import { KeepPrompt } from "@/components/account/KeepPrompt";
 import { TemplatePicker } from "@/components/library/TemplatePicker";
-import { SaveAsTemplate } from "@/components/library/SaveAsTemplate";
 import type { Block } from "@/lib/types";
 import { formatDayMonth } from "@/lib/format";
 import { ImportZone, openImportPicker } from "@/components/library/ImportZone";
@@ -67,37 +65,19 @@ export default function LibraryPage() {
   );
 
   const menu = useMenu();
-  const setGlyph = useProjects((s) => s.setProjectGlyph);
-  const [settingsFor, setSettingsFor] = useState<string | null>(null);
-  const [iconFor, setIconFor] = useState<string | null>(null);
   const [templating, setTemplating] = useState(false);
-  const [renaming, setRenaming] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<ProjectKind | "all">("all");
   const [sort, setSort] = useState<Sort>("recent");
   const [folder, setFolder] = useState<string | null>(null);
   const [labels, setLabels] = useState<string[]>([]);
-  const [labelling, setLabelling] = useState<string | null>(null);
-  const [templatingFrom, setTemplatingFrom] = useState<string | null>(null);
+
+  /* The same callbacks and dialogs the sidebar uses. Both lists show your
+     projects; both menus should be the same menu. */
+  const { actionsFor, dialogs } = useProjectActions();
 
   const openMenu = (e: React.MouseEvent, project: Project) =>
-    menu.open(
-      e,
-      projectMenu(project, {
-        open: (id) => router.push(`/p/${id}`),
-        settings: () => setSettingsFor(project.id),
-        rename: () => setRenaming(project.id),
-        icon: () => setIconFor(project.id),
-        labels: () => setLabelling(project.id),
-        saveAsTemplate: () => setTemplatingFrom(project.id),
-      }),
-    );
-
-  const settingsProject = projects.find((p) => p.id === settingsFor);
-  const iconProject = projects.find((p) => p.id === iconFor);
-  const renamingProject = projects.find((p) => p.id === renaming);
-  const labellingProject = projects.find((p) => p.id === labelling);
-  const templateSource = projects.find((p) => p.id === templatingFrom);
+    menu.open(e, projectMenu(project, actionsFor(project)));
 
   const counts = useMemo(() => {
     const map = new Map<ProjectKind, number>();
@@ -160,44 +140,12 @@ export default function LibraryPage() {
   return (
     <>
       {menu.node}
-      {settingsProject && (
-        <ProjectSettings
-          project={settingsProject}
-          onClose={() => setSettingsFor(null)}
-        />
-      )}
-      {renamingProject && (
-        <RenameDialog
-          project={renamingProject}
-          onClose={() => setRenaming(null)}
-        />
-      )}
-      {iconProject && (
-        <AvatarDialog
-          title={`Icon for “${iconProject.name}”`}
-          value={iconProject.glyph}
-          onPick={(g) => setGlyph(iconProject.id, g)}
-          onClose={() => setIconFor(null)}
-        />
-      )}
-      {labellingProject && (
-        <LabelEditor
-          project={labellingProject}
-          onClose={() => setLabelling(null)}
-        />
-      )}
+      {dialogs}
 
       {templating && (
         <TemplatePicker
           onClose={() => setTemplating(false)}
           onUse={createFrom}
-        />
-      )}
-
-      {templateSource && (
-        <SaveAsTemplate
-          project={templateSource}
-          onClose={() => setTemplatingFrom(null)}
         />
       )}
 
@@ -484,12 +432,13 @@ function LibraryRow({
   const summary = projectSummary(project);
 
   return (
+    <div className="group relative border-b border-line last:border-b-0">
     <Link
       href={`/p/${project.id}`}
       prefetch
       onContextMenu={(e) => onMenu(e, project)}
       className={cn(
-        "group flex items-center gap-3 border-b border-line bg-surface px-3.5 py-3 last:border-b-0",
+        "flex items-center gap-3 bg-surface py-3 pr-10 pl-3.5",
         "transition-colors duration-150 hover:bg-surface-2",
       )}
     >
@@ -523,6 +472,12 @@ function LibraryRow({
         className="shrink-0 text-fg-subtle opacity-0 transition-opacity duration-150 group-hover:opacity-100"
       />
     </Link>
+      <RowMenuButton
+        label={`More for ${project.name}`}
+        onOpen={(event: React.MouseEvent) => onMenu(event, project)}
+        className="right-2"
+      />
+    </div>
   );
 }
 
@@ -693,50 +648,3 @@ function relativeTime(ts: number): string {
   return formatDayMonth(ts);
 }
 
-/**
- * Rename on its own, because renaming is the one thing people do to a project
- * far more often than everything else in settings put together.
- */
-function RenameDialog({
-  project,
-  onClose,
-}: {
-  project: Project;
-  onClose: () => void;
-}) {
-  const rename = useProjects((s) => s.renameProject);
-  const [name, setName] = useState(project.name);
-
-  const commit = () => {
-    const next = name.trim();
-    if (next) rename(project.id, next);
-    onClose();
-  };
-
-  return (
-    <Dialog
-      title="Rename project"
-      onClose={onClose}
-      width={420}
-      footer={
-        <>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={commit} disabled={!name.trim()}>
-            Rename
-          </Button>
-        </>
-      }
-    >
-      <input
-        value={name}
-        autoFocus
-        aria-label="Project name"
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-        }}
-        className={fieldClass}
-      />
-    </Dialog>
-  );
-}

@@ -92,17 +92,41 @@ function MenuSurface({
     const onPointerDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) onClose();
     };
-    // A menu pinned to a point in the document is wrong the moment the
-    // document moves, so scrolling dismisses rather than trailing behind.
-    const onScroll = () => onClose();
+
+    /*
+     * A menu pinned to a point in the document is wrong the moment the
+     * document moves, so scrolling dismisses it rather than letting it trail
+     * behind. That is still right — but it cannot apply to the scroll that
+     * *opened* it.
+     *
+     * Pressing a button near the bottom of a list makes the browser bring it
+     * into view first, and that scroll arrives after the click. So the menu
+     * opened and vanished in the same gesture, every time, for anybody
+     * reaching a row that was not already fully on screen. It showed up on a
+     * phone because a phone runs out of viewport soonest, but nothing about
+     * it is specific to touch.
+     *
+     * So the dismissal arms a beat late. Long enough to outlast a
+     * scroll-into-view, short enough that a person who scrolls on purpose
+     * never notices the difference.
+     */
+    let armed = false;
+    const arm = setTimeout(() => {
+      armed = true;
+    }, 350);
+    const onMoved = () => {
+      if (armed) onClose();
+    };
+
     window.addEventListener("pointerdown", onPointerDown, true);
-    window.addEventListener("scroll", onScroll, true);
-    window.addEventListener("resize", onScroll);
+    window.addEventListener("scroll", onMoved, true);
+    window.addEventListener("resize", onMoved);
     window.addEventListener("blur", onClose);
     return () => {
+      clearTimeout(arm);
       window.removeEventListener("pointerdown", onPointerDown, true);
-      window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("scroll", onMoved, true);
+      window.removeEventListener("resize", onMoved);
       window.removeEventListener("blur", onClose);
     };
   }, [onClose]);

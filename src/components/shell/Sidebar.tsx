@@ -431,7 +431,7 @@ export function Sidebar() {
           <NavLink
             href="/library"
             icon="home"
-            label="Work"
+            label={t("nav.work")}
             active={pathname === "/library"}
             onNavigate={closeOnMobile}
           />
@@ -440,7 +440,7 @@ export function Sidebar() {
           <NavLink
             href="/due"
             icon="calendar"
-            label="Due"
+            label={t("nav.due")}
             active={pathname === "/due"}
             onNavigate={closeOnMobile}
           />
@@ -459,7 +459,7 @@ export function Sidebar() {
             <NavLink
               href="/team"
               icon="group"
-              label="People"
+              label={t("nav.people")}
               active={pathname === "/team"}
               onNavigate={closeOnMobile}
             />
@@ -469,7 +469,7 @@ export function Sidebar() {
           <NavLink
             href="/more"
             icon="list"
-            label="Everything"
+            label={t("nav.everything")}
             active={pathname === "/more"}
             onNavigate={closeOnMobile}
           />
@@ -477,7 +477,7 @@ export function Sidebar() {
 
         <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto pb-3">
           <div className="mb-1 px-4">
-            <span className="label-mono">recent</span>
+            <span className="label-mono">{t("nav.recent")}</span>
           </div>
 
           {recent.length === 0 ? (

@@ -28,6 +28,14 @@
 export const EN = {
   /* Shell and navigation */
   "nav.library": "Library",
+  // The five rows of the cut-down sidebar. "nav.library" stays as it is —
+  // it names the page in other places, and the row is what got renamed, not
+  // the room. Same for team: "People" is the row, "Team" is still the page.
+  "nav.work": "Work",
+  "nav.due": "Due",
+  "nav.people": "People",
+  "nav.everything": "Everything",
+  "nav.recent": "recent",
   "nav.chat": "Chat",
   "nav.agenda": "Agenda",
   "nav.assignments": "Assignments",

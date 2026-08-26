@@ -7,41 +7,79 @@
  * they may do, what the group knows, and what it has read. The last two are
  * what the assistant is handed — so the page doubles as "what the AI knows
  * about us", which is the only honest way to present a memory.
+ *
+ * Who is here, and how somebody else gets here, now come from the database.
+ * They used to come from this browser's own store: three invented colleagues,
+ * an "Invite" button that wrote an email address into local storage, and a
+ * "Mark joined" button whose own tooltip admitted it was pretending somebody
+ * had followed a link. Everything a member list is for — knowing who can read
+ * your work, letting somebody in, shutting the door again — was theatre.
+ *
+ * So the top half is real: `listMembers` for the rows, `createInvite` and
+ * `revokeInvite` for the links, and the account rule asked *before* any of it
+ * is drawn. The bottom half — what the team knows, and the files — is
+ * deliberately still the local store: those are this browser's context for the
+ * assistant, they work with no database at all, and there is no table for them
+ * yet. Moving them would be a different change.
+ *
+ * There is no email field on the invite form. An invite here is an open link:
+ * whoever holds it and is signed in with a real account can use it. What
+ * closes it is the expiry and the Revoke button, both of which genuinely work,
+ * rather than an address that a forward into a group chat makes meaningless.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   KNOWLEDGE_LABELS,
   ROLE_HINTS,
   ROLE_LABELS,
-  assignableRoles,
-  collaboratorById,
+  can,
   useCan,
-  useMyMembership,
   useTeam,
   useTeamHydrated,
   type KnowledgeKind,
   type Role,
 } from "@/lib/team";
+import {
+  INVITE_ROLES,
+  MAX_DAYS,
+  createInvite,
+  explainAccount,
+  listMembers,
+  revokeInvite,
+  useAccountState,
+  useInvites,
+  type AccountState,
+  type Outcome,
+  type TeamInvite,
+  type TeamMember,
+} from "@/lib/team/invites";
 import { ingestFile } from "@/lib/files/ingest";
 import { LOCAL_USER } from "@/lib/realtime";
+import { useAuth } from "@/lib/auth/store";
 import { useUI } from "@/lib/ui-store";
-import Link from "next/link";
-import { useRemoteConfigured } from "@/lib/db/use-config";
 import { TopBar } from "@/components/shell/TopBar";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
-import { formatNumber } from "@/lib/format";
+import { formatDate, formatNumber } from "@/lib/format";
 
 export default function TeamPage() {
   useTeamHydrated();
   const workspace = useTeam((s) => s.workspace);
   const knowledge = useTeam((s) => s.knowledge);
   const files = useTeam((s) => s.files);
-  const me = useMyMembership();
-  const canManage = useCan("manageMembers");
   const canEditWorkspace = useCan("manageWorkspace");
   const openAI = useUI((s) => s.openAI);
+
+  const account = useAccountState();
+  const members = useMembers(account.ready);
+
+  const rows = members.outcome?.ok ? members.outcome.value : null;
+  // The role the database has for you, not the one this browser would like to
+  // have. Null while the read is in flight, and null too when the workspace
+  // has no membership row at all — see `canInvite` in InvitesSection.
+  const myRole = rows?.find((m) => m.isMe)?.role ?? null;
 
   return (
     <>
@@ -67,9 +105,9 @@ export default function TeamPage() {
         }
       >
         <span className="text-[13px] font-medium text-fg">Team</span>
-        {me && (
+        {myRole && (
           <span className="rounded-xs border border-line px-1.5 py-0.5 text-[10.5px] text-fg-muted">
-            You are {ROLE_LABELS[me.role].toLowerCase()}
+            You are {(ROLE_LABELS[myRole] ?? myRole).toLowerCase()}
           </span>
         )}
       </TopBar>
@@ -77,16 +115,45 @@ export default function TeamPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-[760px] px-5 py-9 sm:px-8">
           <WorkspaceSection editable={canEditWorkspace} />
-          <MembersSection canManage={canManage} myRole={me?.role} />
-          <InvitesSection canManage={canManage} myRole={me?.role} />
+
+          {/*
+            Members and invites both need an account, so when there isn't one
+            they collapse into a single panel that says which of the three
+            reasons it is. One panel rather than the same sentence printed
+            twice — and it keeps `id="join"`, because /more, the command
+            palette and the chat rail all send people to /team#join and the
+            answer they need on arrival is exactly this one.
+          */}
+          {account.ready ? (
+            <>
+              <MembersSection read={members} />
+              <InvitesSection myRole={myRole} />
+            </>
+          ) : (
+            <NoAccountSection settled={account.settled} state={account.state} />
+          )}
+
           <KnowledgeSection count={knowledge.length} />
           <FilesSection count={files.length} />
 
           <p className="mt-2 text-[12px] leading-relaxed text-fg-subtle">
-            Members, what the team knows and the files above are all handed to
-            the assistant as context. It answers from this record, so anything
-            wrong here shows up in its answers — which is why nothing it infers
-            is stored until someone confirms it.
+            What the team knows and the files above are handed to the assistant
+            as context. It answers from that record, so anything wrong here
+            shows up in its answers — which is why nothing it infers is stored
+            until someone confirms it.
+            {/* Only where there is a member list to be wrong about. The
+                assistant's picture of who is here still comes from this
+                browser's own store, so a real member who joined a minute ago
+                is not in it — worth saying where the two are side by side, and
+                noise on a deployment with no database at all. */}
+            {account.ready && (
+              <>
+                {" "}
+                The member list is not part of that yet: the assistant is handed
+                this browser&apos;s own picture of who is here, so somebody who
+                joined a minute ago may be missing from an answer.
+              </>
+            )}
           </p>
           <span className="hidden">{workspace.id}</span>
         </div>
@@ -95,8 +162,134 @@ export default function TeamPage() {
   );
 }
 
+/* ── Reading the membership ─────────────────────────────── */
+
+interface MembersRead {
+  outcome: Outcome<TeamMember[]> | null;
+  busy: boolean;
+  reload: () => Promise<void>;
+}
+
+/**
+ * `listMembers` for a component, in the same shape `useInvites` has so the two
+ * halves of this page behave identically: nothing known, then an outcome.
+ *
+ * `enabled` is the account rule. A browser with no database, no session, or an
+ * anonymous one has nothing to ask about, and asking anyway would put a
+ * refusal in the network log every time this page loads.
+ */
+function useMembers(enabled: boolean): MembersRead {
+  const [outcome, setOutcome] = useState<Outcome<TeamMember[]> | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const reload = useCallback(async () => {
+    setBusy(true);
+    const answer = await listMembers();
+    setOutcome(answer);
+    setBusy(false);
+  }, []);
+
+  // Who is signed in is the trigger, never the answer: somebody can sign out
+  // in Settings and come back to this tab, and the list has to follow.
+  const who = useAuth((s) => s.identity.id);
+
+  useEffect(() => {
+    if (!enabled) return;
+    // Off the effect body — a synchronous setState here is the cascading
+    // render the lint rule is about.
+    void Promise.resolve().then(reload);
+  }, [enabled, reload, who]);
+
+  return { outcome, busy, reload };
+}
+
+/* ── No account ─────────────────────────────────────────── */
+
+/** Where each of the three answers sends somebody, and what to call it. */
+const DOOR: Record<
+  Exclude<AccountState, "real">,
+  { title: string; href: string; label: string }
+> = {
+  "no-database": {
+    title: "No team to show",
+    href: "/settings#connection",
+    label: "What is missing",
+  },
+  "signed-out": {
+    title: "Not signed in",
+    href: "/signin",
+    label: "Sign in",
+  },
+  anonymous: {
+    title: "Signed in without an account",
+    href: "/settings#account",
+    label: "Add an email",
+  },
+};
+
+function NoAccountSection({
+  settled,
+  state,
+}: {
+  settled: boolean;
+  state: AccountState | null;
+}) {
+  // The sentence is taken here, where `state` is still narrowed, rather than
+  // in the branch below — `door` being non-null tells TypeScript nothing about
+  // `state`.
+  const door =
+    state && state !== "real"
+      ? { ...DOOR[state], sentence: explainAccount(state) }
+      : null;
+
+  return (
+    <Section
+      id="join"
+      title="Members and invites"
+      hint="Both are rows in the account database, so both need an account behind them."
+    >
+      {!settled || !door ? (
+        <Checking>Checking what is configured…</Checking>
+      ) : (
+        <div className="flex flex-col gap-3.5">
+          <div className="rounded-md border border-line bg-surface p-3.5">
+            <p className="flex items-center gap-2 text-[13px] text-fg">
+              <span className="size-1.5 rounded-full bg-fg-subtle" />
+              {door.title}
+            </p>
+            <p className="mt-2 text-[12.5px] leading-relaxed text-fg-muted">
+              {/* The sentence the library writes, not a second one written
+                  here: the account rule is enforced inside the database, and
+                  two places explaining it drift apart within a release. */}
+              {door.sentence}
+            </p>
+            <p className="mt-2 text-[12.5px] leading-relaxed text-fg-subtle">
+              Nothing below is affected. What the team knows and the files are
+              kept in this browser and work either way.
+            </p>
+          </div>
+          <Link
+            href={door.href}
+            className="flex w-fit items-center gap-1.5 rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+          >
+            {door.label}
+            <Icon name="arrow-right" size={12} />
+          </Link>
+        </div>
+      )}
+    </Section>
+  );
+}
+
 /* ── Workspace ──────────────────────────────────────────── */
 
+/**
+ * These five fields are this browser's, on purpose: they are what the
+ * assistant should assume about where you are, they are useful with no
+ * database at all, and no table holds them. They are not the workspace's name
+ * in the database, which is why nothing here claims to rename anything for
+ * anybody else.
+ */
 function WorkspaceSection({ editable }: { editable: boolean }) {
   const workspace = useTeam((s) => s.workspace);
   const renameWorkspace = useTeam((s) => s.renameWorkspace);
@@ -105,7 +298,7 @@ function WorkspaceSection({ editable }: { editable: boolean }) {
   return (
     <Section
       title="Workspace"
-      hint="What every answer should assume about where you are."
+      hint="What every answer should assume about where you are. Kept in this browser."
     >
       <Field
         label="Name"
@@ -148,131 +341,115 @@ function WorkspaceSection({ editable }: { editable: boolean }) {
 
 /* ── Members ────────────────────────────────────────────── */
 
-function MembersSection({
-  canManage,
-  myRole,
-}: {
-  canManage: boolean;
-  myRole?: Role;
-}) {
-  const members = useTeam((s) => s.workspace.members);
-  const setRole = useTeam((s) => s.setRole);
-  const updateMember = useTeam((s) => s.updateMember);
-  const removeMember = useTeam((s) => s.removeMember);
-  const notify = useUI((s) => s.notify);
+/**
+ * Two letters for the circle, or none.
+ *
+ * Nothing is invented from a user id: a person with no display name gets a
+ * plain glyph rather than initials taken from a uuid, which would read as a
+ * name they never chose.
+ */
+function initials(name: string | null): string {
+  if (!name) return "";
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  const letters =
+    words.length === 1
+      ? words[0].slice(0, 2)
+      : words[0][0] + words[words.length - 1][0];
+  return letters.toUpperCase();
+}
 
-  const configured = useRemoteConfigured();
-  const options = assignableRoles(myRole);
-  const owners = members.filter((m) => m.role === "owner").length;
+function MembersSection({ read }: { read: MembersRead }) {
+  const { outcome, busy, reload } = read;
+  const rows = outcome?.ok ? outcome.value : null;
 
   return (
-    <Section title="Members" hint={`${members.length} people in this workspace.`}>
-      {/* Two role lists would be one too many if it weren't said out loud.
-          These are this browser's, and they decide what this browser offers;
-          the ones a policy actually enforces live in the database, and the
-          console is where you read them. */}
-      {configured && (
-        <p className="mb-2.5 text-[12px] leading-relaxed text-fg-subtle">
-          These roles decide what this browser offers you. The roles the
-          database enforces — the ones that decide what a request is allowed to
-          do — are in{" "}
-          <Link
-            href="/admin"
-            className="underline decoration-line-strong underline-offset-2 hover:text-fg"
-          >
-            Administration
-          </Link>
-          .
+    <Section
+      title="Members"
+      hint={
+        rows
+          ? `${rows.length === 1 ? "1 person" : `${formatNumber(rows.length)} people`} in this workspace.`
+          : "Who is in this workspace, as the database has it."
+      }
+    >
+      <p className="mb-1 text-[12px] leading-relaxed text-fg-subtle">
+        Every row here is a real membership, and the role beside it is the one
+        the database enforces — every policy in the schema asks this same table.
+        Nothing on this page changes a role;{" "}
+        <Link
+          href="/admin"
+          className="underline decoration-line-strong underline-offset-2 hover:text-fg"
+        >
+          Administration
+        </Link>{" "}
+        is where these rows are read alongside the log.
+      </p>
+
+      {!outcome && <Checking>Reading who is here…</Checking>}
+
+      {outcome && !outcome.ok && (
+        <Trouble
+          what="The member list couldn't be read."
+          reason={outcome.reason}
+          busy={busy}
+          onRetry={() => void reload()}
+        />
+      )}
+
+      {rows && rows.length === 0 && (
+        <p className="text-[12.5px] leading-relaxed text-fg-muted">
+          Nobody is listed in this workspace — not even you. That means the
+          membership row is missing rather than that the workspace is empty, so
+          an invite made here still lands somewhere real.
         </p>
       )}
-      <ul className="flex flex-col">
-        {members.map((m) => {
-          const person = collaboratorById(m.id);
-          const isMe = m.id === LOCAL_USER.id;
-          const lastOwner = m.role === "owner" && owners === 1;
 
-          return (
-            <li
-              key={m.id}
-              data-member={m.id}
-              className="flex flex-wrap items-center gap-3 border-b border-line py-3 last:border-b-0"
-            >
-              <span
-                className="grid size-8 shrink-0 place-items-center rounded-full font-mono text-[10px] font-medium"
-                style={{
-                  background: `${person.color}22`,
-                  color: person.color,
-                  boxShadow: `inset 0 0 0 1px ${person.color}55`,
-                }}
-                aria-hidden="true"
+      {rows && rows.length > 0 && (
+        <ul className="flex flex-col">
+          {rows.map((m) => {
+            const mark = initials(m.displayName);
+            return (
+              <li
+                key={m.userId}
+                data-member={m.userId}
+                className="flex flex-wrap items-center gap-3 border-b border-line py-3 last:border-b-0"
               >
-                {person.initials}
-              </span>
-
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 text-[13px] text-fg">
-                  {person.name}
-                  {isMe && (
-                    <span className="text-[11px] text-fg-subtle">you</span>
-                  )}
-                </p>
-                <input
-                  value={m.title ?? ""}
-                  placeholder="Add a role description"
-                  disabled={!canManage && !isMe}
-                  aria-label={`Title for ${person.name}`}
-                  onChange={(e) => updateMember(m.id, { title: e.target.value })}
-                  className="w-full bg-transparent text-[12px] text-fg-muted outline-none placeholder:text-fg-subtle disabled:opacity-70"
-                />
-                {m.email && (
-                  <p className="truncate text-[11px] text-fg-subtle">{m.email}</p>
-                )}
-              </div>
-
-              {canManage && options.length > 0 && !lastOwner ? (
-                <select
-                  value={m.role}
-                  aria-label={`Role for ${person.name}`}
-                  onChange={(e) => setRole(m.id, e.target.value as Role)}
-                  className="rounded-sm border border-line bg-surface px-2 py-1 text-[11.5px] text-fg-muted outline-none transition-colors hover:text-fg focus:border-accent"
-                >
-                  {options.map((r) => (
-                    <option key={r} value={r} className="bg-surface">
-                      {ROLE_LABELS[r]}
-                    </option>
-                  ))}
-                </select>
-              ) : (
                 <span
-                  title={ROLE_HINTS[m.role]}
+                  className="grid size-8 shrink-0 place-items-center rounded-full border border-line bg-surface-2 font-mono text-[10px] font-medium text-fg-muted"
+                  aria-hidden="true"
+                >
+                  {mark || <Icon name="users" size={12} />}
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-2 text-[13px] text-fg">
+                    {m.displayName ?? (
+                      <span className="text-fg-muted">no name yet</span>
+                    )}
+                    {m.isMe && (
+                      <span className="text-[11px] text-fg-subtle">you</span>
+                    )}
+                  </p>
+                  <p className="text-[11.5px] leading-relaxed text-fg-subtle">
+                    Joined {formatDate(m.joinedAt)}
+                    {m.anonymous &&
+                      " · no account, so this place disappears when their browser is cleared"}
+                  </p>
+                </div>
+
+                {/* The role text is whatever the column holds. A value outside
+                    the five we know about is shown as it stands rather than as
+                    blank — a role nobody recognises is worth seeing. */}
+                <span
+                  title={ROLE_HINTS[m.role] ?? ""}
                   className="rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted"
                 >
-                  {ROLE_LABELS[m.role]}
+                  {ROLE_LABELS[m.role] ?? m.role}
                 </span>
-              )}
-
-              {canManage && !isMe && !lastOwner && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    removeMember(m.id);
-                    notify(`${person.name} removed`);
-                  }}
-                  aria-label={`Remove ${person.name}`}
-                  className="rounded-xs p-1 text-fg-subtle transition-colors hover:text-danger"
-                >
-                  <Icon name="trash" size={12} />
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-
-      {!canManage && (
-        <p className="text-[12px] text-fg-subtle">
-          Only admins and owners can change roles or remove people.
-        </p>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </Section>
   );
@@ -280,167 +457,267 @@ function MembersSection({
 
 /* ── Invites ────────────────────────────────────────────── */
 
-function InvitesSection({
-  canManage,
-  myRole,
-}: {
-  canManage: boolean;
-  myRole?: Role;
-}) {
-  const invites = useTeam((s) => s.workspace.invites);
-  const invite = useTeam((s) => s.invite);
-  const revokeInvite = useTeam((s) => s.revokeInvite);
-  const acceptInvite = useTeam((s) => s.acceptInvite);
+
+/** How long a link may live. `MAX_DAYS` is the library's cap, not a guess. */
+const LIFETIMES = [1, 7, 30, MAX_DAYS];
+
+const lifetimeLabel = (days: number): string =>
+  days === 1 ? "1 day" : `${days} days`;
+
+const usesLine = (invite: TeamInvite): string => {
+  if (invite.maxUses !== null)
+    return `used ${formatNumber(invite.uses)} of ${formatNumber(invite.maxUses)} times`;
+  if (invite.uses === 0) return "never used";
+  return invite.uses === 1 ? "used once" : `used ${formatNumber(invite.uses)} times`;
+};
+
+const lifeLine = (invite: TeamInvite): string => {
+  if (invite.status === "revoked")
+    return invite.revokedAt === null
+      ? "revoked"
+      : `revoked ${formatDate(invite.revokedAt)}`;
+  if (invite.status === "expired") return `expired ${formatDate(invite.expiresAt)}`;
+  if (invite.status === "used-up") return "no uses left";
+  return `expires ${formatDate(invite.expiresAt)}`;
+};
+
+function InvitesSection({ myRole }: { myRole: Role | null }) {
+  const { settled, outcome, busy, reload } = useInvites();
   const notify = useUI((s) => s.notify);
 
-  const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("editor");
-  const [noted, setNoted] = useState<string | null>(null);
+  const [days, setDays] = useState(7);
+  const [minting, setMinting] = useState(false);
+  const [fresh, setFresh] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const linkRef = useRef<HTMLInputElement>(null);
 
-  const options = assignableRoles(myRole).filter((r) => r !== "owner");
-  const pending = invites.filter((i) => i.status === "pending");
+  /*
+   * A null role is "the database returned no membership row for you", which is
+   * not the same as "you may not". A workspace made before the trigger that
+   * adds its owner has a row for nobody, and its owner can still invite.
+   * `createInvite` asks that question of the workspace itself and refuses in a
+   * sentence, so the honest thing here is to offer the form and let the
+   * database have the last word.
+   */
+  const canInvite = myRole === null || can(myRole, "manageMembers");
 
-  const send = () => {
-    const created = invite(email, role);
-    if (!created) {
-      notify("Check the address — or they're already invited");
+  const create = async () => {
+    setMinting(true);
+    setRefusal(null);
+    const made = await createInvite(role, days);
+    setMinting(false);
+    if (!made.ok) {
+      setRefusal(made.reason);
       return;
     }
-    setEmail("");
-    setNoted(created.email);
-    notify(`Noted ${created.email}`);
+    setFresh(made.value);
+    setCopied(false);
+    await reload();
   };
 
-  if (!canManage)
+  const copy = async () => {
+    if (!fresh) return;
+    try {
+      await navigator.clipboard.writeText(fresh);
+    } catch {
+      // The clipboard is refused on an insecure origin and inside some
+      // embedded browsers. Selecting the text is a copy somebody can finish
+      // themselves, which beats a button that silently does nothing.
+      linkRef.current?.select();
+      notify("Press ⌘C to copy — the link is selected.");
+      return;
+    }
+    setCopied(true);
+    notify("Invite link copied");
+    window.setTimeout(() => setCopied(false), 1600);
+  };
+
+  const revoke = async (invite: TeamInvite) => {
+    const done = await revokeInvite(invite.id);
+    if (!done.ok) {
+      notify(done.reason);
+      return;
+    }
+    /*
+     * The link in the box above cannot be matched to a row — only its
+     * fingerprint was stored and minting hands back a URL, not an id — so
+     * after any revocation there is no way to prove the one on screen still
+     * works. It goes. Offering a Copy button for a link that may already be
+     * dead is the exact failure this rewrite exists to remove; making another
+     * is one press away.
+     */
+    setFresh(null);
+    notify("Link revoked");
+    await reload();
+  };
+
+  if (!canInvite)
     return (
-      <Section id="join" title="Invites" hint="Admins and owners can invite people.">
-        <p className="text-[12px] text-fg-subtle">
-          {pending.length} invitation{pending.length === 1 ? "" : "s"} pending.
+      <Section
+        id="join"
+        title="Invites"
+        hint="Only owners and admins can hand out a link to this workspace."
+      >
+        <p className="text-[12.5px] leading-relaxed text-fg-muted">
+          Ask one of them for one. A link works for whoever holds it, so they
+          can send you the same one they sent everybody else.
         </p>
       </Section>
     );
 
   return (
-    /* `id="join"` because two links elsewhere already point at /team#join —
-       the sidebar's "Join a team" and the Library's — and until now both
-       landed on the top of a page with no such anchor on it. */
-    <Section id="join" title="Invites" hint="They join with the role you pick here.">
+    /* `id="join"` because /more, the command palette and the chat rail all
+       point at /team#join, and this is the section that answers them. */
+    <Section
+      id="join"
+      title="Invites"
+      hint="An open link. Whoever holds it and is signed in with an account joins with the role you pick — which is the point: it survives being forwarded into a group chat. The expiry and Revoke are what close it again."
+    >
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="email"
-          value={email}
-          placeholder="name@university.edu"
-          aria-label="Email address"
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") send();
-          }}
-          className="min-w-0 flex-1 rounded-sm border border-line bg-surface px-2.5 py-1.5 text-[12.5px] text-fg outline-none focus:border-accent"
-        />
         <select
           value={role}
-          aria-label="Invite role"
+          aria-label="Role the link gives"
           onChange={(e) => setRole(e.target.value as Role)}
           className="rounded-sm border border-line bg-surface px-2 py-1.5 text-[12px] text-fg-muted outline-none focus:border-accent"
         >
-          {options.map((r) => (
+          {/* From INVITE_ROLES, which mirrors the check constraint on the
+              column. A link can never carry `owner`. */}
+          {INVITE_ROLES.map((r) => (
             <option key={r} value={r} className="bg-surface">
-              {ROLE_LABELS[r]}
+              {ROLE_LABELS[r] ?? r}
+            </option>
+          ))}
+        </select>
+        <select
+          value={days}
+          aria-label="How long the link lives"
+          onChange={(e) => setDays(Number(e.target.value))}
+          className="rounded-sm border border-line bg-surface px-2 py-1.5 text-[12px] text-fg-muted outline-none focus:border-accent"
+        >
+          {LIFETIMES.map((d) => (
+            <option key={d} value={d} className="bg-surface">
+              {lifetimeLabel(d)}
             </option>
           ))}
         </select>
         <button
           type="button"
-          onClick={send}
-          disabled={!email.trim()}
+          onClick={() => void create()}
+          disabled={minting}
           className={cn(
             "rounded-sm px-2.5 py-1.5 text-[12.5px] font-medium transition-[filter] duration-150",
-            email.trim()
-              ? "bg-accent text-on-accent hover:brightness-110"
-              : "border border-line text-fg-subtle",
+            minting
+              ? "border border-line text-fg-subtle"
+              : "bg-accent text-on-accent hover:brightness-110",
           )}
         >
-          Invite
+          {minting ? "Making…" : "Create a link"}
         </button>
       </div>
 
-      <p className="text-[11.5px] text-fg-subtle">{ROLE_HINTS[role]}</p>
+      <p className="text-[11.5px] text-fg-subtle">{ROLE_HINTS[role] ?? ""}</p>
 
-      {/*
-        * What this button actually did, said out loud.
-        *
-        * It used to produce `${origin}/join/<token>` in a box with a Copy
-        * button beside it. There is no `/join` route and never was, and
-        * `acceptInvite` in `lib/team` describes itself as simulating the
-        * invitee following the link. So the most confident-looking control on
-        * the page handed somebody a URL that 404s, for a mechanism that does
-        * not exist.
-        *
-        * A dead link is worse than an absent one: the person copies it,
-        * sends it, and finds out from their classmate. This says instead
-        * exactly what happened — a name was written down — and what is
-        * missing. Sending real invitations needs a token the database can
-        * check, which is a feature, not a label.
-        */}
-      {noted && (
-        <div className="rounded-sm border border-line bg-surface px-2.5 py-2">
-          <p className="text-[12px] text-fg">
-            {noted} is on the list below.
-          </p>
-          <p className="mt-1 text-[11.5px] leading-relaxed text-fg-subtle">
-            Emailed invitations aren&apos;t built yet, so nothing has been sent.
-            The roles here decide what this browser offers; the ones the
-            database enforces are in{" "}
-            <Link href="/admin" className="text-accent hover:underline">
-              Administration
-            </Link>
-            .
+      {refusal && (
+        <p className="text-[12.5px] leading-relaxed text-warn">{refusal}</p>
+      )}
+
+      {fresh && (
+        <div className="rounded-md border border-line bg-surface p-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={linkRef}
+              value={fresh}
+              readOnly
+              aria-label="The invite link"
+              onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1 rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 font-mono text-[11.5px] text-fg outline-none focus:border-accent"
+            />
+            <button
+              type="button"
+              onClick={() => void copy()}
+              className="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+            >
+              <Icon name={copied ? "check" : "copy"} size={12} />
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <p className="mt-2 text-[11.5px] leading-relaxed text-fg-subtle">
+            This is the only time this link can be shown. Only a fingerprint of
+            it is stored, so nobody — including whoever runs the database — can
+            read it back out. Lose it and make another.
           </p>
         </div>
       )}
 
-      {pending.length > 0 && (
+      {!settled || !outcome ? (
+        <Checking>Reading the links…</Checking>
+      ) : !outcome.ok ? (
+        <Trouble
+          what="The links couldn't be read."
+          reason={outcome.reason}
+          busy={busy}
+          onRetry={() => void reload()}
+        />
+      ) : outcome.value.length === 0 ? (
+        <p className="text-[12.5px] text-fg-muted">
+          No links have been made for this workspace.
+        </p>
+      ) : (
         <ul className="flex flex-col">
-          {pending.map((i) => (
+          {outcome.value.map((i) => (
             <li
               key={i.id}
               data-invite={i.id}
               className="flex flex-wrap items-center gap-3 border-b border-line py-2.5 last:border-b-0"
             >
-              <span className="grid size-8 shrink-0 place-items-center rounded-full border border-dashed border-line-strong text-fg-subtle">
-                <Icon name="plus" size={12} />
+              <span
+                className={cn(
+                  "grid size-8 shrink-0 place-items-center rounded-full border",
+                  i.status === "live"
+                    ? "border-line-strong text-fg-muted"
+                    : "border-dashed border-line text-fg-subtle",
+                )}
+                aria-hidden="true"
+              >
+                <Icon name={i.status === "live" ? "link" : "lock"} size={12} />
               </span>
+
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12.5px] text-fg">
-                  {i.email}
+                <span className="block text-[12.5px] text-fg">
+                  {ROLE_LABELS[i.role] ?? i.role} link
                 </span>
-                <span className="text-[11px] text-fg-subtle">
-                  Invited as {ROLE_LABELS[i.role].toLowerCase()} · not yet joined
+                <span className="block text-[11px] text-fg-subtle">
+                  Made {formatDate(i.createdAt)} · {lifeLine(i)} ·{" "}
+                  {usesLine(i)}
                 </span>
               </span>
-              <button
-                type="button"
-                onClick={() => {
-                  acceptInvite(i.id);
-                  notify(`${i.email} joined`);
-                }}
-                title="Simulate them following the link"
-                className="rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
-              >
-                Mark joined
-              </button>
-              <button
-                type="button"
-                onClick={() => revokeInvite(i.id)}
-                aria-label={`Revoke invite for ${i.email}`}
-                className="rounded-xs p-1 text-fg-subtle transition-colors hover:text-danger"
-              >
-                <Icon name="x" size={12} />
-              </button>
+
+              {i.status === "live" ? (
+                <button
+                  type="button"
+                  onClick={() => void revoke(i)}
+                  aria-label={`Revoke the ${(ROLE_LABELS[i.role] ?? i.role).toLowerCase()} link made ${formatDate(i.createdAt)}`}
+                  className="rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
+                >
+                  Revoke
+                </button>
+              ) : (
+                <span className="rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-subtle">
+                  {i.status === "used-up" ? "used up" : i.status}
+                </span>
+              )}
             </li>
           ))}
         </ul>
       )}
+
+      <p className="text-[12px] leading-relaxed text-fg-subtle">
+        Every link ever made is listed, dead ones included — who was handed a
+        way in, and whether anyone used it, is as much the question as who can
+        still get in. None of them can be shown again.
+      </p>
     </Section>
   );
 }
@@ -484,7 +761,7 @@ function KnowledgeSection({ count }: { count: number }) {
   return (
     <Section
       title="What the team knows"
-      hint={`${count} entr${count === 1 ? "y" : "ies"}${unconfirmed.length ? ` · ${unconfirmed.length} waiting to be confirmed` : ""}.`}
+      hint={`${count} entr${count === 1 ? "y" : "ies"}${unconfirmed.length ? ` · ${unconfirmed.length} waiting to be confirmed` : ""}. Kept in this browser.`}
     >
       {canEdit && (
         <div className="flex flex-col gap-2 rounded-md border border-line bg-surface p-2.5">
@@ -616,7 +893,7 @@ function FilesSection({ count }: { count: number }) {
   return (
     <Section
       title="Files the assistant has read"
-      hint={`${count} file${count === 1 ? "" : "s"}. Text is extracted and used as context; the original isn't stored.`}
+      hint={`${count} file${count === 1 ? "" : "s"}. Text is extracted and used as context; the original isn't stored. Kept in this browser.`}
     >
       {canEdit && (
         <label
@@ -706,6 +983,58 @@ function FilesSection({ count }: { count: number }) {
 }
 
 /* ── Shared ─────────────────────────────────────────────── */
+
+/** Nothing known yet. Not "there is none" — the same distinction the plan
+ *  card makes, and for the same reason. */
+function Checking({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="flex items-center gap-2 text-[13px] text-fg-muted">
+      <span className="size-1.5 rounded-full bg-fg-subtle" />
+      {children}
+    </p>
+  );
+}
+
+/**
+ * A question that could not be asked. Emphatically not an empty list: an empty
+ * member list means nobody is here, and this means nobody knows.
+ *
+ * `setup: true` — no database — cannot really reach this, because the account
+ * rule answers that before either read is drawn; if a session vanishes between
+ * the two, the library's sentence still describes what happened, so there is
+ * no second card for it.
+ */
+function Trouble({
+  what,
+  reason,
+  busy,
+  onRetry,
+}: {
+  what: string;
+  reason: string;
+  busy: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-md border border-warn/35 bg-warn/[0.07] p-3.5">
+      <Icon name="minus" size={13} className="mt-0.5 shrink-0 text-warn" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] text-fg">{what}</p>
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-muted">
+          {reason}
+        </p>
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={busy}
+          className="mt-2.5 rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-45"
+        >
+          {busy ? "Asking again…" : "Ask again"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Section({
   title,

@@ -34,7 +34,7 @@ import { useChannelActions } from "@/components/chat/useChannelActions";
 import { projectMenu } from "@/lib/project-menu";
 import { useUI } from "@/lib/ui-store";
 import { useAppearance } from "@/lib/theme-store";
-import { hydrateScope, settleScope, useHasTeam, useScope } from "@/lib/scope";
+import { countTeam, hydrateScope, settleScope, useHasTeam, useScope } from "@/lib/scope";
 import { useTeamHydrated } from "@/lib/team";
 import {
   lastActivity,
@@ -123,6 +123,11 @@ export function Sidebar() {
   useChatHydrated();
   useEffect(() => {
     hydrateScope();
+    // Ask the database how many people are really in this workspace. Until it
+    // answers, "is there a team" comes from a local store that nothing writes
+    // any more — which is what told somebody who had just accepted a real
+    // invitation that they had no team.
+    void countTeam();
   }, []);
   // `settleScope` asks the team store whether there is a team, so it must not
   // be asked before that store has loaded — asked too early it reads the seed

@@ -7,7 +7,7 @@
 --
 -- The last result set is the one to read first: it names every migration and
 -- whether it has visibly been applied. Anything there that is NOT APPLIED is
--- fixed by running `supabase/catch-up.sql`, which is 0003–0014 in one paste
+-- fixed by running `supabase/catch-up.sql`, which is 0003–0015 in one paste
 -- and is safe to run however many times it has already been run.
 --
 -- The expected list is not a guess: it was taken from a Postgres 16 that had
@@ -24,6 +24,9 @@ with expected(kind, name, note) as (values
   ('table',   'form_responses',      'answers to forms'),
   ('table',   'audit_log',           'append-only record of what was done'),
   ('table',   'workspace_templates', 'templates published to everyone'),
+  ('table',   'workspace_invites',   'open links into a workspace; only the hash of each token'),
+  ('table',   'connections',         'the friend graph, one row per pair, ordered least/greatest'),
+  ('table',   'connection_links',    'open links to a person; one use by default'),
   ('function','is_member',           'used by nearly every policy'),
   ('function','owns_workspace',      'the owner, even without a membership row'),
   ('function','role_rank',           'the role ladder'),
@@ -33,6 +36,10 @@ with expected(kind, name, note) as (values
   ('function','add_owner_as_member', 'the owner joins their own workspace'),
   ('function','purge_preview',       'what retention would remove'),
   ('function','purge_expired',       'what retention does remove'),
+  ('function','is_real_account',     'an anonymous sign-in may not join anything'),
+  ('function','accept_workspace_invite', 'the only way to use an invite link'),
+  ('function','accept_connection',   'the only way anything is written to connections'),
+  ('function','shares_a_workspace',  'lets you read a teammate''s name'),
   ('column',  'workspaces.retention_days', 'null means keep everything')
 )
 select
@@ -70,12 +77,24 @@ join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind = 'r'
 order by c.relname;
 
--- And the two things that are *supposed* to be absent: no policy on the audit
--- log may allow UPDATE or DELETE. Anything listed here is a hole.
-select policyname, cmd
+-- And the things that are *supposed* to be absent. No policy on the audit log
+-- may allow UPDATE or DELETE — a log an admin can edit is not a log. No policy
+-- on `connections` may allow INSERT or UPDATE either: the only way into the
+-- friend graph is `accept_connection`, which requires the token, and an insert
+-- policy would let anybody add themselves to a stranger. Anything listed here
+-- is a hole.
+--
+-- `pg_policies` is queried by table NAME rather than by `'public.x'::regclass`,
+-- which matters: a regclass cast to a table this database does not have is an
+-- error at parse time, and it would take this whole report down on exactly the
+-- database that most needs to read it.
+select tablename, policyname, cmd
 from pg_policies
-where schemaname = 'public' and tablename = 'audit_log'
-  and cmd in ('UPDATE', 'DELETE', 'ALL');
+where schemaname = 'public'
+  and (
+    (tablename = 'audit_log'   and cmd in ('UPDATE', 'DELETE', 'ALL'))
+    or (tablename = 'connections' and cmd in ('INSERT', 'UPDATE', 'ALL'))
+  );
 
 -- How much is actually stored. A small answer here is normal, not a fault:
 -- the app keeps work in the browser until somebody signs in, and a document
@@ -211,4 +230,17 @@ select
   '0014 — cards to learn from',
   case when to_regclass('public.study_sets') is not null
        then 'applied' else 'NOT APPLIED — study sets stay in one browser' end
+union all
+select
+  '0015 — people you actually know',
+  -- `to_regclass`, which returns null for a table that is not there, and not
+  -- `from public.workspace_invites` or `'public.connections'::regclass`.
+  -- Either of those is resolved when this file is PARSED, so on a database
+  -- where 0015 has not run they do not report "not applied" — they abort the
+  -- whole report before its first row, which is the one report the founder
+  -- needs at that moment. Same reason 0012's row above is written the way it
+  -- is.
+  case when to_regclass('public.workspace_invites') is not null
+        and to_regclass('public.connections') is not null
+       then 'applied' else 'NOT APPLIED — nobody can be added to a team' end
 order by migration;

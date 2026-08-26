@@ -17,6 +17,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { versioned } from "./persistence/versioned";
 import { useTeam } from "./team";
+import { countMembers } from "./team/invites";
 
 export type Scope = "personal" | "team";
 
@@ -44,26 +45,67 @@ export function hydrateScope() {
 }
 
 /**
+ * How many people the database says are in this workspace.
+ *
+ * A separate, unpersisted store because it is an *answer*, not a preference:
+ * caching it across reloads would mean somebody who was removed from a team
+ * still saw the team world until the next successful query. Null means
+ * nobody has asked yet, or the question could not be asked.
+ */
+interface RealTeamState {
+  members: number | null;
+  set: (members: number | null) => void;
+}
+
+const useRealTeam = create<RealTeamState>()((set) => ({
+  members: null,
+  set: (members) => set({ members }),
+}));
+
+/**
+ * Ask the database how many people are really in the workspace.
+ *
+ * Called once from the shell. Everything below prefers this answer to the
+ * local store, because the local store is what used to say "no team" to
+ * somebody who had just accepted a real invitation.
+ */
+export async function countTeam(): Promise<void> {
+  useRealTeam.getState().set(await countMembers());
+}
+
+/** The local store's answer. It is a fallback now, not the truth: nothing in
+ *  the app writes `workspace.members` or `workspace.invites` any more, so on
+ *  its own it says "no team" to everybody. `kind` is still a real local
+ *  setting somebody can change, so it still counts. */
+const localTeam = (w: {
+  members: unknown[];
+  invites: unknown[];
+  kind: string;
+}): boolean => w.members.length > 1 || w.invites.length > 0 || w.kind !== "personal";
+
+/**
  * Whether there is a team to switch to at all.
  *
  * "A team" means more than just you, or a workspace somebody deliberately
  * made into one — the seeded solo workspace everybody starts with is not a
  * team, and showing it as one would put an empty team agenda and an empty
  * member list behind the switch, which reads as broken rather than as new.
+ *
+ * The database wins when it has answered. With no database, signed out, or on
+ * a deployment where migration 0015 has not been run, it never answers, and
+ * the local store keeps the app working the way it did before any of this.
  */
 export function useHasTeam(): boolean {
-  return useTeam(
-    (s) =>
-      s.workspace.members.length > 1 ||
-      s.workspace.invites.length > 0 ||
-      s.workspace.kind !== "personal",
-  );
+  const real = useRealTeam((s) => s.members);
+  const local = useTeam((s) => localTeam(s.workspace));
+  return real === null ? local : real > 1;
 }
 
 /** The same answer outside a component. */
 export function hasTeamNow(): boolean {
-  const w = useTeam.getState().workspace;
-  return w.members.length > 1 || w.invites.length > 0 || w.kind !== "personal";
+  const real = useRealTeam.getState().members;
+  if (real !== null) return real > 1;
+  return localTeam(useTeam.getState().workspace);
 }
 
 /**

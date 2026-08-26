@@ -1006,3 +1006,507 @@ create policy hearts_give on public.community_hearts
 drop policy if exists hearts_take_back on public.community_hearts;
 create policy hearts_take_back on public.community_hearts
   for delete using (user_id = auth.uid());
+
+/* ── People you actually know ────────────────────────────────────────────
+   How a second person gets into a workspace, and how two people who do not
+   share one come to know each other. Both are OPEN links: whoever holds the
+   link and is signed in may use it, because a link is going to be pasted
+   into a group chat and forwarded twice before anybody opens it. What makes
+   that safe is not who the link names — it is that expiry and revocation are
+   columns the accept function reads on every use.
+
+   The token is never stored. Only `sha256(convert_to(token,'utf8'))`, so a
+   database dump is a pile of hashes rather than a pile of working links; and
+   `sha256`, not pgcrypto's `digest`, because Supabase puts pgcrypto in the
+   `extensions` schema where a pinned search_path cannot see it.
+
+   See migrations/0015-people-you-actually-know.sql for the full reasoning. */
+
+-- Is this caller a real account, rather than an anonymous sign-in?
+--
+-- Against `auth.users`, deliberately, and never `public.profiles`:
+-- `profiles_self` is `for all`, so a person can update their own profile and
+-- set `is_anonymous` to false. A check somebody can answer for themselves is
+-- not a check. `language plpgsql` so the body is not resolved at CREATE time
+-- — `is_anonymous` is Supabase's column, not ours, and an auth schema without
+-- it should fail this one call rather than the whole file.
+create or replace function public.is_real_account(who uuid)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public, auth, pg_temp
+as $$
+declare
+  genuine boolean;
+begin
+  select (u.email is not null and u.email <> '' and u.is_anonymous is not true)
+    into genuine
+    from auth.users u
+   where u.id = who;
+  return coalesce(genuine, false);
+end;
+$$;
+
+-- `revoke ... from public` is not what keeps this away from `anon` and
+-- `authenticated`: Supabase's default privileges grant execute on every new
+-- function in `public` to both roles by name, and a privilege held by a role
+-- outlives a revoke aimed at `public`. The two roles are named below, in the
+-- guarded block with the rest of the role-specific statements.
+revoke all on function public.is_real_account(uuid) from public;
+
+create table if not exists public.workspace_invites (
+  id           uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  -- The members ladder minus 'owner'. A link may not hand over ownership:
+  -- ownership is a transfer between two named people, and a thing that has
+  -- been forwarded through a group chat is nobody in particular.
+  role         text not null default 'editor'
+               check (role in ('admin', 'editor', 'commenter', 'viewer')),
+  token_hash   bytea not null unique,
+  -- Cascades: a link is a credential somebody handed out, not a record of
+  -- what happened, so it dies with the person who minted it.
+  created_by   uuid not null default auth.uid()
+               references public.profiles(id) on delete cascade,
+  -- No default. An invite that never expires is the one that turns up in a
+  -- search result in two years.
+  expires_at   timestamptz not null,
+  revoked_at   timestamptz,
+  uses         integer not null default 0,
+  -- Null means "as many as the expiry allows"; a team link goes to a group
+  -- whose size you do not know.
+  max_uses     integer check (max_uses is null or max_uses > 0),
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists workspace_invites_workspace_idx
+  on public.workspace_invites(workspace_id, created_at desc);
+
+alter table public.workspace_invites enable row level security;
+
+-- Members may see what links are outstanding — that is not a secret from the
+-- people already inside, and a revoke button needs something to list. Nobody
+-- may look a link up by token; that is what the function is for.
+drop policy if exists workspace_invites_visible on public.workspace_invites;
+create policy workspace_invites_visible on public.workspace_invites
+  for select using (public.is_member(workspace_id));
+
+drop policy if exists workspace_invites_made_by_admins on public.workspace_invites;
+create policy workspace_invites_made_by_admins on public.workspace_invites
+  for insert with check (
+    (public.has_role(workspace_id, 'admin') or public.owns_workspace(workspace_id))
+    and created_by = auth.uid()
+  );
+
+-- Revoking is an update. There is no delete policy and no delete grant:
+-- deleting the row would throw away the record that the link was handed out.
+drop policy if exists workspace_invites_revoked_by_admins on public.workspace_invites;
+create policy workspace_invites_revoked_by_admins on public.workspace_invites
+  for update using (
+    public.has_role(workspace_id, 'admin') or public.owns_workspace(workspace_id)
+  ) with check (
+    public.has_role(workspace_id, 'admin') or public.owns_workspace(workspace_id)
+  );
+
+/*
+ * Take a token, and either join the workspace or say plainly why not. Returns
+ * { ok, already, workspace_id, workspace_name, role, reason, message } —
+ * `reason` a short stable slug for code, `message` the sentence to show.
+ */
+create or replace function public.accept_workspace_invite(token text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth, pg_temp
+as $$
+declare
+  me      uuid := auth.uid();
+  link    public.workspace_invites%rowtype;
+  ws_name text;
+  mine    text;
+  claimed integer;
+begin
+  if me is null then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'signed out',
+      'message', 'you are not signed in. sign in, then open the link again.');
+  end if;
+
+  -- Its own reason, because "make an account" is a different instruction from
+  -- "ask for a new link" and telling somebody the wrong one wastes their day.
+  if not public.is_real_account(me) then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'anonymous',
+      'message', 'this browser is signed in anonymously, and an anonymous '
+              || 'sign-in is lost as soon as the browser is cleared. make an '
+              || 'account first, then open the link again.');
+  end if;
+
+  select * into link
+    from public.workspace_invites
+   where token_hash = sha256(convert_to(coalesce(token, ''), 'utf8'));
+
+  if not found then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'no such link',
+      'message', 'that link does not work. ask whoever sent it for a new one.');
+  end if;
+
+  select name into ws_name from public.workspaces where id = link.workspace_id;
+
+  -- Before revoked/expired/used up, and that ordering is the point: a second
+  -- click is usually the same person's browser reloading, and telling them a
+  -- link is used up while they stand inside the workspace is a lie about
+  -- their own membership. No use is counted on this path.
+  select role into mine
+    from public.workspace_members
+   where workspace_id = link.workspace_id and user_id = me;
+
+  if found then
+    return jsonb_build_object(
+      'ok', true, 'already', true, 'workspace_id', link.workspace_id,
+      'workspace_name', ws_name, 'role', mine, 'reason', null, 'message', null);
+  end if;
+
+  if link.revoked_at is not null then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'revoked',
+      'message', 'this link was turned off. ask for a new one.');
+  end if;
+
+  if link.expires_at <= now() then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'expired',
+      'message', 'this link has expired. ask for a new one.');
+  end if;
+
+  if link.max_uses is not null and link.uses >= link.max_uses then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'used up',
+      'message', 'this link has already been used as many times as it allows.');
+  end if;
+
+  -- The conditions live in the UPDATE, not in the row read above: two people
+  -- opening the last use at the same moment both read `uses = 0`, and only
+  -- one can win a conditional update. The checks above still earn their keep
+  -- — they produce a reason a person can read, where this produces a count.
+  update public.workspace_invites i
+     set uses = i.uses + 1
+   where i.id = link.id
+     and i.revoked_at is null
+     and i.expires_at > now()
+     and (i.max_uses is null or i.uses < i.max_uses);
+  get diagnostics claimed = row_count;
+
+  if claimed = 0 then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'used up',
+      'message', 'this link has already been used as many times as it allows.');
+  end if;
+
+  -- Counted first, then joined: the other order lets a race put somebody in
+  -- and only then discover there was no use left. `do nothing` and not `do
+  -- update`, so a link can never change the role of somebody already here.
+  insert into public.workspace_members (workspace_id, user_id, role)
+  values (link.workspace_id, me, link.role)
+  on conflict do nothing;
+
+  return jsonb_build_object(
+    'ok', true, 'already', false, 'workspace_id', link.workspace_id,
+    'workspace_name', ws_name, 'role', link.role, 'reason', null, 'message', null);
+end;
+$$;
+
+revoke all on function public.accept_workspace_invite(text) from public;
+
+/*
+ * The friend graph. Symmetric, and stored once, with the pair ordered.
+ *
+ * Storing both directions would mean "a knows b" and "b knows a" are two rows
+ * that can be deleted independently, and the first time they disagree the app
+ * has to decide which is true. There is no right answer, so the table refuses
+ * to ask.
+ *
+ * No insert policy, on purpose. No row-level policy can express "b agreed to
+ * this" — agreement is an event, not a property of a row — so the only door
+ * is `accept_connection`, which requires the token.
+ */
+create table if not exists public.connections (
+  person_a   uuid not null references public.profiles(id) on delete cascade,
+  person_b   uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (person_a, person_b),
+  constraint connections_ordered check (person_a < person_b)
+);
+
+-- The primary key covers `person_a`; "who do I know" has to be answerable
+-- from the other side of the pair too.
+create index if not exists connections_b_idx on public.connections(person_b);
+
+alter table public.connections enable row level security;
+
+-- Ending a connection needs no agreement: somebody who wants out does not
+-- have to negotiate with the person they want out of.
+drop policy if exists connections_mine on public.connections;
+create policy connections_mine on public.connections
+  for select using (person_a = auth.uid() or person_b = auth.uid());
+
+drop policy if exists connections_end on public.connections;
+create policy connections_end on public.connections
+  for delete using (person_a = auth.uid() or person_b = auth.uid());
+
+create table if not exists public.connection_links (
+  id           uuid primary key default gen_random_uuid(),
+  created_by   uuid not null default auth.uid()
+               references public.profiles(id) on delete cascade,
+  token_hash   bytea not null unique,
+  expires_at   timestamptz not null,
+  revoked_at   timestamptz,
+  uses         integer not null default 0,
+  -- One, by default — the difference from a team link. You send a friend link
+  -- to one person, and a link still good after they used it is a link that
+  -- works for whoever they forward it to.
+  max_uses     integer default 1 check (max_uses is null or max_uses > 0),
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists connection_links_owner_idx
+  on public.connection_links(created_by, created_at desc);
+
+alter table public.connection_links enable row level security;
+
+drop policy if exists connection_links_mine on public.connection_links;
+create policy connection_links_mine on public.connection_links
+  for select using (created_by = auth.uid());
+
+drop policy if exists connection_links_make on public.connection_links;
+create policy connection_links_make on public.connection_links
+  for insert with check (created_by = auth.uid());
+
+drop policy if exists connection_links_revoke on public.connection_links;
+create policy connection_links_revoke on public.connection_links
+  for update using (created_by = auth.uid())
+  with check (created_by = auth.uid());
+
+/*
+ * Follow a friend link. Returns
+ * { ok, already, person_id, display_name, reason, message }.
+ */
+create or replace function public.accept_connection(token text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth, pg_temp
+as $$
+declare
+  me      uuid := auth.uid();
+  link    public.connection_links%rowtype;
+  them    uuid;
+  name_of text;
+  lo      uuid;
+  hi      uuid;
+  claimed integer;
+begin
+  if me is null then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'signed out',
+      'message', 'you are not signed in. sign in, then open the link again.');
+  end if;
+
+  if not public.is_real_account(me) then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'anonymous',
+      'message', 'this browser is signed in anonymously, and an anonymous '
+              || 'sign-in is lost as soon as the browser is cleared. make an '
+              || 'account first, then open the link again.');
+  end if;
+
+  select * into link
+    from public.connection_links
+   where token_hash = sha256(convert_to(coalesce(token, ''), 'utf8'));
+
+  if not found then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'no such link',
+      'message', 'that link does not work. ask whoever sent it for a new one.');
+  end if;
+
+  them := link.created_by;
+
+  -- Checked before expiry and before the use count, because this is a mistake
+  -- and not an attack: somebody has opened their own link to see what the
+  -- other person will see. "This link is used up" would answer a question
+  -- they did not ask, and no use is counted on this path.
+  if them = me then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'your own link',
+      'message', 'that is your own link. send it to somebody else — when they '
+              || 'open it, you will both show up in each other''s people.');
+  end if;
+
+  lo := least(me, them);
+  hi := greatest(me, them);
+
+  select display_name into name_of from public.profiles where id = them;
+
+  if exists (
+    select 1 from public.connections c where c.person_a = lo and c.person_b = hi
+  ) then
+    return jsonb_build_object(
+      'ok', true, 'already', true, 'person_id', them, 'display_name', name_of,
+      'reason', null, 'message', null);
+  end if;
+
+  if link.revoked_at is not null then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'revoked',
+      'message', 'this link was turned off. ask for a new one.');
+  end if;
+
+  if link.expires_at <= now() then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'expired',
+      'message', 'this link has expired. ask for a new one.');
+  end if;
+
+  if link.max_uses is not null and link.uses >= link.max_uses then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'used up',
+      'message', 'this link has already been used. ask for a new one.');
+  end if;
+
+  update public.connection_links l
+     set uses = l.uses + 1
+   where l.id = link.id
+     and l.revoked_at is null
+     and l.expires_at > now()
+     and (l.max_uses is null or l.uses < l.max_uses);
+  get diagnostics claimed = row_count;
+
+  if claimed = 0 then
+    return jsonb_build_object(
+      'ok', false, 'already', false, 'reason', 'used up',
+      'message', 'this link has already been used. ask for a new one.');
+  end if;
+
+  insert into public.connections (person_a, person_b)
+  values (lo, hi)
+  on conflict do nothing;
+
+  return jsonb_build_object(
+    'ok', true, 'already', false, 'person_id', them, 'display_name', name_of,
+    'reason', null, 'message', null);
+end;
+$$;
+
+revoke all on function public.accept_connection(text) from public;
+
+-- Two lookups as definer functions, for the reason `is_member` is one: a
+-- policy on `profiles` whose subquery reads `workspace_members` gets that
+-- table's own policies applied inside it, on every row.
+--
+-- `pg_temp` is spelled out, and last, because leaving it off the list does not
+-- take it out of the search — Postgres still looks there first for relations,
+-- so the pin would rest on nobody ever writing an unqualified table name in
+-- these bodies. Both sit on the `profiles` SELECT policy, which is every
+-- profile read.
+create or replace function public.shares_a_workspace(other uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth, pg_temp
+as $$
+  select exists (
+    select 1
+      from public.workspace_members mine
+      join public.workspace_members theirs
+        on theirs.workspace_id = mine.workspace_id
+     where mine.user_id = auth.uid()
+       and theirs.user_id = other
+  );
+$$;
+
+create or replace function public.is_connected_to(other uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth, pg_temp
+as $$
+  select exists (
+    select 1 from public.connections c
+     where (c.person_a = auth.uid() and c.person_b = other)
+        or (c.person_b = auth.uid() and c.person_a = other)
+  );
+$$;
+
+/*
+ * Read the name of somebody you share a workspace with, or are connected to.
+ *
+ * `profiles_self` stays EXACTLY as it is, and this is a second policy rather
+ * than a rewrite of it. `profiles_self` is `for all`: it is what lets a person
+ * write their own row, and its `with check (id = auth.uid())` is the only
+ * thing between anybody and writing somebody else's profile. Widening it to
+ * cover teammates would widen the write side with it, and a policy that lets
+ * you rename your teammates is a worse bug than the one being fixed here —
+ * the members list showing a uuid where a name should be, because the
+ * embedded `profiles(display_name)` join came back null for everybody.
+ * Permissive policies are ORed, so a select-only policy widens exactly SELECT.
+ *
+ * Policies choose rows, not columns, so a teammate sees the whole profile
+ * row: `display_name` — the point — plus `is_anonymous`, which the members
+ * list already shows deliberately, and the timestamps, beside an id they can
+ * already read out of `workspace_members`. That is the constraint on this
+ * table from now on: `profiles` holds nothing a teammate may not read.
+ * Anything private about a person belongs in its own table with its own
+ * policy, not in a new column here.
+ */
+drop policy if exists profiles_people_you_know on public.profiles;
+create policy profiles_people_you_know on public.profiles
+  for select using (
+    public.shares_a_workspace(id) or public.is_connected_to(id)
+  );
+
+-- Grants, and here the revokes matter more. `connections` must not be
+-- insertable by a client under any circumstances, and Supabase's default
+-- privileges hand out insert on every new table in `public` — so the grant it
+-- would otherwise inherit is taken away explicitly. Guarded, because these
+-- roles are Supabase's and a self-hosted Postgres may not have them.
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    grant select, insert, update on public.workspace_invites to authenticated;
+    grant select, insert, update on public.connection_links  to authenticated;
+    grant select, delete         on public.connections       to authenticated;
+
+    -- Revoking a link is an update; deleting it would erase the fact that it
+    -- was ever handed out. And nothing writes `connections` but the function.
+    revoke delete on public.workspace_invites from authenticated;
+    revoke delete on public.connection_links  from authenticated;
+    revoke insert, update on public.connections from authenticated;
+
+    grant execute on function public.shares_a_workspace(uuid) to authenticated;
+    grant execute on function public.is_connected_to(uuid) to authenticated;
+    grant execute on function public.accept_workspace_invite(text) to authenticated;
+    grant execute on function public.accept_connection(text) to authenticated;
+
+    -- `is_real_account` answers a question about `auth.users`. It exists for
+    -- the two accept functions, which reach it as the definer; no client gets
+    -- to ask it.
+    revoke all on function public.is_real_account(uuid) from authenticated;
+  end if;
+
+  -- `anon` is the role a request with no JWT arrives as. It has no
+  -- `auth.uid()`, so it could only ever be refused — there is no reason to
+  -- let it ask.
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    revoke all on public.workspace_invites from anon;
+    revoke all on public.connection_links  from anon;
+    revoke all on public.connections       from anon;
+    revoke all on function public.accept_workspace_invite(text) from anon;
+    revoke all on function public.accept_connection(text) from anon;
+    revoke all on function public.is_real_account(uuid) from anon;
+  end if;
+end
+$$;

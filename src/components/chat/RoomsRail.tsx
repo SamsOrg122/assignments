@@ -37,6 +37,7 @@ import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { useMenu } from "@/components/ui/Menu";
 import { RowMenuButton } from "@/components/ui/RowMenuButton";
+import { Friends } from "@/components/social/Friends";
 import { useChannelActions } from "./useChannelActions";
 import { PeoplePicker } from "./PeoplePicker";
 
@@ -277,7 +278,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
             <li className="px-2 py-1 text-[11px] leading-relaxed text-fg-subtle">
               {world === "team"
                 ? "No channels here yet. Make one with +."
-                : "Chats with friends or classmates. Make one with +, then share its invite link from the channel's settings."}
+                : "Chats with friends or classmates. Make one with +. Getting somebody into it means having them in your team first — that link is on the team page."}
             </li>
           )}
         </ul>
@@ -322,6 +323,23 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
             );
           })}
         </ul>
+
+        {/*
+          * Who you are connected to, under the conversations with them.
+          *
+          * It had no home at all: the panel was reachable only inside the
+          * "Message someone" dialog, which meant the one screen showing a
+          * connection was a screen you had to already be starting a message
+          * on — and the join page told everybody who accepted a friend link
+          * that their new connection was "in the rail beside your direct
+          * messages", which it was not. It is now.
+          *
+          * Here rather than in the sidebar because a connection is somebody
+          * you talk to, and this rail is where talking lives. The sidebar's
+          * one list is things you last touched; a person you have never
+          * messaged has nothing to sort by.
+          */}
+        <Friends className="mt-4 px-2" />
 
         {/* Archiving used to be a one-way door for a pointer: Restore lives in
             the menu on the row, and archiving the row took the row away. The
@@ -380,7 +398,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
                         absolutely positioned for rows that are a single link.
                         Without it this is the one row type on the rail whose
                         menu is right-click only — and below 1024px there is no
-                        right-click, so Settings, the invite link and Leave
+                        right-click, so Settings and Leave
                         would have no pointer at all on an archived room. */}
                     <button
                       type="button"

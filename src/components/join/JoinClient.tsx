@@ -46,8 +46,8 @@ import {
   tokenFromHash,
   tokenKind,
   useAccountState,
-  type AccountState,
   type LinkKind,
+  explainFor,
 } from "@/lib/team/invites";
 import { acceptFriend } from "@/lib/social";
 
@@ -82,63 +82,6 @@ const ABOUT: Record<
   },
 };
 
-/**
- * The three places the account rule has to name what is at stake, and the
- * only words in it that differ between a team invite and a friend link.
- *
- * `explainAccount` in `lib/team/invites` is the shared short sentence and it
- * is written for team invites — "there is no team to join" is not a smaller
- * truth in front of a friend link, it is a false one, and a friend link needs
- * no team at all. The rule itself is identical for both kinds, so the kind is
- * an argument to `explainFor` below rather than an excuse for two lists of
- * sentences that will drift apart by the next release.
- */
-const STAKE: Record<
-  LinkKind,
-  { missing: string; refused: string; evaporates: string }
-> = {
-  team: {
-    missing: "no team to join",
-    refused: "be given a place in a team",
-    evaporates: "A place in a team",
-  },
-  friend: {
-    missing: "nobody here to be connected to",
-    refused: "be connected to anybody",
-    evaporates: "A connection to a person",
-  },
-};
-
-/**
- * Why the button is not drawn, and why the rule is what it is.
- *
- * `rule` is the short answer, in this link's terms. `why` is the paragraph
- * under it, which a line beside a button has no room for and which this page
- * does — null for the one state where the short sentence is the whole answer.
- */
-function explainFor(
-  state: Exclude<AccountState, "real">,
-  kind: LinkKind,
-): { rule: string; why: string | null } {
-  const stake = STAKE[kind];
-
-  if (state === "no-database")
-    return {
-      rule: `This deployment has no account database, so there is ${stake.missing}. Everyone's work stays in their own browser here.`,
-      why: null,
-    };
-
-  if (state === "signed-out")
-    return {
-      rule: "Sign in first — following a link like this needs an account. If you are signed in already, then this browser couldn't reach the account server, and reloading in a minute is the thing to try.",
-      why: "A team place, or a connection to a person, has to hang off an identity that still exists tomorrow. Signing in takes a moment and the link is not lost by it: it waits in this tab, and you land back on it afterwards.",
-    };
-
-  return {
-    rule: `This browser is signed in without an account. That identity disappears the moment the browser is cleared and can't be recovered, so it can't ${stake.refused}. Add an email to keep it.`,
-    why: `This browser was signed in the moment you first opened the app, so your work had somewhere to live. That identity exists only here. There is no address on it, so clearing this browser — or opening the app on your phone — loses it for good, and nothing can bring it back. ${stake.evaporates} that quietly evaporates with a browser is worse than none.`,
-  };
-}
 
 /**
  * A refusal that is not about the link.

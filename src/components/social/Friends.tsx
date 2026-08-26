@@ -10,10 +10,11 @@
  * That rail is 236px wide on a desktop and full width on a phone, so nothing
  * here has a fixed width, every row wraps, and the panel scrolls with its host
  * rather than owning a scroller of its own. It fits a settings pane or /more
- * unchanged. Nothing mounts the panel today: the person picker imports the
- * two exports below and never `Friends` itself, so Remove and "connected on"
- * have no way in. The rail is another agent's file — the mount is one line
- * after its `dms.map` list.
+ * unchanged. It is mounted in the chat rail, under the direct messages —
+ * which is where a connection belongs, and what the join page has always told
+ * people it would be. The person picker imports two of the exports below
+ * rather than the whole panel, because a dialog you opened to start a message
+ * is not the place to be offered Remove.
  *
  * The account rule is asked before any button is drawn. Connecting needs an
  * account with an email on it — an anonymous identity lives in one browser's
@@ -43,10 +44,10 @@ import { initialsFor } from "@/lib/auth";
 import { useAuth } from "@/lib/auth/store";
 import { cn } from "@/lib/cn";
 import { formatDate, formatNumber } from "@/lib/format";
+import { explainFor } from "@/lib/team/invites";
 import {
   MAX_DAYS,
   createFriendLink,
-  explainAccount,
   listFriendLinks,
   listFriends,
   removeFriend,
@@ -216,8 +217,13 @@ export function NoAccount({
   return (
     <div className="rounded-md border border-line bg-surface p-3">
       <p className="text-[12.5px] leading-relaxed text-fg">{lead}</p>
+      {/* In this panel's own terms. `explainAccount` is written for team
+          invites, and "there is no team to join" is not a smaller truth in
+          front of a list of people you know — it is a false one. Same rule,
+          same sentence structure, one word of it different, from the one
+          place that holds both. */}
       <p className="mt-1.5 text-[12px] leading-relaxed text-fg-muted">
-        {explainAccount(state)}
+        {explainFor(state, "friend").rule}
       </p>
       {state !== "no-database" && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -499,25 +505,21 @@ export function FriendLinks() {
  *
  * The team page learned this the hard way — an unreadable profile rendered as
  * an affirmative "no account" told a whole real team they were about to
- * evaporate. `listFriends` writes `anonymous: true` for a friend whose profile
- * row never came back, and an unapplied 0015 profiles policy reads exactly
- * like a browser-only account, so `true` alone is not evidence. A name is: it
- * can only have come from a profile that was read. Anything that cannot be
- * told apart says it cannot, which under-claims for the one friend who is
- * genuinely anonymous and has never set a name — the cheaper of the two
- * mistakes, and one `listFriends` can end by returning null for "could not
- * read", the shape `TeamMember.anonymous` already has.
+ * evaporate, and an unapplied 0015 profiles policy reads exactly like a
+ * browser-only account.
  *
- * The annotation widens the field on purpose so that null already reads
- * correctly here on the day it starts arriving.
+ * `listFriends` now says which it is: null for a profile that did not come
+ * back, a boolean for one that did. So the three states are read straight off
+ * the field, and the old workaround — inferring "we could not read them" from
+ * a missing name — is gone with the lie that made it necessary. It had a cost
+ * of its own: a friend who really is anonymous and has never set a name was
+ * being reported as unknown.
  */
 type Account = "none" | "unknown" | "fine";
 
 function accountOf(friend: Friend): Account {
-  const anonymous: boolean | null = friend.anonymous;
-  if (anonymous === null) return "unknown";
-  if (!anonymous) return "fine";
-  return friend.displayName === null ? "unknown" : "none";
+  if (friend.anonymous === null) return "unknown";
+  return friend.anonymous ? "none" : "fine";
 }
 
 function Face({ friend }: { friend: Friend }) {

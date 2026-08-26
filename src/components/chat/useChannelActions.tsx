@@ -67,7 +67,6 @@ export function useChannelActions(options?: { onNavigate?: () => void }): {
      * because as a nav row it had no menu at all.
      */
     const ai = channel.kind === "ai";
-    const closed = channel.access === "closed" && Boolean(channel.passcodeHash);
     /** Re-read at the moment the item is chosen, never from the closure. */
     const live = () => useChat.getState().channels.find((c) => c.id === channelId);
 
@@ -102,23 +101,19 @@ export function useChannelActions(options?: { onNavigate?: () => void }): {
       onSelect: () => setSettingsFor(channelId),
     });
 
-    if (!dm) {
-      items.push({
-        kind: "item",
-        label: closed ? "Copy invite link" : "Create invite link",
-        icon: "copy",
-        onSelect: () => {
-          const now = live();
-          if (!now) return;
-          const token =
-            now.invite?.token ?? useChat.getState().rotateInvite(channelId);
-          void navigator.clipboard?.writeText(
-            `${window.location.origin}/chat/${channelId}?join=${token}`,
-          );
-          notify("Invite link copied");
-        },
-      });
-    }
+    /*
+     * There is no "invite link" row here any more, and its absence is the
+     * point. It minted `/chat/<id>?join=<token>` and nothing in this codebase
+     * has ever read a `join` query parameter — the link opened the channel for
+     * somebody who could already see it and did nothing for anybody else. It
+     * sat in a menu labelled as the way to get a person into a room.
+     *
+     * A channel is not a workspace, so the workspace invite that now exists is
+     * not a drop-in replacement: it puts somebody in the whole team, not in
+     * one room. The honest thing a menu can say is where the real door is,
+     * which is what the settings panel does — a row that quietly did nothing
+     * would just move the problem.
+     */
 
     items.push({ kind: "separator" });
     items.push({

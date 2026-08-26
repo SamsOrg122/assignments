@@ -2042,10 +2042,14 @@ $migration$;
 
 -- ── The rest of the search_path pins ───────────────────────────────────────
 --
--- Bodies unchanged; only the pin. Each is re-created rather than altered so
--- this file reads as the whole definition, the way every other migration here
--- does — and `alter function ... set search_path` would silently do nothing
--- if the signature ever drifted.
+-- Bodies unchanged; only the pin, so `alter function` rather than a re-created
+-- definition — copying eight bodies into this file to change one setting on
+-- each is eight chances to paste a stale one. The signatures are spelled out
+-- because that is what `alter function` matches on, and a wrong one RAISES
+-- (`function public.is_member(text) does not exist`), which under
+-- ON_ERROR_STOP takes the whole paste down rather than quietly skipping. That
+-- is the behaviour to want here: a pin that silently did not happen is
+-- indistinguishable from one that did.
 
 alter function public.is_member(uuid) set search_path = public, auth, pg_temp;
 alter function public.has_role(uuid, text) set search_path = public, auth, pg_temp;

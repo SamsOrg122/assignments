@@ -261,9 +261,25 @@ select
   -- missing either the table or the role. Both name a thing directly. A
   -- policy name is just text until it matches something.
   --
-  -- Two halves, because either alone lies: the new policy present says
-  -- nothing about whether the old one was dropped, and the old one being
-  -- absent is also true of a database that never had the table.
+  -- THREE halves, and the third is the one that matters. 0016 is a policy
+  -- change AND a grant change, and for a while this row tested only the
+  -- policies — so it printed 'applied' against a database that still had the
+  -- table-wide UPDATE grant, where the attack simply runs through a different
+  -- verb: move a membership row's user_id onto a stranger, read their name,
+  -- move it back. A check that passes on the state it exists to catch is
+  -- worse than no check, because somebody stops looking.
+  --
+  -- The grant is read out of pg_class rather than with
+  -- `has_table_privilege`, which aborts at run time on a database missing
+  -- either the table or the role, and rather than
+  -- `information_schema.role_table_grants`, which only shows grants the
+  -- current role is party to. `aclexplode` on a table found by NAME is exact
+  -- and is still only text until it matches something.
+  --
+  -- Each half alone lies: the new policy says nothing about whether the old
+  -- one was dropped; the old one being absent is also true of a database that
+  -- never had the table; and no insert grant is vacuously true where there is
+  -- no table at all — which is why the first half has to be a positive.
   case when exists (
          select 1 from pg_policies
           where schemaname = 'public' and tablename = 'workspace_members'
@@ -272,6 +288,16 @@ select
          select 1 from pg_policies
           where schemaname = 'public' and tablename = 'workspace_members'
             and policyname = 'members_managed_by_owner')
+        and not exists (
+         select 1
+           from pg_class c
+           join pg_namespace n on n.oid = c.relnamespace
+           cross join lateral aclexplode(c.relacl) a
+           join pg_roles r on r.oid = a.grantee
+          where n.nspname = 'public'
+            and c.relname = 'workspace_members'
+            and r.rolname in ('authenticated', 'anon')
+            and a.privilege_type in ('INSERT', 'UPDATE'))
        then 'applied'
        else 'NOT APPLIED — AN OWNER CAN PUT A STRANGER IN THEIR OWN TEAM' end
 order by migration;

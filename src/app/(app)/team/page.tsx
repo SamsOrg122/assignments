@@ -157,17 +157,18 @@ export default function TeamPage() {
             as context. It answers from that record, so anything wrong here
             shows up in its answers — which is why nothing it infers is stored
             until someone confirms it.
-            {/* Only where there is a member list to be wrong about. The
-                assistant's picture of who is here still comes from this
-                browser's own store, so a real member who joined a minute ago
-                is not in it — worth saying where the two are side by side, and
-                noise on a deployment with no database at all. */}
+            {/* Only where there is a member list to compare it against, and
+                noise on a deployment with no database at all. The member half
+                and the two halves above now come from different places, which
+                is the thing worth saying where they sit on one screen. */}
             {account.ready && (
               <>
                 {" "}
-                The member list is not part of that yet: the assistant is handed
-                this browser&apos;s own picture of who is here, so somebody who
-                joined a minute ago may be missing from an answer.
+                Who is here goes with them, from the database rather than
+                from this browser&apos;s own copy of it. It is read once when
+                the app loads, so somebody who joins while this tab is open is
+                in an answer after a reload. What the team knows and the files
+                stay in this browser.
               </>
             )}
           </p>

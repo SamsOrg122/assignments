@@ -7,7 +7,7 @@
 --
 -- The last result set is the one to read first: it names every migration and
 -- whether it has visibly been applied. Anything there that is NOT APPLIED is
--- fixed by running `supabase/catch-up.sql`, which is 0003–0015 in one paste
+-- fixed by running `supabase/catch-up.sql`, which is 0003–0016 in one paste
 -- and is safe to run however many times it has already been run.
 --
 -- The expected list is not a guess: it was taken from a Postgres 16 that had
@@ -81,8 +81,12 @@ order by c.relname;
 -- may allow UPDATE or DELETE — a log an admin can edit is not a log. No policy
 -- on `connections` may allow INSERT or UPDATE either: the only way into the
 -- friend graph is `accept_connection`, which requires the token, and an insert
--- policy would let anybody add themselves to a stranger. Anything listed here
--- is a hole.
+-- policy would let anybody add themselves to a stranger. And none on
+-- `workspace_members` may allow INSERT: a membership is created by the owner
+-- trigger or by somebody following an invite link, both of which are
+-- `security definer` and need no policy — a client-side insert is how a
+-- stranger ends up in a team they never joined. Anything listed here is a
+-- hole.
 --
 -- `pg_policies` is queried by table NAME rather than by `'public.x'::regclass`,
 -- which matters: a regclass cast to a table this database does not have is an
@@ -94,6 +98,7 @@ where schemaname = 'public'
   and (
     (tablename = 'audit_log'   and cmd in ('UPDATE', 'DELETE', 'ALL'))
     or (tablename = 'connections' and cmd in ('INSERT', 'UPDATE', 'ALL'))
+    or (tablename = 'workspace_members' and cmd in ('INSERT', 'ALL'))
   );
 
 -- How much is actually stored. A small answer here is normal, not a fault:
@@ -243,4 +248,30 @@ select
   case when to_regclass('public.workspace_invites') is not null
         and to_regclass('public.connections') is not null
        then 'applied' else 'NOT APPLIED — nobody can be added to a team' end
+union all
+select
+  '0016 — nobody puts you in a team but you',
+  -- Read through `pg_policies` by NAME, like 0015's row above and for the
+  -- same reason: this row has to survive being read on a database that has
+  -- no `workspace_members` at all. `'public.workspace_members'::regclass`
+  -- would be resolved when this file is PARSED and abort the whole report
+  -- before its first line; `has_table_privilege('authenticated',
+  -- 'public.workspace_members', 'insert')` — the more direct question, and
+  -- the tempting one — would abort it at run time instead, on a database
+  -- missing either the table or the role. Both name a thing directly. A
+  -- policy name is just text until it matches something.
+  --
+  -- Two halves, because either alone lies: the new policy present says
+  -- nothing about whether the old one was dropped, and the old one being
+  -- absent is also true of a database that never had the table.
+  case when exists (
+         select 1 from pg_policies
+          where schemaname = 'public' and tablename = 'workspace_members'
+            and policyname = 'members_role_set_by_owner')
+        and not exists (
+         select 1 from pg_policies
+          where schemaname = 'public' and tablename = 'workspace_members'
+            and policyname = 'members_managed_by_owner')
+       then 'applied'
+       else 'NOT APPLIED — AN OWNER CAN PUT A STRANGER IN THEIR OWN TEAM' end
 order by migration;

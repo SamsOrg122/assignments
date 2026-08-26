@@ -250,7 +250,8 @@ create policy members_visible on public.workspace_members
 -- write any user id at all into their own membership list — and, once 0015's
 -- `profiles_people_you_know` existed, read that stranger's name back. This
 -- file never creates it. The drop is for a project that ran an older copy of
--- this file, since every policy here is written to be re-run.
+-- this file, since every policy here is written to be re-run. See
+-- migrations/0016-nobody-puts-you-in-a-team.sql for the whole account.
 drop policy if exists members_managed_by_owner on public.workspace_members;
 
 -- Owner of the workspace, whether or not the membership row exists. Kept
@@ -358,18 +359,42 @@ begin
   if exists (select 1 from pg_roles where rolname = 'authenticated') then
     grant usage on schema public to authenticated;
     grant select, insert, update, delete
-      on public.profiles, public.workspaces, public.workspace_members,
+      on public.profiles, public.workspaces,
          public.projects, public.form_responses
       to authenticated;
     grant select
       on public.subscriptions, public.usage_events, public.impact_ledger
       to authenticated;
+
+    -- `workspace_members` is not in the line above, and this is the reason.
+    --
+    -- Nobody may insert a membership from a browser. There are exactly two
+    -- legitimate writers — `add_owner_as_member`, the trigger that files the
+    -- owner, and `accept_workspace_invite`, somebody following a link of
+    -- their own accord — and both are `security definer`, so neither needs
+    -- the client's grant. Nothing in the app has ever inserted one: every
+    -- client call against this table is a select.
+    --
+    -- Update is narrowed to `role`, the one column it is for. An owner
+    -- changing somebody's role is ordinary; an owner rewriting `user_id` to
+    -- a stranger is the same thing as the insert, through a different verb,
+    -- and no `with check` catches it because the row never leaves the
+    -- workspace. A column grant does.
+    grant select, delete on public.workspace_members to authenticated;
+
+    -- Revoked and not merely left ungranted: on a Supabase project the
+    -- default privileges hand insert and update on every new table in
+    -- `public` to this role by name, so a fresh project would be born
+    -- holding exactly the grant this is here to remove.
+    revoke insert, update on public.workspace_members from authenticated;
+    grant update (role) on public.workspace_members to authenticated;
   end if;
 
   -- The ledger is deliberately readable by everyone; nothing else is.
   if exists (select 1 from pg_roles where rolname = 'anon') then
     grant usage on schema public to anon;
     grant select on public.impact_ledger to anon;
+    revoke insert, update on public.workspace_members from anon;
   end if;
 end
 $$;
@@ -1057,9 +1082,19 @@ create policy hearts_take_back on public.community_hearts
 -- Against `auth.users`, deliberately, and never `public.profiles`:
 -- `profiles_self` is `for all`, so a person can update their own profile and
 -- set `is_anonymous` to false. A check somebody can answer for themselves is
--- not a check. `language plpgsql` so the body is not resolved at CREATE time
--- — `is_anonymous` is Supabase's column, not ours, and an auth schema without
--- it should fail this one call rather than the whole file.
+-- not a check.
+--
+-- The row is asked through `to_jsonb` rather than for `u.is_anonymous` by
+-- name. That column arrived with Supabase's anonymous sign-in and is not in
+-- every project's auth schema — and plpgsql resolves a column reference when
+-- the function RUNS, so on a project that predates it this did not refuse an
+-- anonymous caller, it raised "column u.is_anonymous does not exist" and took
+-- the whole invitation down with it. `to_jsonb(u) ->> 'is_anonymous'` asks
+-- the same question of whatever columns the row actually has and answers null
+-- instead of raising, and null is the right answer anyway: a project with no
+-- anonymous sign-in has no anonymous users. The email test carries the weight
+-- either way, and it is the one that cannot go stale — an anonymous user has
+-- no email, by construction.
 create or replace function public.is_real_account(who uuid)
 returns boolean
 language plpgsql
@@ -1068,9 +1103,13 @@ security definer
 set search_path = public, auth, pg_temp
 as $$
 declare
+  -- Not called `real`: that is a type name, and a plpgsql variable that
+  -- shadows one is the kind of thing that works until somebody writes a cast.
   genuine boolean;
 begin
-  select (u.email is not null and u.email <> '' and u.is_anonymous is not true)
+  select u.email is not null
+     and u.email <> ''
+     and coalesce((to_jsonb(u) ->> 'is_anonymous')::boolean, false) is not true
     into genuine
     from auth.users u
    where u.id = who;

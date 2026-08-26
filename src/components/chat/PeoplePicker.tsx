@@ -45,18 +45,24 @@
  */
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Dialog, fieldClass } from "@/components/ui/Dialog";
 import {
   FriendLinks,
   NO_NAME,
-  NoAccount,
   chosenName,
   friendName,
   useFriends,
 } from "@/components/social/Friends";
 import { useChat, type Channel } from "@/lib/chat";
 import { initialsFor } from "@/lib/auth";
-import { useAccountState, type Friend } from "@/lib/social";
+import {
+  explainAccount,
+  useAccountState,
+  type AccountState,
+  type Friend,
+} from "@/lib/social";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 
@@ -71,6 +77,94 @@ import { cn } from "@/lib/cn";
  * name or a rename somebody chose, and neither is ours to replace.
  */
 const PLACEHOLDER_TITLES = new Set(["Unknown", NO_NAME]);
+
+/* ── The account rule, for a connection ─────────────────── */
+
+/**
+ * The two sentences that would otherwise talk about a team.
+ *
+ * `NoAccount` prints `explainAccount`, and `explainAccount` is written for a
+ * team invite: on a deployment with no account database it says "there is no
+ * team to join". Under a Message button that is not a smaller truth, it is a
+ * different and false one — connecting to somebody needs no team at all, and
+ * this dialog cannot offer one either way. `components/join/JoinClient` met
+ * the same sentence and answered it by keying the words that differ off the
+ * kind of link, in a `STAKE` record that feeds its `explainFor`; this is that
+ * record's "friend" row and nothing else, so the picker and the friend link
+ * somebody followed to get here say the same thing.
+ *
+ * It belongs beside `explainAccount` itself, where all three screens could
+ * read it from one place — a change to `lib/team/invites` and to both screens
+ * already reading it, rather than to this one.
+ */
+const STAKE = {
+  /** With no database, what this deployment has none of. */
+  missing: "nobody here to be connected to",
+  /** With no email on the account, what it cannot be given. */
+  refused: "be connected to anybody",
+};
+
+/**
+ * Why there is no list, in this dialog's terms.
+ *
+ * Only the two states whose words depend on what is at stake are written
+ * here. Signing in is signing in whatever you were about to do, so that state
+ * keeps the shared sentence rather than a copy that can drift away from it.
+ */
+function explainConnecting(state: Exclude<AccountState, "real">): string {
+  if (state === "no-database")
+    return `This deployment has no account database, so there is ${STAKE.missing}. Everyone's work stays in their own browser here.`;
+  if (state === "anonymous")
+    return `This browser is signed in without an account. That identity disappears the moment the browser is cleared and can't be recovered, so it can't ${STAKE.refused}. Add an email to keep it.`;
+  return explainAccount(state) ?? "";
+}
+
+/**
+ * `NoAccount`'s panel with `NoAccount`'s doors, because the doors are the same
+ * rule and only the explanation differs — and the explanation is the one part
+ * of that component a caller cannot pass in. The join page draws its own for
+ * the same reason.
+ */
+function NoAccountToConnect({
+  state,
+}: {
+  state: Exclude<AccountState, "real">;
+}) {
+  const pathname = usePathname();
+  const back = encodeURIComponent(pathname || "/library");
+  const signIn = `/signin?next=${back}`;
+  const signUp = `/signin?new=1&next=${back}`;
+  const anon = state === "anonymous";
+
+  return (
+    <div className="rounded-md border border-line bg-surface p-3">
+      <p className="text-[12.5px] leading-relaxed text-fg">
+        Messaging somebody needs an account, and so does adding them.
+      </p>
+      <p className="mt-1.5 text-[12px] leading-relaxed text-fg-muted">
+        {explainConnecting(state)}
+      </p>
+      {/* No door for "no-database": signing in cannot conjure a database that
+          was never configured. */}
+      {state !== "no-database" && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <Link
+            href={anon ? signUp : signIn}
+            className="rounded-sm bg-accent px-2.5 py-1.5 text-[12px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+          >
+            {anon ? "Add an email" : "Sign in"}
+          </Link>
+          <Link
+            href={anon ? signIn : signUp}
+            className="rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+          >
+            {anon ? "Sign in as somebody else" : "Create an account"}
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function PeoplePicker({
   onPick,
@@ -139,10 +233,7 @@ export function PeoplePicker({
           Checking this browser…
         </p>
       ) : !ready ? (
-        <NoAccount
-          lead="Messaging somebody needs an account, and so does adding them."
-          state={state}
-        />
+        <NoAccountToConnect state={state} />
       ) : !outcome ? (
         <p className="text-[12.5px] text-fg-subtle" role="status">
           Reading your people…

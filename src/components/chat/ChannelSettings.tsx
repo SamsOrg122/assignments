@@ -3,17 +3,20 @@
 /**
  * Channel settings.
  *
- * Name, purpose, who's in it, how people get in, and how to get out. All in
- * one panel because these are one decision — "what is this channel, and who
- * is it for" — and splitting them across three menus is how a group ends up
- * with the wrong people in it.
+ * Name, purpose, who's in it, and how to get out. All in one panel because
+ * these are one decision — "what is this channel, and who is it for" — and
+ * splitting them across three menus is how a group ends up with the wrong
+ * people in it.
  *
  * The passcode section is deliberately blunt about what it does. See the note
  * on `Channel.passcodeHash`: it is a latch, not a lock, and a UI that implies
- * otherwise is worse than no UI at all.
+ * otherwise is worse than no UI at all. The invite link that used to sit two
+ * rows above it was the opposite kind of control, and it is gone — the note
+ * where it stood says why.
  */
 
 import { useState } from "react";
+import Link from "next/link";
 import { personById, useChat, type Channel } from "@/lib/chat";
 import { friendName } from "@/components/social/Friends";
 import { LOCAL_USER } from "@/lib/realtime";
@@ -32,7 +35,6 @@ export function ChannelSettings({
 }) {
   const update = useChat((s) => s.updateChannel);
   const setPasscode = useChat((s) => s.setPasscode);
-  const rotateInvite = useChat((s) => s.rotateInvite);
   const addMembers = useChat((s) => s.addMembers);
   const removeMember = useChat((s) => s.removeMember);
   const leaveChannel = useChat((s) => s.leaveChannel);
@@ -61,17 +63,13 @@ export function ChannelSettings({
     (person) => !channel.memberIds.includes(person.userId),
   );
 
-  const inviteLink = channel.invite
-    ? `${typeof window === "undefined" ? "" : window.location.origin}/chat/${channel.id}?join=${channel.invite.token}`
-    : null;
-
   return (
     <Dialog
       title={isDM ? "Conversation" : `#${channel.name}`}
       description={
         isDM
           ? "Direct messages have no settings beyond what's here."
-          : "Who this channel is for, and how people get into it."
+          : "Who this channel is for, and who is in it."
       }
       onClose={onClose}
       width={560}
@@ -181,7 +179,7 @@ export function ChannelSettings({
           ) : candidates.length === 0 ? (
             <p className="text-[12px] leading-relaxed text-fg-subtle">
               {friends.value.length === 0
-                ? "You're not connected to anybody yet, so there's nobody to add. Connect somebody first, from Message someone on the chat rail. The invite link below is a different door: it lets whoever opens it into this channel, without connecting the two of you."
+                ? "You're not connected to anybody yet, so there's nobody to add. Connect somebody first, from Message someone on the chat rail — that link connects the two of you, which is what puts a name in this list."
                 : "Everybody you're connected to is already in this channel."}
             </p>
           ) : (
@@ -210,46 +208,43 @@ export function ChannelSettings({
 
       {!isDM && (
         <>
-          <Row
-            label="Invite link"
-            hint="Anyone with the link — and the passcode, if there is one — can join. Rotating it breaks every link already shared."
-          >
-            {inviteLink ? (
-              <div className="flex items-center gap-2 rounded-sm border border-line bg-surface-2 px-2.5 py-2">
-                <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-fg-muted">
-                  {inviteLink}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void navigator.clipboard?.writeText(inviteLink);
-                    notify("Invite link copied");
-                  }}
-                  className="shrink-0 rounded-xs border border-line px-2 py-1 text-[11px] text-fg-muted transition-colors hover:text-fg"
-                >
-                  Copy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    rotateInvite(channel.id);
-                    notify("Old links no longer work");
-                  }}
-                  className="shrink-0 rounded-xs border border-line px-2 py-1 text-[11px] text-fg-muted transition-colors hover:text-fg"
-                >
-                  Rotate
-                </button>
-              </div>
-            ) : (
-              <Button
-                onClick={() => {
-                  rotateInvite(channel.id);
-                  notify("Invite link created");
-                }}
-              >
-                Create an invite link
-              </Button>
-            )}
+          {/*
+            WHY THERE IS PROSE HERE AND NOT A LINK.
+
+            This row held an "Invite link" of the shape /chat/<id>?join=<token>
+            with Copy and Rotate beside it, under a hint promising that anyone
+            holding it could join. Nothing in `src` reads a `join` parameter —
+            the token was checked nowhere, by anything, ever — and the other
+            half of that address is just as empty: a channel is a row in this
+            browser's localStorage, so the id it names does not exist on the
+            machine that opens it. It was an inert control sitting two rows
+            above the one paragraph on this panel that tells the truth.
+
+            Rewording it was the other option, and there is no true sentence
+            that leaves it worth pressing: "copy a link that opens nothing" is
+            a button that documents its own uselessness. So it is gone, and
+            what stands here is the door that does open. That door is the
+            workspace, not this room, and the two are deliberately not blurred
+            together — a workspace invitation really does let somebody in, and
+            it lets them into the workspace. Saying it grants this channel
+            would be the same lie in a new place.
+          */}
+          <Row label="Getting somebody in">
+            <p className="text-[12px] leading-relaxed text-fg-subtle">
+              There is no link to this channel to send. It is kept in your
+              browser, so this room&apos;s address opens nothing on anybody
+              else&apos;s machine. Adding people above is the only way in, and
+              it reaches them once chat syncs.
+            </p>
+            <p className="mt-2 text-[12px] leading-relaxed text-fg-subtle">
+              The invitation that does work is for the workspace:{" "}
+              <Link href="/team#join" className="underline hover:text-fg">
+                members and invites
+              </Link>{" "}
+              mints a link that genuinely lets somebody in. It puts them in the
+              workspace, not in this channel — a different door, and the only
+              one that opens from outside today.
+            </p>
           </Row>
 
           {/* ── The latch ── */}

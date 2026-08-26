@@ -20,15 +20,22 @@ import { JoinClient } from "@/components/join/JoinClient";
  * decides — `accept_workspace_invite` and `accept_connection` check
  * `auth.users` themselves. So a link preview, a mail scanner or a crawler
  * fetching this URL joins nothing and spends no use of the link. And a path
- * survives the round trip a fragment does not: somebody signed out is sent to
- * `/signin?next=…` and comes back to the same address, with the link intact,
- * which is the whole difference between "sign in first" and "lose the invite".
+ * is the form that survives being pasted, bookmarked and reached with the
+ * back button, which a fragment does not.
  *
- * What is done about the rest of it: this page is `noindex, nofollow` and
- * sets `referrer: no-referrer`, so the token does not leak sideways out of
- * the browser; the row stores only the token's SHA-256, so the logs and the
- * database never agree on a usable value; and every link carries an expiry
- * and can be revoked the moment it is pressed.
+ * What is done about the rest of it. This page is `noindex, nofollow` and
+ * sets `referrer: no-referrer`, so nothing this page links to is told the
+ * address it was reached from. The row stores only the token's SHA-256, so
+ * the logs and the database never agree on a usable value. Every link carries
+ * an expiry and can be revoked the moment it is pressed.
+ *
+ * And the token does not travel through sign-in. It used to: the client sent
+ * somebody to `/signin?next=/join/t_…`, and `next` is not a private value —
+ * it ends up inside the OAuth `redirect_to` handed to Google or Microsoft, so
+ * the invite left this deployment entirely. It is now held in that tab's
+ * `sessionStorage`, sign-in is sent to a bare `/join`, and the resume page
+ * next to this one hands it back. The token is in the request line of this
+ * one address and nowhere else.
  *
  * What remains true, and should be said plainly rather than designed around:
  * anybody who can read the server's access logs *and* has a real account of
@@ -43,7 +50,9 @@ export const metadata: Metadata = {
   // invite is a public one.
   robots: { index: false, follow: false },
   // Kills the `Referer` on the way out — to /signin, to /team, and to
-  // anywhere else — so the token stops at this page.
+  // anywhere else — so no link this page offers carries the token in its
+  // request. Nothing else on the way out carries it either: see the note
+  // above on the sign-in round trip.
   referrer: "no-referrer",
 };
 

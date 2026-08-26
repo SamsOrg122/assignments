@@ -17,7 +17,9 @@
  * could have handed out. Removing is symmetric — either side can, and it
  * takes the single row with it.
  *
- * `Outcome<T>` throughout, the one from `lib/admin`, `setup: true` and all.
+ * `Outcome<T>` throughout, the one from `lib/team/invites` — `lib/admin`'s
+ * shape, `setup: true` and all, plus `signInHref` for the case that used to
+ * be reported as a missing database.
  */
 
 import { supabase } from "../db/client";
@@ -33,13 +35,18 @@ import {
   mintToken,
   MAX_DAYS,
   readAcceptance,
+  SIGNIN_PATH,
   tokenKind,
 } from "../team/invites";
-import type { Outcome } from "../admin";
+import type { Outcome } from "../team/invites";
 import type { Friend, FriendLink } from "./types";
 
 export type { Friend, FriendLink, LinkStatus } from "./types";
-export type { Outcome } from "../admin";
+// `lib/team/invites`'s, not `lib/admin`'s: the same shape plus `signInHref`,
+// which is how a page tells "nobody is signed in" from "this deployment has
+// no database". Re-exported so a friends page never has to hold two result
+// types that are nearly the same.
+export type { Outcome } from "../team/invites";
 
 /**
  * The account rule is the same rule, so it is the same predicate. Re-exported
@@ -56,6 +63,7 @@ export {
   tokenFromHash,
   tokenKind,
   JOIN_PATH,
+  SIGNIN_PATH,
   MAX_DAYS,
   type AccountState,
   type Acceptance,
@@ -68,12 +76,30 @@ const NO_DATABASE = {
     "Friends need the account database, and this deployment has none. There is nobody to connect to — the app is running on this browser alone.",
 };
 
+/**
+ * Not `NO_DATABASE`. There is a database — nobody is signed in to ask it
+ * anything on behalf of, which is a different fact with a different way out.
+ * Saying the first one to somebody whose session expired overnight tells them
+ * their deployment is broken and leaves them nowhere to go.
+ *
+ * No `setup` flag on purpose, so a screen that hides "try again" for a
+ * configuration problem keeps it here: signing in happens in another tab, and
+ * coming back to press the button is the whole recovery.
+ */
+const SIGNED_OUT = {
+  ok: false as const,
+  signInHref: SIGNIN_PATH,
+  reason:
+    "Nobody is signed in, so there is nobody to read this for. A tab left open overnight is the usual way this happens — sessions expire on their own — and signing in again is all it needs.",
+};
+
 const failed = (error: unknown): { ok: false; reason: string } => ({
   ok: false,
   reason: explainAuthErrorLine(error),
 });
 
-/** The signed-in account id, or null. */
+/** The signed-in account id, or null — which here can only mean signed out,
+ *  since every caller has already found a client. */
 async function whoAmI(): Promise<string | null> {
   const client = supabase();
   if (!client) return null;
@@ -89,13 +115,19 @@ interface ConnectionRow {
   created_at: string;
 }
 
+interface ProfileRow {
+  id: string;
+  display_name: string | null;
+  is_anonymous: boolean;
+}
+
 /**
  * Everyone connected to this account.
  *
- * Three answers: `setup: true` when there is no database or nobody is signed
- * in; the friends; or a failure sentence. An empty array is a real answer and
- * means no connections — it is not "could not ask", which is the distinction
- * this whole result type exists for.
+ * Four answers: `setup: true` when there is no database; `signInHref` when
+ * nobody is signed in; the friends; or a failure sentence. An empty array is a
+ * real answer and means no connections — it is not "could not ask", which is
+ * the distinction this whole result type exists for.
  *
  * Two queries rather than one embedded join. `connections` has two foreign
  * keys into profiles, so an embed has to be disambiguated by constraint name
@@ -105,14 +137,16 @@ interface ConnectionRow {
  *
  * A profile that fails to come back is not a reason to hide the friend: the
  * connection is real either way, so the name reads null and the page draws
- * whatever it draws for someone who never set one.
+ * whatever it draws for someone who never set one. What it must not do is
+ * make up the rest of the row — `anonymous` is `null` for exactly those
+ * friends, never `true`. See the note on the map below.
  */
 export async function listFriends(): Promise<Outcome<Friend[]>> {
   const client = supabase();
   if (!client) return NO_DATABASE;
   try {
     const me = await whoAmI();
-    if (!me) return NO_DATABASE;
+    if (!me) return SIGNED_OUT;
 
     const { data, error } = await client
       .from("connections")
@@ -129,28 +163,52 @@ export async function listFriends(): Promise<Outcome<Friend[]>> {
     }));
     if (others.length === 0) return { ok: true, value: [] };
 
-    const profiles = await client
+    const { data: profileData, error: profileError } = await client
       .from("profiles")
       .select("id, display_name, is_anonymous")
       .in(
         "id",
         others.map((other) => other.userId),
       );
+
+    /*
+     * A friend is in this map only if their profile row was actually read.
+     * Both halves of that matter, and the old code checked neither.
+     *
+     * The select's own error was never looked at, so a refusal — the whole
+     * query rejected, which is what a database without 0015's
+     * `profiles_people_you_know` policy does, and every migration here is run
+     * by hand — arrived as `data: null` and read as a list of people who all
+     * turned out to be anonymous. And a row missing from a query that did
+     * succeed is the same fact one person at a time: RLS drops rows it will
+     * not show rather than erroring, so "not in the answer" says nothing
+     * about whether they signed up.
+     *
+     * Either way the friend is absent from the map and `anonymous` is `null`
+     * — "could not tell" — which is the third state the row already knows how
+     * to draw. `true` would be an accusation invented here.
+     */
     const named = new Map<string, { name: string | null; anonymous: boolean }>();
-    for (const row of profiles.data ?? [])
-      named.set(String(row.id), {
-        name: (row.display_name as string | null) ?? null,
-        anonymous: Boolean(row.is_anonymous ?? true),
-      });
+    if (!profileError)
+      for (const row of (profileData ?? []) as unknown as ProfileRow[])
+        named.set(String(row.id), {
+          name: row.display_name ?? null,
+          // The row was read, so this is the column, not a guess. It is
+          // `not null default true` in the schema.
+          anonymous: row.is_anonymous === true,
+        });
 
     return {
       ok: true,
-      value: others.map((other) => ({
-        userId: other.userId,
-        displayName: named.get(other.userId)?.name ?? null,
-        anonymous: named.get(other.userId)?.anonymous ?? true,
-        since: other.since,
-      })),
+      value: others.map((other) => {
+        const profile = named.get(other.userId);
+        return {
+          userId: other.userId,
+          displayName: profile?.name ?? null,
+          anonymous: profile ? profile.anonymous : null,
+          since: other.since,
+        };
+      }),
     };
   } catch (error) {
     return failed(error);
@@ -158,9 +216,9 @@ export async function listFriends(): Promise<Outcome<Friend[]>> {
 }
 
 /**
- * Drop a connection. Three answers: `setup: true`, done, or a failure
- * sentence. Removing somebody who is already gone is not an error — two
- * tabs, or two taps, and the second one has nothing to do.
+ * Drop a connection. Four answers: `setup: true`, `signInHref`, done, or a
+ * failure sentence. Removing somebody who is already gone is not an error —
+ * two tabs, or two taps, and the second one has nothing to do.
  *
  * The filter names both orderings rather than working out which of you sorted
  * first. Pair ordering is the database's business; guessing it here would put
@@ -174,7 +232,7 @@ export async function removeFriend(id: string): Promise<Outcome<void>> {
   if (!client) return NO_DATABASE;
   try {
     const me = await whoAmI();
-    if (!me) return NO_DATABASE;
+    if (!me) return SIGNED_OUT;
     if (!isUuid(id) || !isUuid(me))
       return { ok: false, reason: "That isn't someone this app can remove." };
 
@@ -217,9 +275,9 @@ const rowToLink = (row: LinkRow): FriendLink => {
 /**
  * Mint a link that connects whoever follows it to this account.
  *
- * Four answers: `setup: true` with no database or no session; a refusal when
- * the lifetime asked for is impossible; a failure sentence when the insert
- * was refused; or the URL.
+ * Five answers: `setup: true` with no database; `signInHref` with no session;
+ * a refusal when the lifetime asked for is impossible; a failure sentence when
+ * the insert was refused; or the URL.
  *
  * The URL is the only copy of the token there will ever be — the row keeps
  * its hash and nothing else — so whatever shows it has to say that, and has
@@ -254,7 +312,7 @@ export async function createFriendLink(
   if (!client) return NO_DATABASE;
   try {
     const me = await whoAmI();
-    if (!me) return NO_DATABASE;
+    if (!me) return SIGNED_OUT;
 
     const token = mintToken("friend");
     const { error } = await client.from("connection_links").insert({
@@ -275,15 +333,15 @@ export async function createFriendLink(
  * included, so "did anybody ever use that link I put in the group chat" has
  * an answer.
  *
- * Three answers: `setup: true`, the rows, or a failure sentence. None of them
- * carry a token; see `createFriendLink`.
+ * Four answers: `setup: true`, `signInHref`, the rows, or a failure sentence.
+ * None of them carry a token; see `createFriendLink`.
  */
 export async function listFriendLinks(): Promise<Outcome<FriendLink[]>> {
   const client = supabase();
   if (!client) return NO_DATABASE;
   try {
     const me = await whoAmI();
-    if (!me) return NO_DATABASE;
+    if (!me) return SIGNED_OUT;
     const { data, error } = await client
       .from("connection_links")
       .select("id, created_at, expires_at, revoked_at, uses, max_uses")
@@ -300,8 +358,8 @@ export async function listFriendLinks(): Promise<Outcome<FriendLink[]>> {
 }
 
 /**
- * Kill a friend link. Three answers: `setup: true`, done, or a failure
- * sentence.
+ * Kill a friend link. Four answers: `setup: true`, `signInHref`, done, or a
+ * failure sentence.
  *
  * Leaves an already-revoked row alone, so the timestamp keeps saying when the
  * door actually shut rather than when somebody last pressed the button.
@@ -311,7 +369,7 @@ export async function revokeFriendLink(id: string): Promise<Outcome<void>> {
   if (!client) return NO_DATABASE;
   try {
     const me = await whoAmI();
-    if (!me) return NO_DATABASE;
+    if (!me) return SIGNED_OUT;
     const { error } = await client
       .from("connection_links")
       .update({ revoked_at: new Date().toISOString() })
@@ -358,6 +416,9 @@ export async function acceptFriend(token: string): Promise<Outcome<Connected>> {
       ok: false,
       reason: explainAccount(state) ?? "",
       setup: state === "no-database",
+      // As in `acceptInvite`: a page that has to draw a way out needs to know
+      // which door, and "sign in" is not "this deployment has no database".
+      ...(state === "signed-out" ? { signInHref: SIGNIN_PATH } : {}),
     };
 
   const client = supabase();

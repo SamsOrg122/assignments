@@ -31,29 +31,67 @@
  * nobody can explain. `max_uses` on a team link is normally unlimited, which
  * is what keeps that from being a live problem either way.
  *
- * `Outcome<T>` is `lib/admin`'s, including its `setup: true` flag for "this
- * deployment has no database" as distinct from "the question failed". A
- * second identical result type here would only be somewhere for the two to
- * disagree.
+ * `Outcome<T>` is `lib/admin`'s shape, including its `setup: true` flag for
+ * "this deployment has no database" as distinct from "the question failed",
+ * with one field added — see the type below. A second, differently shaped
+ * result type here would only be somewhere for the two to disagree.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../db/client";
 import { currentWorkspaceId } from "../db/supabase";
 import { explainAuthErrorLine } from "../auth/errors";
 import { useAuth } from "../auth/store";
 import { useRemoteConfigSettled } from "../db/use-config";
-import type { Outcome } from "../admin";
 import { can } from "./permissions";
 import type { Role } from "./types";
 
-export type { Outcome } from "../admin";
+/**
+ * `lib/admin`'s `Outcome<T>` with one optional field added, so the two stay
+ * assignable in both directions and a caller may keep importing the type from
+ * either place.
+ *
+ * A failure is one of three things, and a screen has to be able to tell them
+ * apart because the way out is different for each:
+ *
+ *   setup: true    this deployment has no account database. There is nothing
+ *                  to retry — the fix is configuration, not another attempt.
+ *   signInHref     nobody is signed in. Retrying changes nothing until they
+ *                  are, and the field is where to send them.
+ *   neither        the question was asked and failed. Offer "try again".
+ *
+ * The middle one is here because it was missing: a session that expires
+ * overnight came back as `setup: true`, which told somebody with a perfectly
+ * good account that their deployment has no database and left them no way
+ * back in.
+ */
+export type Outcome<T> =
+  | { ok: true; value: T }
+  | { ok: false; reason: string; setup?: boolean; signInHref?: string };
+
+/** Where somebody signs in. */
+export const SIGNIN_PATH = "/signin";
 
 const NO_DATABASE = {
   ok: false as const,
   setup: true,
   reason:
     "Invite links need the account database, and this deployment has none. Without one there is no shared workspace to join — everyone's work stays in their own browser.",
+};
+
+/**
+ * Not `NO_DATABASE`. There is a database; there is nobody here to ask it
+ * anything on behalf of.
+ *
+ * Deliberately without `setup`, so a screen that hides "try again" for a
+ * configuration problem still shows it here: signing in usually happens in
+ * another tab, and coming back to press the button is the whole recovery.
+ */
+const SIGNED_OUT = {
+  ok: false as const,
+  signInHref: SIGNIN_PATH,
+  reason:
+    "Nobody is signed in, so there is no workspace to read. A tab left open overnight is the usual way this happens — sessions expire on their own — and signing in again is all it needs.",
 };
 
 const failed = (error: unknown): { ok: false; reason: string } => ({
@@ -227,8 +265,11 @@ export const isUuid = (value: string): boolean =>
  * Whether this browser is somebody a membership can safely be given to.
  *
  *   "no-database"  nothing to join; this deployment runs on the browser alone.
- *   "signed-out"   nobody is here. Also what a session that has expired since
- *                  the page loaded looks like, which is the point.
+ *   "signed-out"   nobody is here — or nobody could be confirmed to be. It is
+ *                  what a session that expired since the page loaded looks
+ *                  like, which is the point, and it is also where a project
+ *                  that did not answer lands, which the sentence has to admit
+ *                  to rather than paper over. See below.
  *   "anonymous"    signed in, but with an identity that lives only in this
  *                  browser's storage. Clear the browser and it is gone for
  *                  good — there is no email, so there is nothing to sign back
@@ -244,8 +285,25 @@ export const isUuid = (value: string): boolean =>
  * definer function consults — it checks `auth.users` for an email and
  * `is_anonymous` not true, and so does this.
  *
- * A network failure comes back "signed-out", which errs towards not offering
- * a button rather than offering one that fails.
+ * A getUser() that throws, or fails because the project is paused or
+ * unreachable, also comes back "signed-out". Erring towards not offering a
+ * button is right — an unreachable project cannot be joined either. Claiming
+ * as the reason that they are signed out is not, so `explainAccount` does not
+ * claim it; it names both readings in one sentence.
+ *
+ * A fifth answer for "could not tell" would be the honest shape, and it is not
+ * one this file can hand out on its own: the four states are enumerated
+ * exhaustively by the screens that consume them — a `Record<Exclude<
+ * AccountState, "real">, …>` of doors on the team page, a `WHY` map on the
+ * join page — and a fifth member is a compile error in each. Widening the
+ * union is a change to those files, not to this one. What is reachable from
+ * here is the sentence, and the sentence was the part that was lying.
+ *
+ * The loop that is left — somebody sent to /signin during an outage — does
+ * end one screen along rather than going round: the sign-in form runs
+ * `explainAuthErrorLine` on the same failure, and that has a true sentence for
+ * an unreachable project ("The Supabase project didn't answer… whether the
+ * project is paused").
  */
 export type AccountState = "no-database" | "signed-out" | "anonymous" | "real";
 
@@ -255,6 +313,8 @@ export async function accountState(): Promise<AccountState> {
   try {
     const { data, error } = await client.auth.getUser();
     const user = data?.user;
+    // An error here is either "no session" or "no answer", and this cannot
+    // tell which — see the note above on why both land on one state.
     if (error || !user) return "signed-out";
     if (!user.email || user.is_anonymous === true) return "anonymous";
     return "real";
@@ -278,12 +338,18 @@ export async function hasRealAccount(): Promise<boolean> {
 /**
  * Why the button is off, or null when it isn't. Four answers, one per state —
  * `null` for "real", and a plain sentence for each of the other three.
+ *
+ * The "signed-out" sentence says two things because the state means two
+ * things: nobody is signed in, or the account server did not answer and
+ * nobody could be confirmed. Naming only the first sent somebody to /signin
+ * during an outage as though it were their doing.
  */
 export function explainAccount(state: AccountState): string | null {
   if (state === "real") return null;
   if (state === "no-database")
     return "This deployment has no account database, so there is no team to join.";
-  if (state === "signed-out") return "Sign in first — joining needs an account.";
+  if (state === "signed-out")
+    return "Sign in first — joining needs an account. If you are signed in already, then this browser couldn't reach the account server, and reloading in a minute is the thing to try.";
   return "This browser is signed in without an account. That identity disappears the moment the browser is cleared and can't be recovered, so it can't be given a place in a team. Add an email to keep it.";
 }
 
@@ -297,11 +363,43 @@ export interface AccountRead {
   ready: boolean;
 }
 
+/**
+ * The one answer-gate both hooks in this file use.
+ *
+ * There were two disciplines here and no way to tell which was meant: an
+ * `alive` flag closed over by `useAccountState`'s effect, and nothing at all
+ * in `useInvites` — whose read is also started by a button, where an effect's
+ * cleanup would not have covered it anyway.
+ *
+ * `start()` before a read, and the function it returns says whether that
+ * read's answer is still the one to show. False after unmount, and false once
+ * a later read has begun: a slow first answer landing on top of a fresh one is
+ * the same bug as a setState after unmount, only harder to see — two taps of
+ * "try again" on a bad connection and the older failure wins.
+ */
+function useLatest(): () => () => boolean {
+  const mounted = useRef(true);
+  const ticket = useRef(0);
+  useEffect(() => {
+    // Set on the way in, not just cleared on the way out: an effect that
+    // remounts (dev's double invoke) would otherwise stay dead.
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  return useCallback(() => {
+    const mine = ++ticket.current;
+    return () => mounted.current && ticket.current === mine;
+  }, []);
+}
+
 /** `accountState` for a component, re-read whenever the signed-in person
  *  changes. Three renders: not settled, settled but unknown, then answered. */
 export function useAccountState(): AccountRead {
   const settled = useRemoteConfigSettled();
   const [state, setState] = useState<AccountState | null>(null);
+  const start = useLatest();
 
   /*
    * The identity store is the *trigger*, never the answer. Signing in and
@@ -312,17 +410,14 @@ export function useAccountState(): AccountRead {
 
   useEffect(() => {
     if (!settled) return;
-    let alive = true;
+    const current = start();
     // Off the effect body: setting state synchronously here is the cascading
     // render the lint rule is about.
     void Promise.resolve().then(async () => {
       const answer = await accountState();
-      if (alive) setState(answer);
+      if (current()) setState(answer);
     });
-    return () => {
-      alive = false;
-    };
-  }, [settled, who]);
+  }, [settled, who, start]);
 
   return { settled, state, ready: state === "real" };
 }
@@ -379,8 +474,10 @@ interface MembershipRow {
  * the rule `teamWorkspaceId` uses in `db/supabase.ts`; otherwise my own;
  * otherwise the fallback creates one.
  *
- * Three answers: `setup: true` with no database or no session, the workspace,
- * or a failure sentence.
+ * Four answers: `setup: true` with no database, `signInHref` with nobody
+ * signed in, the workspace, or a failure sentence. The first two used to be
+ * one answer, and the merged one told anybody whose session had quietly
+ * expired that their deployment had no database.
  */
 export async function currentTeam(): Promise<Outcome<Team>> {
   const client = supabase();
@@ -388,7 +485,7 @@ export async function currentTeam(): Promise<Outcome<Team>> {
   try {
     const { data: auth } = await client.auth.getSession();
     const me = auth.session?.user.id;
-    if (!me) return NO_DATABASE;
+    if (!me) return SIGNED_OUT;
 
     const { data, error } = await client
       .from("workspace_members")
@@ -419,7 +516,10 @@ export async function currentTeam(): Promise<Outcome<Team>> {
     // adds its owner existed. The owner still owns it, and the policies still
     // let them in — see `owns_workspace` in schema.sql.
     const fallback = await currentWorkspaceId();
-    if (!fallback) return NO_DATABASE;
+    // Null with a client in hand and a session id already read means the
+    // session went away between the two calls, which is the signed-out
+    // answer and not a missing database.
+    if (!fallback) return SIGNED_OUT;
     return {
       ok: true,
       value: { workspaceId: fallback, name: null, myRole: "owner", me },
@@ -480,10 +580,11 @@ const rowToInvite = (row: InviteRow): TeamInvite => {
 /**
  * Mint a link that puts whoever follows it into this workspace at `role`.
  *
- * Four answers: `setup: true` when there is no database; a refusal sentence
- * when the request itself is wrong (an impossible lifetime, a role this
- * account may not hand out, no permission to invite at all); a failure
- * sentence when the insert was refused; or the URL — which is the only time
+ * Five answers: `setup: true` when there is no database; `signInHref` when
+ * nobody is signed in; a refusal sentence when the request itself is wrong (an
+ * impossible lifetime, a role this account may not hand out, no permission to
+ * invite at all); a failure sentence when the insert was refused; or the URL —
+ * which is the only time
  * the token will ever exist outside the link, so the caller must show it and
  * the caller must say it cannot be shown again.
  *
@@ -547,8 +648,9 @@ export async function createInvite(
  * question and "who did we hand a link to, and did anyone use it" is the
  * other half.
  *
- * Three answers: `setup: true`, the rows, or a failure sentence. An empty
- * array is a real answer and means no links have been made.
+ * Four answers: `setup: true`, `signInHref` when nobody is signed in, the
+ * rows, or a failure sentence — all four inherited from `currentTeam`. An
+ * empty array is a real answer and means no links have been made.
  *
  * The rows carry no token and never will — only its hash was kept. A screen
  * built on this can offer "revoke" and "make another", and must not offer
@@ -578,7 +680,8 @@ export async function listInvites(): Promise<Outcome<TeamInvite[]>> {
 }
 
 /**
- * Kill a link. Three answers: `setup: true`, done, or a failure sentence.
+ * Kill a link. Four answers: `setup: true`, `signInHref`, done, or a failure
+ * sentence.
  *
  * Idempotent, and deliberately does not touch a row that is already revoked:
  * the first revocation is the true one, and overwriting its timestamp would
@@ -709,6 +812,10 @@ export async function acceptInvite(token: string): Promise<Outcome<Joined>> {
       ok: false,
       reason: explainAccount(state) ?? "",
       setup: state === "no-database",
+      // The same field the read functions carry, for the same reason: the
+      // page has to know whether there is a way back in, and "sign in" is a
+      // different door from "this deployment has no database".
+      ...(state === "signed-out" ? { signInHref: SIGNIN_PATH } : {}),
     };
 
   const client = supabase();
@@ -768,10 +875,10 @@ interface MemberRow {
 /**
  * The real membership rows, joined to profiles for names.
  *
- * Three answers: `setup: true`, the members, or a failure sentence. The array
- * is never empty in practice — you are in it — so an empty one means the
- * membership row is missing and the workspace predates the trigger that adds
- * its owner.
+ * Four answers: `setup: true`, `signInHref` when nobody is signed in, the
+ * members, or a failure sentence. The array is never empty in practice — you
+ * are in it — so an empty one means the membership row is missing and the
+ * workspace predates the trigger that adds its owner.
  *
  * Not `fetchMembers` from `lib/admin`, which asks the same question of
  * `currentWorkspaceId()` — the personal workspace. For somebody who joined a
@@ -825,13 +932,18 @@ export function useInvites(): InvitesRead {
   const settled = useRemoteConfigSettled();
   const [outcome, setOutcome] = useState<Outcome<TeamInvite[]> | null>(null);
   const [busy, setBusy] = useState(false);
+  const start = useLatest();
 
   const reload = useCallback(async () => {
+    const current = start();
     setBusy(true);
     const answer = await listInvites();
+    // Superseded or unmounted. `busy` is left alone on purpose: the read that
+    // overtook this one owns it now and will clear it when it lands.
+    if (!current()) return;
     setOutcome(answer);
     setBusy(false);
-  }, []);
+  }, [start]);
 
   const who = useAuth((s) => s.identity.id);
 

@@ -75,11 +75,26 @@ export default function TeamPage() {
   const account = useAccountState();
   const members = useMembers(account.ready);
 
-  const rows = members.outcome?.ok ? members.outcome.value : null;
-  // The role the database has for you, not the one this browser would like to
-  // have. Null while the read is in flight, and null too when the workspace
-  // has no membership row at all — see `canInvite` in InvitesSection.
-  const myRole = rows?.find((m) => m.isMe)?.role ?? null;
+  /*
+   * What the database says you are — as three answers, not two.
+   *
+   * A bare `role ?? null` cannot tell "still reading" from "asked, and you
+   * have no membership row", and the invite controls have to treat those
+   * differently. The first is every single page load, because this read and
+   * the invites read run in parallel, so a null-means-maybe rule hands the
+   * whole form and a Revoke button to everybody for as long as the round trip
+   * takes — and for good, if it fails.
+   */
+  const roleRead: RoleRead =
+    members.outcome === null
+      ? { state: "reading" }
+      : !members.outcome.ok
+        ? { state: "unreadable" }
+        : {
+            state: "known",
+            role: members.outcome.value.find((m) => m.isMe)?.role ?? null,
+          };
+  const myRole = roleRead.state === "known" ? roleRead.role : null;
 
   return (
     <>
@@ -120,14 +135,15 @@ export default function TeamPage() {
             Members and invites both need an account, so when there isn't one
             they collapse into a single panel that says which of the three
             reasons it is. One panel rather than the same sentence printed
-            twice — and it keeps `id="join"`, because /more, the command
-            palette and the chat rail all send people to /team#join and the
-            answer they need on arrival is exactly this one.
+            twice — and it keeps `id="join"`, because the chat rail and the
+            library page send people to /team#join and the answer they need on
+            arrival is exactly this one. (/more and the command palette link
+            to plain /team and land at the top; the anchor is for those two.)
           */}
           {account.ready ? (
             <>
               <MembersSection read={members} />
-              <InvitesSection myRole={myRole} />
+              <InvitesSection role={roleRead} />
             </>
           ) : (
             <NoAccountSection settled={account.settled} state={account.state} />
@@ -169,6 +185,19 @@ interface MembersRead {
   busy: boolean;
   reload: () => Promise<void>;
 }
+
+/**
+ * Your own role, taken out of the member list for the invite controls.
+ *
+ * `known` with a null role is a real answer: a workspace made before the
+ * trigger that adds its owner has a membership row for nobody, and its owner
+ * can still invite. `reading` and `unreadable` are not answers, and nothing
+ * that acts on the workspace may be drawn on either of them.
+ */
+type RoleRead =
+  | { state: "reading" }
+  | { state: "unreadable" }
+  | { state: "known"; role: Role | null };
 
 /**
  * `listMembers` for a component, in the same shape `useInvites` has so the two
@@ -430,10 +459,20 @@ function MembersSection({ read }: { read: MembersRead }) {
                       <span className="text-[11px] text-fg-subtle">you</span>
                     )}
                   </p>
+                  {/* Three states, three lines. `anonymous` is nullable, and
+                      null is "the profile could not be read" — the ordinary
+                      state of a database that has not had 0015's profiles
+                      policy applied, since every migration here is run by
+                      hand. Printing the warning for it told a whole real team
+                      they were about to evaporate. `false` says nothing at
+                      all: having an account is the normal case, and a badge
+                      on every row for it is noise. */}
                   <p className="text-[11.5px] leading-relaxed text-fg-subtle">
                     Joined {formatDate(m.joinedAt)}
-                    {m.anonymous &&
+                    {m.anonymous === true &&
                       " · no account, so this place disappears when their browser is cleared"}
+                    {m.anonymous === null &&
+                      " · their profile couldn't be read, so whether they have an account is unknown"}
                   </p>
                 </div>
 
@@ -458,8 +497,15 @@ function MembersSection({ read }: { read: MembersRead }) {
 /* ── Invites ────────────────────────────────────────────── */
 
 
-/** How long a link may live. `MAX_DAYS` is the library's cap, not a guess. */
-const LIFETIMES = [1, 7, 30, MAX_DAYS];
+/**
+ * How long a link may live. `MAX_DAYS` is the library's cap, not a guess —
+ * which is why it is deduped and filtered rather than written out: lowering
+ * the cap to 30 would otherwise render two options keyed the same, and
+ * lowering it to 14 would offer 30 days on a link the library refuses.
+ */
+const LIFETIMES = [
+  ...new Set([1, 7, 30, MAX_DAYS].filter((d) => d <= MAX_DAYS)),
+].sort((a, b) => a - b);
 
 const lifetimeLabel = (days: number): string =>
   days === 1 ? "1 day" : `${days} days`;
@@ -481,7 +527,7 @@ const lifeLine = (invite: TeamInvite): string => {
   return `expires ${formatDate(invite.expiresAt)}`;
 };
 
-function InvitesSection({ myRole }: { myRole: Role | null }) {
+function InvitesSection({ role: mine }: { role: RoleRead }) {
   const { settled, outcome, busy, reload } = useInvites();
   const notify = useUI((s) => s.notify);
 
@@ -491,17 +537,32 @@ function InvitesSection({ myRole }: { myRole: Role | null }) {
   const [fresh, setFresh] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [justRevoked, setJustRevoked] = useState<string | null>(null);
   const linkRef = useRef<HTMLInputElement>(null);
 
   /*
-   * A null role is "the database returned no membership row for you", which is
-   * not the same as "you may not". A workspace made before the trigger that
-   * adds its owner has a row for nobody, and its owner can still invite.
-   * `createInvite` asks that question of the workspace itself and refuses in a
-   * sentence, so the honest thing here is to offer the form and let the
-   * database have the last word.
+   * Only once the database has actually answered. A null role inside a
+   * `known` answer still means "you have no membership row", which is not
+   * "you may not" — a workspace made before the trigger that adds its owner
+   * has a row for nobody, and its owner can still invite; `createInvite` asks
+   * that of the workspace itself and refuses in a sentence. What is not
+   * allowed is guessing during the read, which used to be the common case.
    */
-  const canInvite = myRole === null || can(myRole, "manageMembers");
+  const canInvite =
+    mine.state === "known" &&
+    (mine.role === null || can(mine.role, "manageMembers"));
+
+  /*
+   * Proof that a revocation landed, read off the reloaded list rather than
+   * off the call: `revokeInvite` sends an update with no `.select()`, and an
+   * RLS `using` clause that hides the row answers that with success and zero
+   * rows changed. Derived in render, not in an effect, because the answer
+   * only exists once the reload after the press has come back.
+   */
+  const stillLive =
+    justRevoked !== null &&
+    outcome?.ok === true &&
+    outcome.value.some((i) => i.id === justRevoked && i.status === "live");
 
   const create = async () => {
     setMinting(true);
@@ -524,9 +585,11 @@ function InvitesSection({ myRole }: { myRole: Role | null }) {
     } catch {
       // The clipboard is refused on an insecure origin and inside some
       // embedded browsers. Selecting the text is a copy somebody can finish
-      // themselves, which beats a button that silently does nothing.
+      // themselves, which beats a button that silently does nothing. No key
+      // is named: this fires wherever the refusal happens, which is every
+      // platform, and ⌘C is wrong on most of them.
       linkRef.current?.select();
-      notify("Press ⌘C to copy — the link is selected.");
+      notify("This browser wouldn't copy. The link is selected — copy it yourself.");
       return;
     }
     setCopied(true);
@@ -535,6 +598,7 @@ function InvitesSection({ myRole }: { myRole: Role | null }) {
   };
 
   const revoke = async (invite: TeamInvite) => {
+    setJustRevoked(null);
     const done = await revokeInvite(invite.id);
     if (!done.ok) {
       notify(done.reason);
@@ -549,9 +613,43 @@ function InvitesSection({ myRole }: { myRole: Role | null }) {
      * is one press away.
      */
     setFresh(null);
-    notify("Link revoked");
+    /*
+     * No "Link revoked" here. All that is known at this point is that the
+     * request was accepted — see `stillLive`, which is what actually says
+     * whether the door shut. The row below turning into "revoked" is the
+     * confirmation, and it is the one that cannot be wrong.
+     */
+    setJustRevoked(invite.id);
     await reload();
   };
+
+  if (mine.state === "reading")
+    return (
+      <Section
+        id="join"
+        title="Invites"
+        hint="Who may hand out a link is the database's answer, and it hasn't come back yet."
+      >
+        <Checking>Checking what you may do…</Checking>
+      </Section>
+    );
+
+  if (mine.state === "unreadable")
+    return (
+      <Section
+        id="join"
+        title="Invites"
+        hint="Who may hand out a link is the database's answer, and this time it didn't come."
+      >
+        <p className="text-[12.5px] leading-relaxed text-fg-muted">
+          Your membership row couldn&apos;t be read, so nothing here is
+          offered. Both handing out a link and revoking one are the database&apos;s
+          decision, and a Revoke button that turns out to change nothing is
+          worse than no button at all. &quot;Ask again&quot; under Members
+          retries the same read.
+        </p>
+      </Section>
+    );
 
   if (!canInvite)
     return (
@@ -568,8 +666,10 @@ function InvitesSection({ myRole }: { myRole: Role | null }) {
     );
 
   return (
-    /* `id="join"` because /more, the command palette and the chat rail all
-       point at /team#join, and this is the section that answers them. */
+    /* `id="join"` because the chat rail and the library page point at
+       /team#join, and this is the section that answers them. /more and the
+       command palette link to plain /team, which lands at the top of the
+       page — the anchor exists for those two callers. */
     <Section
       id="join"
       title="Invites"
@@ -643,12 +743,25 @@ function InvitesSection({ myRole }: { myRole: Role | null }) {
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
+          {/* The token is in the path now, so this is a key, not an address:
+              worth saying beside the box rather than only in the section hint
+              above it, which is scrolled away by the time a link is minted. */}
           <p className="mt-2 text-[11.5px] leading-relaxed text-fg-subtle">
             This is the only time this link can be shown. Only a fingerprint of
             it is stored, so nobody — including whoever runs the database — can
-            read it back out. Lose it and make another.
+            read it back out. It works for whoever holds it, which is what the
+            expiry and Revoke below are for. Lose it and make another.
           </p>
         </div>
+      )}
+
+      {stillLive && (
+        <p className="text-[12.5px] leading-relaxed text-warn">
+          That link is still live. The revocation was accepted and then changed
+          nothing, which is what happens when the row isn&apos;t yours to
+          change — ask an owner or an admin, and treat the link as working
+          until the row below says otherwise.
+        </p>
       )}
 
       {!settled || !outcome ? (

@@ -220,7 +220,11 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+-- `pg_temp` is spelled out, and last. Leaving it off the list does not take
+-- it out of the search: Postgres still looks there first for relations, so
+-- the pin would rest on nobody ever writing an unqualified table name in a
+-- body like this one. Every `security definer` function in this file says it.
+set search_path = public, auth, pg_temp
 as $$
   select exists (
     select 1 from public.workspace_members m
@@ -241,12 +245,13 @@ drop policy if exists members_visible on public.workspace_members;
 create policy members_visible on public.workspace_members
   for select using (public.is_member(workspace_id));
 
+-- The name is here and nowhere else in this file: `members_managed_by_owner`
+-- was a `for all` policy with no `with check`, which let a workspace owner
+-- write any user id at all into their own membership list — and, once 0015's
+-- `profiles_people_you_know` existed, read that stranger's name back. This
+-- file never creates it. The drop is for a project that ran an older copy of
+-- this file, since every policy here is written to be re-run.
 drop policy if exists members_managed_by_owner on public.workspace_members;
-create policy members_managed_by_owner on public.workspace_members
-  for all using (
-    exists (select 1 from public.workspaces w
-            where w.id = workspace_id and w.owner_id = auth.uid())
-  );
 
 -- Owner of the workspace, whether or not the membership row exists. Kept
 -- separate from `is_member` so a workspace created before the membership
@@ -256,13 +261,34 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, auth, pg_temp
 as $$
   select exists (
     select 1 from public.workspaces w
     where w.id = ws and w.owner_id = auth.uid()
   );
 $$;
+
+-- A membership is something you accept, not something you are given. What an
+-- owner may do to a membership row is change its role and take it away; what
+-- nobody may do from a client is create one. The two writers that create
+-- them are `add_owner_as_member` and `accept_workspace_invite`, both
+-- `security definer`, so neither is reached by the revoke further down.
+--
+-- `with check` as well as `using`, so a row cannot be updated out of a
+-- workspace you own into one you do not.
+drop policy if exists members_role_set_by_owner on public.workspace_members;
+create policy members_role_set_by_owner on public.workspace_members
+  for update
+  using (public.owns_workspace(workspace_id))
+  with check (public.owns_workspace(workspace_id));
+
+-- Removing somebody from a workspace you own takes nothing from them that
+-- they did not give: the row is the membership.
+drop policy if exists members_removed_by_owner on public.workspace_members;
+create policy members_removed_by_owner on public.workspace_members
+  for delete
+  using (public.owns_workspace(workspace_id));
 
 drop policy if exists projects_member on public.projects;
 create policy projects_member on public.projects
@@ -374,7 +400,8 @@ create trigger workspaces_touch before update on public.workspaces
 -- rather than in the client also means it cannot be skipped by a code path
 -- that forgets.
 create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer
+set search_path = public, auth, pg_temp as $$
 begin
   insert into public.profiles (id, display_name, is_anonymous)
   values (
@@ -398,7 +425,8 @@ create trigger on_auth_user_created after insert on auth.users
 -- reality, so the team surfaces list the owner instead of an empty workspace
 -- that somebody is nevertheless editing.
 create or replace function public.add_owner_as_member()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer
+set search_path = public, auth, pg_temp as $$
 begin
   insert into public.workspace_members (workspace_id, user_id, role)
   values (new.id, new.owner_id, 'owner')
@@ -450,7 +478,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, auth, pg_temp
 as $$
   select exists (
     select 1 from public.workspace_members m
@@ -577,7 +605,7 @@ returns table (kind text, doomed bigint)
 language plpgsql
 stable
 security definer
-set search_path = public
+set search_path = public, auth, pg_temp
 as $$
 declare days integer;
 begin
@@ -631,7 +659,7 @@ create or replace function public.purge_expired(ws uuid)
 returns table (kind text, removed bigint)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, auth, pg_temp
 as $$
 declare
   days     integer;
@@ -697,8 +725,10 @@ language sql
 stable
 security definer
 -- Pinned, because a security definer function that resolves names through the
--- caller's search_path can be pointed at tables the caller made.
-set search_path = pg_catalog, public
+-- caller's search_path can be pointed at tables the caller made. This one
+-- reads pg_catalog on purpose and keeps it first; pg_temp is named last for
+-- the reason given on `is_member`.
+set search_path = pg_catalog, public, pg_temp
 as $$
   select jsonb_build_object(
     'columns', (

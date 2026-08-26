@@ -29,8 +29,15 @@ export interface Friend {
    * They are signed in without an account. Shown plainly rather than hidden:
    * this connection disappears with their browser and there is nothing either
    * of you can do to get it back.
+   *
+   * Null when their profile could not be read, which is a different fact and
+   * must not be printed as this one. The profiles select comes back empty for
+   * a throwaway session AND for a database where 0015's profiles policy has
+   * not been applied — and every migration here is run by hand — so on such a
+   * deployment defaulting to `true` told a whole real list of people they
+   * were about to evaporate. Same three states as `TeamMember.anonymous`.
    */
-  anonymous: boolean;
+  anonymous: boolean | null;
   /** When the pair row was written, ms. */
   since: number;
 }

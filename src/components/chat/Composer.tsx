@@ -9,8 +9,16 @@
  */
 
 import { useMemo, useRef, useState } from "react";
-import { HUMANS, useChat, type MessageAttachment, type ProjectAttachment } from "@/lib/chat";
+import {
+  AI_USER_ID,
+  mentionName,
+  useChat,
+  type MessageAttachment,
+  type ProjectAttachment,
+} from "@/lib/chat";
+import { chosenName } from "@/components/social/Friends";
 import { LOCAL_USER } from "@/lib/realtime";
+import { usePeople } from "@/lib/team";
 import { useProjects } from "@/lib/store";
 import { KINDS } from "@/lib/kinds";
 import { fuzzyMatch } from "@/lib/fuzzy";
@@ -36,6 +44,10 @@ export function Composer({
 }) {
   const send = useChat((s) => s.send);
   const setTyping = useChat((s) => s.setTyping);
+  const memberIds = useChat(
+    (s) => s.channels.find((c) => c.id === channelId)?.memberIds,
+  );
+  const { friends } = usePeople();
   const projects = useProjects((s) => s.projects);
 
   const [body, setBody] = useState("");
@@ -46,12 +58,47 @@ export function Composer({
   const ref = useRef<HTMLTextAreaElement>(null);
   const typingUntil = useRef(0);
 
+  /**
+   * Everybody there is to mention, before the query narrows it.
+   *
+   * The people in this room first, then the people you are connected to who
+   * aren't. It used to be `HUMANS` — you and the three simulated colleagues
+   * from `lib/realtime/mock` — which offered three people who don't exist and
+   * left out the one person actually in the room, so the mention list in a DM
+   * with a real friend was the only list in the app that couldn't name them.
+   *
+   * Kept separate from `suggestions` so the empty case can tell "nobody to
+   * mention" from "nobody by that name", which are different problems with
+   * different answers.
+   */
+  const mentionable = useMemo(() => {
+    const here = (memberIds ?? []).filter(
+      // The assistant answers everything said in its own room; @-ing it there
+      // is a mention that changes nothing.
+      (id) => id !== LOCAL_USER.id && id !== AI_USER_ID,
+    );
+    const inRoom = here.flatMap((id) => {
+      const label = mentionName(id);
+      return label ? [{ id, label, hint: "in this channel" }] : [];
+    });
+    const connected = (friends?.ok ? friends.value : []).flatMap((person) => {
+      const label = chosenName(person);
+      return label && !here.includes(person.userId)
+        ? [{ id: person.userId, label, hint: "connected" }]
+        : [];
+    });
+    return [...inRoom, ...connected];
+    // `friends` earns its place here twice: it is half the list, and its
+    // arrival is also the moment `mentionName` can start naming the other
+    // half, since both come from the same read.
+  }, [memberIds, friends]);
+
   const suggestions = useMemo(() => {
     if (!trigger) return [];
     if (trigger.kind === "mention")
-      return HUMANS.filter((p) => p.id !== LOCAL_USER.id)
-        .map((p) => ({ id: p.id, label: p.name, hint: "person" }))
-        .filter((o) => !trigger.query || fuzzyMatch(trigger.query, o.label));
+      return mentionable.filter(
+        (o) => !trigger.query || fuzzyMatch(trigger.query, o.label),
+      );
     return projects
       .map((p) => ({
         id: p.id,
@@ -62,7 +109,7 @@ export function Composer({
       .filter((o) => o.score >= 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 6);
-  }, [trigger, projects]);
+  }, [trigger, projects, mentionable]);
 
   /** Re-read the trigger from the text on every change, so it can't go stale. */
   const scan = (value: string, caret: number) => {
@@ -119,8 +166,22 @@ export function Composer({
       className="border-t border-line px-3 py-2.5"
       hint="Drop to attach to this message"
     >
-      {trigger && suggestions.length > 0 && (
+      {/* A mention with nothing to offer says so. Silence reads as a broken
+          autocomplete, and the gap it leaves is what used to be filled with
+          people who don't exist. */}
+      {trigger && (suggestions.length > 0 || trigger.kind === "mention") && (
         <div className="anim-pop absolute bottom-full left-3 z-30 mb-1.5 w-[280px] overflow-hidden rounded-md border border-line-strong bg-surface p-1 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.6)]">
+          {suggestions.length === 0 && (
+            <p className="px-2 py-1.5 text-[12px] leading-relaxed text-fg-subtle">
+              {mentionable.length > 0
+                ? "Nobody here by that name."
+                : !friends
+                  ? "Reading your people…"
+                  : friends.ok
+                    ? "Nobody to mention yet. Whoever is in this channel shows up here, and so do the people you're connected to."
+                    : friends.reason}
+            </p>
+          )}
           {suggestions.map((option, i) => (
             <button
               key={option.id}
@@ -202,6 +263,15 @@ export function Composer({
             }
           }}
           onKeyDown={(e) => {
+            if (trigger) {
+              // Escape closes the popup whether or not it has anything in it —
+              // it can now be open with a notice instead of a list.
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setTrigger(null);
+                return;
+              }
+            }
             if (trigger && suggestions.length > 0) {
               if (e.key === "ArrowDown") {
                 e.preventDefault();
@@ -216,11 +286,6 @@ export function Composer({
               if (e.key === "Enter" || e.key === "Tab") {
                 e.preventDefault();
                 applySuggestion(suggestions[active]);
-                return;
-              }
-              if (e.key === "Escape") {
-                e.preventDefault();
-                setTrigger(null);
                 return;
               }
             }

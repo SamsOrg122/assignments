@@ -143,8 +143,18 @@ export interface AdminMember {
   userId: string;
   role: Role;
   displayName: string | null;
-  /** Never signed up — the free plan's normal state, not a broken one. */
-  anonymous: boolean;
+  /**
+   * Never signed up — the free plan's normal state, not a broken one.
+   *
+   * Null when the profile could not be read, which is a different fact and
+   * must not be printed as this one. The embed comes back null both for
+   * somebody really on a throwaway session AND when the profile is
+   * unreadable — the ordinary state of a database that does not have
+   * migration 0015's profiles policy yet, and every migration here is run by
+   * hand — so defaulting to `true` told a whole real team that none of them
+   * had accounts. The same three states as `TeamMember.anonymous`.
+   */
+  anonymous: boolean | null;
   joinedAt: number;
 }
 
@@ -172,7 +182,9 @@ export async function fetchMembers(): Promise<Outcome<AdminMember[]>> {
         userId: row.user_id,
         role: row.role as Role,
         displayName: row.profiles?.display_name ?? null,
-        anonymous: row.profiles?.is_anonymous ?? true,
+        // `null`, not `true` — see the field. An unreadable profile is not
+        // evidence that somebody never signed up.
+        anonymous: row.profiles ? row.profiles.is_anonymous : null,
         joinedAt: Date.parse(row.created_at) || 0,
       })),
     };

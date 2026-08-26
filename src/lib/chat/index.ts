@@ -15,7 +15,7 @@ import { versioned } from "../persistence/versioned";
 import { useEffect, useSyncExternalStore } from "react";
 import { uid } from "../factories";
 import { LOCAL_USER } from "../realtime";
-import { PEERS } from "../realtime/mock";
+import { NO_NAME, knownPerson } from "../team";
 import type { Collaborator } from "../types";
 import { createMockChatProvider } from "./mock";
 import { AI_PERSON, SEED_CHANNELS, SEED_MESSAGES } from "./seed";
@@ -35,20 +35,67 @@ export type {
   ProjectAttachment,
 } from "./types";
 
-/** Everyone who can appear in a conversation. */
-/** Everyone a message can be from, including the assistant. */
-export const PEOPLE: Collaborator[] = [LOCAL_USER, ...PEERS, AI_PERSON];
+/**
+ * The people this file can name on its own: you, and the assistant.
+ *
+ * It used to be you, the assistant and `PEERS` — Mira Chen, Dev Raman and Ana
+ * Silva, the three simulated colleagues from `lib/realtime/mock`, whose own
+ * file says that people who don't exist are the most convincing lie a product
+ * can tell about itself. They were in `PEOPLE`, so the command palette offered
+ * "Message Mira Chen"; they were in `HUMANS`, so every channel you made was
+ * born with them in it, every @-mention list offered them, and the mock
+ * provider — which replies as a random member of the room — had three mouths
+ * to put words in. They are gone from all of it. The demo frame on the landing
+ * page still has them, where the point is showing what multiplayer looks like:
+ * it takes them straight from `lib/realtime/mock` behind `setSimulatedPeers`,
+ * and nothing here is in its way.
+ */
+export const PEOPLE: Collaborator[] = [LOCAL_USER, AI_PERSON];
 
-/** Just the people — for mentions, membership and anything social. */
-export const HUMANS: Collaborator[] = [LOCAL_USER, ...PEERS];
+/** What a name that isn't one looks like, in one place — see `mentionName`. */
+const UNKNOWN = "Unknown";
 
+/**
+ * Whoever this id belongs to, named if the app can name them.
+ *
+ * The rest of the chat UI resolves every id through here — the member list in
+ * settings, the author of a message, the dot on a room row — so an id it
+ * cannot place used to be printed as "Unknown" with grey "??" initials, real
+ * account or not. Since the person picker moved onto the connections table
+ * that included your actual friends: their name in the room title, "Unknown"
+ * everywhere else in the same room.
+ *
+ * `knownPerson` is the app's one directory of real accounts (`lib/team`),
+ * filled from the workspace roster and the connections table. It is a lookup
+ * rather than a registry the picker writes into, because a name read once at
+ * the moment somebody was picked is a name that goes stale silently — and
+ * because a message list has to name people nobody ever picked. "Unknown"
+ * survives only for an id nothing in the app has ever heard of.
+ */
 export const personById = (id: string): Collaborator =>
-  PEOPLE.find((p) => p.id === id) ?? {
+  PEOPLE.find((p) => p.id === id) ??
+  knownPerson(id) ?? {
     id,
-    name: "Unknown",
+    name: UNKNOWN,
     initials: "??",
     color: "#8a8a8a",
   };
+
+/**
+ * What to type to mention somebody, or null when there is nothing to type.
+ *
+ * A mention is a piece of text a person types at somebody. "@Unknown" reaches
+ * nobody, and "@no name yet" is not a name — so an autocomplete offering
+ * either is offering a dead end. They are still in the room and still on its
+ * member list; they are just not mentionable until the app knows what to call
+ * them.
+ */
+export function mentionName(id: string): string | null {
+  const { name } = personById(id);
+  return name === UNKNOWN || name === NO_NAME ? null : name;
+}
+
+export { AI_USER_ID } from "./seed";
 
 interface ChatState {
   channels: Channel[];
@@ -360,10 +407,13 @@ export const useChat = create<ChatState>()(
           passcodeHash: options?.passcode
             ? await hash(options.passcode)
             : undefined,
-          // People, not the assistant — it belongs to its own channel, and
-          // adding it here would inflate every new channel's member count.
-          memberIds:
-            options?.memberIds ?? HUMANS.map((p) => p.id),
+          // You, and whoever the caller named. A new channel used to be born
+          // holding the three simulated colleagues, which put words in their
+          // mouths — the mock provider answers as a random member of the room
+          // — and printed a membership of four for a workspace of one. Add
+          // people from the channel's settings, where the list is the people
+          // you are really connected to.
+          memberIds: options?.memberIds ?? [LOCAL_USER.id],
         });
         set((s) => ({
           channels: [...s.channels, channel],

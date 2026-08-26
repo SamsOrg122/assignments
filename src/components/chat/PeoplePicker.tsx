@@ -23,6 +23,22 @@
  * no account, the honest answer is that a connection needs one — asked before
  * a button is drawn rather than after it is pressed.
  *
+ * WHAT A ROW PROMISES, AND WHAT IT CAN DO. Nothing under this button reaches
+ * anybody. `useChat` is a zustand store in this browser's localStorage behind
+ * `createMockChatProvider`; `openDM` files a conversation under the local
+ * user's id and the friend's, no part of the chat path touches the database,
+ * and the mock provider answers you with a reply it made up. Listing three
+ * invented colleagues was a lie with a Message button on it; pressing a real
+ * friend is the same lie with a real name on it, which is worse — the name is
+ * somebody who will never know they were written to.
+ *
+ * Real messaging is a separate change with its own tables, so what is done
+ * here is the smaller and more urgent thing: the rows say so before they are
+ * pressed. Not a disabled button, which teaches nothing and hides the list of
+ * people you worked to connect; a sentence over the list and a line on every
+ * row, so the promise the row makes is one it can keep — a conversation kept
+ * in this browser, waiting for sync.
+ *
  * It hands the chosen person's id back rather than routing itself. The caller
  * owns what happens next — open the conversation, close the rail on a phone —
  * and a picker that navigates on its own can only ever be used once.
@@ -34,6 +50,7 @@ import {
   FriendLinks,
   NO_NAME,
   NoAccount,
+  chosenName,
   friendName,
   useFriends,
 } from "@/components/social/Friends";
@@ -160,6 +177,17 @@ export function PeoplePicker({
         </div>
       ) : (
         <>
+          {/* Before the first press, not after it. Everything below writes to
+              this browser and stops there, and somebody typing a real friend's
+              name into a picker has every reason to assume otherwise. */}
+          <div className="mb-3 rounded-md border border-line bg-surface p-2.5">
+            <p className="text-[12px] leading-relaxed text-fg-muted">
+              Messages don&apos;t reach other people yet. A conversation you
+              open here is kept in this browser: they aren&apos;t told about it
+              and can&apos;t read it. Nothing is sent until chat sync ships.
+            </p>
+          </div>
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -178,40 +206,51 @@ export function PeoplePicker({
           </form>
 
           <ul className="mt-3 flex max-h-[46vh] flex-col gap-0.5 overflow-y-auto">
-            {people.map((row) => (
-              <li key={row.person.userId}>
-                <button
-                  type="button"
-                  onClick={() => choose(row)}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-left text-[13px] text-fg-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="grid size-[18px] shrink-0 place-items-center rounded-full border border-line-strong font-mono text-[8.5px] text-fg-subtle"
+            {people.map((row) => {
+              const name = chosenName(row.person);
+              return (
+                <li key={row.person.userId}>
+                  <button
+                    type="button"
+                    onClick={() => choose(row)}
+                    aria-label={`Message ${friendName(row.person)} — kept in this browser, not sent to them`}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-left text-[13px] text-fg-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
                   >
-                    {/* No colour is invented for a real person: a profile row
-                        has no such column, and one derived from a hash of an
-                        id is decoration pretending to be identity. */}
-                    {row.person.displayName ? (
-                      initialsFor(row.person.displayName)
-                    ) : (
-                      <Icon name="users" size={9} />
-                    )}
-                  </span>
-                  <span
-                    className={cn(
-                      "truncate",
-                      row.person.displayName ? undefined : "text-fg-subtle",
-                    )}
-                  >
-                    {friendName(row.person)}
-                  </span>
-                  <span className="ml-auto shrink-0 font-mono text-[10px] text-fg-subtle">
-                    {row.channel ? "open" : "new"}
-                  </span>
-                </button>
-              </li>
-            ))}
+                    <span
+                      aria-hidden="true"
+                      className="grid size-[18px] shrink-0 place-items-center rounded-full border border-line-strong font-mono text-[8.5px] text-fg-subtle"
+                    >
+                      {/* No colour is invented for a real person: a profile
+                          row has no such column, and one derived from a hash
+                          of an id is decoration pretending to be identity. */}
+                      {name ? (
+                        initialsFor(name)
+                      ) : (
+                        <Icon name="users" size={9} />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          "block truncate",
+                          name ? undefined : "text-fg-subtle",
+                        )}
+                      >
+                        {friendName(row.person)}
+                      </span>
+                      {/* The note above says it once for the list; a row says
+                          it again because a row is what gets pressed. */}
+                      <span className="block text-[10.5px] text-fg-subtle">
+                        kept in this browser
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-mono text-[10px] text-fg-subtle">
+                      {row.channel ? "open" : "new"}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
 
             {people.length === 0 && (
               <li className="px-2 py-2 text-[12px] leading-relaxed text-fg-subtle">

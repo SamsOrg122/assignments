@@ -3,15 +3,17 @@
 /**
  * The people you actually know.
  *
- * WHERE THIS IS MOUNTED. It is a component, not a page, and it is drawn for
- * the narrowest column in the app: the chat rail
+ * WHERE THIS BELONGS — and it is not there yet. It is a component, not a
+ * page, and it is drawn for the narrowest column in the app: the chat rail
  * (`src/components/chat/RoomsRail.tsx`), under the direct-message list, where
  * "who can I message" and "how do I get somebody here" are the same question.
  * That rail is 236px wide on a desktop and full width on a phone, so nothing
  * here has a fixed width, every row wraps, and the panel scrolls with its host
  * rather than owning a scroller of its own. It fits a settings pane or /more
- * unchanged. The rail belongs to another agent; this file only has to survive
- * being dropped into it.
+ * unchanged. Nothing mounts the panel today: the person picker imports the
+ * two exports below and never `Friends` itself, so Remove and "connected on"
+ * have no way in. The rail is another agent's file — the mount is one line
+ * after its `dms.map` list.
  *
  * The account rule is asked before any button is drawn. Connecting needs an
  * account with an email on it — an anonymous identity lives in one browser's
@@ -69,12 +71,25 @@ import { useUI } from "@/lib/ui-store";
 export const NO_NAME = "no name yet";
 
 /**
+ * The name they actually set, or null.
+ *
+ * The trim is the whole reason this is a function rather than a field read.
+ * A name of only spaces is truthy, so an avatar that guards on the raw field
+ * calls `initialsFor("   ")` — which finds no words and falls back to "YO",
+ * the reader's own initials, printed on somebody else's row next to a label
+ * that has already given up and said "no name yet". One test, both places.
+ */
+export const chosenName = (person: {
+  displayName: string | null;
+}): string | null => person.displayName?.trim() || null;
+
+/**
  * The label for a person, wherever one is needed — a row, a room title. Takes
  * the one field it reads rather than a whole `Friend`, so a caller holding
  * only a name (a profile, a member row) can use the same wording.
  */
 export const friendName = (person: { displayName: string | null }): string =>
-  person.displayName?.trim() || NO_NAME;
+  chosenName(person) ?? NO_NAME;
 
 /* ── Reading ────────────────────────────────────────────── */
 
@@ -83,6 +98,65 @@ export interface FriendsRead {
   outcome: Outcome<Friend[]> | null;
   busy: boolean;
   reload: () => Promise<void>;
+}
+
+/**
+ * One account's answer, and never the account before it.
+ *
+ * Two rules, both about who an answer belongs to. Every read takes a
+ * generation number, and one that comes back holding an old one is dropped:
+ * two presses of "Try again" go out in order and come back in whichever order
+ * the network feels like, and the loser used to win. And a change of account
+ * clears what is on screen before the new read starts — signing out and back
+ * in as somebody else otherwise leaves the last person's friends sitting
+ * under the new session, which is the one wrong thing this could show. An
+ * empty panel for a moment is not wrong; somebody else's list is.
+ *
+ * `read` is a module function in every caller, so it is stable and the
+ * dependency below never re-fires.
+ */
+function useAccountRead<T>(
+  read: () => Promise<Outcome<T>>,
+  enabled: boolean,
+): {
+  outcome: Outcome<T> | null;
+  busy: boolean;
+  reload: () => Promise<void>;
+} {
+  const [outcome, setOutcome] = useState<Outcome<T> | null>(null);
+  const [busy, setBusy] = useState(false);
+  const generation = useRef(0);
+
+  const reload = useCallback(async () => {
+    const mine = ++generation.current;
+    setBusy(true);
+    const answer = await read();
+    // A newer read owns the state now, so this one is an answer to a question
+    // nobody is asking any more. `busy` stays true until that newer read
+    // lands, which is the truth: something is still in flight.
+    if (mine !== generation.current) return;
+    setOutcome(answer);
+    setBusy(false);
+  }, [read]);
+
+  // Who is signed in is the trigger, never the answer: signing out happens in
+  // another tab and in Settings, and this list has to follow.
+  const who = useAuth((s) => s.identity.id);
+
+  useEffect(() => {
+    // Anything already in flight was asked on behalf of the previous account.
+    generation.current++;
+    // Off the effect body — a synchronous setState here is the cascading
+    // render the lint rule is about.
+    void Promise.resolve().then(() => {
+      setOutcome(null);
+      if (enabled) return reload();
+      // Nothing will be asked, so nothing is pending.
+      setBusy(false);
+    });
+  }, [enabled, reload, who]);
+
+  return { outcome, busy, reload };
 }
 
 /**
@@ -99,28 +173,7 @@ export interface FriendsRead {
  * be a second `getUser` round trip per mount for an answer it has.
  */
 export function useFriends(enabled: boolean): FriendsRead {
-  const [outcome, setOutcome] = useState<Outcome<Friend[]> | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const reload = useCallback(async () => {
-    setBusy(true);
-    const answer = await listFriends();
-    setOutcome(answer);
-    setBusy(false);
-  }, []);
-
-  // Who is signed in is the trigger, never the answer: signing out happens in
-  // another tab and in Settings, and this list has to follow.
-  const who = useAuth((s) => s.identity.id);
-
-  useEffect(() => {
-    if (!enabled) return;
-    // Off the effect body — a synchronous setState here is the cascading
-    // render the lint rule is about.
-    void Promise.resolve().then(reload);
-  }, [enabled, reload, who]);
-
-  return { outcome, busy, reload };
+  return useAccountRead(listFriends, enabled);
 }
 
 interface LinksRead {
@@ -129,24 +182,11 @@ interface LinksRead {
   reload: () => Promise<void>;
 }
 
+/** Links are only ever drawn where the account rule has already answered
+ *  "real", so there is no `enabled` to pass — but the account can still
+ *  change underneath one, and these are as account-scoped as the friends. */
 function useFriendLinks(): LinksRead {
-  const [outcome, setOutcome] = useState<Outcome<FriendLink[]> | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const reload = useCallback(async () => {
-    setBusy(true);
-    const answer = await listFriendLinks();
-    setOutcome(answer);
-    setBusy(false);
-  }, []);
-
-  const who = useAuth((s) => s.identity.id);
-
-  useEffect(() => {
-    void Promise.resolve().then(reload);
-  }, [reload, who]);
-
-  return { outcome, busy, reload };
+  return useAccountRead(listFriendLinks, true);
 }
 
 /* ── The account rule ───────────────────────────────────── */
@@ -280,9 +320,13 @@ export function FriendLinks() {
     } catch {
       // The clipboard is refused on an insecure origin and inside some
       // embedded browsers. Selecting the text is a copy somebody can finish
-      // themselves, which beats a button that silently does nothing.
+      // themselves, which beats a button that silently does nothing. No key is
+      // named: this fires wherever the refusal happens, which is every
+      // platform, and ⌘C is wrong on most of them.
       linkRef.current?.select();
-      notify("Press ⌘C to copy — the link is selected.");
+      notify(
+        "This browser wouldn't copy. The link is selected — copy it yourself.",
+      );
       return;
     }
     setCopied(true);
@@ -449,7 +493,35 @@ export function FriendLinks() {
 
 /* ── People ─────────────────────────────────────────────── */
 
+/**
+ * What can honestly be said about their account: they have one, they don't, or
+ * it is not known.
+ *
+ * The team page learned this the hard way — an unreadable profile rendered as
+ * an affirmative "no account" told a whole real team they were about to
+ * evaporate. `listFriends` writes `anonymous: true` for a friend whose profile
+ * row never came back, and an unapplied 0015 profiles policy reads exactly
+ * like a browser-only account, so `true` alone is not evidence. A name is: it
+ * can only have come from a profile that was read. Anything that cannot be
+ * told apart says it cannot, which under-claims for the one friend who is
+ * genuinely anonymous and has never set a name — the cheaper of the two
+ * mistakes, and one `listFriends` can end by returning null for "could not
+ * read", the shape `TeamMember.anonymous` already has.
+ *
+ * The annotation widens the field on purpose so that null already reads
+ * correctly here on the day it starts arriving.
+ */
+type Account = "none" | "unknown" | "fine";
+
+function accountOf(friend: Friend): Account {
+  const anonymous: boolean | null = friend.anonymous;
+  if (anonymous === null) return "unknown";
+  if (!anonymous) return "fine";
+  return friend.displayName === null ? "unknown" : "none";
+}
+
 function Face({ friend }: { friend: Friend }) {
+  const name = chosenName(friend);
   return (
     <span
       aria-hidden="true"
@@ -459,11 +531,7 @@ function Face({ friend }: { friend: Friend }) {
           had one because somebody chose it; a profile row has no such column,
           and a colour picked from a hash of an id is decoration pretending to
           be identity. */}
-      {friend.displayName ? (
-        initialsFor(friend.displayName)
-      ) : (
-        <Icon name="users" size={11} />
-      )}
+      {name ? initialsFor(name) : <Icon name="users" size={11} />}
     </span>
   );
 }
@@ -485,6 +553,7 @@ function PersonRow({
   const notify = useUI((s) => s.notify);
   const [asking, setAsking] = useState(false);
   const [working, setWorking] = useState(false);
+  const account = accountOf(friend);
 
   const remove = async () => {
     setWorking(true);
@@ -506,7 +575,7 @@ function PersonRow({
         <span
           className={cn(
             "block truncate text-[12.5px]",
-            friend.displayName ? "text-fg" : "text-fg-subtle",
+            chosenName(friend) ? "text-fg" : "text-fg-subtle",
           )}
         >
           {friendName(friend)}
@@ -516,10 +585,17 @@ function PersonRow({
         </span>
         {/* Said plainly rather than hidden: there is nothing either of you can
             do to get this connection back once their browser is cleared, and
-            the person who should know that is the one looking at the row. */}
-        {friend.anonymous && (
+            the person who should know that is the one looking at the row.
+            Said only when it has been read, though — see `accountOf`. */}
+        {account === "none" && (
           <span className="block text-[11px] leading-relaxed text-warn">
             no account — this goes when their browser is cleared
+          </span>
+        )}
+        {account === "unknown" && (
+          <span className="block text-[11px] leading-relaxed text-fg-subtle">
+            their profile couldn&apos;t be read, so whether they have an
+            account is unknown
           </span>
         )}
       </span>

@@ -14,8 +14,10 @@
  */
 
 import { useState } from "react";
-import { HUMANS, personById, useChat, type Channel } from "@/lib/chat";
+import { personById, useChat, type Channel } from "@/lib/chat";
+import { friendName } from "@/components/social/Friends";
 import { LOCAL_USER } from "@/lib/realtime";
+import { usePeople } from "@/lib/team";
 import { useUI } from "@/lib/ui-store";
 import { Button, Dialog, Row, fieldClass } from "@/components/ui/Dialog";
 import { Icon } from "@/components/ui/Icon";
@@ -46,8 +48,17 @@ export function ChannelSettings({
   const isDM = channel.kind === "dm";
   const closed = channel.access === "closed" && Boolean(channel.passcodeHash);
   const members = channel.memberIds.filter((id) => id !== LOCAL_USER.id);
-  const candidates = HUMANS.filter(
-    (p) => p.id !== LOCAL_USER.id && !channel.memberIds.includes(p.id),
+  /*
+   * Who there is to add: the people you are actually connected to, minus the
+   * ones already in the room. This offered Mira Chen, Dev Raman and Ana Silva
+   * — the simulated colleagues from `lib/realtime/mock` — so the one control
+   * on this panel for growing a channel could only ever add somebody who
+   * doesn't exist. An empty answer is said out loud below rather than hiding
+   * the control, because "there is nobody yet" is the thing worth knowing.
+   */
+  const { friends } = usePeople();
+  const candidates = (friends?.ok ? friends.value : []).filter(
+    (person) => !channel.memberIds.includes(person.userId),
   );
 
   const inviteLink = channel.invite
@@ -146,24 +157,54 @@ export function ChannelSettings({
         </ul>
       </Row>
 
-      {!isDM && candidates.length > 0 && (
-        <Row label="Invite someone">
-          <div className="flex flex-wrap gap-1.5">
-            {candidates.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => {
-                  addMembers(channel.id, [p.id]);
-                  notify(`${p.name} added to #${channel.name}`);
-                }}
-                className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-[12px] text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
-              >
-                <Icon name="plus" size={10} />
-                {p.name}
-              </button>
-            ))}
-          </div>
+      {!isDM && (
+        <Row
+          label="Add someone"
+          hint="The people you're connected to. Adding somebody puts them in this list in your browser — it doesn't tell them, and they can't read the channel until chat syncs."
+        >
+          {!friends ? (
+            <p className="text-[12px] text-fg-subtle" role="status">
+              Reading your people…
+            </p>
+          ) : !friends.ok ? (
+            // A deployment with no database is a fact about where this is
+            // running, not something that went wrong here — it reads plainly.
+            // Anything else did go wrong, and gets the warning colour.
+            <p
+              className={cn(
+                "text-[12px] leading-relaxed",
+                friends.setup ? "text-fg-subtle" : "text-warn",
+              )}
+            >
+              {friends.reason}
+            </p>
+          ) : candidates.length === 0 ? (
+            <p className="text-[12px] leading-relaxed text-fg-subtle">
+              {friends.value.length === 0
+                ? "You're not connected to anybody yet, so there's nobody to add. Connect somebody first, from Message someone on the chat rail. The invite link below is a different door: it lets whoever opens it into this channel, without connecting the two of you."
+                : "Everybody you're connected to is already in this channel."}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {candidates.map((person) => {
+                const name = friendName(person);
+                return (
+                  <button
+                    key={person.userId}
+                    type="button"
+                    onClick={() => {
+                      addMembers(channel.id, [person.userId]);
+                      notify(`${name} added to #${channel.name} — in this browser`);
+                    }}
+                    className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-[12px] text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
+                  >
+                    <Icon name="plus" size={10} />
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </Row>
       )}
 

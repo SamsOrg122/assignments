@@ -10,6 +10,7 @@
  */
 
 import { DEFAULT_DECK_STYLE, type Block, type Project } from "../types";
+import { NO_NAME, realRoster } from "../team";
 import type { KnowledgeEntry, TeamFile, Workspace } from "../team/types";
 import { computeFormulas } from "../formula";
 import { knownWords } from "../dictionary";
@@ -256,7 +257,30 @@ function fitToBudget(blocks: AIContext["blocks"]): AIContext["blocks"] {
   return out;
 }
 
-/** The workspace half of the context, assembled once and reused. */
+/**
+ * The workspace half of the context, assembled once and reused.
+ *
+ * WHO THE ASSISTANT IS TOLD IS HERE. The database's roster when it answered,
+ * and the local store only when it did not. This read `workspace.members`
+ * unconditionally — a local list nothing writes to any more, holding exactly
+ * one row: you. Anyone who asked "catch me up on this team" after two people
+ * accepted a real invitation was told, as a matter of fact and in the
+ * workspace's own name, that it has one member. A number stated by a
+ * confident assistant is the hardest kind of wrong to notice.
+ *
+ * `realRoster()` is `lib/team`'s copy of `workspace_members` — read once at
+ * startup and again whenever the account changes, never persisted. Null means
+ * the question could not be asked at all: no database, nobody signed in, or a
+ * deployment without migration 0015. Then the local store is the answer, and
+ * for a browser working on its own it is the true one — a workspace of one,
+ * which is what a member list of one should mean.
+ *
+ * Roles come from the membership row rather than the local copy, so what the
+ * assistant says somebody may do matches what the database will actually let
+ * them do. Titles and the free-text "about" are local-only fields with no
+ * column behind them; a real row simply has none, and inventing one from a
+ * role would be the assistant making up a job for a real person.
+ */
 export function buildTeamContext(
   workspace: Workspace,
   knowledge: KnowledgeEntry[],
@@ -264,17 +288,24 @@ export function buildTeamContext(
   nameOf: (id: string) => string,
   localUserId: string,
 ): NonNullable<AIContext["team"]> {
+  const roster = realRoster();
   return {
     workspaceName: workspace.name,
     kind: workspace.kind,
     context: workspace.context,
-    members: workspace.members.map((m) => ({
-      name: nameOf(m.id),
-      role: m.role,
-      title: m.title,
-      about: m.about,
-      isYou: m.id === localUserId,
-    })),
+    members: roster
+      ? roster.map((m) => ({
+          name: m.displayName?.trim() || NO_NAME,
+          role: m.role,
+          isYou: m.isMe,
+        }))
+      : workspace.members.map((m) => ({
+          name: nameOf(m.id),
+          role: m.role,
+          title: m.title,
+          about: m.about,
+          isYou: m.id === localUserId,
+        })),
     // Unconfirmed entries still travel — flagged, so a provider can hedge
     // rather than treating a guess as established.
     knowledge: knowledge.map((k) => ({

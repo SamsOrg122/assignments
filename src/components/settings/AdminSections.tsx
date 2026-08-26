@@ -102,6 +102,28 @@ export function SignInMethods() {
   );
 }
 
+/* ── Who is here ────────────────────────────────────────── */
+
+/**
+ * What to call somebody in the members list who has not set a name.
+ *
+ * Three answers, because there are three facts and the row used to print two
+ * of them with one word. `anonymous` is null when the profile could not be
+ * read at all — the ordinary state of a database that has not had migration
+ * 0015 applied by hand yet — and the old `member.anonymous ? … : …` turned
+ * that silence into "Someone without an account", which is an accusation
+ * this screen has no evidence for. It told a whole real team they were about
+ * to evaporate.
+ *
+ * The third line says what is actually known: their row is there, their
+ * profile is not readable from here, and so whether they signed up is not a
+ * question this screen can answer.
+ */
+function unnamedMember(anonymous: boolean | null): string {
+  if (anonymous === null) return "Profile couldn't be read";
+  return anonymous ? "Someone without an account" : "Unnamed";
+}
+
 /* ── The gated group ────────────────────────────────────── */
 
 /**
@@ -172,7 +194,7 @@ export function Administration({ data }: { data: AdminData }) {
           <Section
             id="members"
             title="Who is here"
-            hint="Roles as the database enforces them, not as a screen displays them. Every policy in the schema asks this same table."
+            hint="Roles as the database enforces them, not as a screen displays them. Every policy in the schema asks this same table. A row that says its profile couldn't be read means just that — the membership is real, the profile behind it isn't readable from here, so whether that person ever signed up is not something this screen knows."
             variant="card"
           >
             {state.members.length === 0 ? (
@@ -185,8 +207,7 @@ export function Administration({ data }: { data: AdminData }) {
                     className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-2"
                   >
                     <span className="text-[13px] text-fg">
-                      {member.displayName ??
-                        (member.anonymous ? "Someone without an account" : "Unnamed")}
+                      {member.displayName ?? unnamedMember(member.anonymous)}
                     </span>
                     <span className="font-mono text-[10.5px] text-fg-subtle">
                       {member.userId.slice(0, 8)}

@@ -9,6 +9,8 @@ import { Toast } from "@/components/ui/Toast";
 import { InlineAI } from "@/components/ai/InlineAI";
 import { ShortcutSheet } from "./ShortcutSheet";
 import { VoiceDock } from "@/components/voice/VoiceDock";
+import { Recorder, isCapturing } from "@/components/transcript/Recorder";
+import { hydrateTranscript, useTranscript } from "@/lib/transcript";
 import { DemoBootstrap } from "./DemoBootstrap";
 import { surfaceFor } from "@/lib/shortcuts";
 import { useUI } from "@/lib/ui-store";
@@ -85,6 +87,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Which projects are live-shared is persisted too, and has the same
   // skipHydration contract as everything else.
   useEffect(hydrateShared, []);
+  // Recordings are persisted as they are heard, with the same skipHydration
+  // contract. This also closes off a recording the tab died in the middle of,
+  // which is what makes an interrupted meeting findable instead of lost.
+  useEffect(hydrateTranscript, []);
   // Asks the server once whether a model is configured. Until it answers — and
   // for good if it says no — the local assistant is what runs.
   useEffect(connectAI, []);
@@ -108,6 +114,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setSidebarOpen(window.matchMedia("(min-width: 1024px)").matches);
   }, [setSidebarOpen]);
+
+  // One microphone at a time, enforced in the one file that mounts both — the
+  // ⌘⇧V guard below only covers the keyboard, and voice mode can also be
+  // opened from the palette and from the notepad, which are other files.
+  const capturing = useTranscript((s) => s.status !== "idle");
+  useEffect(() => {
+    if (!capturing || !useUI.getState().voiceOpen) return;
+    void Promise.resolve().then(() => useUI.getState().setVoiceOpen(false));
+  }, [capturing]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -142,6 +157,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (e.shiftKey && key === "v") {
         if (useUI.getState().voiceOpen) return;
         e.preventDefault();
+        // Voice mode holds a recogniser and a microphone of its own, and a
+        // browser only grants one recogniser at a time. Opening it mid-meeting
+        // would take the device off the transcriber and leave a bar that looks
+        // like it is recording an hour it is no longer hearing.
+        if (isCapturing()) {
+          useUI.getState().notify("The transcriber is recording. Stop it first.");
+          return;
+        }
         setVoiceOpen(true);
         return;
       }
@@ -223,6 +246,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
       )}
       <VoiceDock />
+      {/* Mounted here, not in a page, so a recording survives navigation: you
+          start it in the notepad, walk to the library, and it is still
+          running. */}
+      <Recorder />
       <Toast />
     </div>
   );

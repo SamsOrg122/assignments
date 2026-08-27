@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Project, TextBlock } from "@/lib/types";
 import { listen, speechProviderName, type SpeechSession } from "@/lib/speech";
+import { microphoneBusy } from "@/components/transcript/Recorder";
 import { DEFAULT_LANGUAGE } from "@/lib/dictionary";
 import { askAI, type AIChange } from "@/lib/ai";
 import { buildContext } from "@/lib/ai/context";
@@ -65,6 +66,13 @@ export function DictationBar({
     setChange(null);
     targetRef.current =
       focusedBlockId ?? project.blocks.filter((b) => b.type === "text").at(-1)?.id ?? null;
+
+    // The transcriber holds the recogniser while a meeting is being recorded,
+    // and a browser grants one at a time. Starting a second either fails —
+    // and `listen()` answers a failure by silently swapping in the provider
+    // that FABRICATES words — or takes the device off the recording. Either
+    // way somebody ends up with invented sentences in a real document.
+    if (microphoneBusy()) return;
 
     try {
       sessionRef.current = await listen(

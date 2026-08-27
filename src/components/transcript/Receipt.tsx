@@ -12,11 +12,16 @@
  * It is the whole list.
  *
  * Every row can be taken back out in one press, and taking it out actually
- * takes it out: `unland()` deletes the event from the agenda and tombstones it
- * in the account, deletes the assignment, removes the blocks, throws away the
- * document. A receipt whose "remove" only hid a row would be worse than no
- * receipt, because it would teach somebody that the list is the truth when it
- * is not.
+ * takes it out: `unland()` deletes the event from the agenda, deletes the
+ * assignment, removes the blocks, throws away the document. A receipt whose
+ * "remove" only hid a row would be worse than no receipt, because it would
+ * teach somebody that the list is the truth when it is not.
+ *
+ * The account is the one part of that this panel cannot promise. The tombstone
+ * is fired at the account without waiting and can lose a race with the write
+ * that saved the row a second earlier — see `unland()` — so the footer says
+ * what removal does reach and what to do if a row comes back, instead of
+ * claiming a guarantee that is not this code's to give.
  *
  * It also says, once and without apologising for the feature, what a
  * transcript is: speech recognition. It mishears names, numbers and dates, and
@@ -74,13 +79,21 @@ export function Receipt() {
 
   if (!open || !landing) return null;
 
+  // Every section but the last one is drawn from `made`, never from
+  // `landing.items`: a withheld finding was not written anywhere, and a
+  // heading reading "In your agenda" over a meeting that is not in the agenda
+  // is a false statement about the calendar in the one panel that exists to be
+  // trusted about it.
   const made = landing.items.filter((item) => !item.withheld);
   const kept = made.filter((item) => !item.removed).length;
   const removed = made.length - kept;
-  const filed = landing.items.filter(
+  const inLibrary = made.filter(
+    (item) => item.kind === "document" || item.kind === "figures",
+  );
+  const filed = made.filter(
     (item) => item.kind === "event" || item.kind === "task",
   );
-  const deadlines = landing.items.filter((item) => item.kind === "assignment");
+  const deadlines = made.filter((item) => item.kind === "assignment");
   const held = landing.items.filter((item) => item.withheld);
 
   return (
@@ -140,11 +153,9 @@ export function Receipt() {
           </p>
 
           <Section title="In your library">
-            {landing.items
-              .filter((item) => item.kind === "document" || item.kind === "figures")
-              .map((item) => (
-                <Row key={item.id} item={item} />
-              ))}
+            {inLibrary.map((item) => (
+              <Row key={item.id} item={item} />
+            ))}
           </Section>
 
           {filed.length > 0 && (
@@ -215,9 +226,14 @@ export function Receipt() {
             Done
           </button>
           <p className="mt-2 text-[10.5px] leading-relaxed text-fg-subtle">
+            {removed > 0 ? `${removed} removed. ` : ""}
+            Removing deletes the thing itself here, and tells your account to
+            delete it too. That second part can lose a race with the write that
+            saved it, so if something you removed is back after your account
+            next syncs, remove it there.{" "}
             {removed > 0
-              ? `${removed} removed. Removing deletes the thing itself, here and in your account — closing this panel changes nothing further.`
-              : "Removing deletes the thing itself, here and in your account. Closing this panel leaves everything above exactly where it is."}
+              ? "Closing this panel changes nothing further."
+              : "Closing this panel leaves everything above exactly where it is."}
           </p>
         </div>
       </div>
@@ -276,6 +292,14 @@ function Row({ item, said }: { item: LandedItem; said?: string }) {
                 </p>
               ))}
             </div>
+          ) : item.kind === "document" ? (
+            // A document is made from all of the words, so there is no one
+            // line to point at, and the warning below must not fire here: on
+            // every single landing it would be on, and a signal that is always
+            // on is not a signal on the day it means something.
+            <p className="mt-1.5 text-[11px] leading-relaxed text-fg-subtle">
+              Made from the whole transcript, not from one line of it.
+            </p>
           ) : (
             // The one row nobody can check. Saying so is the point of the
             // panel: it is filed, and it is the first thing to look at.

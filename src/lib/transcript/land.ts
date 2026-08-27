@@ -43,6 +43,12 @@
  * `SIMULATED_BANNER` to the front of fabricated words, and building the block
  * out of the segments myself would be a second place where the banner could
  * be forgotten.
+ *
+ * The same argument decides the figures. On a simulated landing the table and
+ * the chart carry the mark in their own titles, not in a paragraph next to
+ * them: a block can be duplicated inside the document or exported on its own,
+ * and a chart of invented numbers that arrives somewhere else as plain
+ * numbers is the same lie told quietly.
  */
 
 import { create } from "zustand";
@@ -260,7 +266,7 @@ export function land(
     .map((fact) => ({ title: text(fact?.title, 200), why: text(fact?.why, 300) }))
     .filter((fact) => fact.why);
 
-  const figures = tableOf(findings.figures, dropped);
+  const figures = tableOf(findings.figures, dropped, simulated);
   const projectId = writeDocument(
     recording,
     title,
@@ -341,7 +347,7 @@ export function land(
       targetId: "",
       title: taskTitle,
       detail: `on ${formatDate(dateOf(day))}`,
-      quote: text(found.quote, 400),
+      quote: quoteOf(found.quote),
     };
     if (simulated) {
       items.push(withheld(item));
@@ -373,7 +379,7 @@ export function land(
       detail:
         `due ${formatDate(dateOf(due))}` +
         (dueMinute === null ? "" : `, ${clock(dueMinute)}`),
-      quote: text(found.quote, 400),
+      quote: quoteOf(found.quote),
     };
     if (simulated) {
       items.push(withheld(item));
@@ -402,10 +408,7 @@ export function land(
       simulated,
       words: wordCount(recording),
       length: clockOf(elapsedMs(recording, recording.endedAt ?? Date.now())),
-      skipped: Math.max(
-        0,
-        typeof findings.skipped === "number" ? Math.round(findings.skipped) : 0,
-      ),
+      skipped: skippedOf(findings),
       model: text(findings.model, 120),
       dropped,
       items,
@@ -461,9 +464,20 @@ function simulatedAnywhere(recording: Recording, findings: Findings): boolean {
  *
  * The row stays on the receipt, marked, rather than vanishing: somebody
  * pressing this three times in a row needs to see which three they pressed.
- * Removal is final — an event deleted here is a tombstone in the account, and
- * putting it back would be a new row with a new id pretending to be the old
- * one.
+ * Removal is final here — putting the thing back would be a new row with a new
+ * id pretending to be the old one.
+ *
+ * What it is not is guaranteed upstream, and the receipt says so rather than
+ * promising otherwise. `deleteEvent`/`deleteTask`/`deleteAssignment` remove the
+ * row locally and fire a tombstone at the account without waiting; the write
+ * that saved the row a second earlier is in flight on its own promise (and may
+ * still be waiting on `teamWorkspace()`), and the tombstone is an `update` by
+ * id, which touches nothing if the insert has not landed yet. Pressing remove
+ * immediately after landing — which is exactly what this panel invites — can
+ * therefore run tombstone-then-insert and leave the row alive in the account.
+ * Closing that needs the two `lib/agenda` and `lib/assignments` writers to hand
+ * their in-flight push back so the delete can await it (and the tombstone to be
+ * an upsert rather than an update by id); neither is this file's to change.
  */
 export function unland(itemId: string): void {
   const landing = useReceipt.getState().landing;
@@ -566,11 +580,17 @@ function headHtml(
   const origin = simulated
     ? `Simulated ${when} · ${length} · ${words} words. Nobody said any of this, and nothing was filed from it.`
     : `Recorded ${when} · ${length} · ${words} words. Written from speech recognition, so it mishears.`;
-  // Which model read it, and what the recorder was started from. Provenance
-  // that outlives the receipt: the panel is gone in a minute, the document is
-  // what somebody opens in a month.
+  // Which model read it, what the recorder was started from, and whether the
+  // model was shown the whole thing. Provenance that outlives the receipt: the
+  // panel is gone in a minute, the document is what somebody opens in a month,
+  // and by then the only way to know the Summary and the Conclusion below were
+  // written from a transcript with a hole in it is this line.
+  const skipped = skippedOf(findings);
   const model = text(findings.model, 120);
   const rest = [
+    skipped > 0
+      ? `The model was shown all but the middle ${formatNumber(skipped)} characters of it: anything said in that stretch is in the transcript below and nowhere else.`
+      : "",
     from ? `Started from “${from}”.` : "",
     model ? `Read by ${model}.` : "",
   ]
@@ -620,6 +640,7 @@ function transcriptHtml(recording: Recording): string {
 function tableOf(
   found: FoundFigure[] | undefined,
   dropped: DroppedFact[],
+  simulated: boolean,
 ): Figures | null {
   if (!Array.isArray(found) || found.length === 0) return null;
 
@@ -629,7 +650,7 @@ function tableOf(
     unit: string;
     quote: string;
   }> = [];
-  for (const figure of found.slice(0, MOST_SERIES)) {
+  for (const figure of listOf(found, MOST_SERIES, dropped)) {
     const label = text(figure?.label, 60);
     const points = (Array.isArray(figure?.series) ? figure.series : [])
       .filter(
@@ -648,15 +669,26 @@ function tableOf(
       });
       continue;
     }
-    usable.push({ label, points, unit: text(figure?.unit, 16), quote: text(figure?.quote, 400) });
+    usable.push({ label, points, unit: text(figure?.unit, 16), quote: quoteOf(figure?.quote) });
   }
   if (usable.length === 0) return null;
 
+  // Every distinct name is counted even when it does not fit, because the
+  // ones past the ceiling are a drop like any other and this file's rule is
+  // that a drop is reported rather than quietly taken.
+  const seen = new Set<string>();
   const names: string[] = [];
   for (const figure of usable)
-    for (const point of figure.points)
-      if (!names.includes(point.name) && names.length < MOST_ROWS)
-        names.push(point.name);
+    for (const point of figure.points) {
+      if (seen.has(point.name)) continue;
+      seen.add(point.name);
+      if (names.length < MOST_ROWS) names.push(point.name);
+    }
+  if (seen.size > names.length)
+    dropped.push({
+      title: `${seen.size - names.length} more rows`,
+      why: `only the first ${MOST_ROWS} named numbers fit in one table`,
+    });
 
   const first: Column = { id: uid(), name: "Item", type: "text" };
   const columns: Column[] = [
@@ -682,15 +714,22 @@ function tableOf(
   }));
 
   const label = usable.length === 1 ? usable[0].label : "Figures";
+  // The mark goes in the blocks' own titles rather than in the warning
+  // paragraph above them: these two are duplicable and exportable on their
+  // own, and a chart that leaves this document has to arrive still saying
+  // nobody said these numbers.
+  const blockTitle = simulated
+    ? `${label} (simulated — nobody said these numbers)`
+    : label;
   const table: TableBlock = {
     ...createTableBlock(),
-    title: label,
+    title: blockTitle,
     columns,
     rows,
   };
   const chart: ChartBlock = {
     ...createChartBlock(table),
-    title: label,
+    title: blockTitle,
     // Bars, not a line: the points are named things ("June", "target", "now"),
     // and a line drawn between named things claims a continuity nobody said.
     kind: "bar",
@@ -744,7 +783,7 @@ function appointmentRow(
       targetId: "",
       title,
       detail: `${formatDate(dateOf(day))}, ${clock(start)}–${clock(end)}`,
-      quote: text(found.quote, 400),
+      quote: quoteOf(found.quote),
     },
     title,
     day,
@@ -772,6 +811,31 @@ const withheld = (item: LandedItem): LandedItem => ({
 /** Trimmed, capped, and "" for anything that is not a string. */
 function text(value: unknown, cap: number): string {
   return typeof value === "string" ? value.trim().slice(0, cap) : "";
+}
+
+/** The longest quote kept. A sentence or two of a meeting, not a paragraph. */
+const QUOTE_CAP = 400;
+
+/**
+ * One quote, capped — with an ellipsis when the cap is what ended it.
+ *
+ * The receipt and the notes both wrap a quote in quotation marks, and a
+ * quotation that stops mid-word without saying so reads as the whole of what
+ * was said.
+ */
+function quoteOf(value: unknown): string {
+  const said = typeof value === "string" ? value.trim() : "";
+  return said.length > QUOTE_CAP
+    ? `${said.slice(0, QUOTE_CAP).trimEnd()}…`
+    : said;
+}
+
+/** Characters of the transcript the model was never shown. Never negative. */
+function skippedOf(findings: Findings): number {
+  return Math.max(
+    0,
+    typeof findings.skipped === "number" ? Math.round(findings.skipped) : 0,
+  );
 }
 
 /** The first `most` real entries, with anything past the ceiling counted. */

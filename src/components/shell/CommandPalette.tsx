@@ -27,6 +27,12 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { KINDS, KIND_ORDER } from "@/lib/kinds";
 import { exportProject, EXPORT_LABELS, type ExportFormat } from "@/lib/export";
 import { PEOPLE, useChat } from "@/lib/chat";
+import { startTranscription } from "@/components/transcript/Recorder";
+import { recorderAvailable } from "@/lib/transcript";
+// Side effect, no exports: this is what registers the thing that turns a
+// finished recording into a document. See the file — a surface that can start
+// a recording and does not import it records an hour and then cannot file it.
+import "@/lib/transcript/wire";
 import { LOCAL_USER } from "@/lib/realtime";
 import { ACCENTS, useAppearance, type AccentName } from "@/lib/theme-store";
 import type { BlockType, ProjectKind } from "@/lib/types";
@@ -255,6 +261,9 @@ function PaletteDialog({ seed }: { seed: string }) {
 
   const commands = useMemo<Command[]>(() => {
     const list: Command[] = [];
+    // Asked once, here, rather than at the press: what this browser can
+    // actually do decides what the record row below is allowed to promise.
+    const canTranscribe = recorderAvailable();
 
     if (project) {
       for (const [type, meta] of Object.entries(BLOCK_META) as Array<
@@ -830,6 +839,30 @@ function PaletteDialog({ seed }: { seed: string }) {
         shortcut: "⌘⇧V",
         keywords: "voice speech microphone dictate say audio speak listen",
         run: () => setVoiceOpen(true),
+      },
+      {
+        // An act, not a room, so it sits beside the other thing that opens a
+        // microphone rather than in Navigate. The subtitle is where a browser
+        // that cannot do this says so — before the press, not after it — since
+        // the row is worth finding either way: it is how somebody on Firefox
+        // learns the feature exists and which browser it needs.
+        id: "transcript:record",
+        title: "Record a conversation",
+        subtitle: canTranscribe
+          ? "Transcribes it, then writes the document, the appointments and the deadlines it heard"
+          : "This browser can't transcribe — Chrome and Edge can",
+        group: "AI",
+        icon: "mic",
+        keywords:
+          "record meeting transcribe transcript opname vergadering recording " +
+          "notulen minutes conversation supervision microphone listen dictate",
+        run: () =>
+          void startTranscription({
+            // Provenance for the document, and the language the recogniser is
+            // told to expect — the document's, not the interface's.
+            projectId: project?.id ?? null,
+            lang: project?.language ?? null,
+          }),
       },
       {
         id: "settings:shortcuts",

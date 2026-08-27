@@ -15,14 +15,17 @@
  * this file is much stricter about its output than `/api/study` is:
  *
  *   - every extracted fact must carry the words it came from, and this route
- *     checks that those words are actually in the transcript before it passes
- *     the fact on. A quote the model composed is a fabrication with a citation
- *     stapled to it, which is worse than no citation at all;
+ *     checks that *all* of those words are actually in the transcript, in that
+ *     order and next to each other, before it passes the fact on. A quote the
+ *     model composed is a fabrication with a citation stapled to it, which is
+ *     worse than no citation at all — and a quote that is half heard and half
+ *     composed is the same thing with the first half vouching for the second;
  *   - every date is validated against the calendar and against a window around
  *     today, and anything outside it is dropped rather than repaired;
- *   - nothing is repaired. Facts are dropped, and the count of dropped ones is
- *     returned so the surface can say so out loud instead of quietly filing
- *     four things when the model found six.
+ *   - nothing is repaired — not a date, not a chart with a number missing out
+ *     of the middle of it. Facts are dropped whole, and every drop is named in
+ *     `dropped` and counted in `droppedTotal`, so the surface can say so out
+ *     loud instead of quietly filing four things when the model found six.
  *
  * `runtime` is not exported: "nodejs" is the default and the Edge runtime is
  * deprecated, so the export is now noise the docs ask you to delete. The older
@@ -138,14 +141,33 @@ interface Marked {
   simulated?: true;
 }
 
+/**
+ * What a `quote` on any of the types below is, stated once because a person
+ * reads these strings believing they are reading the transcript.
+ *
+ * It is the model's string, not a slice of the transcript — but `checkQuote`
+ * has proved that every word of it appears in the transcript, in this order,
+ * with nothing between them and nothing after them that was not also there.
+ * What may differ is punctuation, capitalisation, spacing and Unicode
+ * compatibility forms, because `flatten` normalises all four away on both
+ * sides before comparing.
+ *
+ * So: the words are the transcript's, character for character it may not be.
+ * It is not returned as the matched span because there is no honest span to
+ * return — `flatten` is a lossy many-to-one collapse with no offsets to map
+ * back through, and the region it matched can begin mid-line and run across a
+ * timestamp and a speaker label that were never spoken.
+ */
+type VerifiedQuote = string;
+
 export interface TranscriptAppointment extends Marked {
   title: string;
   day: DayKey;
   /** Minutes from midnight. */
   start: number;
   end: number;
-  /** The words in the transcript this came from, verified to be in it. */
-  quote: string;
+  /** The words this came from. See `VerifiedQuote` for what is proved. */
+  quote: VerifiedQuote;
 }
 
 export interface TranscriptDeadline extends Marked {
@@ -153,13 +175,13 @@ export interface TranscriptDeadline extends Marked {
   due: DayKey;
   /** Minutes from midnight. Absent when no time of day was said. */
   dueMinute?: number;
-  quote: string;
+  quote: VerifiedQuote;
 }
 
 export interface TranscriptTask extends Marked {
   title: string;
   day: DayKey;
-  quote: string;
+  quote: VerifiedQuote;
 }
 
 export interface TranscriptPoint {
@@ -172,12 +194,18 @@ export interface TranscriptFigure extends Marked {
   series: TranscriptPoint[];
   /** "%", "hours", "students" — absent when nobody said one. */
   unit?: string;
-  quote: string;
+  quote: VerifiedQuote;
 }
 
 /** One fact that did not survive checking, and the reason, for the surface. */
 export interface DroppedFact {
-  kind: "appointment" | "deadline" | "task" | "figure";
+  /**
+   * "more" is the one row that is not a fact: it stands for the drops past
+   * `MOST_DROPPED` that there was no room to name. Without it a capped list
+   * reads as a complete one, which is the same silent understatement this
+   * route exists to prevent.
+   */
+  kind: "appointment" | "deadline" | "task" | "figure" | "more";
   /** What the model called it, so a person can tell which one went. */
   title: string;
   why: string;
@@ -199,7 +227,18 @@ export interface TranscriptReading {
   simulated: boolean;
   /** Characters of the transcript the model was not shown. 0 normally. */
   skipped: number;
+  /**
+   * Everything thrown away, in order, capped at `MOST_DROPPED` rows — and when
+   * it is capped the last row is a `"more"` row saying how many are missing,
+   * so this array never reads as complete when it is not.
+   */
   dropped: DroppedFact[];
+  /**
+   * How many facts were thrown away altogether. Equal to the number of real
+   * rows in `dropped` unless the cap was hit, so a caller can tell "forty
+   * dropped" from "forty and then we stopped counting them out".
+   */
+  droppedTotal: number;
   /** Which model answered. Useful in a bug report, useless otherwise. */
   model: string;
 }
@@ -249,11 +288,44 @@ const flatten = (text: string): string =>
     .replace(/[\s.,;:!?'"“”‘’«»()[\]{}…·•*_/\\|+=@#~^&%$—–\-]+/g, " ")
     .trim();
 
+/**
+ * The transcript in the form quotes are checked against: flattened, and padded
+ * with a space at each end.
+ *
+ * The padding is what makes a match land on whole words. Without it "meet next
+ * tue" is a substring of "meet next tuesday", and a day truncated into another
+ * day would pass the only check there is.
+ *
+ * Built once per request rather than per quote, because it is a quarter of a
+ * megabyte and there can be a hundred and fifty quotes.
+ */
+const searchable = (text: string): string => ` ${flatten(text)} `;
+
+/**
+ * The simulated banner reduced to its words, because that is what a sniff can
+ * actually rely on.
+ *
+ * `SIMULATED_BANNER` is bracketed and carries an em dash. Anything between
+ * `transcriptOf()` and here that normalises punctuation — a clipboard round
+ * trip, an editor, a caller that tidies text before posting — defeats an exact
+ * substring match on it while leaving the words untouched, and the fabricated
+ * transcript then arrives looking real. Matching the flattened form survives
+ * all of that, and this file already owns `flatten`.
+ *
+ * It errs towards marking: a real meeting where somebody reads this sentence
+ * out loud gets stamped simulated. That is the harmless direction — the mark
+ * only ever blocks filing, and `assertReal` is what a person argues with.
+ */
+const SIMULATED_MARK = flatten(SIMULATED_BANNER);
+
 /** The fewest words that can count as evidence. See `checkQuote`. */
 const SHORTEST_QUOTE = 3;
 
 /**
  * Was this actually said? Returns the problem, or null when it was.
+ *
+ * `spoken` must come from `searchable`. The whole quote has to appear in it —
+ * every word, in order, adjacent, on word boundaries. Nothing less.
  *
  * Two failures, kept apart because they mean different things to a person
  * reading the drop list.
@@ -263,10 +335,20 @@ const SHORTEST_QUOTE = 3;
  * an absence of evidence dressed as some — and the whole reason the quote is
  * required is that somebody has to be able to check the fact against it.
  *
- * Not found: the whole quote first, then its opening run of words, because a
- * model that elides ("we'll meet Tuesday ... at two") still starts with real
- * words and throwing away a true appointment over an ellipsis is its own kind
- * of wrong. Past that, the words were composed rather than heard.
+ * Not found: the words were composed rather than heard. There is deliberately
+ * no partial credit here, and there used to be — an opening run of words was
+ * accepted on the theory that a model which elides ("we'll meet Tuesday ... at
+ * two") still starts with real words. It does, and that is exactly the danger:
+ * the real opening vouches for whatever follows it. Against the transcript
+ * "so uh let's meet next Tuesday, at two, in the small room" that fallback
+ * accepted "meet next Thursday", "Tuesday at nine" and "at two thirty" — a
+ * fabricated day or time each time, carrying a citation. Every one of those is
+ * now thrown away, and the whole item with it.
+ *
+ * The cost is a true item lost when a model elides against instructions. That
+ * is the right way round: a missing appointment is an annoyance somebody in
+ * the room notices, and it is named in `dropped` where they can see it. An
+ * invented one is in their calendar with a quote under it that reads as proof.
  */
 function checkQuote(spoken: string, quote: string): string | null {
   const flat = flatten(quote);
@@ -274,11 +356,9 @@ function checkQuote(spoken: string, quote: string): string | null {
   if (words.length < SHORTEST_QUOTE)
     return "the quote was one or two words, which matches almost anything and checks nothing";
 
-  if (spoken.includes(flat)) return null;
-  const opening = words.slice(0, Math.min(8, words.length - 1)).join(" ");
-  if (opening && spoken.includes(opening)) return null;
+  if (spoken.includes(` ${flat} `)) return null;
 
-  return "the words it quoted are not in the transcript";
+  return "the words it quoted are not in the transcript, or not all of them are";
 }
 
 /**
@@ -316,8 +396,10 @@ const QUOTE = {
   type: "string",
   description:
     "The words from the transcript this came from, copied exactly as they appear there. " +
-    "Not a paraphrase, not a translation, not tidied up. A whole clause — never one or two words. " +
-    "This is checked against the transcript and the whole item is thrown away if it is not found.",
+    "Not a paraphrase, not a translation, not tidied up, nothing left out of the middle. " +
+    "A whole clause — never one or two words. " +
+    "Every word of this is checked against the transcript, and the whole item is thrown away " +
+    "unless all of them are found there together. Getting the first few words right is not enough.",
 };
 
 const TOOL = {
@@ -475,7 +557,8 @@ function systemPrompt(today: DayKey): string {
     "",
     "Every appointment, deadline, task and figure carries the words it came from. Copy them out of the transcript exactly as they appear — the speech is disfluent and that is fine, leave the disfluency in. Do not paraphrase, do not translate, do not tidy the grammar, do not put an ellipsis in the middle.",
     "Quote a whole clause, not a word or two — a quote short enough to appear in any conversation proves nothing about this one.",
-    "The quote is checked against the transcript. An item whose quote is not found there is thrown away, however good the item looks.",
+    "The quote is checked against the transcript word for word. Every word of it has to be there, in that order, next to each other. An item whose quote starts with real words and then drifts into words nobody said is thrown away exactly like one that was composed from nothing — the item goes with it, however good the item looks.",
+    "So quote something short and real rather than something long and nearly right. If you cannot find a clause you can copy, leave the item out.",
     "",
     "THE DATES",
     "",
@@ -493,7 +576,7 @@ function systemPrompt(today: DayKey): string {
     "",
     "THE NUMBERS",
     "",
-    "figures are numbers people actually said — counts, percentages, targets, before-and-after. Label them in the conversation's own words. Two or more points to a figure; a single number is a sentence and belongs in your summary instead. Never compute a number nobody said, and never round one.",
+    `figures are numbers people actually said — counts, percentages, targets, before-and-after. Label them in the conversation's own words. Between two and ${MOST_POINTS} points to a figure: a single number is a sentence and belongs in your summary instead, and a figure with more points than that is thrown away whole rather than cut short. Every point needs a name and a number. Never compute a number nobody said, and never round one.`,
     "",
     "THE WHOLE RULE UNDERNEATH ALL OF THIS",
     "",
@@ -571,19 +654,22 @@ export async function POST(request: Request) {
    * The banner check is the one that matters: `transcriptOf()` welds
    * SIMULATED_BANNER to the front of a fabricated transcript, so a caller that
    * forgets the flag — or a future caller that only ever passes a string — is
-   * still caught. This route does not refuse a simulated transcript, because a
-   * demo path nobody can run end to end is a demo path that rots; what it does
-   * instead is stamp every single row it returns, so the mark survives a
-   * consumer that pulls one appointment out of the array and forgets the rest
-   * of the response existed. `assertReal` in @/lib/transcript remains the gate
+   * still caught. It is matched on its words rather than character for
+   * character; see `SIMULATED_MARK` for why that is not a nicety.
+   *
+   * This route does not refuse a simulated transcript, because a demo path
+   * nobody can run end to end is a demo path that rots; what it does instead
+   * is stamp every single row it returns, so the mark survives a consumer that
+   * pulls one appointment out of the array and forgets the rest of the
+   * response existed. `assertReal` in @/lib/transcript remains the gate
    * that actually stops it reaching a calendar.
    */
   const simulated =
-    body.simulated === true || transcript.includes(SIMULATED_BANNER);
+    body.simulated === true || flatten(transcript).includes(SIMULATED_MARK);
   const mark: Marked = simulated ? { simulated: true } : {};
 
   const { shown, skipped } = fit(transcript);
-  const spoken = flatten(shown);
+  const spoken = searchable(shown);
 
   const messages = [
     { role: "system" as const, content: systemPrompt(today) },
@@ -664,7 +750,12 @@ export async function POST(request: Request) {
       }
 
       const dropped: DroppedFact[] = [];
+      // Counted separately from the list it fills, because the list is capped
+      // and the count is not. A caller that only had the list could not tell
+      // forty drops from four hundred.
+      let droppedTotal = 0;
       const drop = (kind: DroppedFact["kind"], name: string, why: string) => {
+        droppedTotal += 1;
         if (dropped.length < MOST_DROPPED)
           dropped.push({ kind, title: name || "(no title)", why });
       };
@@ -819,13 +910,40 @@ export async function POST(request: Request) {
           continue;
         }
 
+        // A figure is one claim made of several numbers, so it survives whole
+        // or not at all. Quietly cutting a point out of the middle of a series
+        // — or off the end of it — is a repair, and it is the worst kind: the
+        // chart still draws, still looks complete, and now says something
+        // nobody said. In a before-and-after the point that would vanish is
+        // the last one, which is the target the whole figure was about.
+        const points = list(raw.series);
+        if (points.length > MOST_POINTS) {
+          drop(
+            "figure",
+            label,
+            `it came back with ${points.length} numbers and the chart holds ${MOST_POINTS} — keeping the first ${MOST_POINTS} would have quietly cut off the end of the series`,
+          );
+          continue;
+        }
+
         const series: TranscriptPoint[] = [];
-        for (const point of list(raw.series)) {
-          if (series.length >= MOST_POINTS) break;
+        let unusable = false;
+        for (const point of points) {
           const name = asString(point?.name, 120);
           const value = point?.value;
-          if (!name || typeof value !== "number" || !Number.isFinite(value)) continue;
+          if (!name || typeof value !== "number" || !Number.isFinite(value)) {
+            unusable = true;
+            break;
+          }
           series.push({ name, value });
+        }
+        if (unusable) {
+          drop(
+            "figure",
+            label,
+            "one of its numbers came back with no label or no usable value, and a chart with a hole in it reads as complete",
+          );
+          continue;
         }
 
         // Two points minimum. One number is a fact, and a fact belongs in the
@@ -846,6 +964,21 @@ export async function POST(request: Request) {
         });
       }
 
+      // A capped list that reads as complete is the understatement this route
+      // exists to prevent, so the last row stops being a fact and starts being
+      // the count of the ones there was no room for.
+      if (droppedTotal > dropped.length) {
+        // The last named row gives up its place, so the total stays MOST_DROPPED
+        // and the count is never fewer than two.
+        dropped.pop();
+        const unnamed = droppedTotal - dropped.length;
+        dropped.push({
+          kind: "more",
+          title: `${unnamed} more`,
+          why: `the list stops at ${MOST_DROPPED} rows — these were thrown away too, and are not named`,
+        });
+      }
+
       const reading: TranscriptReading = {
         title,
         summary,
@@ -857,6 +990,7 @@ export async function POST(request: Request) {
         simulated,
         skipped,
         dropped,
+        droppedTotal,
         model,
       };
 

@@ -41,6 +41,12 @@ import {
   type Note,
 } from "@/lib/db/notes";
 import { useAutosave } from "@/components/notes/useAutosave";
+import { startTranscription } from "@/components/transcript/Recorder";
+import { recorderAvailable } from "@/lib/transcript";
+// Side effect, no exports: this is what registers the thing that turns a
+// finished recording into a document. See the file — a surface that can start
+// a recording and does not import it records an hour and then cannot file it.
+import "@/lib/transcript/wire";
 import { NoteAssistant } from "@/components/notes/NoteAssistant";
 import type { AssistNote } from "@/lib/ai/assist/client";
 
@@ -63,12 +69,24 @@ export default function NotesPage() {
   const [asking, setAsking] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  /**
+   * Whether this browser can transcribe at all. `null` until it has been
+   * asked, so the control claims nothing either way in the server's HTML —
+   * the answer is a browser API and rendering it on the server would tell
+   * every Chrome user their browser cannot do this until they hydrate.
+   */
+  const [canTranscribe, setCanTranscribe] = useState<boolean | null>(null);
   /** Ids that arrived after the first read, so only they animate in. */
   const [fresh, setFresh] = useState<string[]>([]);
 
   const box = useRef<HTMLTextAreaElement>(null);
   const rail = useRef<HTMLUListElement>(null);
   const marker = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Off the effect body: a setState inside one cascades a second render.
+    void Promise.resolve().then(() => setCanTranscribe(recorderAvailable()));
+  }, []);
 
   const write = useCallback(async (id: string, body: string) => {
     setSaved("saving");
@@ -530,6 +548,27 @@ export default function NotesPage() {
                     Download
                   </Tool>
                   <Tool
+                    onClick={() =>
+                      void startTranscription({
+                        // A note is not a project, so there is nothing for the
+                        // document to say it came from. It still lands in the
+                        // library, labelled transcript, like any other.
+                        projectId: null,
+                      })
+                    }
+                    icon="mic"
+                    title={
+                      canTranscribe === false
+                        ? "This browser can't transcribe. Chrome and Edge can."
+                        : "Record a conversation. It becomes a document, and the appointments and deadlines in it are filed."
+                    }
+                  >
+                    {/* Said here rather than after the press: a button that
+                        opens something which then refuses is a button that
+                        wasted your time. */}
+                    {canTranscribe === false ? "Record (Chrome or Edge)" : "Record"}
+                  </Tool>
+                  <Tool
                     onClick={() => setAsking(true)}
                     icon="sparkle"
                     title="Ask the assistant to make a document out of this note"
@@ -618,7 +657,7 @@ function Tool({
   onClick,
   title,
 }: {
-  icon: "copy" | "download" | "trash" | "sparkle";
+  icon: "copy" | "download" | "trash" | "sparkle" | "mic";
   children: React.ReactNode;
   onClick: () => void;
   title?: string;

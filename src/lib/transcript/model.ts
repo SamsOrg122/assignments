@@ -209,17 +209,36 @@ export function assertReal(recording: Recording): void {
   );
 }
 
-/** A name for a recording that has not been given one, or for a file list. */
+/**
+ * A name for a recording that has not been given one, or for a file list.
+ *
+ * `isSimulated`, not `provenance === "simulated"`. A recording can be opened
+ * against a real microphone and still hold fabricated segments — a demo run
+ * resumed, a session that fell back — and testing the recording's own label
+ * left those looking exactly like a meeting somebody had.
+ */
 export function defaultTitle(recording: Recording): string {
   const when = `${recording.day} ${clock(recording.startMinute)}`;
-  return recording.provenance === "simulated"
+  return isSimulated(recording)
     ? `Simulated recording ${when}`
     : `Recording ${when}`;
 }
 
-/** What to call it on screen. */
-export const titleOf = (recording: Recording): string =>
-  recording.title?.trim() || defaultTitle(recording);
+/**
+ * What to call it on screen.
+ *
+ * A simulated recording says so in its name whatever it has been called. Only
+ * `defaultTitle()` used to carry the mark, so renaming one took it off — and a
+ * fabricated meeting sat in the list looking exactly like a meeting somebody
+ * had. The mark goes in front rather than behind because a list clips the end
+ * of a long title, and this is the half that has to survive.
+ */
+export function titleOf(recording: Recording): string {
+  const given = recording.title?.trim();
+  if (!given) return defaultTitle(recording);
+  if (!isSimulated(recording)) return given;
+  return /^simulated\b/i.test(given) ? given : `Simulated — ${given}`;
+}
 
 /** Newest first — what a list of past recordings wants. */
 export const byNewest = (a: Recording, b: Recording): number =>

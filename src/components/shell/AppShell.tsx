@@ -9,7 +9,7 @@ import { Toast } from "@/components/ui/Toast";
 import { InlineAI } from "@/components/ai/InlineAI";
 import { ShortcutSheet } from "./ShortcutSheet";
 import { VoiceDock } from "@/components/voice/VoiceDock";
-import { Recorder, isCapturing } from "@/components/transcript/Recorder";
+import { Recorder, microphoneBusy } from "@/components/transcript/Recorder";
 import { hydrateTranscript, useTranscript } from "@/lib/transcript";
 import { DemoBootstrap } from "./DemoBootstrap";
 import { surfaceFor } from "@/lib/shortcuts";
@@ -118,11 +118,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // One microphone at a time, enforced in the one file that mounts both — the
   // ⌘⇧V guard below only covers the keyboard, and voice mode can also be
   // opened from the palette and from the notepad, which are other files.
+  //
+  // This closes voice mode specifically, because voice mode is what this file
+  // mounts. The rule is wider than that: `DictationBar` (from `WritingEditor`)
+  // and `NoteAssistant` capture through `lib/speech`'s `listen()`, which does
+  // not fail when the device is already taken — it swaps to `mock.ts` and
+  // starts writing invented sentences. Neither is mounted here, so neither can
+  // be guarded from here; both need one line of their own calling
+  // `microphoneBusy()` before they call `listen()`, which is why that helper
+  // is exported rather than kept private to the bar.
   const capturing = useTranscript((s) => s.status !== "idle");
+  // Both halves are subscribed, not read once. Reading `voiceOpen` out of
+  // getState() meant this only ran when the RECORDING started — so voice mode
+  // opened during a meeting was never closed, and voice mode is openable from
+  // the palette and the project top bar without going near this file.
+  const voiceOpen = useUI((s) => s.voiceOpen);
   useEffect(() => {
-    if (!capturing || !useUI.getState().voiceOpen) return;
-    void Promise.resolve().then(() => useUI.getState().setVoiceOpen(false));
-  }, [capturing]);
+    if (!capturing || !voiceOpen) return;
+    void Promise.resolve().then(() => {
+      useUI.getState().setVoiceOpen(false);
+      useUI.getState().notify("The transcriber is recording. Stop it first.");
+    });
+  }, [capturing, voiceOpen]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -161,10 +178,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         // browser only grants one recogniser at a time. Opening it mid-meeting
         // would take the device off the transcriber and leave a bar that looks
         // like it is recording an hour it is no longer hearing.
-        if (isCapturing()) {
-          useUI.getState().notify("The transcriber is recording. Stop it first.");
-          return;
-        }
+        if (microphoneBusy()) return;
         setVoiceOpen(true);
         return;
       }

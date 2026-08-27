@@ -55,9 +55,9 @@ export * from "./model";
 export type RecorderStatus =
   /** Nothing running. */
   | "idle"
-  /** A start has been asked for; the microphone is being opened. */
+  /** A start has been asked for; the microphone is opening. Nothing heard. */
   | "starting"
-  /** Words are being heard. */
+  /** Words are being heard: a chunk has arrived, not merely a session. */
   | "recording"
   /** Between browser sessions after a failure — still recording, still kept. */
   | "reconnecting"
@@ -132,22 +132,111 @@ function patch(id: string, change: (recording: Recording) => Recording): Recordi
   return next;
 }
 
+/* ── Two tabs, one storage key ───────────────────────────────────────── */
+
+/**
+ * Proof that some tab is still driving the live recording.
+ *
+ * `hydrateTranscript()` closes a recording that was left running, which is
+ * right after a crash and wrong when the answer is "the other tab has the
+ * meeting open" — and a tab cannot see another tab's `engine`, which is what
+ * the guard here used to check. So a running engine writes a timestamp
+ * somewhere both tabs can read, and refreshes it every second.
+ *
+ * Its own key rather than the store: it changes every second and nothing
+ * renders from it, so putting it in the persisted payload would rewrite the
+ * whole recordings array sixty times a minute.
+ */
+const BEAT_KEY = "assignments:transcript:live";
+const BEAT_MS = 1_000;
+/** How long a beat is believed after it was written. */
+const BEAT_STALE_MS = 3_000;
+
+interface Beat {
+  id: string;
+  at: number;
+}
+
+function readBeat(): Beat | null {
+  try {
+    const raw = localStorage.getItem(BEAT_KEY);
+    if (!raw) return null;
+    const beat = JSON.parse(raw) as Partial<Beat>;
+    if (typeof beat?.id !== "string" || typeof beat.at !== "number") return null;
+    return { id: beat.id, at: beat.at };
+  } catch {
+    // Unreadable or unavailable storage. Nobody is provably holding it.
+    return null;
+  }
+}
+
+function beat(id: string): void {
+  try {
+    localStorage.setItem(BEAT_KEY, JSON.stringify({ id, at: Date.now() } satisfies Beat));
+  } catch {
+    // Storage full or blocked. The cost is a second tab deciding this
+    // recording was interrupted, which is recoverable; throwing here would
+    // end the recording instead, which is not.
+  }
+}
+
+function forgetBeat(id: string): void {
+  try {
+    if (readBeat()?.id === id) localStorage.removeItem(BEAT_KEY);
+  } catch {
+    // See `beat`.
+  }
+}
+
+const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Whether another live tab is recording `id` right now.
+ *
+ * A beat written a second ago is either a tab holding the meeting or the last
+ * beat *this* tab wrote before it was reloaded, and for the length of the
+ * staleness window those look identical. So the beat is watched rather than
+ * read: one that advances has a tab behind it, one that stands still is what
+ * a crash leaves. The wait only ever happens when a recording was live.
+ */
+async function heldElsewhere(id: string): Promise<boolean> {
+  const first = readBeat();
+  if (!first || first.id !== id || Date.now() - first.at > BEAT_STALE_MS) return false;
+  await pause(BEAT_STALE_MS);
+  const second = readBeat();
+  return second?.id === id && second.at > first.at;
+}
+
 /**
  * Rehydrate, then close anything that was still running when the tab died.
  *
- * Only when this tab has no recorder of its own: two tabs share one storage
- * key, and a second tab opening mid-meeting must not declare the first one's
- * recording finished. (Two tabs recording at once is still last-write-wins on
- * the same key — that is a real limitation, and the honest fix is one bar,
- * which is what the UI gives.)
+ * Only when nothing is driving that recording — not when *this* tab has no
+ * recorder, which is what this checked before and is a different question. A
+ * second tab opened mid-meeting has no engine of its own and would close the
+ * first tab's recording as `interrupted`, then offer a Resume that takes the
+ * meeting over and loses everything the first tab hears afterwards. So the
+ * heartbeat above is consulted, and a recording somebody else is holding is
+ * left exactly as it is.
+ *
+ * (Two tabs recording at once is still last-write-wins on the same key — that
+ * is a real limitation, and the honest fix is one bar, which is what the UI
+ * gives.)
  */
 export function hydrateTranscript(): void {
-  void Promise.resolve(useTranscript.persist.rehydrate()).then(() => {
+  void Promise.resolve(useTranscript.persist.rehydrate()).then(async () => {
     if (engine) return;
     const id = state().activeId;
     if (!id) return;
     const live = find(id);
     if (!live || !isLive(live)) return state().setActive(null);
+    if (await heldElsewhere(id)) return;
+    // Watching the beat takes a few seconds, and somebody can press record in
+    // them. Closing a recording this tab is now driving would be the same bug
+    // pointed inwards.
+    if (engine) return;
+    // The beat stood still while we watched it, so the tab that wrote it is
+    // gone. Clearing it keeps the next question cheap to answer.
+    forgetBeat(id);
     close(id, "interrupted", live.heardUntil);
   });
 }
@@ -243,6 +332,8 @@ interface Engine {
   session: SpeechSession | null;
   stopMeter: LevelStop;
   watchdog: ReturnType<typeof setInterval> | null;
+  /** Tells other tabs this recording is being driven. See `beat`. */
+  heartbeat: ReturnType<typeof setInterval> | null;
   retry: ReturnType<typeof setTimeout> | null;
   /** Stop was pressed: no more cycling, but the last words still count. */
   stopping: boolean;
@@ -250,6 +341,8 @@ interface Engine {
   done: boolean;
   cycling: boolean;
   failures: number;
+  /** A chunk has arrived on this run. Until then, nothing is being heard. */
+  everHeard: boolean;
   /** Epoch ms of the last chunk of any kind. */
   lastChunkAt: number;
   /** Where this browser session's segments start in `recording.segments`. */
@@ -298,13 +391,22 @@ function commit(e: Engine, total: string) {
   }));
 
   e.sessionFinal = clean;
-  state().setHeard(text);
+  // Cleared, not set to what was just committed: `heard` is the line being
+  // revised, the bar draws the segments *and* it, and leaving the new sentence
+  // in both made the bar read it back twice for the whole of a pause.
+  state().setHeard("");
 }
 
 function onChunk(e: Engine, chunk: TranscriptChunk) {
   if (e.done) return;
   e.lastChunkAt = Date.now();
   e.failures = 0;
+
+  // A word is what makes "recording" true, and the only thing that does.
+  if (chunk.text.trim()) {
+    e.everHeard = true;
+    if (!e.stopping && state().status !== "recording") state().setStatus("recording");
+  }
 
   if (chunk.isFinal) return commit(e, chunk.text);
 
@@ -321,11 +423,20 @@ function onError(e: Engine, message: string) {
   if (e.done || e.stopping) return;
   e.failures += 1;
 
+  /*
+   * These two are not transient and are not waited out. Chrome does not
+   * re-prompt for a microphone it has been refused, and there is no device to
+   * find that was not there a moment ago — `lib/speech` classifies both as
+   * fatal for the same reason. Backing off through five steps buys fifteen
+   * seconds of "trying again" about something that cannot be retried, and says
+   * "reconnecting" throughout. The other errors really do come and go, so they
+   * keep their retries.
+   */
   const denied = message === "not-allowed" || message === "audio-capture";
   const recording = find(e.id);
   const heardSomething = (recording?.segments.length ?? 0) > 0;
 
-  if (e.failures >= GIVE_UP_AFTER) {
+  if (denied || e.failures >= GIVE_UP_AFTER) {
     state().setProblem(
       denied
         ? "No microphone — the recording stopped. What was heard is kept."
@@ -371,8 +482,14 @@ async function open(e: Engine): Promise<void> {
       e.session.cancel();
       return;
     }
-    state().setStatus("recording");
-    if (e.failures === 0) state().setProblem(null);
+    // A session object is not a word. With the microphone refused this used to
+    // flip to "recording" once per retry with nothing said; `onChunk` is what
+    // promotes it, and until a chunk arrives this is still the opening state.
+    state().setStatus(e.everHeard ? "recording" : "starting");
+    // On every open, not only the first: `failures` is never 0 on a retry, so
+    // one recovered blip left "lost the recogniser for a moment" on the bar
+    // for the rest of an hour that recorded perfectly.
+    state().setProblem(null);
   } catch (error) {
     onError(e, error instanceof Error ? error.message : "start-failed");
   }
@@ -414,9 +531,12 @@ function watch(e: Engine) {
 function teardown(e: Engine) {
   e.done = true;
   if (e.watchdog) clearInterval(e.watchdog);
+  if (e.heartbeat) clearInterval(e.heartbeat);
   if (e.retry) clearTimeout(e.retry);
   e.watchdog = null;
+  e.heartbeat = null;
   e.retry = null;
+  forgetBeat(e.id);
   e.stopMeter();
   setLevel(0);
   if (engine === e) engine = null;
@@ -503,6 +623,13 @@ export async function resumeRecording(id: string): Promise<StartOutcome> {
   const recording = find(id);
   if (!recording) return "no-recogniser";
 
+  // Offered by a list drawn before another tab picked the meeting up. Resuming
+  // would write this tab's segments over what that one is still hearing.
+  if (await heldElsewhere(id)) {
+    state().setProblem("That recording is open in another tab, and still going there.");
+    return "already-recording";
+  }
+
   const simulate = recording.provenance === "simulated";
   if (!simulate && !recorderAvailable()) {
     state().setProblem("This browser can't transcribe, so the recording wasn't resumed.");
@@ -541,19 +668,49 @@ async function run(
     session: null,
     stopMeter: () => {},
     watchdog: null,
+    heartbeat: null,
     retry: null,
     stopping: false,
     done: false,
     cycling: false,
     failures: 0,
+    everHeard: false,
     lastChunkAt: Date.now(),
     sessionStart: find(id)?.segments.length ?? 0,
     sessionFinal: "",
   };
   engine = e;
 
-  e.stopMeter = await meterMicrophone(setLevel);
+  // Before the first await, so a tab that opens while the permission prompt is
+  // still sitting there does not read the silence as a crash.
+  beat(id);
+  e.heartbeat = setInterval(() => beat(id), BEAT_MS);
+
+  /*
+   * The microphone tap is handed over in one step, and only to an engine that
+   * is still wanted.
+   *
+   * `meterMicrophone` sits on the permission prompt for as long as the person
+   * takes to answer it. Stop or discard during that wait ran `teardown`
+   * against the `() => {}` placeholder above, so the tap was never closed: the
+   * meter went on reporting live audio with nothing recording, and the
+   * microphone stayed open after somebody had backed out. Whichever order the
+   * two land in now closes it — `teardown` first and this closes it here,
+   * `teardown` second and it has the real function to call.
+   */
+  const stopMeter = await meterMicrophone(setLevel);
+  if (e.done) {
+    stopMeter();
+    setLevel(0);
+    return;
+  }
+  e.stopMeter = stopMeter;
+
   await open(e);
+  // Stop or discard during `open()`'s await: `teardown` has already cleared a
+  // watchdog that did not exist yet, and installing one now leaves an interval
+  // ticking for the life of the tab with nothing left to clear it.
+  if (e.done || e.stopping) return;
   watch(e);
 }
 
@@ -566,6 +723,21 @@ async function run(
  */
 export const stopRecording = (): Promise<Recording | null> => finish("stopped");
 
+/** How long the last words are worth waiting for after stop. See `finish`. */
+const STOP_GRACE_MS = 1_500;
+
+/** Settle when `promise` does or when the grace runs out, whichever is first. */
+function within(promise: Promise<unknown>, ms: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    const settle = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    void promise.then(settle, settle);
+  });
+}
+
 async function finish(ended: Ended): Promise<Recording | null> {
   const e = engine;
   if (!e) return null;
@@ -574,11 +746,29 @@ async function finish(ended: Ended): Promise<Recording | null> {
   engine = null;
   state().setStatus("stopping");
 
-  // The provider's `stop()` resolves once the recogniser has settled, which is
-  // where a half-finished sentence turns into a final chunk. `onChunk` is
-  // still live until `teardown`, so those last words land in the transcript.
+  /*
+   * The provider's `stop()` resolves once the recogniser has settled, which is
+   * where a half-finished sentence turns into a final chunk. `onChunk` is
+   * still live until `teardown`, so those last words land in the transcript.
+   *
+   * Bounded, because that promise is not guaranteed to settle at all.
+   * `webspeech.ts` resolves it from the recogniser's `onend` — and a session
+   * the browser ended by itself, which is the thing this whole file is a
+   * supervisor for, fired `onend` before anyone was waiting. Awaiting it flat
+   * hung the stop press forever: no document, no error, the recording never
+   * closed and the microphone tap still open. What the grace can cost is a
+   * trailing half-sentence the recogniser never finalised.
+   */
   try {
-    await e.session?.stop();
+    if (ended === "stopped") {
+      const settling = e.session?.stop();
+      if (settling) await within(settling, STOP_GRACE_MS);
+    } else {
+      // Not a stop press. The recogniser is already gone — that is why we are
+      // here — so there are no last words to wait for, and waiting would hold
+      // the bar on "finishing" instead of saying what went wrong.
+      e.session?.cancel();
+    }
   } catch {
     // A session that has already ended has nothing to give back.
   }

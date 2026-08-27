@@ -26,6 +26,7 @@ import { uid } from "@/lib/factories";
 import { askAssistant, type AssistFile, type AssistNote } from "@/lib/ai/assist/client";
 import { makeProject, reviewBlocks } from "@/lib/kit/artefact";
 import { listen, speechProviderName, type SpeechSession } from "@/lib/speech";
+import { microphoneBusy } from "@/components/transcript/Recorder";
 import { AttachMenu } from "./AttachMenu";
 
 type Turn =
@@ -143,6 +144,9 @@ export function NoteAssistant({
 
     typedBefore.current = question.trim() ? `${question.trimEnd()} ` : "";
     setDeaf(null);
+    // See DictationBar: one recogniser at a time, and `listen()`'s answer to
+    // being refused one is to quietly start making words up.
+    if (microphoneBusy()) return;
     try {
       const session = await listen({
         onChunk: ({ text }) => {

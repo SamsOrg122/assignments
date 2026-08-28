@@ -69,7 +69,7 @@ export function PickUpWhere({
     <section aria-label="Pick up where you left off" className="mb-4">
       <p className="label-mono mb-1.5">pick up where you left off</p>
 
-      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         {cards.map((project) => (
           <li key={project.id} className="group relative">
             <Link

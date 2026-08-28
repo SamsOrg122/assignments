@@ -39,6 +39,7 @@ import {
 } from "@/components/library/Folders";
 import { fuzzyMatch } from "@/lib/fuzzy";
 import { TopBar } from "@/components/shell/TopBar";
+import { formatNumber } from "@/lib/format";
 import { useMenu } from "@/components/ui/Menu";
 import { projectMenu } from "@/lib/project-menu";
 import { Icon } from "@/components/ui/Icon";
@@ -165,27 +166,58 @@ export default function LibraryPage() {
         />
       )}
 
-      <TopBar
-        right={
-          <NewProjectButton
-            onCreate={create}
-            onTemplate={() => setTemplating(true)}
-          />
-        }
-      >
+      <TopBar>
         <span className="text-[13px] font-medium text-fg">Library</span>
       </TopBar>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[880px] px-5 py-8 sm:px-8 sm:py-12">
-          <div className="mb-8">
-            <p className="label-mono mb-2.5">
-              {world === "team" ? "The team's, in one" : t("library.eyebrow")}
-            </p>
-            <h1 className="max-w-[20ch] text-[26px] leading-[1.15] font-medium tracking-[-0.03em] text-fg sm:text-[32px]">
-              {t("library.title")}
-              <span className="text-fg-subtle"> {t("library.subtitle")}</span>
-            </h1>
+        {/* 1400 rather than 880. On a 1900-pixel screen the old cap left two
+              empty gutters of 430 pixels each around a column of work — the
+              screen was being used to display margin. Still capped, because a
+              row of text that runs the full width of a wide monitor is a line
+              nobody can track back to the start of; what the extra width buys
+              is COLUMNS, which is what the grids below spend it on. */}
+          <div className="mx-auto w-full max-w-[1400px] px-5 py-8 sm:px-8 sm:py-10">
+          {/*
+            * The one place a document is made, and it looks like it.
+            *
+            * It used to be a 12.5px outline button in the corner of the top
+            * bar, the same weight as the sidebar toggle beside it — the most
+            * frequent act on the page drawn as the least important thing on
+            * it. Here it sits at the end of the title line, where the eye
+            * already is on arrival, at the size of the decision it is.
+            *
+            * One, not two: a second copy pinned to the top bar for when this
+            * one scrolls away would be the same question asked twice on one
+            * screen, which is what the keep-prompt had to stop doing. Scrolled
+            * down, ⌘K makes anything in one keystroke.
+            */}
+          <div className="mb-7 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+            {/*
+              * A heading, not a headline.
+              *
+              * This used to be "Finished work lives here. Thinking lives on a
+              * Board." — a good sentence, on the wrong screen. It is the
+              * product explaining itself, in 28px across two lines, at the top
+              * of the page somebody opens twenty times a day to find a
+              * document. It still says exactly that on the storefront, which
+              * is where somebody is deciding whether to use this at all. Here
+              * the useful thing is what is in the room and how much of it.
+              */}
+            <div className="min-w-0">
+              <h1 className="text-[24px] leading-tight font-medium tracking-[-0.03em] text-fg sm:text-[26px]">
+                {world === "team" ? "The team's work" : "Your work"}
+              </h1>
+              <p className="mt-1.5 text-[13px] text-fg-muted">
+                {projects.length === 0
+                  ? "Nothing here yet."
+                  : `${formatNumber(projects.length)} ${projects.length === 1 ? "thing" : "things"}, newest first.`}
+              </p>
+            </div>
+            <NewProjectButton
+              onCreate={create}
+              onTemplate={() => setTemplating(true)}
+            />
           </div>
 
           {chosen === "team" && !hasTeam && (
@@ -300,7 +332,7 @@ export default function LibraryPage() {
 
           {/* Search + filters */}
           <div className="mb-4 flex flex-col gap-3">
-            <div className="flex items-center gap-2.5 rounded-md border border-line bg-surface px-3">
+            <div className="flex items-center gap-2.5 rounded-md border border-line bg-surface px-3.5">
               <Icon name="search" size={14} className="shrink-0 text-fg-subtle" />
               <input
                 value={query}
@@ -308,7 +340,7 @@ export default function LibraryPage() {
                 placeholder={t("library.search")}
                 aria-label={t("library.searchLabel")}
                 spellCheck={false}
-                className="w-full bg-transparent py-2.5 text-[13.5px] text-fg outline-none placeholder:text-fg-subtle"
+                className="w-full bg-transparent py-3 text-[14px] text-fg outline-none placeholder:text-fg-subtle"
               />
               {query && (
                 <button
@@ -436,10 +468,20 @@ export default function LibraryPage() {
               )}
             </div>
           ) : (
-            <ul className="overflow-hidden rounded-lg border border-line">
+            /*
+             * A grid, not a list, above 1024 pixels.
+             *
+             * A row that spans 1400 pixels puts the name at one end and the
+             * date at the other with nothing in between, and the eye has to
+             * travel the whole width to pair them up. Three cards across put
+             * the same four facts inside one glance each — and a wide screen
+             * then shows three times as much work, which is the point of
+             * having one. Below 1024 it is one column, which is a list.
+             */
+            <ul className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
               {rows.map(({ project }) => (
                 <li key={project.id}>
-                  <LibraryRow
+                  <LibraryCard
                     project={project}
                     showTime={hydrated}
                     onMenu={openMenu}
@@ -458,7 +500,21 @@ export default function LibraryPage() {
   );
 }
 
-function LibraryRow({
+/**
+ * One thing you have made, as a card.
+ *
+ * It was a row in a bordered list. The four facts are the same and in the
+ * same order — what you called it, what is in it, what kind it is, when you
+ * last touched it — but they are stacked instead of spread, so they are one
+ * glance rather than a scan across the width of a monitor. The name is
+ * 14.5px rather than 13.5: it is the only thing on the card somebody is
+ * actually looking for, and it was the same size as the metadata under it.
+ *
+ * `group relative` and an absolutely positioned menu button, because a button
+ * inside an anchor is markup a browser is entitled to rearrange — the reason
+ * `RowMenuButton` exists at all.
+ */
+function LibraryCard({
   project,
   showTime,
   onMenu,
@@ -471,50 +527,46 @@ function LibraryRow({
   const summary = projectSummary(project);
 
   return (
-    <div className="group relative border-b border-line last:border-b-0">
-    <Link
-      href={`/p/${project.id}`}
-      prefetch
-      onContextMenu={(e) => onMenu(e, project)}
-      className={cn(
-        "flex items-center gap-3 bg-surface py-3 pr-10 pl-3.5",
-        "transition-colors duration-150 hover:bg-surface-2",
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className="grid size-7 shrink-0 place-items-center rounded-md border border-line bg-surface-2 text-fg-muted"
+    <div className="group relative h-full">
+      <Link
+        href={`/p/${project.id}`}
+        prefetch
+        onContextMenu={(e) => onMenu(e, project)}
+        className={cn(
+          "flex h-full flex-col gap-3 rounded-lg border border-line bg-surface p-3.5 pr-10",
+          "transition-colors duration-150 hover:border-line-strong hover:bg-surface-2",
+        )}
       >
-        <Avatar glyph={project.glyph} kind={project.kind} size={15} />
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px] font-medium text-fg">
-          {project.name}
+        <span className="flex min-w-0 items-start gap-2.5">
+          <span
+            aria-hidden="true"
+            className="grid size-8 shrink-0 place-items-center rounded-md border border-line bg-surface-2 text-fg-muted"
+          >
+            <Avatar glyph={project.glyph} kind={project.kind} size={16} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[14.5px] leading-snug font-medium text-fg">
+              {project.name}
+            </span>
+            <span className="mt-0.5 block truncate font-mono text-[10.5px] text-fg-subtle">
+              {summary}
+            </span>
+          </span>
         </span>
-        <span className="block truncate font-mono text-[10px] text-fg-subtle">
-          {summary}
+
+        <span className="mt-auto flex items-center gap-2">
+          <span className="shrink-0 rounded-xs border border-line px-1.5 py-0.5 font-mono text-[9.5px] tracking-wide text-fg-subtle uppercase">
+            {meta.label}
+          </span>
+          <span className="ml-auto shrink-0 font-mono text-[10px] text-fg-subtle">
+            {showTime ? relativeTime(project.updatedAt) : ""}
+          </span>
         </span>
-      </span>
-
-      <span className="hidden shrink-0 rounded-xs border border-line px-1.5 py-0.5 font-mono text-[9.5px] tracking-wide text-fg-subtle uppercase sm:block">
-        {meta.label}
-      </span>
-
-      <span className="hidden w-[68px] shrink-0 text-right font-mono text-[10px] text-fg-subtle sm:block">
-        {showTime ? relativeTime(project.updatedAt) : ""}
-      </span>
-
-      <Icon
-        name="arrow-right"
-        size={13}
-        className="shrink-0 text-fg-subtle opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-      />
-    </Link>
+      </Link>
       <RowMenuButton
         label={`More for ${project.name}`}
         onOpen={(event: React.MouseEvent) => onMenu(event, project)}
-        className="right-2"
+        className="top-3 right-2"
       />
     </div>
   );
@@ -563,21 +615,29 @@ function NewProjectButton({
 
   return (
     <div className="relative">
+      {/* Filled, not outlined, and the only filled control on the page — so
+          "what do I press to start something" has exactly one answer. The
+          label says what it makes rather than "New", which on a page holding
+          documents, decks, boards, notes and code is a question rather than
+          an instruction. */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1.5 rounded-sm border border-line bg-surface px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+        className={cn(
+          "flex items-center gap-2 rounded-md bg-accent px-4 text-[13.5px] font-medium text-on-accent",
+          "h-10 shrink-0 transition-[filter] duration-150 hover:brightness-110",
+        )}
       >
-        <Icon name="plus" size={13} />
-        <span className="hidden sm:inline">New</span>
-        <Icon name="chevron-down" size={11} className="opacity-60" />
+        <Icon name="plus" size={15} />
+        <span>New document</span>
+        <Icon name="chevron-down" size={12} className="opacity-70" />
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="anim-pop absolute top-full right-0 z-20 mt-1.5 w-[212px] rounded-md border border-line-strong bg-surface p-1 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.85)]">
+          <div className="anim-pop absolute top-full right-0 z-20 mt-2 w-[248px] rounded-lg border border-line-strong bg-surface p-1.5 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.85)]">
             {KIND_ORDER.map((k) => (
               <button
                 key={k}

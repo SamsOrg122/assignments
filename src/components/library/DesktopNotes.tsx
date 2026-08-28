@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
+import { cn } from "@/lib/cn";
 import { formatDateTime } from "@/lib/format";
 import {
   deleteNote,
@@ -125,12 +126,13 @@ export function DesktopNotes() {
         </Link>
       </div>
 
-      <ul className="grid gap-1.5">
+      {/* Rows on a divider rather than cards in a stack. Each note was a
+          bordered box with its own background, which made two notes taller
+          than the six documents underneath them — an arrival notice outweighing
+          the thing it interrupts. */}
+      <ul className="divide-y divide-line">
         {notes.map((note) => (
-          <li
-            key={note.id}
-            className="rounded-sm border border-line bg-canvas px-2.5 py-2"
-          >
+          <li key={note.id} className="group px-0.5 py-1.5">
             {open === note.id ? (
               <div className="grid gap-2">
                 <label className="grid gap-1">
@@ -174,7 +176,7 @@ export function DesktopNotes() {
                     setDraft(note.body);
                   }}
                 >
-                  <span className="block truncate text-sm">
+                  <span className="block truncate text-[13.5px]">
                     {titleOf(note) || "Empty note"}
                   </span>
                   <span className="mt-0.5 flex gap-2 text-[11px] text-fg-subtle">
@@ -186,9 +188,18 @@ export function DesktopNotes() {
                     </span>
                   </span>
                 </button>
+                {/* Shown on hover and on keyboard focus, always present below
+                    1024 where there is no hover to reveal it. Two permanent
+                    Delete buttons at the top of the page is a destructive act
+                    given the most prominent placement on the screen, next to
+                    the two things it destroys. */}
                 <button
                   type="button"
-                  className="shrink-0 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-60"
+                  className={cn(
+                    "shrink-0 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted",
+                    "transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-60",
+                    "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-[1024px]:opacity-100",
+                  )}
                   disabled={busy}
                   onClick={() => void remove(note)}
                 >

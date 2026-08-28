@@ -132,7 +132,7 @@ interface ChatState {
       scope?: "personal" | "team";
     },
   ) => Promise<string>;
-  openDM: (userId: string) => string;
+  openDM: (userId: string) => Promise<string>;
   markRead: (channelId: string) => void;
   setTyping: (channelId: string, typing: boolean) => void;
 
@@ -171,6 +171,33 @@ export function canOpen(channel: Channel, unlocked: string[]): boolean {
 
 let provider: ChatProvider = createMockChatProvider();
 
+/**
+ * Swap the mock for the account, once, if there is an account to swap to.
+ *
+ * Deliberately asked at connect time rather than at module load: whether this
+ * can be real depends on a runtime config lookup AND a session, and neither is
+ * settled when this file is first evaluated. Asked once — a second call after
+ * signing in would need a reconnect, and the store already refuses to connect
+ * twice, so signing in mid-session leaves chat local until the next load.
+ * That is a real limit and it is written down here rather than papered over.
+ *
+ * The import is dynamic so that a deployment with no database never pulls the
+ * Supabase client into the bundle it serves.
+ */
+let transportChosen = false;
+async function chooseTransport(): Promise<void> {
+  if (transportChosen) return;
+  transportChosen = true;
+  try {
+    const real = await import("./supabase");
+    if (!(await real.chatCanBeReal())) return;
+    setChatProvider(real.createSupabaseChatProvider());
+  } catch {
+    // No database, no session, or the module failed to load. The mock stays,
+    // and it says what it is: conversations kept in this browser.
+  }
+}
+
 export function setChatProvider(next: ChatProvider) {
   provider.disconnect();
   provider = next;
@@ -192,6 +219,7 @@ export const useChat = create<ChatState>()(
 
       connect: async () => {
         if (get().connected) return;
+        await chooseTransport();
         const snapshot = await provider.connect({
           onMessage: (message) =>
             set((s) =>
@@ -424,20 +452,37 @@ export const useChat = create<ChatState>()(
         return channel.id;
       },
 
-      openDM: (userId) => {
+      /*
+       * Asynchronous, and it has to be.
+       *
+       * Opening a conversation is the one act that puts somebody ELSE in a
+       * room, and migration 0017 allows no client to write that row —
+       * `open_dm` does it, after checking the two of you are actually
+       * connected. So the id can come back different from the one minted
+       * here: if you already have a conversation with this person on another
+       * device, the server hands back that one rather than making a second
+       * empty one. Returning a local id synchronously and correcting it
+       * afterwards would strand the navigation that just used it.
+       */
+      openDM: async (userId) => {
         const existing = get().channels.find(
           (c) => c.kind === "dm" && c.memberIds.includes(userId),
         );
         if (existing) return existing.id;
 
-        const channel: Channel = {
+        const wanted: Channel = {
           id: uid(),
           kind: "dm",
           name: personById(userId).name,
           memberIds: [LOCAL_USER.id, userId],
           createdAt: Date.now(),
         };
-        set((s) => ({ channels: [...s.channels, channel] }));
+        const channel = await provider.createChannel(wanted);
+        set((s) =>
+          s.channels.some((c) => c.id === channel.id)
+            ? s
+            : { channels: [...s.channels, channel] },
+        );
         return channel.id;
       },
 

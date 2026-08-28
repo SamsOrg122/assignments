@@ -540,7 +540,7 @@ function PaletteDialog({ seed }: { seed: string }) {
         group: "Chat",
         icon: "users",
         keywords: "dm direct message chat talk write",
-        run: () => router.push(`/chat/${openDM(person.id)}`),
+        run: () => void openDM(person.id).then((id) => router.push(`/chat/${id}`)),
       });
     }
 

@@ -7,7 +7,7 @@
 --
 -- The last result set is the one to read first: it names every migration and
 -- whether it has visibly been applied. Anything there that is NOT APPLIED is
--- fixed by running `supabase/catch-up.sql`, which is 0003–0016 in one paste
+-- fixed by running `supabase/catch-up.sql`, which is 0003–0017 in one paste
 -- and is safe to run however many times it has already been run.
 --
 -- The expected list is not a guess: it was taken from a Postgres 16 that had
@@ -300,4 +300,22 @@ select
             and a.privilege_type in ('INSERT', 'UPDATE'))
        then 'applied'
        else 'NOT APPLIED — AN OWNER CAN PUT A STRANGER IN THEIR OWN TEAM' end
+union all
+select
+  '0017 — a message that arrives',
+  -- Two halves. The tables alone would pass on a database where the policies
+  -- failed to apply, which is the state that matters: `messages` without
+  -- `messages_in_your_channels` is a table anybody authenticated can read.
+  -- Read by NAME through pg_tables and pg_policies, never through regclass —
+  -- a regclass literal is resolved when this file is parsed and would abort
+  -- the whole report on a database that does not have the table yet.
+  case when (select count(*) from pg_tables
+              where schemaname = 'public'
+                and tablename in ('channels', 'channel_members', 'messages')) = 3
+        and (select count(*) from pg_policies
+              where schemaname = 'public' and tablename = 'messages'
+                and policyname in ('messages_in_your_channels',
+                                   'messages_written_by_you')) = 2
+       then 'applied'
+       else 'NOT APPLIED — chat stays in each browser, and nothing is sent' end
 order by migration;

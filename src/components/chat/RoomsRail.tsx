@@ -172,7 +172,9 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
 
       {picking && (
         <PeoplePicker
-          onPick={(personId) => router.push(`/chat/${openDM(personId)}`)}
+          onPick={(personId) =>
+            void openDM(personId).then((id) => router.push(`/chat/${id}`))
+          }
           onClose={() => setPicking(false)}
         />
       )}

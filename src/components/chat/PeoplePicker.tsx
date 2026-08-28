@@ -204,14 +204,14 @@ export function PeoplePicker({
       }));
   }, [query, channels, friends]);
 
-  const choose = ({
+  const choose = async ({
     person,
     channel,
   }: {
     person: Friend;
     channel: Channel | undefined;
   }) => {
-    const id = openDM(person.userId);
+    const id = await openDM(person.userId);
     const name = friendName(person);
     // A brand-new room, or one still carrying a placeholder because they had
     // not set a name when you last opened it.

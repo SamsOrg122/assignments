@@ -18,7 +18,7 @@ export default function OfflinePage() {
   return (
     <main className="grid min-h-dvh place-items-center px-5 py-16">
       <div className="w-full max-w-[420px]">
-        <p className="label-mono mb-2.5">No connection</p>
+        <p className="text-meta text-fg-subtle mb-2.5">No connection</p>
         <h1 className="mb-3 text-[24px] leading-tight font-medium tracking-[-0.02em] text-fg">
           You&apos;re offline, and your work is fine.
         </h1>

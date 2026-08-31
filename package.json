@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint --max-warnings=0",
+    "check": "node scripts/no-case-collisions.mjs && node scripts/desktop-version-agrees.mjs && node scripts/design-scale.mjs && node scripts/contrast-floors.mjs && npm run lint && tsc --noEmit"
   },
   "dependencies": {
     "@codemirror/lang-css": "^6.3.1",

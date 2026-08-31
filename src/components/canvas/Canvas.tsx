@@ -248,7 +248,7 @@ export function Canvas({
 
       {!minimal && (
       <div className="mt-8 flex flex-wrap items-center gap-1.5 border-t border-line pt-4 print:hidden">
-        <span className="label-mono mr-1">Add</span>
+        <span className="text-meta text-fg-subtle mr-1">Add</span>
         {ADDABLE.map((type) => (
           <button
             key={type}

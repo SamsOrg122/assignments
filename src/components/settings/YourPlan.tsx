@@ -92,13 +92,20 @@ function periodLine(sub: Subscription): string {
     : `Renews ${when}.`;
 }
 
+/**
+ * It goes to the price list and changes nothing here, so it is a word and
+ * not a button. Every bordered thing on this page that only navigated was
+ * reading as an action somebody had to take.
+ */
 function PricingLink({ label }: { label: string }) {
   return (
     <Link
       href="/pricing"
-      className="flex w-fit items-center gap-1.5 rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+      className="flex w-fit items-center gap-1.5 text-body text-fg-muted transition-colors duration-150 hover:text-fg"
     >
-      {label}
+      <span className="underline decoration-line-strong underline-offset-2">
+        {label}
+      </span>
       <Icon name="arrow-right" size={12} />
     </Link>
   );
@@ -110,24 +117,22 @@ export function YourPlan() {
   /* Nothing known yet. Both "no database" and "Free" would be a guess. */
   if (!settled || !outcome)
     return (
-      <div className="rounded-md border border-line bg-surface p-3.5">
-        <p className="flex items-center gap-2 text-[13px] text-fg">
-          <span className="size-1.5 rounded-full bg-fg-subtle" />
-          Checking…
-        </p>
-      </div>
+      <p className="flex items-center gap-(--space-2) text-body text-fg">
+        <span className="size-1.5 rounded-full bg-fg-subtle" />
+        Checking…
+      </p>
     );
 
   /* No database. Not a fault, and not Free either — there is no account. */
   if (!outcome.ok && outcome.setup)
     return (
-      <div className="flex flex-col gap-3.5">
-        <div className="rounded-md border border-line bg-surface p-3.5">
-          <p className="flex items-center gap-2 text-[13px] text-fg">
+      <div className="flex flex-col gap-(--space-3)">
+        <div>
+          <p className="flex items-center gap-(--space-2) text-body text-fg">
             <span className="size-1.5 rounded-full bg-fg-subtle" />
             No plan to show
           </p>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-fg-muted">
+          <p className="mt-(--space-2) max-w-[68ch] text-body text-fg-muted">
             {outcome.reason}
           </p>
         </div>
@@ -141,28 +146,28 @@ export function YourPlan() {
    */
   if (!outcome.ok)
     return (
-      <div className="flex flex-col gap-3.5">
-        <div className="flex items-start gap-2.5 rounded-md border border-warn/35 bg-warn/[0.07] p-3.5">
+      <div className="flex flex-col gap-(--space-3)">
+        <div className="flex items-start gap-(--space-2)">
           <Icon name="minus" size={13} className="mt-0.5 shrink-0 text-warn" />
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] text-fg">
+            <p className="text-body text-fg">
               Your plan couldn&apos;t be read.
             </p>
-            <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-muted">
+            <p className="mt-(--space-1) max-w-[68ch] text-body text-fg-muted">
               {outcome.reason}
             </p>
-            <p className="mt-1.5 text-[12px] leading-relaxed text-warn">
+            <p className="mt-(--space-2) max-w-[68ch] text-body text-warn">
               This is not the same as being on Free. Nothing about what you pay
               is known right now, including whether you pay at all.
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-(--space-3)">
           <button
             type="button"
             onClick={() => void reload()}
             disabled={busy}
-            className="rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-45"
+            className="rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-fg transition-colors duration-150 hover:bg-surface-3 disabled:opacity-45"
           >
             {busy ? "Asking again…" : "Ask again"}
           </button>
@@ -181,13 +186,13 @@ export function YourPlan() {
    */
   if (state.kind === "signed-out")
     return (
-      <div className="flex flex-col gap-3.5">
-        <div className="rounded-md border border-line bg-surface p-3.5">
-          <p className="flex items-center gap-2 text-[13px] text-fg">
+      <div className="flex flex-col gap-(--space-3)">
+        <div>
+          <p className="flex items-center gap-(--space-2) text-body text-fg">
             <span className="size-1.5 rounded-full bg-fg-subtle" />
             Not signed in
           </p>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-fg-muted">
+          <p className="mt-(--space-2) max-w-[68ch] text-body text-fg-muted">
             A plan belongs to an account, and this browser isn&rsquo;t signed
             into one — so there is nothing to look up. If you pay for this,
             sign in above and it will show here.
@@ -209,22 +214,23 @@ export function YourPlan() {
   const paying = plan.price > 0;
 
   return (
-    <div className="flex flex-col gap-3.5">
-      <div
-        className={cn(
-          "rounded-md border p-3.5",
-          wrong ? "border-warn/35 bg-warn/[0.07]" : "border-line bg-surface",
-        )}
-      >
-        <p className="flex flex-wrap items-center gap-2 text-[13px] text-fg">
+    <div className="flex flex-col gap-(--space-3)">
+      <div>
+        {/* The plan's name is the answer somebody opened this for, so it is
+            the one thing here in full ink and weight. The dot still changes
+            colour when something is wrong, and the sentence under it still
+            says what — which is two carriers, where the warn-tinted box was
+            a third that could not carry anything at 1.1:1. */}
+        <p className="flex flex-wrap items-center gap-(--space-2) text-body">
           <span
             className={cn(
               "size-1.5 rounded-full",
               wrong ? "bg-warn" : "bg-accent",
             )}
           />
-          {plan.name}
-          <span className="ml-auto font-mono text-[10.5px] text-fg-subtle">
+          <span className="font-medium text-fg">{plan.name}</span>
+          {/* A price is a fact, not a config string: sans. */}
+          <span className="ml-auto text-meta text-fg-subtle">
             {priceLine(planId, sub)}
           </span>
         </p>
@@ -234,10 +240,14 @@ export function YourPlan() {
           than a coloured word, because "past_due" needs to say what happens
           next, not just look alarming.
         */}
-        {note && <p className="mt-2 text-[12.5px] text-warn">{note}</p>}
+        {note && (
+          <p className="mt-(--space-2) max-w-[68ch] text-body text-warn">
+            {note}
+          </p>
+        )}
 
         {sub ? (
-          <p className="mt-2 text-[12.5px] leading-relaxed text-fg-muted">
+          <p className="mt-(--space-2) max-w-[68ch] text-body text-fg-muted">
             {plan.perSeat && (
               <>
                 {formatNumber(sub.seats)}{" "}
@@ -247,7 +257,7 @@ export function YourPlan() {
             {periodLine(sub)}
           </p>
         ) : (
-          <p className="mt-2 text-[12.5px] leading-relaxed text-fg-muted">
+          <p className="mt-(--space-2) max-w-[68ch] text-body text-fg-muted">
             Your account has no subscription, which is the free plan — not a
             trial of anything, and nothing has been charged.
           </p>
@@ -259,7 +269,7 @@ export function YourPlan() {
           becoming a lie somebody has to remember to delete.
         */}
         {!paying && !paymentsLive() && (
-          <p className="mt-2 text-[12.5px] leading-relaxed text-fg-muted">
+          <p className="mt-(--space-2) max-w-[68ch] text-body text-fg-muted">
             There is nothing to change it to yet, either: checkout walks the
             whole flow and charges nothing until a payment provider is switched
             on.
@@ -267,7 +277,7 @@ export function YourPlan() {
         )}
 
         {paying && (
-          <p className="mt-2 text-[12px] leading-relaxed text-fg-subtle">
+          <p className="mt-(--space-2) max-w-[68ch] text-body text-fg-subtle">
             This screen can&apos;t change or cancel it — there is no billing
             portal on this deployment. The price list is where a plan gets
             picked.

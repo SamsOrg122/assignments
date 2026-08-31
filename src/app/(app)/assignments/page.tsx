@@ -215,7 +215,7 @@ export default function AssignmentsPage() {
                 className="flex min-h-0 flex-col bg-bg md:overflow-y-auto"
               >
                 <h2 className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-bg px-3 py-2">
-                  <span className="label-mono text-fg-subtle">
+                  <span className="text-meta text-fg-subtle">
                     {STATUS_LABELS[status]}
                   </span>
                   <span className="text-[11px] text-fg-subtle">

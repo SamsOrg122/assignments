@@ -164,7 +164,7 @@ export function NewSet({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <span className="label-mono text-fg-subtle">What to learn</span>
+          <span className="text-meta text-fg-subtle">What to learn</span>
           {sources.length === 0 ? (
             <p className="mt-2 text-[12px] leading-relaxed text-fg-subtle">
               Nothing to make cards from yet. Write a note, start a document,
@@ -197,7 +197,7 @@ export function NewSet({
           )}
 
           <div className="mt-5 grid gap-1">
-            <span className="label-mono text-fg-subtle">What kind</span>
+            <span className="text-meta text-fg-subtle">What kind</span>
             <div className="flex rounded-sm border border-line p-0.5" role="group">
               {(
                 [
@@ -227,7 +227,7 @@ export function NewSet({
           </div>
 
           <label className="mt-5 grid gap-1">
-            <span className="label-mono text-fg-subtle">Roughly how many</span>
+            <span className="text-meta text-fg-subtle">Roughly how many</span>
             <input
               type="number"
               min={4}

@@ -202,7 +202,12 @@ function MenuSurface({
         }
       }}
       style={{ left, top, width: MENU_WIDTH }}
-      className="anim-pop fixed z-[70] rounded-md border border-line-strong bg-surface p-1.5 shadow-[0_24px_70px_-12px_rgba(0,0,0,0.75)] outline-none"
+      /* Case three of the container rule, and the whole reason a border can
+         still be right: this is painted over content it is not part of, the
+         line is doing physics rather than decoration, and it carries the
+         shadow. A layer takes --radius-lg; --radius-md is for an object you
+         pick up, which a menu is not. */
+      className="anim-pop fixed z-[70] rounded-lg border border-line-strong bg-surface p-1.5 shadow-[0_24px_70px_-12px_rgba(0,0,0,0.75)] outline-none"
     >
       {items.map((item, i) => {
         if (item.kind === "separator")
@@ -212,7 +217,7 @@ function MenuSurface({
           return (
             <span
               key={i}
-              className="block px-2 pt-1.5 pb-1 text-[10.5px] text-fg-subtle"
+              className="block px-2 pt-1.5 pb-1 text-meta text-fg-subtle"
             >
               {item.label}
             </span>
@@ -233,11 +238,22 @@ function MenuSurface({
               }}
               onClick={() => choose(i)}
               className={cn(
-                "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left text-[12.5px] transition-colors duration-100",
+                "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left text-body transition-colors duration-100",
                 active === i ? "bg-surface-3" : "",
+                /*
+                 * The highlighted row moves its ink as well as its fill, and
+                 * that is not a nicety. Arrowing down a menu sets `active`
+                 * without ever firing a hover, so before this the only thing
+                 * marking "you are here" for a keyboard user was surface-3 —
+                 * 1.54:1 on canvas in dark and 1.20:1 in light, under half the
+                 * 3:1 floor. No fill on this palette can carry a state by
+                 * itself; it can only reinforce one.
+                 */
                 item.kind === "item" && item.danger
                   ? "text-danger"
-                  : "text-fg-muted",
+                  : active === i
+                    ? "text-fg"
+                    : "text-fg-muted",
                 item.kind === "item" && item.disabled
                   ? "cursor-not-allowed opacity-40"
                   : "hover:text-fg",
@@ -253,7 +269,14 @@ function MenuSurface({
                 <Icon name="check" size={11} className="shrink-0 text-accent" />
               )}
               {item.kind === "item" && item.shortcut && (
-                <span className="shrink-0 font-mono text-[10px] text-fg-subtle">
+                /* Sans, though it names a key. `.kbd` is the mono survivor
+                   because it is a cap — a shape with a border, standing for a
+                   physical key. This is three characters of right-aligned
+                   hint, with no cap around it and none available: a bordered
+                   cap inside a bordered layer is the nesting the container
+                   rule forbids. Claiming the face without the shape is what
+                   .label-mono was doing, so it takes the meta step instead. */
+                <span className="shrink-0 text-meta text-fg-subtle">
                   {item.shortcut}
                 </span>
               )}
@@ -292,7 +315,7 @@ function Submenu({
   return (
     <div
       role="menu"
-      className="anim-pop absolute top-[-6px] left-full z-10 ml-0.5 max-h-[60vh] overflow-y-auto rounded-md border border-line-strong bg-surface p-1.5 shadow-[0_24px_70px_-12px_rgba(0,0,0,0.75)]"
+      className="anim-pop absolute top-[-6px] left-full z-10 ml-0.5 max-h-[60vh] overflow-y-auto rounded-lg border border-line-strong bg-surface p-1.5 shadow-[0_24px_70px_-12px_rgba(0,0,0,0.75)]"
       style={{ width: MENU_WIDTH - 16 }}
     >
       {items.map((item, i) => {
@@ -310,7 +333,7 @@ function Submenu({
               onPick();
             }}
             className={cn(
-              "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left text-[12.5px] transition-colors duration-100 hover:bg-surface-3",
+              "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left text-body transition-colors duration-100 hover:bg-surface-3",
               item.danger ? "text-danger" : "text-fg-muted hover:text-fg",
               item.disabled && "cursor-not-allowed opacity-40",
             )}

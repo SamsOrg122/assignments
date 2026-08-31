@@ -216,26 +216,26 @@ export function NoAccount({
 
   return (
     <div className="rounded-md border border-line bg-surface p-3">
-      <p className="text-[12.5px] leading-relaxed text-fg">{lead}</p>
+      <p className="text-body leading-relaxed text-fg">{lead}</p>
       {/* In this panel's own terms. `explainAccount` is written for team
           invites, and "there is no team to join" is not a smaller truth in
           front of a list of people you know — it is a false one. Same rule,
           same sentence structure, one word of it different, from the one
           place that holds both. */}
-      <p className="mt-1.5 text-[12px] leading-relaxed text-fg-muted">
+      <p className="mt-1.5 text-body leading-relaxed text-fg-muted">
         {explainFor(state, "friend").rule}
       </p>
       {state !== "no-database" && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           <Link
             href={anon ? signUp : signIn}
-            className="rounded-sm bg-accent px-2.5 py-1.5 text-[12px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+            className="rounded-sm bg-accent px-2.5 py-1.5 text-body font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
           >
             {anon ? "Add an email" : "Sign in"}
           </Link>
           <Link
             href={anon ? signIn : signUp}
-            className="rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+            className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
           >
             {anon ? "Sign in as somebody else" : "Create an account"}
           </Link>
@@ -366,7 +366,7 @@ export function FriendLinks() {
           onClick={() => void create()}
           disabled={minting}
           className={cn(
-            "rounded-sm px-2.5 py-1.5 text-[12px] font-medium transition-[filter] duration-150",
+            "rounded-sm px-2.5 py-1.5 text-body font-medium transition-[filter] duration-150",
             minting
               ? "border border-line text-fg-subtle"
               : "bg-accent text-on-accent hover:brightness-110",
@@ -378,7 +378,7 @@ export function FriendLinks() {
           value={days}
           aria-label="How long the link lives"
           onChange={(e) => setDays(Number(e.target.value))}
-          className="rounded-sm border border-line bg-surface px-2 py-1.5 text-[12px] text-fg-muted outline-none focus:border-accent"
+          className="rounded-sm border border-line bg-surface px-2 py-1.5 text-body text-fg-muted outline-none focus:border-accent"
         >
           {LIFETIMES.map((d) => (
             <option key={d} value={d} className="bg-surface">
@@ -388,13 +388,13 @@ export function FriendLinks() {
         </select>
       </div>
 
-      <p className="text-[11.5px] leading-relaxed text-fg-subtle">
+      <p className="text-meta leading-relaxed text-fg-subtle">
         A link connects one person — whoever opens it first and is signed in
         with an account. Send another for the next person.
       </p>
 
       {refusal && (
-        <p className="text-[12px] leading-relaxed text-warn">{refusal}</p>
+        <p className="text-body leading-relaxed text-warn">{refusal}</p>
       )}
 
       {fresh && (
@@ -406,18 +406,18 @@ export function FriendLinks() {
               readOnly
               aria-label="The link to send"
               onFocus={(e) => e.currentTarget.select()}
-              className="min-w-0 flex-1 rounded-sm border border-line bg-surface-2 px-2 py-1.5 font-mono text-[11px] text-fg outline-none focus:border-accent"
+              className="min-w-0 flex-1 rounded-sm border border-line bg-surface-2 px-2 py-1.5 font-mono text-body text-fg outline-none focus:border-accent"
             />
             <button
               type="button"
               onClick={() => void copy()}
-              className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+              className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
             >
               <Icon name={copied ? "check" : "copy"} size={12} />
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
-          <p className="mt-2 text-[11.5px] leading-relaxed text-fg-subtle">
+          <p className="mt-2 text-meta leading-relaxed text-fg-subtle">
             Works once, expires {formatDate(fresh.expires)}. This is the only
             time it can be shown — only a fingerprint of it is stored, so
             nobody can read it back out. Lose it and make another.
@@ -426,12 +426,12 @@ export function FriendLinks() {
       )}
 
       {!outcome ? (
-        <p className="text-[12px] text-fg-subtle" role="status">
+        <p className="text-body text-fg-subtle" role="status">
           Reading your links…
         </p>
       ) : !outcome.ok ? (
         <div className="rounded-md border border-line bg-surface p-2.5">
-          <p className="text-[12px] leading-relaxed text-warn">
+          <p className="text-body leading-relaxed text-warn">
             {outcome.reason}
           </p>
           {outcome.setup !== true && (
@@ -439,7 +439,7 @@ export function FriendLinks() {
               type="button"
               onClick={() => void reload()}
               disabled={busy}
-              className="mt-2 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-40"
+              className="mt-2 rounded-sm border border-line px-2 py-1 text-meta text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-40"
             >
               {busy ? "Trying…" : "Try again"}
             </button>
@@ -461,10 +461,10 @@ export function FriendLinks() {
                 )}
               />
               <span className="min-w-0 flex-1">
-                <span className="block text-[11.5px] text-fg-muted">
+                <span className="block text-meta text-fg-muted">
                   Made {formatDate(link.createdAt)}
                 </span>
-                <span className="block text-[11px] text-fg-subtle">
+                <span className="block text-meta text-fg-subtle">
                   {lifeLine(link)} · {usesLine(link)}
                 </span>
               </span>
@@ -473,12 +473,12 @@ export function FriendLinks() {
                   type="button"
                   onClick={() => void revoke(link)}
                   aria-label={`Revoke the link made ${formatDate(link.createdAt)}`}
-                  className="rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                  className="rounded-sm border border-line px-2 py-1 text-meta text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
                 >
                   Revoke
                 </button>
               ) : (
-                <span className="rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-subtle">
+                <span className="rounded-sm border border-line px-2 py-1 text-meta text-fg-subtle">
                   {link.status === "used-up" ? "used" : link.status}
                 </span>
               )}
@@ -488,7 +488,7 @@ export function FriendLinks() {
       )}
 
       {outcome?.ok && outcome.value.length > 0 && (
-        <p className="text-[11.5px] leading-relaxed text-fg-subtle">
+        <p className="text-meta leading-relaxed text-fg-subtle">
           Every link is listed, dead ones included — whether the one you sent
           was ever opened is as much the question as who can still use it.
         </p>
@@ -576,13 +576,13 @@ function PersonRow({
       <span className="min-w-0 flex-1">
         <span
           className={cn(
-            "block truncate text-[12.5px]",
+            "block truncate text-body",
             chosenName(friend) ? "text-fg" : "text-fg-subtle",
           )}
         >
           {friendName(friend)}
         </span>
-        <span className="block text-[11px] text-fg-subtle">
+        <span className="block text-meta text-fg-subtle">
           connected {formatDate(friend.since)}
         </span>
         {/* Said plainly rather than hidden: there is nothing either of you can
@@ -590,12 +590,12 @@ function PersonRow({
             the person who should know that is the one looking at the row.
             Said only when it has been read, though — see `accountOf`. */}
         {account === "none" && (
-          <span className="block text-[11px] leading-relaxed text-warn">
+          <span className="block text-meta leading-relaxed text-warn">
             no account — this goes when their browser is cleared
           </span>
         )}
         {account === "unknown" && (
-          <span className="block text-[11px] leading-relaxed text-fg-subtle">
+          <span className="block text-meta leading-relaxed text-fg-subtle">
             their profile couldn&apos;t be read, so whether they have an
             account is unknown
           </span>
@@ -608,14 +608,14 @@ function PersonRow({
             type="button"
             onClick={() => void remove()}
             disabled={working}
-            className="rounded-sm border border-line px-2 py-1 text-[11.5px] text-warn transition-colors duration-150 hover:border-line-strong disabled:opacity-40"
+            className="rounded-sm border border-line px-2 py-1 text-meta text-warn transition-colors duration-150 hover:border-line-strong disabled:opacity-40"
           >
             {working ? "Removing…" : "Remove"}
           </button>
           <button
             type="button"
             onClick={() => setAsking(false)}
-            className="rounded-sm px-1.5 py-1 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:text-fg"
+            className="rounded-sm px-1.5 py-1 text-meta text-fg-subtle transition-colors duration-150 hover:text-fg"
           >
             Keep
           </button>
@@ -625,7 +625,7 @@ function PersonRow({
           type="button"
           onClick={() => setAsking(true)}
           aria-label={`Remove ${friendName(friend)}`}
-          className="shrink-0 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+          className="shrink-0 rounded-sm border border-line px-2 py-1 text-meta text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
         >
           Remove
         </button>
@@ -649,7 +649,7 @@ export function Friends({ className }: { className?: string }) {
   return (
     <section aria-label="People" className={cn("flex flex-col gap-2.5", className)}>
       <div className="flex items-center justify-between gap-2">
-        <span className="label-mono">People</span>
+        <span className="text-meta text-fg-subtle">People</span>
         {/*
          * Somebody opening a link you sent changes this list from another
          * browser, and nothing pushes that here. Rather than poll — a query
@@ -671,7 +671,7 @@ export function Friends({ className }: { className?: string }) {
       </div>
 
       {!settled || state === null ? (
-        <p className="text-[12px] text-fg-subtle" role="status">
+        <p className="text-body text-fg-subtle" role="status">
           Checking this browser…
         </p>
       ) : !ready ? (
@@ -680,12 +680,12 @@ export function Friends({ className }: { className?: string }) {
           state={state}
         />
       ) : !outcome ? (
-        <p className="text-[12px] text-fg-subtle" role="status">
+        <p className="text-body text-fg-subtle" role="status">
           Reading your people…
         </p>
       ) : !outcome.ok ? (
         <div className="rounded-md border border-line bg-surface p-2.5">
-          <p className="text-[12px] leading-relaxed text-warn">
+          <p className="text-body leading-relaxed text-warn">
             {outcome.reason}
           </p>
           {outcome.setup !== true && (
@@ -693,7 +693,7 @@ export function Friends({ className }: { className?: string }) {
               type="button"
               onClick={() => void reload()}
               disabled={busy}
-              className="mt-2 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-40"
+              className="mt-2 rounded-sm border border-line px-2 py-1 text-meta text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-40"
             >
               {busy ? "Trying…" : "Try again"}
             </button>
@@ -702,7 +702,7 @@ export function Friends({ className }: { className?: string }) {
       ) : (
         <>
           {outcome.value.length === 0 ? (
-            <p className="text-[12px] leading-relaxed text-fg-muted">
+            <p className="text-body leading-relaxed text-fg-muted">
               You are not connected to anybody yet. Send somebody a link and
               they appear here — and in the list of people you can message.
             </p>

@@ -106,7 +106,7 @@ export function TemplatePicker({
             className="rounded-md border border-line bg-surface p-3 text-left transition-colors duration-150 hover:border-line-strong"
           >
             <Head kind={template.kind} name={template.name} />
-            <span className="mt-1 block text-[11.5px] leading-snug text-fg-subtle">
+            <span className="mt-1 block text-meta leading-snug text-fg-subtle">
               {template.blurb}
             </span>
             <Outline sections={template.outline} />
@@ -130,8 +130,8 @@ function Group({
     <section className="mb-4 last:mb-0">
       {title && (
         <>
-          <p className="label-mono mb-1">{title}</p>
-          <p className="mb-2 text-[11.5px] leading-snug text-fg-subtle">{note}</p>
+          <p className="text-meta text-fg-subtle mb-1">{title}</p>
+          <p className="mb-2 text-meta leading-snug text-fg-subtle">{note}</p>
         </>
       )}
       <div className="grid gap-2 sm:grid-cols-2">{children}</div>
@@ -154,7 +154,7 @@ function SavedCard({
     >
       <Head kind={template.kind} name={template.name} />
       {template.blurb && (
-        <span className="mt-1 block text-[11.5px] leading-snug text-fg-subtle">
+        <span className="mt-1 block text-meta leading-snug text-fg-subtle">
           {template.blurb}
         </span>
       )}
@@ -166,7 +166,7 @@ function SavedCard({
 const Head = ({ kind, name }: { kind: ProjectKind; name: string }) => (
   <span className="flex items-center gap-2">
     <Icon name={KINDS[kind].icon} size={12} className="text-fg-subtle" />
-    <span className="text-[13px] font-medium text-fg">{name}</span>
+    <span className="text-body font-medium text-fg">{name}</span>
     <span className="ml-auto font-mono text-[10px] text-fg-subtle">
       {KINDS[kind].label}
     </span>

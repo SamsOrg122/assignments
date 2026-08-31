@@ -140,7 +140,7 @@ export function AvatarPicker({
     <div className="flex flex-col gap-3">
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="label-mono">Animated</span>
+          <span className="text-meta text-fg-subtle">Animated</span>
           <span className="flex items-center gap-1" role="radiogroup" aria-label="Colour">
             {AVATAR_COLOR_ORDER.map((c) => (
               <button
@@ -184,7 +184,7 @@ export function AvatarPicker({
       </div>
 
       <div>
-        <span className="label-mono mb-1.5 block">Shapes</span>
+        <span className="text-meta text-fg-subtle mb-1.5 block">Shapes</span>
         <div className="flex flex-wrap gap-1">
           {AVATAR_SHAPES.map((g) => (
             <button
@@ -202,7 +202,7 @@ export function AvatarPicker({
       </div>
 
       <div>
-        <span className="label-mono mb-1.5 block">Emoji</span>
+        <span className="text-meta text-fg-subtle mb-1.5 block">Emoji</span>
         <div className="flex flex-wrap gap-1">
           {AVATAR_EMOJI.map((g) => (
             <button

@@ -13,6 +13,19 @@
  * otherwise is worse than no UI at all. The invite link that used to sit two
  * rows above it was the opposite kind of control, and it is gone — the note
  * where it stood says why.
+ *
+ * NOTHING BORDERED INSIDE SOMETHING BORDERED. A dialog is a layer floating
+ * above the page, which is one of the three things a border is allowed to
+ * mean — so the dialog keeps its edge and everything inside it gives one up.
+ * That was the member list's box and the rule under every row in it, the
+ * latch's card, and the honest-caveat box nested a third deep inside both of
+ * those. The inputs keep their borders and always will: a field is the shape
+ * your text goes inside, and that is the first of the three cases.
+ *
+ * What replaces them is space and ink. The latch is a region, so it gets a
+ * heading and `--space-5` of air; the caveat is the most important sentence
+ * on this panel and is now carried by warn ink at reading size instead of by
+ * a tinted box around 11px type, which is more of it and not less.
  */
 
 import { useState } from "react";
@@ -122,22 +135,23 @@ export function ChannelSettings({
 
       {/* ── Members ── */}
       <Row label={`Members · ${channel.memberIds.length}`}>
-        <ul className="flex flex-col rounded-sm border border-line">
-          <li className="flex items-center gap-2.5 border-b border-line px-2.5 py-2 last:border-b-0">
+        {/* A row in a list is not an object you pick up — it already has the
+            list to belong to. Alignment is what makes these read as one thing:
+            every avatar, name and control starts at the same x. */}
+        <ul className="flex flex-col gap-(--space-2)">
+          <li className="flex items-center gap-2.5">
             <Avatar id={LOCAL_USER.id} />
-            <span className="flex-1 text-[12.5px] text-fg">
-              {LOCAL_USER.name}
-            </span>
-            <span className="text-[11px] text-fg-subtle">you</span>
+            <span className="flex-1 text-body text-fg">{LOCAL_USER.name}</span>
+            <span className="text-meta text-fg-subtle">you</span>
           </li>
           {members.map((id) => (
             <li
               key={id}
               data-member={id}
-              className="flex items-center gap-2.5 border-b border-line px-2.5 py-2 last:border-b-0"
+              className="flex items-center gap-2.5"
             >
               <Avatar id={id} />
-              <span className="flex-1 truncate text-[12.5px] text-fg-muted">
+              <span className="flex-1 truncate text-body text-fg-muted">
                 {personById(id).name}
               </span>
               {!isDM && (
@@ -161,7 +175,7 @@ export function ChannelSettings({
           hint="The people you're connected to. Adding somebody puts them in this list in your browser — it doesn't tell them, and they can't read the channel until chat syncs."
         >
           {!friends ? (
-            <p className="text-[12px] text-fg-subtle" role="status">
+            <p className="text-body text-fg-subtle" role="status">
               Reading your people…
             </p>
           ) : !friends.ok ? (
@@ -170,14 +184,14 @@ export function ChannelSettings({
             // Anything else did go wrong, and gets the warning colour.
             <p
               className={cn(
-                "text-[12px] leading-relaxed",
+                "text-body",
                 friends.setup ? "text-fg-subtle" : "text-warn",
               )}
             >
               {friends.reason}
             </p>
           ) : candidates.length === 0 ? (
-            <p className="text-[12px] leading-relaxed text-fg-subtle">
+            <p className="text-body text-fg-subtle">
               {friends.value.length === 0
                 ? "You're not connected to anybody yet, so there's nobody to add. Connect somebody first, from Message someone on the chat rail — that link connects the two of you, which is what puts a name in this list."
                 : "Everybody you're connected to is already in this channel."}
@@ -194,7 +208,7 @@ export function ChannelSettings({
                       addMembers(channel.id, [person.userId]);
                       notify(`${name} added to #${channel.name} — in this browser`);
                     }}
-                    className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-[12px] text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
+                    className="flex items-center gap-1.5 rounded-sm bg-surface-2 px-2 py-1 text-body text-fg-muted transition-colors hover:text-fg"
                   >
                     <Icon name="plus" size={10} />
                     {name}
@@ -230,13 +244,13 @@ export function ChannelSettings({
             would be the same lie in a new place.
           */}
           <Row label="Getting somebody in">
-            <p className="text-[12px] leading-relaxed text-fg-subtle">
+            <p className="text-body text-fg-subtle">
               There is no link to this channel to send. It is kept in your
               browser, so this room&apos;s address opens nothing on anybody
               else&apos;s machine. Adding people above is the only way in, and
               it reaches them once chat syncs.
             </p>
-            <p className="mt-2 text-[12px] leading-relaxed text-fg-subtle">
+            <p className="mt-(--space-2) text-body text-fg-subtle">
               The invitation that does work is for the workspace:{" "}
               <Link href="/team#join" className="underline hover:text-fg">
                 members and invites
@@ -248,7 +262,7 @@ export function ChannelSettings({
           </Row>
 
           {/* ── The latch ── */}
-          <div className="mb-4 rounded-md border border-line bg-surface-2 p-3.5">
+          <div className="mt-(--space-5) mb-(--space-5)">
             <div className="flex items-start gap-2.5">
               <Icon
                 name="focus"
@@ -256,10 +270,10 @@ export function ChannelSettings({
                 className={cn("mt-0.5 shrink-0", closed ? "text-accent" : "text-fg-subtle")}
               />
               <div className="min-w-0 flex-1">
-                <p className="text-[12.5px] font-medium text-fg">
+                <p className="text-object text-fg">
                   {closed ? "Closed group" : "Open to the workspace"}
                 </p>
-                <p className="mt-1 text-[11.5px] leading-relaxed text-fg-muted text-pretty">
+                <p className="mt-(--space-1) text-body text-fg-muted text-pretty">
                   {closed
                     ? "People need the passcode the first time they open this channel."
                     : "Anyone in the workspace can open this channel."}
@@ -270,7 +284,13 @@ export function ChannelSettings({
                   Promising privacy we can't deliver would be the worst thing
                   on this screen.
                 */}
-                <p className="mt-2 flex items-start gap-1.5 rounded-sm border border-warn/25 bg-warn/10 px-2 py-1.5 text-[11px] leading-relaxed text-warn">
+                {/* The caveat carries itself: warn ink at reading size, with
+                    the glyph beside it. It used to be 11px inside a tinted,
+                    bordered box nested two containers deep — a treatment that
+                    made the one true sentence on the panel the smallest thing
+                    on it. No fill is doing the work here, which is as well:
+                    none of surface, surface-2 or surface-3 clears 3:1. */}
+                <p className="mt-(--space-3) flex items-start gap-1.5 text-body text-warn">
                   <Icon name="focus" size={10} className="mt-0.5 shrink-0" />
                   A passcode keeps this group out of the way, not out of reach.
                   Messages aren&apos;t encrypted, and the code is checked in
@@ -278,7 +298,7 @@ export function ChannelSettings({
                   read this channel. Real access control needs the server.
                 </p>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className="mt-(--space-3) flex flex-wrap items-center gap-2">
                   <input
                     type="password"
                     value={code}
@@ -311,7 +331,7 @@ export function ChannelSettings({
                   )}
                 </div>
                 {code.trim().length > 0 && code.trim().length < 4 && (
-                  <p className="mt-1.5 text-[11px] text-fg-subtle">
+                  <p className="mt-(--space-2) text-body text-fg-subtle">
                     At least four characters.
                   </p>
                 )}
@@ -319,7 +339,7 @@ export function ChannelSettings({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
+          <div className="mt-(--space-5) flex flex-wrap items-center gap-2">
             <Button
               onClick={() => {
                 setArchived(channel.id, !channel.archived);
@@ -354,7 +374,7 @@ function Avatar({ id }: { id: string }) {
   return (
     <span
       aria-hidden="true"
-      className="grid size-6 shrink-0 place-items-center rounded-full font-mono text-[9px] font-medium"
+      className="grid size-6 shrink-0 place-items-center rounded-full text-meta font-medium"
       style={{
         background: `${person.color}22`,
         color: person.color,

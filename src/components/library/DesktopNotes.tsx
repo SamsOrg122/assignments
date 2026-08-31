@@ -17,7 +17,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
-import { cn } from "@/lib/cn";
+import { useMenu } from "@/components/ui/Menu";
+import { RowMenuButton } from "@/components/ui/RowMenuButton";
 import { formatDateTime } from "@/lib/format";
 import {
   deleteNote,
@@ -29,6 +30,10 @@ import {
 } from "@/lib/db/notes";
 
 export function DesktopNotes() {
+  // A note is the one row on this page that reached its destructive action
+  // through a button of its own rather than through the ⋯ every other object
+  // here uses. One home per action; this is that home.
+  const menu = useMenu();
   const [notes, setNotes] = useState<Note[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -103,36 +108,43 @@ export function DesktopNotes() {
   };
 
   return (
+    /* This was a bordered, filled panel holding a bordered, filled list of
+       rows — the page's only three-deep nest, and all of it drawn to say
+       "these notes belong together", which a label and 40px of air say
+       without any lines at all. */
     <section
-      className="mb-4 rounded-md border border-line bg-surface p-2.5"
+      className="mb-(--space-5)"
       aria-labelledby="desktop-notes-heading"
       data-desktop-notes
     >
-      <div className="mb-2 flex items-center gap-2">
+      {menu.node}
+      <div className="mb-(--space-3) flex items-center gap-2">
         <Icon name="focus" size={12} className="shrink-0 text-fg-subtle" />
-        <h2 id="desktop-notes-heading" className="label-mono">
+        <h2 id="desktop-notes-heading" className="text-meta text-fg-subtle">
           Notes
         </h2>
-        <span className="text-[11px] text-fg-subtle">
+        <span className="text-meta text-fg-subtle">
           from the floating note on your desktop
         </span>
         {/* This strip is a convenience where the work is; the page is where
-            notes are explained, managed and downloaded. */}
+            notes are explained, managed and downloaded. `text-accent` is for
+            links whose position does not already say they are links; this one
+            sits at the end of a row of words, where it plainly does. */}
         <Link
           href="/notes"
-          className="ml-auto text-[11px] text-accent hover:underline"
+          className="ml-auto text-meta text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg"
         >
           All notes
         </Link>
       </div>
 
-      {/* Rows on a divider rather than cards in a stack. Each note was a
-          bordered box with its own background, which made two notes taller
-          than the six documents underneath them — an arrival notice outweighing
-          the thing it interrupts. */}
-      <ul className="divide-y divide-line">
+      {/* Rows on air rather than on a divider. Each note was a bordered box
+          with its own background, then a row on a hairline; a gap says the
+          same thing and says it without an edge — an arrival notice should
+          not outweigh the work it interrupts. */}
+      <ul className="grid gap-(--space-3)">
         {notes.map((note) => (
-          <li key={note.id} className="group px-0.5 py-1.5">
+          <li key={note.id} className="group relative">
             {open === note.id ? (
               <div className="grid gap-2">
                 <label className="grid gap-1">
@@ -142,13 +154,19 @@ export function DesktopNotes() {
                     rows={5}
                     autoFocus
                     onChange={(e) => setDraft(e.target.value)}
-                    className="w-full resize-y rounded-sm border border-line bg-surface px-2 py-1.5 text-sm"
+                    className="w-full resize-y rounded-sm border border-line bg-surface px-2 py-1.5 text-body"
                   />
                 </label>
                 <div className="flex items-center gap-2">
+                  {/* Two abutting controls, so a fill may stand in for the
+                      border they both lose — but never alone: surface-2 is
+                      1.08:1 on canvas in light, so weight and ink say which
+                      one is the act and the fill only reinforces it. The
+                      filled accent on this screen is New document, and there
+                      is exactly one of it. */}
                   <button
                     type="button"
-                    className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
+                    className="rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-fg transition-colors duration-150 hover:bg-surface-3 disabled:opacity-60"
                     disabled={busy}
                     onClick={() => void save()}
                   >
@@ -156,18 +174,18 @@ export function DesktopNotes() {
                   </button>
                   <button
                     type="button"
-                    className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                    className="rounded-sm bg-surface-2 px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:text-fg"
                     onClick={() => setOpen(null)}
                   >
                     Cancel
                   </button>
-                  <span className="ml-auto text-[11px] text-fg-subtle">
+                  <span className="ml-auto text-meta text-fg-subtle">
                     Your desktop app picks this up within a minute.
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2 pr-8">
                 <button
                   type="button"
                   className="min-w-0 flex-1 text-left"
@@ -176,35 +194,50 @@ export function DesktopNotes() {
                     setDraft(note.body);
                   }}
                 >
-                  <span className="block truncate text-[13.5px]">
+                  <span className="block truncate text-body text-fg">
                     {titleOf(note) || "Empty note"}
                   </span>
-                  <span className="mt-0.5 flex gap-2 text-[11px] text-fg-subtle">
-                    <span className="min-w-0 flex-1 truncate">
-                      {previewOf(note)}
-                    </span>
+                  {/* One line, both facts, next to each other. They were a
+                      truncating preview pinned left and a timestamp pinned
+                      right, which on a 1400px row put the note's own date 800
+                      pixels from the note. Same two facts, same order, one
+                      glance. */}
+                  <span className="mt-(--space-1) flex min-w-0 gap-1 text-meta text-fg-subtle">
+                    {/* A one-line note has no preview, and a separator with
+                        nothing on its left reads as a typo. */}
+                    {previewOf(note) && (
+                      <>
+                        <span className="min-w-0 truncate">{previewOf(note)}</span>
+                        <span aria-hidden="true">·</span>
+                      </>
+                    )}
                     <span className="shrink-0">
                       {formatDateTime(note.updatedAt)}
                     </span>
                   </span>
                 </button>
-                {/* Shown on hover and on keyboard focus, always present below
-                    1024 where there is no hover to reveal it. Two permanent
-                    Delete buttons at the top of the page is a destructive act
-                    given the most prominent placement on the screen, next to
-                    the two things it destroys. */}
-                <button
-                  type="button"
-                  className={cn(
-                    "shrink-0 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted",
-                    "transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-60",
-                    "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-[1024px]:opacity-100",
-                  )}
-                  disabled={busy}
-                  onClick={() => void remove(note)}
-                >
-                  Delete
-                </button>
+                {/* Delete keeps every word, every guard and every behaviour it
+                    had — it has moved into the ⋯ that every other object on
+                    this page already reaches its destructive action through.
+                    RowMenuButton is still shown on hover and on keyboard
+                    focus and is always present below 1024 where there is no
+                    hover to reveal it, so nothing became unreachable. */}
+                <RowMenuButton
+                  label={`More for ${titleOf(note) || "Empty note"}`}
+                  onOpen={(event: React.MouseEvent) =>
+                    menu.open(event, [
+                      {
+                        kind: "item",
+                        label: "Delete",
+                        icon: "trash",
+                        danger: true,
+                        disabled: busy,
+                        onSelect: () => void remove(note),
+                      },
+                    ])
+                  }
+                  className="top-0 right-0 translate-y-0"
+                />
               </div>
             )}
           </li>
@@ -212,7 +245,7 @@ export function DesktopNotes() {
       </ul>
 
       {problem ? (
-        <p className="mt-2 text-[11px] text-warn" role="alert">
+        <p className="mt-(--space-2) text-meta text-warn" role="alert">
           {problem}
         </p>
       ) : null}

@@ -42,13 +42,13 @@ export function Dictionary() {
           }}
           placeholder="A word the checker keeps flagging"
           aria-label="Add a word"
-          className="min-w-0 flex-1 rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
+          className="min-w-0 flex-1 rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-body text-fg outline-none focus:border-accent"
         />
         <button
           type="button"
           onClick={commit}
           disabled={!draft.trim()}
-          className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-50"
+          className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-50"
         >
           Add
         </button>
@@ -58,7 +58,7 @@ export function Dictionary() {
         <ul className="flex flex-wrap gap-1.5">
           {words.map((word) => (
             <li key={word}>
-              <span className="flex items-center gap-1.5 rounded-sm border border-line bg-surface px-2 py-1 text-[12px] text-fg-muted">
+              <span className="flex items-center gap-1.5 rounded-sm border border-line bg-surface px-2 py-1 text-body text-fg-muted">
                 {word}
                 <button
                   type="button"
@@ -74,7 +74,7 @@ export function Dictionary() {
         </ul>
       )}
 
-      <p className="text-[12px] leading-relaxed text-fg-subtle">
+      <p className="text-body leading-relaxed text-fg-subtle">
         These reach the assistant, not the browser. No web API can add a word to
         the browser&rsquo;s own spellchecker, so the red underline stays — use
         the browser&rsquo;s &ldquo;add to dictionary&rdquo; for that. The

@@ -15,6 +15,17 @@ export function TopBar({
 
   return (
     <header
+      /*
+       * The one rule this bar draws, and it stays.
+       *
+       * A sticky heading does not earn a line — what stops content showing
+       * through a sticky heading is its bg-canvas. This is not that. It is
+       * permanent furniture the page scrolls past, which is the ceiling case,
+       * and its ground is deliberately bg-canvas/85 under a blur, so content
+       * *does* show through. The line is the only thing telling you where the
+       * page stops and the chrome starts while a document slides underneath
+       * it. Make the ground opaque and this border should go with it.
+       */
       className={cn(
         "sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 px-3 sm:px-4",
         "border-b border-line bg-canvas/85 backdrop-blur-md print:hidden",

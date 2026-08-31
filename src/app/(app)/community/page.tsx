@@ -130,7 +130,7 @@ export default function CommunityPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-[980px] px-5 py-8 sm:px-8 sm:py-12">
           <div className="mb-8">
-            <p className="label-mono mb-2.5">From everyone, for everyone</p>
+            <p className="text-meta text-fg-subtle mb-2.5">From everyone, for everyone</p>
             <h1 className="max-w-[26ch] text-[26px] leading-[1.15] font-medium tracking-[-0.03em] text-fg sm:text-[32px]">
               Ideas, designs and templates.
               <span className="text-fg-subtle"> Take what helps.</span>

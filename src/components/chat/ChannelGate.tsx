@@ -50,11 +50,11 @@ export function ChannelGate({ channel }: { channel: Channel }) {
           #{channel.name} is a closed group
         </h1>
         {channel.description ? (
-          <p className="mt-2 text-[13px] leading-relaxed text-fg-muted text-pretty">
+          <p className="mt-2 text-body leading-relaxed text-fg-muted text-pretty">
             {channel.description}
           </p>
         ) : (
-          <p className="mt-2 text-[13px] text-fg-muted">
+          <p className="mt-2 text-body text-fg-muted">
             {channel.topic ?? "Enter the passcode to join."}
           </p>
         )}
@@ -85,12 +85,12 @@ export function ChannelGate({ channel }: { channel: Channel }) {
         </form>
 
         {wrong && (
-          <p className="anim-fade mt-2 text-[12px] text-danger">
+          <p className="anim-fade mt-2 text-body text-danger">
             That code doesn&apos;t match. Ask someone already in the group.
           </p>
         )}
 
-        <p className="mt-6 text-[11px] leading-relaxed text-fg-subtle text-pretty">
+        <p className="mt-6 text-meta leading-relaxed text-fg-subtle text-pretty">
           The code is checked in your browser and the messages aren&apos;t
           encrypted, so this keeps the group out of the way rather than out of
           reach.

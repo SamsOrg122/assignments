@@ -73,14 +73,14 @@ export function SaveAsTemplate({
             type="button"
             disabled={busy}
             onClick={submit}
-            className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
+            className="rounded-sm bg-accent px-2.5 py-1.5 text-body font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
           >
             {busy ? "Publishing…" : "Save it"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+            className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
           >
             Cancel
           </button>
@@ -89,24 +89,24 @@ export function SaveAsTemplate({
     >
       <div className="flex flex-col gap-2.5">
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-fg-subtle">Name</span>
+          <span className="text-meta text-fg-subtle">Name</span>
           <input
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
+            className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-body text-fg outline-none focus:border-accent"
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-fg-subtle">
+          <span className="text-meta text-fg-subtle">
             What it is for — one line, shown in the picker
           </span>
           <input
             value={blurb}
             onChange={(e) => setBlurb(e.target.value)}
             placeholder="Monthly report, with the approvals table"
-            className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
+            className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-body text-fg outline-none focus:border-accent"
           />
         </label>
 
@@ -118,9 +118,9 @@ export function SaveAsTemplate({
             onChange={(e) => setShare(e.target.checked)}
             className="mt-0.5"
           />
-          <span className="text-[12.5px] leading-relaxed text-fg-muted">
+          <span className="text-body leading-relaxed text-fg-muted">
             Share it with everyone in the workspace
-            <span className="mt-0.5 block text-[11.5px] text-fg-subtle">
+            <span className="mt-0.5 block text-meta text-fg-subtle">
               {configured
                 ? "Needs an admin — the database refuses it otherwise, and will say so. Everyone means everyone the database counts as a member of this workspace; the app has no way to invite somebody into one yet, so today that is whoever was added there directly."
                 : "Not available: no database is configured, so there is no shared workspace to publish to. It will be saved in this browser."}
@@ -130,7 +130,7 @@ export function SaveAsTemplate({
 
         {problem && (
           <p
-            className="rounded-sm border border-warn/35 bg-warn/[0.07] p-2.5 text-[12.5px] leading-relaxed text-fg-muted"
+            className="rounded-sm border border-warn/35 bg-warn/[0.07] p-2.5 text-body leading-relaxed text-fg-muted"
             role="alert"
           >
             Saved here, but not published: {problem}

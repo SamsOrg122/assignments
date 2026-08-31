@@ -12,16 +12,24 @@
  * to `respondWith` for a navigation is a network error rather than a page.
  *
  * Top to bottom the page is: anything actually wrong, then anything that
- * arrived while you were away, then where you were, then what is due, then
- * the work itself, then the shelf of rooms that are not projects. Each band
- * above the grid hides when it has nothing to say — which is only safe
- * because the shelf at the bottom never does.
+ * arrived while you were away, then what is due, then the work itself — which
+ * is also where you were, because the default order is most recent first —
+ * then the shelf of rooms that are not projects. Each band above the grid
+ * hides when it has nothing to say, which is only safe because the shelf at
+ * the bottom never does.
  *
- * Rows rather than a card grid for the work itself: a library is for scanning
- * names quickly, and rows fit far more on screen without shrinking the type.
- * The cards are the six-item band at the top, which is a different job.
- * Filtering is client-side over the same fuzzy matcher the palette uses, so
- * search here and search in ⌘K rank identically.
+ * "Where was I" used to be a second band of six cards above the grid. It
+ * rendered the same five projects, in the same order, at the same addresses,
+ * in a different card shape — the work competing with itself, and the eye
+ * unable to tell which of the two lists was the real one. It is now a label
+ * on the grid, shown while the grid is still in the order that makes the
+ * label true; see PickUpWhere.
+ *
+ * Cards rather than rows for the work itself: a row that spans 1400 pixels
+ * puts the name at one end and the date at the other, and the eye has to
+ * travel the width of a monitor to pair them up. Filtering is client-side
+ * over the same fuzzy matcher the palette uses, so search here and search in
+ * ⌘K rank identically.
  */
 
 import { useMemo, useState } from "react";
@@ -63,6 +71,25 @@ import { Shelf } from "@/components/library/Shelf";
 
 type Sort = "recent" | "name" | "kind";
 
+/**
+ * Every secondary door on this page — the team panel's two, the empty state's
+ * three — wears this one shape: an underlined word in the sentence that
+ * explains it.
+ *
+ * They were filled and outlined buttons, which put three button shapes and two
+ * filled accents on a screen whose one filled accent is New document. Nothing
+ * moved and nothing lost its words; they stopped shouting over the answer.
+ */
+const DOOR =
+  "underline decoration-line-strong underline-offset-2 transition-colors duration-150 hover:text-fg";
+
+/** Sentence case, sans, in the page's own voice — these were mono capitals. */
+const SORT_LABEL: Record<Sort, string> = {
+  recent: "Recent",
+  name: "Name",
+  kind: "Kind",
+};
+
 export default function LibraryPage() {
   const allProjects = useProjects((s) => s.projects);
   const folders = useProjects((s) => s.folders);
@@ -88,6 +115,19 @@ export default function LibraryPage() {
   const [sort, setSort] = useState<Sort>("recent");
   const [folder, setFolder] = useState<string | null>(null);
   const [labels, setLabels] = useState<string[]>([]);
+
+  /*
+   * True while the grid is still the answer to "where was I": default order,
+   * nothing typed, nothing filtered. The moment any of those moves the grid
+   * stops being a recency list and the label above it stops being true — so
+   * the label goes and the grid is just the grid.
+   */
+  const arrival =
+    sort === "recent" &&
+    !query.trim() &&
+    kind === "all" &&
+    folder === null &&
+    labels.length === 0;
 
   /* The same callbacks and dialogs the sidebar uses. Both lists show your
      projects; both menus should be the same menu. */
@@ -167,7 +207,7 @@ export default function LibraryPage() {
       )}
 
       <TopBar>
-        <span className="text-[13px] font-medium text-fg">Library</span>
+        <span className="text-body font-medium text-fg">Library</span>
       </TopBar>
 
       <main className="flex-1 overflow-y-auto">
@@ -192,7 +232,7 @@ export default function LibraryPage() {
             * screen, which is what the keep-prompt had to stop doing. Scrolled
             * down, ⌘K makes anything in one keystroke.
             */}
-          <div className="mb-7 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+          <div className="mb-(--space-6) flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             {/*
               * A heading, not a headline.
               *
@@ -205,14 +245,22 @@ export default function LibraryPage() {
               * the useful thing is what is in the room and how much of it.
               */}
             <div className="min-w-0">
-              <h1 className="text-[24px] leading-tight font-medium tracking-[-0.03em] text-fg sm:text-[26px]">
+              {/* One `text-title` per screen, and the clamp is why there is no
+                  `sm:` variant any more: 24px on a phone, 30px on a monitor,
+                  from one class. */}
+              <h1 className="text-title text-fg">
                 {world === "team" ? "The team's work" : "Your work"}
               </h1>
-              <p className="mt-1.5 text-[13px] text-fg-muted">
-                {projects.length === 0
-                  ? "Nothing here yet."
-                  : `${formatNumber(projects.length)} ${projects.length === 1 ? "thing" : "things"}, newest first.`}
-              </p>
+              {/* Only when there is something to count. With an empty
+                  library the panel below already says "Nothing here yet." and
+                  says it where somebody can act on it; a subtitle repeating
+                  it under the title is the same sentence twice on one
+                  screen. */}
+              {projects.length > 0 && (
+                <p className="mt-(--space-1) text-body text-fg-muted">
+                  {`${formatNumber(projects.length)} ${projects.length === 1 ? "thing" : "things"}, newest first.`}
+                </p>
+              )}
             </div>
             <NewProjectButton
               onCreate={create}
@@ -235,27 +283,30 @@ export default function LibraryPage() {
              * personal; the page now agrees with it and shows their work
              * underneath. Both doors keep their words and their addresses.
              */
-            <div className="hairline mb-6 rounded-lg bg-surface px-6 py-14 text-center">
-              <p className="display text-[19px] text-fg">No team yet.</p>
-              <p className="mx-auto mt-2 max-w-[46ch] text-[13px] leading-relaxed text-fg-muted">
+            /* No card and no fill. This is a region, not an object you can
+               pick up, and `.display` is the storefront's serif — the one
+               place the app was importing a face that belongs to the page
+               where somebody is still deciding whether to use this at all.
+               Both doors keep their words and their addresses; they are text
+               links because the filled control on this screen is New
+               document, and it is on screen from here. */
+            <div className="mb-(--space-6) max-w-[52ch]">
+              <p className="text-object text-fg">No team yet.</p>
+              <p className="mt-(--space-1) max-w-[46ch] text-body text-fg-muted">
                 Team documents live in a team: everyone in it sees this
                 library, and everything made here is the team&rsquo;s. Your own
                 work stays under Personal.
               </p>
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                <Link
-                  href="/pricing"
-                  className="rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
-                >
+              <p className="mt-(--space-3) text-body text-fg-muted">
+                <Link href="/pricing" className={DOOR}>
                   Create a team
                 </Link>
-                <Link
-                  href="/team#join"
-                  className="rounded-sm border border-line px-3 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-                >
+                {", or "}
+                <Link href="/team#join" className={DOOR}>
                   Join a team
                 </Link>
-              </div>
+                .
+              </p>
             </div>
           )}
 
@@ -274,15 +325,6 @@ export default function LibraryPage() {
           <ReturnedNotes />
           <DesktopNotes />
 
-          {/* Above the deadlines on purpose: "where was I" is the question
-              somebody opens this page with, and the sidebar no longer answers
-              it. Renders nothing until there are two projects. */}
-          <PickUpWhere
-            projects={projects}
-            showTime={hydrated}
-            onMenu={openMenu}
-          />
-
           {/* Deadlines, on the page people actually land on. Renders nothing
               when nothing is due inside a fortnight. */}
           <DueSoon />
@@ -294,7 +336,12 @@ export default function LibraryPage() {
           {/* Where things live. Hidden entirely until there is something to
               show, so a small workspace keeps the plain list it had. */}
           {(folders.length > 0 || projects.length >= 8) && (
-            <div className="mb-4 rounded-md border border-line bg-surface p-2.5">
+            /* A label and air, not a tray. A rail of folders is a region —
+               you cannot type into it, pick it up or float it over anything —
+               so under the container rule it gets a heading and space
+               instead of four lines claiming it is separate. */
+            <div className="mb-(--space-5)">
+              <p className="text-meta text-fg-subtle mb-(--space-3)">folders</p>
               <FolderRail
                 selected={folder}
                 onSelect={setFolder}
@@ -306,7 +353,7 @@ export default function LibraryPage() {
           {folder && (
             <nav
               aria-label="Folder"
-              className="mb-3 flex flex-wrap items-center gap-1 text-[12px] text-fg-subtle"
+              className="mb-(--space-3) flex flex-wrap items-center gap-1 text-body text-fg-subtle"
             >
               <button
                 type="button"
@@ -330,44 +377,55 @@ export default function LibraryPage() {
             </nav>
           )}
 
-          {/* Search + filters */}
-          <div className="mb-4 flex flex-col gap-3">
-            <div className="flex items-center gap-2.5 rounded-md border border-line bg-surface px-3.5">
-              <Icon name="search" size={14} className="shrink-0 text-fg-subtle" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("library.search")}
-                aria-label={t("library.searchLabel")}
-                spellCheck={false}
-                className="w-full bg-transparent py-3 text-[14px] text-fg outline-none placeholder:text-fg-subtle"
-              />
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => setQuery("")}
-                  aria-label="Clear search"
-                  className="rounded-xs p-1 text-fg-subtle transition-colors hover:text-fg"
-                >
-                  <Icon name="x" size={12} />
-                </button>
-              )}
-              <kbd className="kbd hidden sm:block">⌘K for anything</kbd>
-            </div>
+          {/*
+            * One cluster, one baseline, one weight.
+            *
+            * This was three stacked rows — a full-width bordered field, a
+            * scrolling row of bordered chips, and a sort group in mono caps —
+            * three different treatments for one idea, "narrow the list", each
+            * announcing itself as a separate region. Together they were 130
+            * pixels of chrome standing between the page title and any work.
+            *
+            * Now: field, then the kinds, then the sort, on one line, all at
+            * `text-body`, wrapping below 640. The field keeps its border
+            * because it is the one thing here you type into — the border IS
+            * the affordance. Everything else is a word that gets heavier and
+            * brighter when it is on, which is what `aria-pressed` has been
+            * saying to a screen reader all along and what the boxes were
+            * never saying to an eye.
+            */}
+          <div className="my-(--space-3) flex flex-col gap-(--space-2)">
+            <div className="flex flex-wrap items-center gap-x-(--space-2) gap-y-(--space-2)">
+              <div className="flex min-w-[220px] flex-1 items-center gap-2.5 rounded-sm border border-line px-3 sm:max-w-[420px]">
+                <Icon name="search" size={14} className="shrink-0 text-fg-subtle" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t("library.search")}
+                  aria-label={t("library.searchLabel")}
+                  spellCheck={false}
+                  className="w-full bg-transparent py-2 text-body text-fg outline-none placeholder:text-fg-subtle"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    aria-label="Clear search"
+                    className="rounded-xs p-1 text-fg-subtle transition-colors hover:text-fg"
+                  >
+                    <Icon name="x" size={12} />
+                  </button>
+                )}
+                {/* A hint, not a control. As a bordered keycap it was a
+                    bordered thing inside a bordered thing; moved out of the
+                    field it read as a third button in a row of buttons. Plain
+                    quiet text at the end of the field is what a hint is, and
+                    the container rule has nothing to say about it. */}
+                <span className="hidden shrink-0 text-meta text-fg-subtle sm:block">
+                  ⌘K for anything
+                </span>
+              </div>
 
-            <LabelBar
-              projects={projects}
-              active={labels}
-              onToggle={(label) =>
-                setLabels((current) =>
-                  current.includes(label)
-                    ? current.filter((l) => l !== label)
-                    : [...current, label],
-                )
-              }
-            />
-
-            <div className="no-scrollbar -mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5">
               <FilterChip
                 active={kind === "all"}
                 onClick={() => setKind("all")}
@@ -385,8 +443,8 @@ export default function LibraryPage() {
                 />
               ))}
 
-              <div className="ml-auto hidden shrink-0 items-center gap-1 sm:flex">
-                <span className="label-mono">Sort</span>
+              <div className="ml-auto hidden shrink-0 items-center gap-(--space-1) sm:flex">
+                <span className="text-meta text-fg-subtle">Sort</span>
                 {(["recent", "name", "kind"] as Sort[]).map((s) => (
                   <button
                     key={s}
@@ -394,24 +452,43 @@ export default function LibraryPage() {
                     onClick={() => setSort(s)}
                     aria-pressed={sort === s}
                     className={cn(
-                      "rounded-xs px-1.5 py-1 font-mono text-[10px] tracking-wide uppercase transition-colors duration-150",
+                      "rounded-xs px-1 py-0.5 text-body transition-colors duration-150",
+                      // Weight and ink, never a fill: `bg-surface-2` is
+                      // 1.24:1 on canvas in dark and 1.08:1 in light, so a
+                      // chip alone cannot say which of three words is on.
                       sort === s
-                        ? "bg-surface-2 text-fg"
-                        : "text-fg-subtle hover:text-fg-muted",
+                        ? "text-fg font-medium"
+                        : "text-fg-subtle hover:text-fg",
                     )}
                   >
-                    {s}
+                    {SORT_LABEL[s]}
                   </button>
                 ))}
               </div>
             </div>
+
+            <LabelBar
+              projects={projects}
+              active={labels}
+              onToggle={(label) =>
+                setLabels((current) =>
+                  current.includes(label)
+                    ? current.filter((l) => l !== label)
+                    : [...current, label],
+                )
+              }
+            />
           </div>
 
           {/* Rows */}
           {rows.length === 0 ? (
-            <div className="hairline rounded-lg bg-surface px-6 py-14 text-center">
+            /* No card. An empty state is a region, and a box drawn round two
+               sentences and three doors is the page apologising in a frame.
+               `.display` is the storefront's serif and has no business in the
+               app; it was the one place the two type systems leaked. */
+            <div className="max-w-[52ch]">
               {query ? (
-                <p className="text-[13.5px] text-fg-muted">
+                <p className="text-body text-fg-muted">
                   Nothing matches &ldquo;{query}&rdquo;.
                 </p>
               ) : (
@@ -419,38 +496,29 @@ export default function LibraryPage() {
                   {/* A first run is empty on purpose. This is the moment to
                       say what the thing is, since there is nothing else on
                       screen doing it. */}
-                  <p className="display text-[19px] text-fg">
-                    Nothing here yet.
-                  </p>
-                  <p className="mx-auto mt-2 max-w-[46ch] text-[13px] leading-relaxed text-fg-muted">
+                  <p className="text-object text-fg">Nothing here yet.</p>
+                  <p className="mt-(--space-1) max-w-[46ch] text-body text-fg-muted">
                     A document, a deck, a spreadsheet and an infinite board are
                     the same project here — start with whichever one you are
                     actually doing.
                   </p>
-                  <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => create("doc")}
-                      className="rounded-sm bg-accent px-3 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
-                    >
+                  <p className="mt-(--space-3) text-body text-fg-muted">
+                    <button type="button" onClick={() => create("doc")} className={DOOR}>
                       Start writing
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => create("board")}
-                      className="rounded-sm border border-line px-3 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-                    >
+                    {", "}
+                    <button type="button" onClick={() => create("board")} className={DOOR}>
                       Open a board
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setTemplating(true)}
-                      className="rounded-sm border border-line px-3 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-                    >
-                      From a template
+                    {", or start "}
+                    <button type="button" onClick={() => setTemplating(true)} className={DOOR}>
+                      from a template
                     </button>
-                  </div>
-                  <p className="mt-6 font-mono text-[10.5px] text-fg-subtle">
+                    .
+                  </p>
+                  {/* Sans, not mono: a sentence about a command is language,
+                      and only the keycap itself is not. */}
+                  <p className="mt-(--space-4) text-meta text-fg-subtle">
                     ⌘K → &ldquo;sample workspace&rdquo; fills this with an
                     example you can pull apart
                   </p>
@@ -478,17 +546,22 @@ export default function LibraryPage() {
              * then shows three times as much work, which is the point of
              * having one. Below 1024 it is one column, which is a list.
              */
-            <ul className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
-              {rows.map(({ project }) => (
-                <li key={project.id}>
-                  <LibraryCard
-                    project={project}
-                    showTime={hydrated}
-                    onMenu={openMenu}
-                  />
-                </li>
-              ))}
-            </ul>
+            <>
+              {/* Where you were — as a label on this list, not as a second
+                  copy of it. See PickUpWhere's own note. */}
+              <PickUpWhere projects={projects} arrival={arrival} />
+              <ul className="grid gap-(--space-2) lg:grid-cols-2 2xl:grid-cols-3">
+                {rows.map(({ project }) => (
+                  <li key={project.id}>
+                    <LibraryCard
+                      project={project}
+                      showTime={hydrated}
+                      onMenu={openMenu}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
 
           {/* Never hidden, empty or not — see Shelf's own note. The picker it
@@ -503,12 +576,26 @@ export default function LibraryPage() {
 /**
  * One thing you have made, as a card.
  *
- * It was a row in a bordered list. The four facts are the same and in the
- * same order — what you called it, what is in it, what kind it is, when you
- * last touched it — but they are stacked instead of spread, so they are one
- * glance rather than a scan across the width of a monitor. The name is
- * 14.5px rather than 13.5: it is the only thing on the card somebody is
- * actually looking for, and it was the same size as the metadata under it.
+ * The four facts are the same and in the same order — what you called it,
+ * what is in it, what kind it is, when you last touched it — but they are now
+ * two lines at two sizes instead of four facts at four sizes inside four
+ * boxes. Name at `text-object`, the rest at `text-meta` on one line, because
+ * kind, size and age are all the same rank of thing: facts about the object
+ * whose name is above them.
+ *
+ * The card keeps its border. This is the one place the container rule makes a
+ * concession, and it is deliberate: in a three-column grid horizontal
+ * neighbours share no rule and no baseline, so without an edge you cannot
+ * tell whether "Chapter map" and "2 items" and the name to their right are
+ * one card or two. It loses its fill — the canvas shows through, and
+ * `bg-surface` on hover becomes feedback rather than a permanent state. If
+ * this grid ever goes to one column the border should go with it; /due runs
+ * 22 rows with none.
+ *
+ * The kind pill is gone as a pill, not as a fact — "Thesis / Doc" is the
+ * first word of the meta line. It was a bordered, filled, uppercase mono
+ * badge inside a bordered, filled card, which is a box inside a box saying
+ * something a word says.
  *
  * `group relative` and an absolutely positioned menu button, because a button
  * inside an anchor is markup a browser is entitled to rearrange — the reason
@@ -524,7 +611,14 @@ function LibraryCard({
   onMenu: (e: React.MouseEvent, project: Project) => void;
 }) {
   const meta = KINDS[project.kind];
-  const summary = projectSummary(project);
+  // Built from the parts that exist rather than joined blind: `showTime` is
+  // false until the store has rehydrated, and a fixed template would leave a
+  // dangling separator on the server-rendered pass.
+  const facts = [
+    meta.label,
+    projectSummary(project),
+    showTime ? relativeTime(project.updatedAt) : "",
+  ].filter(Boolean);
 
   return (
     <div className="group relative h-full">
@@ -533,33 +627,26 @@ function LibraryCard({
         prefetch
         onContextMenu={(e) => onMenu(e, project)}
         className={cn(
-          "flex h-full flex-col gap-3 rounded-lg border border-line bg-surface p-3.5 pr-10",
-          "transition-colors duration-150 hover:border-line-strong hover:bg-surface-2",
+          "flex h-full flex-col rounded-lg border border-line p-3.5 pr-10",
+          "transition-colors duration-150 hover:border-line-strong hover:bg-surface",
         )}
       >
-        <span className="flex min-w-0 items-start gap-2.5">
+        <span className="flex min-w-0 items-start gap-(--space-2)">
+          {/* No tile: an icon does not need a box drawn round it to be an
+              icon, and this one was the page's only third level of nesting. */}
           <span
             aria-hidden="true"
-            className="grid size-8 shrink-0 place-items-center rounded-md border border-line bg-surface-2 text-fg-muted"
+            className="grid size-8 shrink-0 place-items-center text-fg-muted"
           >
-            <Avatar glyph={project.glyph} kind={project.kind} size={16} />
+            <Avatar glyph={project.glyph} kind={project.kind} size={18} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[14.5px] leading-snug font-medium text-fg">
+            <span className="block truncate text-object text-fg">
               {project.name}
             </span>
-            <span className="mt-0.5 block truncate font-mono text-[10.5px] text-fg-subtle">
-              {summary}
+            <span className="mt-(--space-1) block truncate text-meta text-fg-subtle">
+              {facts.join(" · ")}
             </span>
-          </span>
-        </span>
-
-        <span className="mt-auto flex items-center gap-2">
-          <span className="shrink-0 rounded-xs border border-line px-1.5 py-0.5 font-mono text-[9.5px] tracking-wide text-fg-subtle uppercase">
-            {meta.label}
-          </span>
-          <span className="ml-auto shrink-0 font-mono text-[10px] text-fg-subtle">
-            {showTime ? relativeTime(project.updatedAt) : ""}
           </span>
         </span>
       </Link>
@@ -591,15 +678,18 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex shrink-0 items-center gap-1.5 rounded-sm border px-2 py-1 text-[11.5px] transition-colors duration-150",
-        active
-          ? "border-line-strong bg-surface-2 text-fg"
-          : "border-line text-fg-subtle hover:text-fg-muted",
+        // A word, not a chip. Seven bordered boxes said "seven controls" much
+        // louder than they said which one was on; weight and ink say the
+        // second thing, and `aria-pressed` — untouched, on all seven — has
+        // been saying it correctly all along, which is what makes dropping
+        // the boxes safe rather than merely quieter.
+        "flex shrink-0 items-center gap-1.5 rounded-xs px-1 py-0.5 text-body transition-colors duration-150",
+        active ? "text-fg font-medium" : "text-fg-subtle hover:text-fg",
       )}
     >
       {icon && <Icon name={icon} size={11} />}
       {label}
-      <span className="font-mono text-[9.5px] opacity-60">{count}</span>
+      <span className="text-meta">{count}</span>
     </button>
   );
 }
@@ -625,7 +715,7 @@ function NewProjectButton({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className={cn(
-          "flex items-center gap-2 rounded-md bg-accent px-4 text-[13.5px] font-medium text-on-accent",
+          "flex items-center gap-2 rounded-md bg-accent px-4 text-body font-medium text-on-accent",
           "h-10 shrink-0 transition-[filter] duration-150 hover:brightness-110",
         )}
       >
@@ -648,14 +738,14 @@ function NewProjectButton({
                 }}
                 className="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors duration-150 hover:bg-surface-2"
               >
-                <span className="grid size-6 shrink-0 place-items-center rounded-xs border border-line text-fg-muted">
+                <span className="grid size-6 shrink-0 place-items-center text-fg-muted">
                   <Icon name={KINDS[k].icon} size={12} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-[12.5px] text-fg">
+                  <span className="block text-body text-fg">
                     {KINDS[k].label}
                   </span>
-                  <span className="block truncate text-[11px] text-fg-subtle">
+                  <span className="block truncate text-meta text-fg-subtle">
                     {KINDS[k].hint}
                   </span>
                 </span>
@@ -674,14 +764,14 @@ function NewProjectButton({
               }}
               className="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors duration-150 hover:bg-surface-2"
             >
-              <span className="grid size-6 shrink-0 place-items-center rounded-xs border border-line text-fg-muted">
+              <span className="grid size-6 shrink-0 place-items-center text-fg-muted">
                 <Icon name="download" size={12} />
               </span>
               <span className="min-w-0">
-                <span className="block text-[12.5px] text-fg">
+                <span className="block text-body text-fg">
                   Files from your computer…
                 </span>
-                <span className="block truncate text-[11px] text-fg-subtle">
+                <span className="block truncate text-meta text-fg-subtle">
                   Word, PowerPoint, Excel, CSV, text
                 </span>
               </span>
@@ -694,14 +784,14 @@ function NewProjectButton({
               }}
               className="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors duration-150 hover:bg-surface-2"
             >
-              <span className="grid size-6 shrink-0 place-items-center rounded-xs border border-line text-fg-muted">
+              <span className="grid size-6 shrink-0 place-items-center text-fg-muted">
                 <Icon name="folder" size={12} />
               </span>
               <span className="min-w-0">
-                <span className="block text-[12.5px] text-fg">
+                <span className="block text-body text-fg">
                   A whole folder…
                 </span>
-                <span className="block truncate text-[11px] text-fg-subtle">
+                <span className="block truncate text-meta text-fg-subtle">
                   Its folders come with it
                 </span>
               </span>
@@ -715,14 +805,14 @@ function NewProjectButton({
               }}
               className="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors duration-150 hover:bg-surface-2"
             >
-              <span className="grid size-6 shrink-0 place-items-center rounded-xs border border-line text-fg-muted">
+              <span className="grid size-6 shrink-0 place-items-center text-fg-muted">
                 <Icon name="board" size={12} />
               </span>
               <span className="min-w-0">
-                <span className="block text-[12.5px] text-fg">
+                <span className="block text-body text-fg">
                   From a template…
                 </span>
-                <span className="block truncate text-[11px] text-fg-subtle">
+                <span className="block truncate text-meta text-fg-subtle">
                   Thesis chapter, report, pitch, meeting notes
                 </span>
               </span>

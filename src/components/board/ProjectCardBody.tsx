@@ -34,7 +34,7 @@ export function ProjectCardBody({ projectId }: { projectId: string }) {
     <div className="surface-grain flex size-full flex-col overflow-hidden rounded-md border border-line bg-surface">
       <div className="flex items-center gap-2 border-b border-line px-2.5 py-1.5">
         <Icon name={meta.icon} size={11} className="shrink-0 text-fg-subtle" />
-        <span className="label-mono truncate">{meta.label}</span>
+        <span className="text-meta text-fg-subtle truncate">{meta.label}</span>
         <span className="ml-auto flex items-center gap-1 font-mono text-[9px] text-accent">
           <span className="size-1 rounded-full bg-accent" />
           live

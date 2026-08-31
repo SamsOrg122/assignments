@@ -339,7 +339,7 @@ export function WritingEditor({
         >
           {!focusMode && (
             <header className="mb-8 flex items-center gap-3 print:hidden">
-              <span className="label-mono">
+              <span className="text-meta text-fg-subtle">
                 {formatNumber(words)} word{words === 1 ? "" : "s"}
               </span>
               {progress !== null && (
@@ -487,7 +487,7 @@ function OutlinePanel({
   return (
     <aside className="fixed top-12 right-0 bottom-0 z-30 w-[260px] overflow-y-auto border-l border-line bg-surface/95 p-3 backdrop-blur print:hidden">
       <div className="mb-3 flex items-center justify-between">
-        <span className="label-mono">Outline</span>
+        <span className="text-meta text-fg-subtle">Outline</span>
         <button
           type="button"
           onClick={onClose}
@@ -564,7 +564,7 @@ function OutlinePanel({
         {/* Tied to the field, not merely sitting above it: an unassociated
             <label> is a caption, and the input under it has no name at all for
             anybody not reading the screen. */}
-        <label className="label-mono mb-1.5 block" htmlFor={goalId}>
+        <label className="text-meta text-fg-subtle mb-1.5 block" htmlFor={goalId}>
           Word goal
         </label>
         <input

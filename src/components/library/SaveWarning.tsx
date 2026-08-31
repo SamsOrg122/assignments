@@ -148,8 +148,8 @@ function Banner({
     >
       <Icon name="minus" size={12} className={`mt-0.5 shrink-0 text-${tone}`} />
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium text-warn">{title}</p>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-fg-muted">
+        <p className="text-body font-medium text-warn">{title}</p>
+        <p className="mt-1 text-body leading-relaxed text-fg-muted">
           {body}{" "}
           <Link
             href="/settings#safe"

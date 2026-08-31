@@ -26,7 +26,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 
 /** Same shape for the three links and the one button, so the line reads flat. */
 const ITEM =
-  "flex items-center gap-1.5 rounded-xs px-1 py-0.5 text-[12px] text-fg-muted transition-colors duration-150 hover:text-fg";
+  "flex items-center gap-1.5 rounded-xs px-1 py-0.5 text-body text-fg-muted transition-colors duration-150 hover:text-fg";
 
 export function Shelf({ onTemplates }: { onTemplates: () => void }) {
   return (
@@ -34,7 +34,7 @@ export function Shelf({ onTemplates }: { onTemplates: () => void }) {
       aria-label="Also in here"
       className="mt-6 flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-line pt-3"
     >
-      <span className="label-mono mr-1.5">also in here</span>
+      <span className="text-meta text-fg-subtle mr-1.5">also in here</span>
 
       <Link href="/notes" className={ITEM} title="The notepad">
         <Shape name="sticky" />
@@ -76,9 +76,15 @@ function Shape({ name }: { name: IconName }) {
   return <Icon name={name} size={12} className="shrink-0 text-fg-subtle" />;
 }
 
+/**
+ * The separator carried no size class at all, so it inherited 16px from the
+ * root and was the largest glyph on the calmest line of the page — a
+ * punctuation mark set three points above the four words it separates. It
+ * gets the same step as the words it sits between.
+ */
 function Dot() {
   return (
-    <span aria-hidden="true" className="text-fg-subtle">
+    <span aria-hidden="true" className="text-body text-fg-subtle">
       ·
     </span>
   );

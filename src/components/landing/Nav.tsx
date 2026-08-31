@@ -232,7 +232,7 @@ function MenuPanel({ lang }: { lang: Lang }) {
           >
             {ALL_IN(lang).map((hub) => (
               <div key={hub} className="mb-3 last:mb-0">
-                <p className="label-mono mb-1.5">{PAGES[hub].nav}</p>
+                <p className="text-meta text-fg-subtle mb-1.5">{PAGES[hub].nav}</p>
                 <ul className="flex flex-col">
                   {menuFor(hub).map((item) => (
                     <li key={item.href}>

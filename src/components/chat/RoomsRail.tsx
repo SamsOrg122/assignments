@@ -18,6 +18,25 @@
  * field, and the direct messages. Two things are here that were nowhere: a
  * visible way to start a DM, and a way back to an archived room that does not
  * need the command palette.
+ *
+ * A ROOM ROW IS NOT AN OBJECT YOU PICK UP. It has the list to belong to, which
+ * is why no row here is drawn with a box and why the one that is current is
+ * told apart by ink and weight — `text-fg font-medium` against `text-fg-subtle`
+ * — rather than by its fill. The fill stays as reinforcement and cannot be the
+ * carrier: `bg-surface-2` is 1.24:1 on canvas in dark and 1.08:1 in light, and
+ * nothing that fails 3:1 is allowed to mean something on its own.
+ *
+ * The three borders left on this file are all the same case: the rail is a
+ * region that scrolls independently of the conversation, so the edge between
+ * them is structure (`border-b` on a phone, `lg:border-r` on a desktop), and
+ * the footer's `border-t` is the rail's floor. Everything inside is type and
+ * space.
+ *
+ * Sizes: rows, sentences and control words are `text-body`; group labels,
+ * counts and the footer line are `text-meta` in the sans face. The footer used
+ * to set a whole English sentence — "6 rooms · 15 messages · 1 archived ·
+ * community" — in 10px monospace, which is the face for things you would paste
+ * somewhere, and none of that is.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -40,6 +59,11 @@ import { RowMenuButton } from "@/components/ui/RowMenuButton";
 import { Friends } from "@/components/social/Friends";
 import { useChannelActions } from "./useChannelActions";
 import { PeoplePicker } from "./PeoplePicker";
+
+/** The same door /library uses for the same two words, so the two pages that
+ *  offer a team offer it in one shape. */
+const DOOR =
+  "text-body text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors duration-150 hover:text-fg";
 
 export function RoomsRail({ activeId }: { activeId?: string | null }) {
   const router = useRouter();
@@ -197,7 +221,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
         )}
 
         <div className="mt-3 mb-1 flex items-center justify-between px-4">
-          <span className="label-mono">
+          <span className="text-meta text-fg-subtle">
             {world === "team" ? t("nav.channels") : t("nav.chats")}
           </span>
           <button
@@ -219,23 +243,30 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
              below are your own. Saying so beats a list that looks as though it
              has lost something. */
           <div className="mb-1 px-4">
-            <p className="text-[11px] leading-relaxed text-fg-subtle">
+            <p className="text-body text-fg-subtle">
               No team yet — the rooms below are your own.
             </p>
             {/* The two doors the sidebar's team panel used to carry. They are
                 on /library and /more as well, but this is the screen where
                 somebody meets the disabled "+", so this is where the way out
                 of it belongs. */}
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {/* Both doors keep their words, their addresses and their place.
+                They lose their pill shapes: a filled accent is the answer to
+                "what do I press to start something" and on this screen that is
+                the send button, while a bordered pill beside it read as a
+                second primary button for a journey that is deliberately off to
+                one side. Underlined words say "a way out of here" without
+                claiming to be the point of the rail. */}
+            <div className="mt-1.5 flex flex-wrap gap-x-(--space-3) gap-y-(--space-1)">
               <Link
                 href="/pricing"
-                className="rounded-sm bg-accent px-2 py-1 text-[11.5px] font-medium text-on-accent transition-[filter] hover:brightness-110"
+                className={DOOR}
               >
                 Create a team
               </Link>
               <Link
                 href="/team#join"
-                className="rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
+                className={DOOR}
               >
                 Join a team
               </Link>
@@ -271,13 +302,13 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
                   if (e.key === "Enter") void submitChannel();
                   else if (e.key === "Escape") cancelChannel();
                 }}
-                className="w-full rounded-sm border border-accent bg-surface-2 px-2 py-1 text-[12.5px] text-fg outline-none"
+                className="w-full rounded-sm border border-accent bg-surface-2 px-2 py-1 text-body text-fg outline-none"
               />
             </li>
           )}
 
           {rooms.length === 0 && !creating && !teamless && (
-            <li className="px-2 py-1 text-[11px] leading-relaxed text-fg-subtle">
+            <li className="px-2 py-1 text-body text-fg-subtle">
               {world === "team"
                 ? "No channels here yet. Make one with +."
                 : "Chats with friends or classmates. Make one with +. Getting somebody into it means having them in your team first — that link is on the team page."}
@@ -286,7 +317,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
         </ul>
 
         <div className="mt-3 mb-1 px-4">
-          <span className="label-mono">{t("nav.dms")}</span>
+          <span className="text-meta text-fg-subtle">{t("nav.dms")}</span>
         </div>
 
         {/*
@@ -302,7 +333,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
           <button
             type="button"
             onClick={() => setPicking(true)}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-left text-[12.5px] text-fg-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-left text-body text-fg-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
           >
             <Icon name="plus" size={12} className="shrink-0 text-fg-subtle" />
             <span className="truncate">Message someone</span>
@@ -360,8 +391,8 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
                   size={11}
                   className="shrink-0 text-fg-subtle"
                 />
-                <span className="label-mono">Archived</span>
-                <span className="ml-auto font-mono text-[10px] text-fg-subtle">
+                <span className="text-meta text-fg-subtle">Archived</span>
+                <span className="ml-auto text-meta text-fg-subtle">
                   {archived.length}
                 </span>
               </button>
@@ -376,9 +407,9 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
                       onContextMenu={openMenuFor(channel.id)}
                       aria-current={channel.id === activeId ? "page" : undefined}
                       className={cn(
-                        "min-w-0 flex-1 truncate rounded-md px-2 py-[var(--ui-row-y)] text-[13px] transition-colors duration-150",
+                        "min-w-0 flex-1 truncate rounded-md px-2 py-[var(--ui-row-y)] text-body transition-colors duration-150",
                         channel.id === activeId
-                          ? "bg-surface-2 text-fg"
+                          ? "bg-surface-2 font-medium text-fg"
                           : "text-fg-subtle hover:bg-surface hover:text-fg",
                       )}
                     >
@@ -392,7 +423,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
                     <button
                       type="button"
                       onClick={() => setArchived(channel.id, false)}
-                      className="shrink-0 rounded-xs px-1.5 py-1 font-mono text-[10px] text-fg-subtle transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
+                      className="shrink-0 rounded-xs px-1.5 py-1 text-meta text-fg-subtle transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
                     >
                       Restore
                     </button>
@@ -421,7 +452,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
       {/* What is in here, and the one room that is not yours. The community
           link is unconditional, exactly as its sidebar row was. */}
       <div className="shrink-0 border-t border-line px-3 py-2">
-        <p className="flex flex-wrap items-center gap-x-1 font-mono text-[10px] text-fg-subtle">
+        <p className="flex flex-wrap items-center gap-x-1 text-meta text-fg-subtle">
           <span>
             {roomCount} room{roomCount === 1 ? "" : "s"}
           </span>
@@ -474,12 +505,17 @@ function RoomRow({
         onContextMenu={onOpenMenu}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex items-center gap-2 rounded-md py-[var(--ui-row-y)] pr-7 pl-2 text-[13px] transition-colors duration-150",
+          "flex items-center gap-2 rounded-md py-[var(--ui-row-y)] pr-7 pl-2 text-body transition-colors duration-150",
+          // Three states, and each one is carried by ink and weight before it
+          // is carried by anything else. The active row's fill only reinforces
+          // — 1.24:1 dark, 1.08:1 light, nowhere near the 3:1 a signal needs —
+          // and a row with something unread stays in full ink because the
+          // badge beside it is saying the same thing twice on purpose.
           active
-            ? "bg-surface-2 text-fg"
+            ? "bg-surface-2 font-medium text-fg"
             : unread > 0
               ? "text-fg hover:bg-surface"
-              : "text-fg-muted hover:bg-surface hover:text-fg",
+              : "text-fg-subtle hover:bg-surface hover:text-fg",
         )}
       >
         {icon && (
@@ -504,7 +540,11 @@ function RoomRow({
           {label}
         </span>
         {unread > 0 && (
-          <span className="ml-auto grid min-w-[16px] shrink-0 place-items-center rounded-full bg-accent px-1 font-mono text-[9px] text-on-accent">
+          /* The one written exception to one accent fill per screen: a count
+             of things you have not seen is not a control and is not competing
+             with the send button — it is the only thing on the rail saying
+             something happened while you were away. */
+          <span className="ml-auto grid min-h-[16px] min-w-[16px] shrink-0 place-items-center rounded-full bg-accent px-1.5 text-meta text-on-accent">
             {unread > 99 ? "99+" : unread}
           </span>
         )}

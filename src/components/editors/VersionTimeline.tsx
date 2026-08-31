@@ -68,7 +68,7 @@ export function VersionTimeline({
       >
         <div className="flex items-center gap-2.5 border-b border-line px-3 py-2">
           <Icon name="history" size={13} className="text-fg-subtle" />
-          <span className="label-mono">Timeline</span>
+          <span className="text-meta text-fg-subtle">Timeline</span>
           <span className="ml-auto font-mono text-[10px] text-fg-subtle">
             {history.length} version{history.length === 1 ? "" : "s"}
           </span>

@@ -167,7 +167,7 @@ export function DictationBar({
       >
         <div className="flex items-center gap-2.5 border-b border-line px-3 py-2">
           <Icon name="mic" size={13} className={phase === "listening" ? "text-accent" : "text-fg-subtle"} />
-          <span className="label-mono">Speak to prose</span>
+          <span className="text-meta text-fg-subtle">Speak to prose</span>
           <span className="ml-auto font-mono text-[10px] text-fg-subtle">
             {phase === "listening"
               ? "listening…"

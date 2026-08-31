@@ -45,11 +45,17 @@ export function WorkIsSafe() {
    */
   if (!configured)
     return (
-      <div className="rounded-md border border-warn/35 bg-warn/[0.07] p-3.5">
-        <p className="text-[13px] font-medium text-warn">
+      /*
+       * No box. The warning is carried by ink and weight on the sentence
+       * that states it, which is the only carrier that survives both themes
+       * — a warn tint is 1.1:1 against the canvas and could never have been
+       * doing this work on its own.
+       */
+      <div>
+        <p className="text-body font-medium text-warn">
           This deployment has no database, so nothing is in an account.
         </p>
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-muted">
+        <p className="mt-(--space-2) max-w-[68ch] text-body text-fg-muted">
           All {formatNumber(total)} of your{" "}
           {total === 1 ? "project lives" : "projects live"} in this browser
           only. Clearing site data, or a different browser, means starting
@@ -66,22 +72,18 @@ export function WorkIsSafe() {
   const all = onlyHere.length === 0;
 
   return (
-    <div className="flex flex-col gap-2.5">
-      <div
-        className={cn(
-          "flex items-start gap-2.5 rounded-md border p-3.5",
-          all && !stuck
-            ? "border-line bg-surface"
-            : "border-warn/35 bg-warn/[0.07]",
-        )}
-      >
+    <div className="flex flex-col gap-(--space-3)">
+      {/* The glyph and its colour say which answer this is; the box that
+          used to say it as well is gone. cn() stays because the icon still
+          changes with the state. */}
+      <div className="flex items-start gap-(--space-2)">
         <Icon
           name={all && !stuck ? "check" : "minus"}
           size={13}
           className={cn("mt-0.5 shrink-0", all && !stuck ? "text-accent" : "text-warn")}
         />
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] text-fg">
+          <p className="text-body text-fg">
             {total === 0
               ? "Nothing to save yet."
               : all
@@ -91,28 +93,33 @@ export function WorkIsSafe() {
 
           {!all && (
             <>
-              <p className="mt-1 text-[12.5px] leading-relaxed text-fg-muted">
+              <p className="mt-(--space-1) max-w-[68ch] text-body text-fg-muted">
                 {formatNumber(onlyHere.length)}{" "}
                 {onlyHere.length === 1 ? "is" : "are"} in this browser only —
                 this is the only copy.
               </p>
-              <ul className="mt-2 max-h-[160px] overflow-y-auto rounded-sm border border-line">
+              {/* A list of rows already has the list to belong to, so the
+                  rows lose their hairlines and the list loses its wall —
+                  the same reason /due carries twenty-two rows and no row
+                  borders. The names are what you came for and keep full
+                  ink; the dates are facts and recede. */}
+              <ul className="mt-(--space-2) max-h-[160px] overflow-y-auto">
                 {onlyHere.slice(0, 25).map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-baseline justify-between gap-3 border-b border-line px-2.5 py-1.5 last:border-b-0"
+                    className="flex items-baseline justify-between gap-(--space-3) py-(--space-1)"
                   >
-                    <span className="min-w-0 truncate text-[12.5px] text-fg">
+                    <span className="min-w-0 truncate text-body text-fg">
                       {p.name}
                     </span>
-                    <span className="shrink-0 text-[11px] text-fg-subtle">
+                    <span className="shrink-0 text-meta text-fg-subtle">
                       {formatDateTime(p.updatedAt)}
                     </span>
                   </li>
                 ))}
               </ul>
               {onlyHere.length > 25 && (
-                <p className="mt-1 text-[11.5px] text-fg-subtle">
+                <p className="mt-(--space-1) text-meta text-fg-subtle">
                   …and {formatNumber(onlyHere.length - 25)} more.
                 </p>
               )}
@@ -127,7 +134,7 @@ export function WorkIsSafe() {
             reason somebody is reading this section.
           */}
           {!identity.email && total > 0 && (
-            <p className="mt-2 text-[12px] leading-relaxed text-warn">
+            <p className="mt-(--space-2) max-w-[68ch] text-body text-warn">
               You are not signed in, so this is an account this browser made
               for itself. Only this browser, at this address, can reach it —
               clearing site data loses the only way back in.{" "}
@@ -142,24 +149,25 @@ export function WorkIsSafe() {
           )}
 
           {stuck && status.problem && (
-            <p className="mt-2 text-[12px] leading-relaxed text-warn">
+            <p className="mt-(--space-2) max-w-[68ch] text-body text-warn">
               {status.problem}
             </p>
           )}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-(--space-3)">
+        {/* It runs the real sync, so it writes: a shape, not a word. */}
         <button
           type="button"
           onClick={() => void check()}
           disabled={checking}
-          className="rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-45"
+          className="rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-fg transition-colors duration-150 hover:bg-surface-3 disabled:opacity-45"
         >
           {checking ? "Checking…" : "Check my account now"}
         </button>
         {checkedAt && !checking && (
-          <span className="text-[11.5px] text-fg-subtle">
+          <span className="text-meta text-fg-subtle">
             Checked {formatDateTime(checkedAt)}
           </span>
         )}

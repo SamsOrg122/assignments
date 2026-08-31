@@ -86,7 +86,7 @@ export function MasterPanel({
             className="fixed inset-0 z-40 cursor-default"
           />
           <div className="absolute top-full right-0 z-50 mt-1.5 w-[280px] rounded-md border border-line bg-surface-2 p-3 shadow-lg">
-            <p className="label-mono mb-2">The whole deck</p>
+            <p className="text-meta text-fg-subtle mb-2">The whole deck</p>
 
             <label className="mb-2 block">
               <span className="mb-1 block text-[11.5px] text-fg-subtle">
@@ -144,7 +144,7 @@ export function MasterPanel({
 
             <div className="my-3 border-t border-line" />
 
-            <p className="label-mono mb-2">This slide</p>
+            <p className="text-meta text-fg-subtle mb-2">This slide</p>
 
             <label className="mb-2 block">
               <span className="mb-1 block text-[11.5px] text-fg-subtle">

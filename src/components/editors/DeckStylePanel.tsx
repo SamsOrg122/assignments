@@ -58,7 +58,7 @@ export function DeckStylePanel({
       className="anim-pop absolute top-full right-0 z-40 mt-1.5 w-[300px] rounded-md border border-line-strong bg-surface p-3 text-left shadow-[0_24px_70px_-12px_rgba(0,0,0,0.6)]"
     >
       <div className="mb-2 flex items-center justify-between">
-        <span className="label-mono">Theme</span>
+        <span className="text-meta text-fg-subtle">Theme</span>
         <button
           type="button"
           onClick={() => onChange(DEFAULT_DECK_STYLE)}
@@ -220,7 +220,7 @@ export function DeckStylePanel({
       </Control>
 
       <label className="mt-1 block">
-        <span className="label-mono mb-1 block">Footer</span>
+        <span className="text-meta text-fg-subtle mb-1 block">Footer</span>
         <input
           value={style.footer ?? ""}
           placeholder="Conference, date, or nothing"
@@ -297,7 +297,7 @@ function Control({
 }) {
   return (
     <div className="mb-2.5">
-      <span className="label-mono mb-1 block">{label}</span>
+      <span className="text-meta text-fg-subtle mb-1 block">{label}</span>
       {children}
     </div>
   );

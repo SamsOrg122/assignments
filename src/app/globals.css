@@ -21,7 +21,25 @@
   --color-line-strong: rgba(255, 255, 255, 0.24);
 
   /* Type. Measured against the canvas: muted 6.5:1, subtle 5.2:1 — quiet,
-     never unreadable. */
+     never unreadable.
+
+     Three greys, three jobs. Size says what kind of text it is; colour says
+     how much it is the point. They are independent, and the job is the whole
+     of the rule — there is no fourth grey and no `/60` opacity on a token,
+     because an opacity on a token is a fourth grey nobody declared.
+
+       fg        the subject. What you came to read, or what is current.
+       fg-muted  supporting prose. Hints, descriptions, the sentence under a
+                 title, inactive nav rows.
+       fg-subtle machine facts. Dates, counts, kinds, times, courses, group
+                 labels.
+
+     These were assigned by feel until now, and the proof is that the ratio
+     inverted between pages: settings ran ~90 muted / 75 subtle / 65 fg, /due
+     ran 40 subtle / 21 muted / 22 fg. Same three tokens, opposite
+     distributions, because no rule existed. On a list screen aim for roughly
+     1 : 2 : 6 (fg : muted : subtle). Nothing here gets quieter — the contrast
+     floors above are untouched. Things get sorted. */
   --color-fg: #e8eaed;
   --color-fg-muted: #b8bdc4;
   --color-fg-subtle: #969ba1;
@@ -56,8 +74,212 @@
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "JetBrains Mono", monospace;
 
+  /* ── Type ──────────────────────────────────────────────────────────────
+     Sentence case on purpose: uppercase mono everywhere read like generated
+     captions rather than UI. That judgement is older than this scale and it
+     is the reason the mono face is rationed to a named list below.
+
+     Four steps, and the gap between them IS the hierarchy. There used to be
+     thirty inline sizes, eleven of them inside a 5px band, six of them half a
+     pixel from a neighbour. No reader perceives half a pixel as rank, but
+     every component still had to decide about it — which is why there was no
+     scale.
+
+     Weight is baked into the token on purpose. A 15px step next to a 13px one
+     is a 15% difference, which on its own is the exact wobble we are removing;
+     it only reads as a level because 15 is always 500 and 13 is always 400.
+     Bake it in and it cannot be forgotten. Colour is deliberately NOT in here
+     — see the note on the container rule below for what a type token carrying
+     a colour cost us.
+
+     Tailwind reads --line-height / --letter-spacing / --font-weight modifiers
+     off this namespace, so ONE class sets size, leading, tracking and weight
+     together. That is the mechanism that makes "size never travels alone"
+     enforceable rather than a habit. It emits `var(--tw-font-weight, …)`, so a
+     `font-medium` beside the token still wins where a step genuinely needs it.
+
+       text-title   24→30px  500  the page's own name. Exactly one per screen,
+                                  on the <h1>. Nothing else comes within 13px
+                                  of it. The clamp is why no heading needs an
+                                  sm: variant.
+       text-object  15px     500  the name of a thing: a card's name, a
+                                  settings section heading, a chat author, a
+                                  dialog title. Never navigation.
+       text-body    13px     400  sentences, hints, row titles, message bodies,
+                                  every control label, every nav row.
+       text-meta    11px     400  facts attached to a thing: dates, times,
+                                  counts, kinds, courses, states, group labels.
+
+     Nothing in the app ships below 11px. Text inside a scaled preview of a
+     document is a picture of a document, not UI type, and is exempt.
+     ──────────────────────────────────────────────────────────────────────── */
+
+  --text-title: clamp(24px, 1.6vw + 14px, 30px);
+  --text-title--line-height: 1.15;
+  --text-title--letter-spacing: -0.02em;
+  --text-title--font-weight: 500;
+
+  --text-object: 15px;
+  --text-object--line-height: 1.3;
+  --text-object--letter-spacing: -0.01em;
+  --text-object--font-weight: 500;
+
+  --text-body: 13px;
+  --text-body--line-height: 1.55;
+  --text-body--font-weight: 400;
+
+  --text-meta: 11px;
+  --text-meta--line-height: 1.3;
+  --text-meta--font-weight: 400;
+
+  /* ── Space ─────────────────────────────────────────────────────────────
+     Six steps on a 4px base. <main> on /due alone rendered 8 distinct padding
+     shorthands and 7 distinct gap values; /library used mb-7, mb-6, mb-5,
+     mb-4, mb-3, gap-3, gap-2.5, gap-2 and gap-1.5. Every one of those was a
+     component inventing a number because this file offered none.
+
+       --space-1   4px  inside one thing — a glyph to its label, a name to the
+                        fact under it
+       --space-2   8px  between peers in one list or grid — card to card, chip
+                        to chip, on top of the density row padding
+       --space-3  16px  a heading to the content it heads; two adjacent blocks
+                        inside one section
+       --space-4  24px  a group label to the first section under it
+       --space-5  40px  one section to the next
+       --space-6  72px  a new region of the page begins — under the <h1>, and
+                        between groups
+
+     Tailwind does not auto-generate utilities from a name it does not know, so
+     reach these with the custom-property shorthand: gap-(--space-3),
+     mt-(--space-5), mb-(--space-6), pl-(--space-4).
+
+     Two rules decide every gap you have not been told about:
+
+     1. The gap above a heading is at least twice the gap below it. That single
+        ratio is what makes a heading belong to what follows rather than float
+        between two blocks. You cannot mistake which side of a 10:1 gap
+        something is on.
+     2. A gap of --space-5 or larger replaces a rule. Never both. If two blocks
+        are 40px apart they do not also get a hairline; if they need a hairline
+        they were not 40px apart.
+
+     Boundary with density, so two systems do not fight: --ui-row-y, --ui-gap
+     and --ui-bar-h below are driven by the density preference. Density scales
+     rows; the space scale scales sections. They never touch. Somebody on
+     Compact gets tighter rows and the same 72px under the page title —
+     compact is about how much fits in a list, not about whether the page has
+     a top.
+     ──────────────────────────────────────────────────────────────────────── */
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --space-6: 72px;
+
   --ease-out-fast: cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ───────────────────────────────────────────────────────────
+   The rule the tokens above exist to serve
+
+   Rank is carried by type — size, weight and ink moving together — and a box
+   is drawn only around something you can type into, pick up, or that floats
+   above the page.
+
+   This is written here, and not in a review comment, because a rule that
+   lives in a review comment lasts one quarter. This file is already where we
+   argue with ourselves about why grey and not black; it is the right place.
+
+   ── Why type and not a softer box ───────────────────────────
+   We counted 455 hairlines and then measured why. --color-surface on
+   --color-canvas is a 1.12:1 luminance step in dark and 1.03:1 in light;
+   surface-2 is 1.24:1 and 1.08:1; surface-3 is 1.54:1 and 1.20:1. None of
+   them clears 3:1. A panel is invisible as tone, so every grouping that
+   wanted to exist had to draw a 1px line to exist at all. The lines were not
+   the disease; they were a splint on a hierarchy that type refused to carry.
+
+   Two consequences, and neither is a preference:
+   — "tint instead of outline" is not available to us. The tint does not
+     exist. So the boxes that survive keep a real 1px line rather than a fill.
+   — No fill may ever be the sole carrier of a state. A fill used as
+     reinforcement must be paired with ink and weight. The light-mode pressed
+     segment that shipped at bg-surface-2 — 1.08:1, with aria-pressed doing
+     all the work — is what happens when a fill is asked to mean something on
+     this palette.
+
+   ── The container rule ──────────────────────────────────────
+   A border means one of exactly three things:
+
+   1. An input. A text field, a textarea, a search box. The border is the
+      affordance, not decoration — it is the shape your text goes inside, and
+      without it a field is indistinguishable from a heading. --radius-sm.
+   2. An object you pick up, open or move as a whole. It has its own name, and
+      its own address or its own ⋯ menu. A library card. A file attachment.
+      A row in a list is NOT this — it already has the list to belong to,
+      which is why /due carries 22 rows with zero row borders and is the
+      calmest thing we ship. --radius-md.
+   3. A layer floating above the page. A menu, a popover, a dialog, a toast.
+      Here the border is doing physics — it says "this is not part of the page
+      underneath" — and it carries the shadow. --radius-lg.
+
+   And nothing bordered inside something bordered.
+
+   The test for a new component is those three as questions, in order; stop at
+   the first yes. Does somebody put text into it, or throw a file into it?
+   Does it have its own name AND its own address or ⋯ menu — is it a thing
+   rather than a region? Is it painted over content it is not part of?
+   Otherwise: no border, no fill. It gets a heading at text-meta and
+   --space-5 of air. That is what "these things are related" looks like now.
+
+   A rule is not a border. One line with one edge separates two different
+   kinds of thing that follow each other, and it is allowed in three places:
+   under a table head; at a page's floor or ceiling, where content scrolls
+   past permanent furniture; and at a split between two independently
+   scrolling regions, which is shell structure and does not count against the
+   budget. Maximum two rules per screen outside that third case. A sticky
+   heading does not qualify — what stops content showing through it is its
+   bg-canvas, not its border.
+
+   One escape hatch, written down so it is not invented later: where controls
+   abut each other with no room for space between them, a fill may replace the
+   border. Never both. A fill in that position is shape, not state, and it
+   still may not be the only carrier of a state.
+
+   Only three radii are reachable, because only three kinds of thing keep a
+   border. --radius-xs survives for the :focus-visible ring and for the faint
+   chip on an active segment. State the rule in tokens, never in pixels —
+   data-radius="sharp" and "soft" rescale all four and a pixel literal would
+   not follow.
+
+   ── The monospace rule ──────────────────────────────────────
+   The monospace face is for text that is not language: a key cap; a hostname,
+   path or URL; a config identifier you would paste into an env file verbatim;
+   a model id; a row id. Survivors are a named list, about 20 of 231 uses —
+   .kbd, provider values like `openrouter` and `web-speech`, connection URLs
+   and model ids, member and provider ids, and <code> inside prose. Everything
+   else goes sans at text-meta: timestamps, avatar initials, unread digits,
+   reaction counts, "(edited)", "sending…", "3 replies", counts and dates.
+
+   A date is language. A count is language. A name is language.
+
+   ── Why .label-mono is gone ─────────────────────────────────
+   It set font-size AND color inside @layer utilities, at equal (0,1,0)
+   specificity and later source order than the framework's own utilities. So
+   `class="label-mono text-warn"` computed the same grey as `label-mono
+   text-fg`, at 86 call sites. /due passes tone: 'late' | 'now' | 'calm' to
+   all eleven of its day headings; that prop was dead code, and "overdue",
+   "today" and "saturday 5 september" all rendered identically. The one
+   distinction the page exists to draw was not being drawn. The class was also
+   misnamed — it set no font-family at all, and had been lying to every
+   developer who reached for it.
+
+   Hence: a type token never carries a colour. Weight rides inside the type
+   token so it cannot be forgotten; colour stays a separate utility so it can
+   always be overridden. If you are about to add a utility class here that
+   sets both, that is this bug again.
+   ─────────────────────────────────────────────────────────── */
 
 @layer base {
   * {
@@ -118,15 +340,13 @@
     border: 1px solid var(--color-line);
   }
 
-  /* Small label for metadata and section heads. Sentence case on purpose:
-     uppercase mono everywhere read like generated captions rather than UI. */
-  .label-mono {
-    font-size: 11px;
-    line-height: 1.2;
-    letter-spacing: 0;
-    color: var(--color-fg-muted);
-  }
+  /* .label-mono was here. It is now `text-meta text-fg-subtle` at every call
+     site — a size utility and a colour utility, which is the point. The
+     sentence-case reasoning it carried has moved up beside the type scale,
+     where it belongs, because it is the reason mono is rationed. */
 
+  /* The one mono class that is right about what it is for: a key cap is
+     literally a glyph on a physical key. */
   .kbd {
     font-family: var(--font-mono);
     font-size: 10px;
@@ -173,7 +393,13 @@
 
   --color-fg: #16161a;
   --color-fg-muted: #55555f;
-  --color-fg-subtle: #71717c;
+  /* Was #71717c, which measured 4.66:1 on this canvas — half a point under
+     the 5.2:1 the comment at the top of this file has promised since the
+     tokens were written, and this is the ink every date, count and group
+     label on a list screen is set in. #696974 measures 5.24:1 and is the
+     only number in this palette the calm pass moved: nothing here got
+     quieter, one thing that was quieter than it claimed got fixed. */
+  --color-fg-subtle: #696974;
 
   --color-danger: #cc2f36;
   --color-warn: #8a6116;

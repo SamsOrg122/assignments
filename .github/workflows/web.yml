@@ -1,0 +1,125 @@
+# The web app: the lint, the typecheck, and the two rules a compiler cannot see.
+#
+# This file exists because nothing in CI ran on a change to `src/`. The only
+# workflow in the repository was `desktop.yml`, which is path-filtered to
+# `desktop/**` for the good reason that rebuilding three operating systems for
+# a change to a marketing page would be absurd — and the consequence, which
+# nobody had noticed, was that the web app had no checks at all. Not the lint,
+# not the typecheck, not the two node scripts that were already written and
+# already passing locally. `docs/calm.md` §8 calls fixing this a precondition
+# for the rest of that document, and it is: a design rule with no check is a
+# style guide, and this codebase has a folder full of those.
+#
+# The two filters are the same list. A pull request and the push that lands it
+# must run the same job, or the check that is required to merge is not the
+# check that ran.
+
+name: Web app
+
+on:
+  push:
+    branches: ["**"]
+    paths: &paths
+      - "src/**"
+      - "scripts/**"
+      - "package.json"
+      # `npm ci` reads the lockfile, and `tsc` and `eslint` read their own
+      # configs. A change to any of them changes what these steps do, so a
+      # change to any of them has to run them — otherwise the way to turn this
+      # workflow off is to break it in a file it does not watch.
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "eslint.config.mjs"
+      - "next.config.ts"
+      - ".github/workflows/web.yml"
+  pull_request:
+    paths: *paths
+
+# A second push to the same branch makes the first one pointless.
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint, types and the design rules
+    # `ubuntu-latest`, and not the 22.04 the desktop job pins. That pin is
+    # about system libraries — webkit2gtk, which moved between images and
+    # broke that build. Nothing here touches a system library, and none of
+    # these checks has a platform-specific answer.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # ── The checks that need nothing installed ──────────────────────────
+      #
+      # These three read the source as text and run in about a second, so they
+      # go before `npm ci` rather than after it: a design regression should be
+      # in the log before the install has finished, not two minutes later.
+      #
+      # `!cancelled()` on every step after the first is deliberate. Without it
+      # the job stops at the first failure, and somebody fixing a type error
+      # would push again and only then discover that the contrast floors had
+      # also moved. One run, all the news.
+
+      - name: Filenames that only work on Linux
+        if: ${{ !cancelled() }}
+        run: node scripts/no-case-collisions.mjs
+
+      # Four files have to agree about the desktop version, and one of them —
+      # DESKTOP_VERSION — lives in `src/lib/db/notes.ts`, where the desktop
+      # workflow's path filter cannot see it. Editing it alone is exactly the
+      # change that produces a 404 on every Download button and runs no check
+      # at all. That is the same hole this file was written to close, so it is
+      # closed in both directions.
+      - name: The desktop version agrees with itself
+        if: ${{ !cancelled() }}
+        run: node scripts/desktop-version-agrees.mjs
+
+      # The type scale, the mono rule, the container rule: a ratchet against a
+      # committed per-file baseline. See the script's own header for why it is
+      # a ratchet and not a ban.
+      - name: The design scale only goes down
+        if: ${{ !cancelled() }}
+        run: node scripts/design-scale.mjs
+
+      # The contrast floors globals.css claims in its own comment. This one
+      # also prints the surface ramp without failing on it — those numbers are
+      # the measurement docs/calm.md rests on, and this is where the next
+      # person should meet them.
+      - name: Contrast floors
+        if: ${{ !cancelled() }}
+        run: node scripts/contrast-floors.mjs
+
+      # ── The checks that need the dependencies ───────────────────────────
+
+      - name: Install
+        if: ${{ !cancelled() }}
+        run: npm ci
+
+      # `LayoutProps<"/">` and its siblings are globals that Next generates,
+      # and `next-env.d.ts` is generated and gitignored — so on a fresh
+      # checkout neither exists and `tsc --noEmit` alone fails on three
+      # layouts with "Cannot find name". `next typegen` writes both without
+      # doing a build, which is the recipe Next's own CI documentation gives.
+      - name: Route and environment types
+        if: ${{ !cancelled() }}
+        run: npx next typegen
+
+      - name: Lint
+        if: ${{ !cancelled() }}
+        run: npm run lint
+
+      - name: Types
+        if: ${{ !cancelled() }}
+        run: npx tsc --noEmit

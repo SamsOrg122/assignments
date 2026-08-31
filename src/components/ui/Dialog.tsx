@@ -82,13 +82,21 @@ export function Dialog({
         aria-label={title}
         tabIndex={-1}
         style={{ width: `min(${width}px, 100%)` }}
+        /* The panel keeps its border and its shadow: it is painted over
+           content it is not part of, which is the one case where a line is
+           doing physics. Everything that used to be drawn *inside* it is
+           spacing now. */
         className="anim-pop max-h-[86vh] overflow-y-auto rounded-lg border border-line-strong bg-surface shadow-[0_40px_100px_-24px_rgba(0,0,0,0.8)] outline-none"
       >
-        <div className="flex items-start gap-3 border-b border-line px-5 py-4">
+        {/* The rule under the header is gone. Nothing separated the title from
+            the body except a hairline, and a title that is 15px at 500 over a
+            body that is 13px at 400 does not need one — the type says which is
+            which, and 16px of air says they belong together. */}
+        <div className="flex items-start gap-3 px-(--space-4) pt-(--space-4)">
           <div className="min-w-0 flex-1">
-            <h2 className="text-[15px] font-medium text-fg">{title}</h2>
+            <h2 className="text-object text-fg">{title}</h2>
             {description && (
-              <p className="mt-1 text-[12.5px] leading-relaxed text-fg-muted text-pretty">
+              <p className="mt-(--space-1) text-body text-fg-muted text-pretty">
                 {description}
               </p>
             )}
@@ -103,10 +111,15 @@ export function Dialog({
           </button>
         </div>
 
-        <div className="px-5 py-4">{children}</div>
+        <div className="px-(--space-4) pt-(--space-3) pb-(--space-4)">
+          {children}
+        </div>
 
+        {/* And no rule over the footer either. 24px under the body plus 24px
+            over the buttons is 48, past the point where a gap replaces a line
+            — and a gap and a line are never both right. */}
         {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-line px-5 py-3.5">
+          <div className="flex items-center justify-end gap-(--space-2) px-(--space-4) pt-(--space-4) pb-(--space-4)">
             {footer}
           </div>
         )}
@@ -127,11 +140,15 @@ export function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-4 last:mb-0">
-      <span className="mb-1.5 block text-[12.5px] text-fg">{label}</span>
+    <div className="mb-(--space-3) last:mb-0">
+      <span className="mb-(--space-1) block text-body text-fg">{label}</span>
       {children}
+      {/* The hint drops a step rather than sharing text-body with the label
+          above it: two 13px greys in a five-row form is the wobble this scale
+          exists to remove, and what is written here is a fact about the field
+          rather than a second sentence of its label. */}
       {hint && (
-        <p className="mt-1.5 text-[11.5px] leading-relaxed text-fg-subtle text-pretty">
+        <p className="mt-(--space-1) text-meta text-fg-subtle text-pretty">
           {hint}
         </p>
       )}
@@ -139,8 +156,17 @@ export function Row({
   );
 }
 
+/*
+ * The field keeps its border, inside a bordered panel, and that is deliberate.
+ * "Nothing bordered inside something bordered" is aimed at decoration —
+ * keycaps, icon tiles, kind pills, a button in a strip. An input is the one
+ * shape where the border IS the affordance: without it a field is
+ * indistinguishable from a heading, and you cannot see where your text goes.
+ * When an input and its container collide, the container gives way — which is
+ * why the dialog's own header and footer rules came out and this one did not.
+ */
 export const fieldClass =
-  "w-full rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none transition-colors focus:border-accent";
+  "w-full rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-body text-fg outline-none transition-colors focus:border-accent";
 
 export function Button({
   children,
@@ -160,14 +186,31 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      /*
+       * Three shapes, no borders. An action that writes gets a shape and an
+       * action that navigates gets a word, and every button that reaches this
+       * component writes something — so all three keep a shape, and the
+       * difference between them is ink.
+       *
+       * `ghost` is the default and it is not only Cancel: Copy, Rewrite,
+       * Duplicate and the passcode buttons come through here too. So it takes
+       * the plain write shape rather than becoming a bare word, and drops the
+       * outline it wore inside an already-bordered panel. `danger` is the same
+       * shape in danger ink — the red is the signal, and it does not also need
+       * a red hairline round it saying the same thing a second time.
+       *
+       * `primary` keeps its accent fill. A dialog's primary is exactly what
+       * the one-accent-per-screen budget is reserved for: the thing you press
+       * to make the dialog do what it opened to do.
+       */
       className={cn(
-        "rounded-sm px-3 py-1.5 text-[12.5px] font-medium transition-colors duration-150 disabled:opacity-40",
+        "rounded-sm px-3 py-1.5 text-body font-medium transition-colors duration-150 disabled:opacity-40",
         variant === "primary" &&
           "bg-accent text-on-accent enabled:hover:brightness-110",
         variant === "ghost" &&
-          "border border-line text-fg-muted enabled:hover:border-line-strong enabled:hover:text-fg",
+          "bg-surface-2 text-fg enabled:hover:bg-surface-3",
         variant === "danger" &&
-          "border border-danger/40 text-danger enabled:hover:bg-danger/10",
+          "bg-surface-2 text-danger enabled:hover:bg-danger/10",
       )}
     >
       {children}

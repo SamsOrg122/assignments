@@ -192,22 +192,22 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
         )}
 
         {busy && !streaming && (
-          <p className="anim-shimmer px-1 py-2 text-[12px] text-fg-subtle">
+          <p className="anim-shimmer px-1 py-2 text-body text-fg-subtle">
             Reading the workspace…
           </p>
         )}
 
         {pending?.kind === "remember" && (
           <div className="anim-slide-up mt-3 rounded-md border border-line-strong bg-surface-2 p-3">
-            <p className="mb-1.5 flex items-center gap-2 text-[12px] text-fg">
+            <p className="mb-1.5 flex items-center gap-2 text-body text-fg">
               <Icon name="sparkle" size={11} className="text-accent" />
               Remember this for the whole team?
             </p>
-            <p className="mb-1 text-[12.5px] text-fg">
+            <p className="mb-1 text-body text-fg">
               <span className="font-medium">{pending.entry.subject}</span> —{" "}
               {pending.entry.body}
             </p>
-            <p className="mb-2.5 text-[11px] text-fg-subtle">
+            <p className="mb-2.5 text-meta text-fg-subtle">
               Filed as{" "}
               {KNOWLEDGE_LABELS[pending.entry.kind as KnowledgeKind] ?? "a fact"}
               . It stays marked unconfirmed until someone checks it.
@@ -216,14 +216,14 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
               <button
                 type="button"
                 onClick={acceptLearning}
-                className="rounded-sm bg-accent px-2.5 py-1 text-[12px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+                className="rounded-sm bg-accent px-2.5 py-1 text-body font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
               >
                 Remember
               </button>
               <button
                 type="button"
                 onClick={() => setPending(null)}
-                className="rounded-sm border border-line px-2.5 py-1 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                className="rounded-sm border border-line px-2.5 py-1 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
               >
                 Don&apos;t
               </button>
@@ -241,7 +241,7 @@ export function TeamAssistant({ channelId }: { channelId: string }) {
               key={p}
               type="button"
               onClick={() => void ask(p)}
-              className="rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+              className="rounded-sm border border-line px-2 py-1 text-meta text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
             >
               {p}
             </button>

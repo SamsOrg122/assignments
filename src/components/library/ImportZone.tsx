@@ -179,7 +179,7 @@ export function ImportZone() {
             <p className="text-[15px] font-medium text-fg">
               Drop them here.
             </p>
-            <p className="mt-1.5 max-w-[42ch] text-[12.5px] leading-relaxed text-fg-muted">
+            <p className="mt-1.5 max-w-[42ch] text-body leading-relaxed text-fg-muted">
               Word, PowerPoint, Excel, CSV, text and Markdown. Drop a whole
               folder and its folders come with it.
             </p>
@@ -193,11 +193,11 @@ export function ImportZone() {
           aria-live="polite"
           className="anim-slide-up fixed bottom-4 left-4 z-[60] w-[300px] rounded-md border border-line-strong bg-surface p-3 shadow-[0_24px_70px_-12px_rgba(0,0,0,0.8)]"
         >
-          <p className="text-[12.5px] text-fg">
+          <p className="text-body text-fg">
             Reading {formatNumber(Math.min(progress.done + 1, progress.total))}{" "}
             of {formatNumber(progress.total)}
           </p>
-          <p className="mt-0.5 truncate text-[11.5px] text-fg-subtle">
+          <p className="mt-0.5 truncate text-meta text-fg-subtle">
             {progress.name || "Finishing up…"}
           </p>
           <span className="mt-2 block h-px w-full overflow-hidden bg-line">
@@ -274,10 +274,10 @@ function ImportReportDialog({
                 size={11}
                 className="translate-y-px shrink-0 text-accent"
               />
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">
+              <span className="min-w-0 flex-1 truncate text-body text-fg">
                 {item.name}
               </span>
-              <span className="shrink-0 text-[11px] text-fg-subtle">
+              <span className="shrink-0 text-meta text-fg-subtle">
                 {item.detail}
               </span>
             </li>
@@ -291,7 +291,7 @@ function ImportReportDialog({
             Named, every one of them. The number alone is the version of this
             that reads as reassuring and is in fact the problem.
           */}
-          <p className="mb-1.5 text-[12.5px] text-fg">
+          <p className="mb-1.5 text-body text-fg">
             {formatNumber(refused.length)}{" "}
             {refused.length === 1 ? "file" : "files"} didn&apos;t come in:
           </p>
@@ -299,7 +299,7 @@ function ImportReportDialog({
             {refused.map((item) => (
               <li
                 key={item.name}
-                className="border-b border-warn/15 px-2.5 py-1.5 text-[12px] leading-relaxed last:border-b-0"
+                className="border-b border-warn/15 px-2.5 py-1.5 text-body leading-relaxed last:border-b-0"
               >
                 <span className="text-fg">{item.name}</span>
                 <span className="text-fg-muted"> — {item.reason}</span>
@@ -310,7 +310,7 @@ function ImportReportDialog({
       )}
 
       {!landed.length && !refused.length && (
-        <p className="text-[13px] leading-relaxed text-fg-muted">
+        <p className="text-body leading-relaxed text-fg-muted">
           There was nothing in there this could open. Word, PowerPoint, Excel,
           CSV, text and Markdown all work.
         </p>

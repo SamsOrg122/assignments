@@ -88,24 +88,29 @@ function Rescued() {
   if (!items.length) return null;
 
   return (
-    <div className="rounded-md border border-warn/40 bg-warn/[0.07] p-3.5">
-      <p className="text-[13px] text-fg">
+    /* The tint and the outline are gone; the sentence carries it in warn ink
+       and weight, which is the pair that survives both themes. */
+    <div>
+      <p className="text-body font-medium text-warn">
         {items.length} piece{items.length === 1 ? "" : "s"} of unreadable data
         kept aside
       </p>
-      <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-muted">
+      <p className="mt-(--space-1) max-w-[68ch] text-body text-fg-muted">
         Something stored here couldn&apos;t be read — a damaged payload, or an
         upgrade that didn&apos;t finish. It was copied instead of deleted. Save
         it somewhere before you clear it; a later version may be able to open
         it.
       </p>
-      <ul className="mt-2.5 space-y-1.5">
+      <ul className="mt-(--space-3) space-y-(--space-2)">
         {items.map((item) => (
           <li
             key={item.key}
-            className="flex flex-wrap items-center gap-2 font-mono text-[10.5px] text-fg-subtle"
+            className="flex flex-wrap items-center gap-(--space-2) text-meta text-fg-subtle"
           >
-            <span className="text-fg-muted">{item.source}</span>
+            {/* A storage key is an id you would quote to somebody, so it
+                keeps the mono face; the size and the date beside it are
+                facts and go sans with every other fact on the page. */}
+            <span className="text-meta text-fg-subtle">{item.source}</span>
             <span>{formatBytes(item.bytes)}</span>
             <span>{formatDateTime(item.at)}</span>
             <button
@@ -123,7 +128,7 @@ function Rescued() {
                 a.remove();
                 setTimeout(() => URL.revokeObjectURL(url), 1000);
               }}
-              className="rounded-xs border border-line px-1.5 py-0.5 text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
+              className="rounded-xs bg-surface-2 px-1.5 py-0.5 font-medium text-fg transition-colors hover:bg-surface-3"
             >
               Save
             </button>
@@ -133,7 +138,7 @@ function Rescued() {
                 forgetRescued(item.key);
                 notify("Discarded");
               }}
-              className="rounded-xs border border-line px-1.5 py-0.5 text-fg-subtle transition-colors hover:border-danger/60 hover:text-danger"
+              className="rounded-xs bg-surface-2 px-1.5 py-0.5 font-medium text-danger transition-colors hover:bg-surface-3"
             >
               Discard
             </button>
@@ -203,10 +208,12 @@ export function SafeKeeping() {
   const copy = state ? STATE_COPY[state] : null;
 
   return (
-    <div className="flex flex-col gap-3.5">
-      {/* Where things stand. */}
-      <div className="rounded-md border border-line bg-surface p-3.5">
-        <p className="flex items-center gap-2 text-[13px] text-fg">
+    <div className="flex flex-col gap-(--space-3)">
+      {/* Where things stand. The dot's colour and the word beside it are the
+          answer; the card around them was a third statement of the same
+          thing at 1.1:1, which is to say no statement at all. */}
+      <div>
+        <p className="flex items-center gap-(--space-2) text-body text-fg">
           <span
             className={cn(
               "size-1.5 rounded-full",
@@ -219,7 +226,7 @@ export function SafeKeeping() {
           />
           {copy ? copy.label : "Checking…"}
           {usage && (
-            <span className="ml-auto font-mono text-[10.5px] text-fg-subtle">
+            <span className="ml-auto text-meta text-fg-subtle">
               {formatBytes(usage.workspaceBytes)} of work
               {usage.quota
                 ? ` · ${formatBytes(usage.used)} of ${formatBytes(usage.quota)} used`
@@ -228,13 +235,13 @@ export function SafeKeeping() {
           )}
         </p>
         {copy && (
-          <p className="mt-2 text-[12.5px] leading-relaxed text-fg-muted">
+          <p className="mt-(--space-2) max-w-[68ch] text-body text-fg-muted">
             {copy.body}
           </p>
         )}
 
         {usage?.fraction != null && usage.fraction > 0.8 && (
-          <p className="mt-2 text-[12px] text-warn">
+          <p className="mt-(--space-2) max-w-[68ch] text-body text-warn">
             This browser&apos;s storage is {Math.round(usage.fraction * 100)}%
             full. Export a backup before it runs out.
           </p>
@@ -245,7 +252,7 @@ export function SafeKeeping() {
             type="button"
             onClick={() => void ask()}
             disabled={asking}
-            className="mt-3 flex items-center gap-2 rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
+            className="mt-(--space-3) flex items-center gap-2 rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-fg transition-colors duration-150 hover:bg-surface-3 disabled:opacity-60"
           >
             <Icon name="check" size={12} />
             {asking ? "Asking…" : "Ask the browser to keep it"}
@@ -253,8 +260,8 @@ export function SafeKeeping() {
         )}
       </div>
 
-      {/* The file. */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* The file. Both of these write something, so both get the shape. */}
+      <div className="flex flex-wrap items-center gap-(--space-3)">
         <button
           type="button"
           onClick={() => {
@@ -286,7 +293,7 @@ export function SafeKeeping() {
                 });
               });
           }}
-          className="flex items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+          className="flex items-center gap-2 rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-fg transition-colors duration-150 hover:bg-surface-3"
         >
           <Icon name="download" size={12} />
           Export a backup file
@@ -295,7 +302,7 @@ export function SafeKeeping() {
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+          className="flex items-center gap-2 rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-fg transition-colors duration-150 hover:bg-surface-3"
         >
           <Icon name="file" size={12} />
           Restore from a file
@@ -316,7 +323,9 @@ export function SafeKeeping() {
         />
       </div>
 
-      <p className="font-mono text-[10px] leading-relaxed text-fg-subtle">
+      {/* Prose about what the file is for. It was 10px monospace, which is
+          the face for things you paste, and this is a sentence. */}
+      <p className="max-w-[68ch] text-body text-fg-muted">
         One file holds every project, board, chat and setting. It never leaves
         this device, and it opens in any browser — which is how work moves
         between machines, between browsers, and between two addresses of this
@@ -325,20 +334,24 @@ export function SafeKeeping() {
 
       <Rescued />
 
-      {error && <p className="text-[12px] text-danger">{error}</p>}
+      {error && <p className="text-body text-danger">{error}</p>}
 
       {/* Confirm, because restoring replaces everything. */}
       {pending && (
-        <div className="anim-slide-up rounded-md border border-warn/40 bg-warn/[0.07] p-3.5">
-          <p className="text-[13px] text-fg">
+        <div className="anim-slide-up">
+          {/* The question is in warn ink at weight and the button that
+              answers it is in danger ink. Both of those survive a theme
+              change; the 1.1:1 tint that used to be the third signal did
+              not, and it was the one drawing a box. */}
+          <p className="text-body font-medium text-warn">
             Restore {pending.projects} project
             {pending.projects === 1 ? "" : "s"} from this file?
           </p>
-          <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-muted">
+          <p className="mt-(--space-1) max-w-[68ch] text-body text-fg-muted">
             Everything currently in this browser is replaced, including chat and
             settings. Export what&apos;s here first if you might want it back.
           </p>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-(--space-3) flex items-center gap-(--space-3)">
             <button
               type="button"
               onClick={() => {
@@ -355,14 +368,14 @@ export function SafeKeeping() {
                   .catch(() => {})
                   .then(() => window.location.reload());
               }}
-              className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+              className="rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-danger transition-colors duration-150 hover:bg-surface-3"
             >
               Replace everything
             </button>
             <button
               type="button"
               onClick={() => setPending(null)}
-              className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+              className="text-body text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors duration-150 hover:text-fg"
             >
               Cancel
             </button>

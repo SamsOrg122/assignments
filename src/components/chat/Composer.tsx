@@ -6,6 +6,19 @@
  * Two things it does that a chat box normally can't: `@` mentions a
  * collaborator, and `#` attaches a *live* Library project — the reason chat
  * belongs in this app rather than beside it.
+ *
+ * ONE EDGE, NOT TWO. The strip used to draw `border-t` across the page and the
+ * input inside it drew its own border 10px lower — two hairlines doing one
+ * job, and both of them drawn twice whenever a thread was open. The strip's
+ * line is the one that goes. That direction and not the reverse: an input has
+ * to look like an input, the border is its affordance rather than decoration,
+ * and the input is full width so it is already the composer's edge.
+ *
+ * The send button loses the border it wore while disabled, because nothing
+ * bordered sits inside something bordered. Its filled accent when there is
+ * something to send is the one accent fill on this screen and it stays — that
+ * is the fill answering "what do I press to start something", which is the
+ * only question a filled accent is allowed to answer.
  */
 
 import { useMemo, useRef, useState } from "react";
@@ -163,7 +176,7 @@ export function Composer({
   return (
     <DropZone
       onFiles={(list) => void files.add(list)}
-      className="border-t border-line px-3 py-2.5"
+      className="p-(--space-3)"
       hint="Drop to attach to this message"
     >
       {/* A mention with nothing to offer says so. Silence reads as a broken
@@ -172,7 +185,7 @@ export function Composer({
       {trigger && (suggestions.length > 0 || trigger.kind === "mention") && (
         <div className="anim-pop absolute bottom-full left-3 z-30 mb-1.5 w-[280px] overflow-hidden rounded-md border border-line-strong bg-surface p-1 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.6)]">
           {suggestions.length === 0 && (
-            <p className="px-2 py-1.5 text-[12px] leading-relaxed text-fg-subtle">
+            <p className="px-2 py-1.5 text-body text-fg-subtle">
               {mentionable.length > 0
                 ? "Nobody here by that name."
                 : !friends
@@ -193,8 +206,8 @@ export function Composer({
                 i === active ? "bg-surface-2" : "hover:bg-surface-2/60",
               )}
             >
-              <span className="truncate text-[12.5px] text-fg">{option.label}</span>
-              <span className="ml-auto shrink-0 font-mono text-[9.5px] text-fg-subtle">
+              <span className="truncate text-body text-fg">{option.label}</span>
+              <span className="ml-auto shrink-0 text-meta text-fg-subtle">
                 {option.hint}
               </span>
             </button>
@@ -209,7 +222,7 @@ export function Composer({
             return (
               <span
                 key={a.projectId}
-                className="flex items-center gap-1.5 rounded-sm border border-line bg-surface-2 px-2 py-1 text-[11.5px] text-fg-muted"
+                className="flex items-center gap-1.5 rounded-sm bg-surface-2 px-2 py-1 text-meta text-fg-muted"
               >
                 <Icon
                   name={project ? KINDS[project.kind].icon : "file"}
@@ -294,7 +307,7 @@ export function Composer({
               submit();
             }
           }}
-          className="max-h-32 min-h-[22px] w-full resize-none bg-transparent py-1 text-[13.5px] leading-relaxed text-fg outline-none placeholder:text-fg-subtle"
+          className="max-h-32 min-h-[22px] w-full resize-none bg-transparent py-1 text-body text-fg outline-none placeholder:text-fg-subtle"
         />
 
         <button
@@ -306,7 +319,7 @@ export function Composer({
             "mb-0.5 grid size-6 shrink-0 place-items-center rounded-sm transition-colors duration-150",
             body.trim() || all.length
               ? "bg-accent text-on-accent hover:brightness-110"
-              : "border border-line text-fg-subtle",
+              : "text-fg-subtle",
           )}
         >
           <Icon name="arrow-up" size={12} />

@@ -1107,7 +1107,7 @@ function PaletteDialog({ seed }: { seed: string }) {
               // Groups are runs, so the same label can appear twice — index
               // keeps the keys unique.
               <div key={`${group}-${gi}`} className="pb-1">
-                <div className="label-mono px-4 pt-2.5 pb-1.5">{group}</div>
+                <div className="text-meta text-fg-subtle px-4 pt-2.5 pb-1.5">{group}</div>
                 {items.map((r) => {
                   flatIndex++;
                   const index = flatIndex;

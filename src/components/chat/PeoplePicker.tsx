@@ -138,10 +138,10 @@ function NoAccountToConnect({
 
   return (
     <div className="rounded-md border border-line bg-surface p-3">
-      <p className="text-[12.5px] leading-relaxed text-fg">
+      <p className="text-body leading-relaxed text-fg">
         Messaging somebody needs an account, and so does adding them.
       </p>
-      <p className="mt-1.5 text-[12px] leading-relaxed text-fg-muted">
+      <p className="mt-1.5 text-body leading-relaxed text-fg-muted">
         {explainConnecting(state)}
       </p>
       {/* No door for "no-database": signing in cannot conjure a database that
@@ -150,13 +150,13 @@ function NoAccountToConnect({
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           <Link
             href={anon ? signUp : signIn}
-            className="rounded-sm bg-accent px-2.5 py-1.5 text-[12px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+            className="rounded-sm bg-accent px-2.5 py-1.5 text-body font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
           >
             {anon ? "Add an email" : "Sign in"}
           </Link>
           <Link
             href={anon ? signIn : signUp}
-            className="rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+            className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
           >
             {anon ? "Sign in as somebody else" : "Create an account"}
           </Link>
@@ -229,18 +229,18 @@ export function PeoplePicker({
       width={420}
     >
       {!settled || state === null ? (
-        <p className="text-[12.5px] text-fg-subtle" role="status">
+        <p className="text-body text-fg-subtle" role="status">
           Checking this browser…
         </p>
       ) : !ready ? (
         <NoAccountToConnect state={state} />
       ) : !outcome ? (
-        <p className="text-[12.5px] text-fg-subtle" role="status">
+        <p className="text-body text-fg-subtle" role="status">
           Reading your people…
         </p>
       ) : !outcome.ok ? (
         <div className="rounded-md border border-line bg-surface p-2.5">
-          <p className="text-[12.5px] leading-relaxed text-warn">
+          <p className="text-body leading-relaxed text-warn">
             {outcome.reason}
           </p>
           {outcome.setup !== true && (
@@ -248,7 +248,7 @@ export function PeoplePicker({
               type="button"
               onClick={() => void reload()}
               disabled={busy}
-              className="mt-2 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-40"
+              className="mt-2 rounded-sm border border-line px-2 py-1 text-meta text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-40"
             >
               {busy ? "Trying…" : "Try again"}
             </button>
@@ -259,7 +259,7 @@ export function PeoplePicker({
            empty list, which asks somebody to type a name that cannot be
            there. */
         <div className="flex flex-col gap-3">
-          <p className="text-[12.5px] leading-relaxed text-fg-muted">
+          <p className="text-body leading-relaxed text-fg-muted">
             You are not connected to anybody yet, so there is nobody to
             message. Send somebody a link. When they open it, they appear
             here.
@@ -272,7 +272,7 @@ export function PeoplePicker({
               this browser and stops there, and somebody typing a real friend's
               name into a picker has every reason to assume otherwise. */}
           <div className="mb-3 rounded-md border border-line bg-surface p-2.5">
-            <p className="text-[12px] leading-relaxed text-fg-muted">
+            <p className="text-body leading-relaxed text-fg-muted">
               Messages don&apos;t reach other people yet. A conversation you
               open here is kept in this browser: they aren&apos;t told about it
               and can&apos;t read it. Nothing is sent until chat sync ships.
@@ -305,7 +305,7 @@ export function PeoplePicker({
                     type="button"
                     onClick={() => choose(row)}
                     aria-label={`Message ${friendName(row.person)} — kept in this browser, not sent to them`}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-left text-[13px] text-fg-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-left text-body text-fg-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
                   >
                     <span
                       aria-hidden="true"
@@ -344,7 +344,7 @@ export function PeoplePicker({
             })}
 
             {people.length === 0 && (
-              <li className="px-2 py-2 text-[12px] leading-relaxed text-fg-subtle">
+              <li className="px-2 py-2 text-body leading-relaxed text-fg-subtle">
                 Nobody here by that name.
               </li>
             )}
@@ -360,7 +360,7 @@ export function PeoplePicker({
               <button
                 type="button"
                 onClick={() => setAdding(true)}
-                className="flex items-center gap-2 text-[12.5px] text-fg-muted transition-colors duration-150 hover:text-fg"
+                className="flex items-center gap-2 text-body text-fg-muted transition-colors duration-150 hover:text-fg"
               >
                 <Icon name="plus" size={12} className="text-fg-subtle" />
                 Connect somebody new

@@ -122,7 +122,7 @@ export function AssignmentEditor({
         </div>
 
         <label className="grid gap-1">
-          <span className="label-mono text-fg-subtle">What is it</span>
+          <span className="text-meta text-fg-subtle">What is it</span>
           <input
             ref={title}
             value={draft.title}
@@ -133,7 +133,7 @@ export function AssignmentEditor({
         </label>
 
         <label className="grid gap-1">
-          <span className="label-mono text-fg-subtle">Course</span>
+          <span className="text-meta text-fg-subtle">Course</span>
           <input
             value={draft.course}
             onChange={(e) => onChange({ ...draft, course: e.target.value })}
@@ -144,7 +144,7 @@ export function AssignmentEditor({
 
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <label className="grid gap-1">
-            <span className="label-mono text-fg-subtle">Due</span>
+            <span className="text-meta text-fg-subtle">Due</span>
             <input
               type="date"
               value={draft.due}
@@ -153,7 +153,7 @@ export function AssignmentEditor({
             />
           </label>
           <label className="grid gap-1">
-            <span className="label-mono text-fg-subtle">Time</span>
+            <span className="text-meta text-fg-subtle">Time</span>
             <input
               type="time"
               value={draft.time}
@@ -165,7 +165,7 @@ export function AssignmentEditor({
         </div>
 
         <label className="grid gap-1">
-          <span className="label-mono text-fg-subtle">Notes</span>
+          <span className="text-meta text-fg-subtle">Notes</span>
           <textarea
             value={draft.notes}
             onChange={(e) => onChange({ ...draft, notes: e.target.value })}
@@ -177,7 +177,7 @@ export function AssignmentEditor({
 
         {hasTeam && (
           <div className="grid gap-1">
-            <span className="label-mono text-fg-subtle">Whose</span>
+            <span className="text-meta text-fg-subtle">Whose</span>
             <div className="flex rounded-sm border border-line p-0.5" role="group">
               {(["personal", "team"] as const).map((option) => (
                 <button

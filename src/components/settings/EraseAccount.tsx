@@ -87,7 +87,7 @@ export function EraseAccount() {
 
   if (done)
     return (
-      <p className="rounded-sm border border-line bg-surface px-3 py-2.5 text-[12.5px] leading-relaxed text-fg-muted">
+      <p className="rounded-sm border border-line bg-surface px-3 py-2.5 text-body leading-relaxed text-fg-muted">
         The account is gone, and so is this browser&apos;s copy of everything in
         it. Nothing here is signed in any more. Closing the tab is safe.
       </p>
@@ -95,7 +95,7 @@ export function EraseAccount() {
 
   if (!configured)
     return (
-      <p className="text-[12px] leading-relaxed text-fg-subtle">
+      <p className="text-body leading-relaxed text-fg-subtle">
         This deployment has no account database, so there is no account to
         delete. Everything is in this browser — “Keeping your work” above
         clears it.
@@ -103,11 +103,11 @@ export function EraseAccount() {
     );
 
   if (hasSession === null)
-    return <p className="text-[12px] text-fg-subtle">Looking…</p>;
+    return <p className="text-body text-fg-subtle">Looking…</p>;
 
   if (!hasSession)
     return (
-      <p className="text-[12px] leading-relaxed text-fg-subtle">
+      <p className="text-body leading-relaxed text-fg-subtle">
         This browser has no session, so there is nothing in the database to
         delete. What you have made is in this browser only — “Keeping your
         work” above clears it.
@@ -125,7 +125,7 @@ export function EraseAccount() {
 
   return (
     <div>
-      <p className="text-[12px] leading-relaxed text-fg-subtle">
+      <p className="text-body leading-relaxed text-fg-subtle">
         Deleting removes the account and everything in it — projects, notes,
         the agenda, files, anything posted to the community — from the
         database, and clears this browser at the same time. It cannot be
@@ -135,7 +135,7 @@ export function EraseAccount() {
       {!named && (
         // Said out loud, because somebody who never signed up will reasonably
         // assume none of this is about them.
-        <p className="mt-2 text-[12px] leading-relaxed text-fg-subtle">
+        <p className="mt-2 text-body leading-relaxed text-fg-subtle">
           You have not signed up, but this browser does have an account —
           an anonymous one, made so your work could reach the database at all.
           It holds everything you have made. This deletes that.
@@ -148,7 +148,7 @@ export function EraseAccount() {
         cheaper than somebody discovering it and concluding the rest was a
         lie too.
       */}
-      <p className="mt-2 text-[11.5px] leading-relaxed text-fg-subtle">
+      <p className="mt-2 text-body leading-relaxed text-fg-subtle">
         Two things outlive it, with your name taken off rather than kept: a
         workspace&apos;s audit log, and any template you made for a team. Both
         belong to the workspace rather than to you, and once the link is cut
@@ -159,19 +159,19 @@ export function EraseAccount() {
         <button
           type="button"
             onClick={() => setOpen(true)}
-          className="mt-3 rounded-sm border border-danger/45 px-2.5 py-1.5 text-[12.5px] text-danger transition-colors duration-150 hover:bg-danger/10"
+          className="mt-3 rounded-sm border border-danger/45 px-2.5 py-1.5 text-body text-danger transition-colors duration-150 hover:bg-danger/10"
         >
           Delete my account
         </button>
       ) : (
         <div className="mt-3 rounded-sm border border-danger/45 bg-danger/[0.06] p-3">
-          <p className="text-[12.5px] leading-relaxed text-fg">
+          <p className="text-body leading-relaxed text-fg">
             Take the backup first if you want to keep any of it — “Keeping
             your work” above writes one file with everything in it.
           </p>
 
           <label className="mt-3 block">
-            <span className="mb-1.5 block text-[11.5px] text-fg-muted">
+            <span className="mb-1.5 block text-meta text-fg-muted">
               Type <strong className="font-medium text-fg">{WORD}</strong> to
               confirm
             </span>
@@ -181,7 +181,7 @@ export function EraseAccount() {
               autoComplete="off"
               spellCheck={false}
               aria-label={`Type ${WORD} to confirm`}
-              className="w-full max-w-[240px] rounded-sm border border-line bg-canvas px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-danger"
+              className="w-full max-w-[240px] rounded-sm border border-line bg-canvas px-2.5 py-1.5 text-body text-fg outline-none focus:border-danger"
             />
           </label>
 
@@ -191,7 +191,7 @@ export function EraseAccount() {
               disabled={typed.trim().toLowerCase() !== WORD || busy}
               onClick={() => void erase()}
               className={cn(
-                "flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-[12.5px] font-medium transition-[filter,opacity] duration-150",
+                "flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-body font-medium transition-[filter,opacity] duration-150",
                 "bg-danger text-white hover:brightness-110",
                 "disabled:cursor-not-allowed disabled:opacity-40",
               )}
@@ -207,14 +207,14 @@ export function EraseAccount() {
                 setTyped("");
                 setProblem(null);
               }}
-              className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+              className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
             >
               Keep it
             </button>
           </div>
 
           {problem && (
-            <p className="mt-2.5 text-[12px] leading-relaxed text-danger" role="alert">
+            <p className="mt-2.5 text-body leading-relaxed text-danger" role="alert">
               {problem.reason}
               {problem.fix && (
                 <span className="mt-1 block text-fg-subtle">{problem.fix}</span>

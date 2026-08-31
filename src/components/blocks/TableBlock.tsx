@@ -1574,7 +1574,7 @@ function ColumnMenu({
       ref={ref}
       className="anim-pop absolute top-full right-0 z-30 mt-1 w-[252px] rounded-md border border-line-strong bg-surface p-2 text-left font-normal shadow-[0_20px_60px_-12px_rgba(0,0,0,0.85)]"
     >
-      <label className="label-mono mb-1 block">Name</label>
+      <label className="text-meta text-fg-subtle mb-1 block">Name</label>
       <input
         value={name}
         autoFocus
@@ -1590,7 +1590,7 @@ function ColumnMenu({
         className="mb-2.5 w-full rounded-sm border border-line bg-surface-2 px-2 py-1.5 text-[12.5px] text-fg outline-none focus:border-accent"
       />
 
-      <label className="label-mono mb-1 block">Type</label>
+      <label className="text-meta text-fg-subtle mb-1 block">Type</label>
       <div className="mb-2.5 grid grid-cols-2 gap-1">
         {(Object.keys(TYPE_LABEL) as ColumnType[]).map((t) => (
           <button
@@ -1617,7 +1617,7 @@ function ColumnMenu({
 
       {column.type === "select" && (
         <>
-          <label className="label-mono mb-1 block">Options</label>
+          <label className="text-meta text-fg-subtle mb-1 block">Options</label>
           <input
             value={options}
             placeholder="Todo, Doing, Done"
@@ -1640,7 +1640,7 @@ function ColumnMenu({
 
       {column.type === "formula" && (
         <>
-          <label className="label-mono mb-1 block">Formula</label>
+          <label className="text-meta text-fg-subtle mb-1 block">Formula</label>
           <input
             value={formula}
             onChange={(e) => setFormula(e.target.value)}

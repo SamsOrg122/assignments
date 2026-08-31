@@ -175,7 +175,7 @@ export function CodeBlock({
   return (
     <div className="overflow-hidden rounded-md border border-line bg-surface">
       <div className="flex items-center gap-2 border-b border-line px-2.5 py-1.5">
-        <span className="label-mono">{block.files.length} files</span>
+        <span className="text-meta text-fg-subtle">{block.files.length} files</span>
         <div className="ml-auto flex items-center gap-1">
           <button
             type="button"
@@ -314,7 +314,7 @@ export function CodeBlock({
         {block.preview && hasHtml && (
           <div className="min-w-0 border-t border-line lg:border-t-0 lg:border-l">
             <div className="flex items-center gap-2 border-b border-line px-2.5 py-1">
-              <span className="label-mono">Preview</span>
+              <span className="text-meta text-fg-subtle">Preview</span>
             </div>
             <iframe
               key={ranAt ?? "initial"}

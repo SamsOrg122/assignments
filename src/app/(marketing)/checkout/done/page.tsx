@@ -36,7 +36,7 @@ export default function CheckoutDonePage() {
       <main>
         <Section className="pt-14 pb-24 sm:pt-24">
           <div className="max-w-[560px]">
-            <p className="label-mono mb-3 text-fg-subtle">Payment received</p>
+            <p className="text-meta mb-3 text-fg-subtle">Payment received</p>
             <h1 className="text-[32px] leading-[1.1] font-medium tracking-[-0.02em] text-fg sm:text-[40px]">
               Thank you — that went through.
             </h1>

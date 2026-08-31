@@ -21,7 +21,7 @@
  * tabs would break.
  */
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
   ACCENTS,
@@ -57,6 +57,7 @@ import { AccountPanel } from "@/components/account/AccountPanel";
 import { ConnectionPanel } from "@/components/account/ConnectionPanel";
 import { TemplatesPanel } from "@/components/settings/TemplatesPanel";
 import {
+  Loose,
   ProviderRow,
   Row,
   Section,
@@ -137,6 +138,119 @@ function useSyncLine(): string {
 }
 
 /**
+ * Which section you are actually looking at.
+ *
+ * Twenty anchors that all look the same, on 5,853px of page, and nothing on
+ * the screen said where you were — which is the one question somebody who
+ * has scrolled this far actually has. It is what sixty-two borders were
+ * failing to answer.
+ *
+ * Additive on purpose. With JavaScript off the rail is exactly the plain
+ * anchors it has always been, so find-in-page, a bookmarked `#connection`
+ * and a link from somewhere else all still work; that is the whole reason
+ * the rail is anchors and not tabs, and an indicator must not cost it.
+ *
+ * `-70%` at the bottom shrinks the observed band to the top 30% of the
+ * viewport, so a section becomes a candidate when its heading crosses that
+ * line rather than when it happens to be the tallest thing on screen. Of the
+ * candidates we take the LAST, not the first: two sections share the band
+ * whenever one ends inside it, and the one you have just arrived at is the
+ * lower of the two. Taking the first instead lags a whole section behind —
+ * measured, scrolling to Shortcuts left the rail reading Appearance.
+ *
+ * The bottom fallback is not a nicety: the last four administration sections
+ * are short enough that the scroller runs out before any of them reaches
+ * that band, so without it they could never be current however far you
+ * scrolled.
+ */
+function useCurrentSection(configured: boolean): string | null {
+  const [current, setCurrent] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+
+    const ids = RAIL.filter((item) => !item.admin || configured).map((i) => i.id);
+    const nodes = ids
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
+    if (!nodes.length) return;
+
+    // The page scrolls inside <main>, not inside the window, so the bottom
+    // test has to ask that element rather than the document.
+    const scroller = nodes[0].closest("main");
+    const inBand = new Set<string>();
+
+    const settle = () => {
+      const atBottom =
+        scroller !== null &&
+        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 8;
+      const next = atBottom
+        ? ids[ids.length - 1]
+        : (ids.findLast((id) => inBand.has(id)) ?? null);
+      // Hold the last answer rather than blanking between two sections: a
+      // rail that flickers off is worse than one that is a beat behind.
+      setCurrent((prev) => next ?? prev);
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) inBand.add(entry.target.id);
+          else inBand.delete(entry.target.id);
+        }
+        settle();
+      },
+      { rootMargin: "0px 0px -70% 0px" },
+    );
+    for (const node of nodes) observer.observe(node);
+    scroller?.addEventListener("scroll", settle, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      scroller?.removeEventListener("scroll", settle);
+    };
+  }, [configured]);
+
+  return current;
+}
+
+/**
+ * A group label names a region; it does not title content. So it is the
+ * smallest thing on the page while the section headings under it are the
+ * largest — which looks like a mistake and is not. The sidebar already
+ * proves it works ("recent" at 11px above 13px rows), and it is why this
+ * page needs no fifth type size for its second heading level.
+ *
+ * The hairline under it is gone. 72px above and 24px below says "a new
+ * region begins" more plainly than a rule does, and a gap that large plus a
+ * rule is two signals doing one job.
+ */
+function GroupHeading({
+  label,
+  note,
+  first,
+}: {
+  label: string;
+  note: string;
+  /** The first one sits directly under the h1, which already spaced it. */
+  first?: boolean;
+}) {
+  return (
+    <h2
+      className={cn(
+        "mb-(--space-4) text-meta text-fg-muted",
+        first ? "mt-0" : "mt-(--space-6)",
+      )}
+    >
+      {label}
+      <span className="mt-(--space-1) block text-meta text-fg-subtle">
+        {note}
+      </span>
+    </h2>
+  );
+}
+
+/**
  * The rail, in the order the page is now in.
  *
  * Every label matches the heading it scrolls to, word for word. Four of them
@@ -209,69 +323,157 @@ export default function SettingsPage() {
   const router = useRouter();
 
   const anywhere = SHORTCUTS.find((g) => g.where === "global");
+  const current = useCurrentSection(configured);
+  const rail = RAIL.filter((item) => !item.admin || configured);
+  const strip = useRef<HTMLElement>(null);
+
+  /*
+   * Keep the current word inside the sideways rail. Twenty labels come to
+   * about 1,500px on a 390px phone, so without this the indicator is real,
+   * correct and three screens off to the right — which is an indicator that
+   * does not indicate.
+   *
+   * It moves the strip's own scrollLeft and nothing else. scrollIntoView()
+   * would also scroll the page, and a thing that says where you are must
+   * never move where you are.
+   */
+  useEffect(() => {
+    const nav = strip.current;
+    // offsetParent is null while the strip is display:none — above lg the
+    // column rail is showing and there is nothing to slide.
+    if (!nav || !current || nav.offsetParent === null) return;
+    const link = nav.querySelector<HTMLElement>(`a[href="#${CSS.escape(current)}"]`);
+    if (!link) return;
+    nav.scrollTo({
+      left: Math.max(0, link.offsetLeft - nav.clientWidth / 2 + link.clientWidth / 2),
+      behavior:
+        document.documentElement.dataset.motion === "reduced"
+          ? "auto"
+          : "smooth",
+    });
+  }, [current]);
 
   return (
     <>
       <TopBar>
-        <span className="text-[13px] font-medium text-fg">
+        <span className="text-body font-medium text-fg">
           {t("settings.title")}
         </span>
       </TopBar>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[1000px] gap-10 px-5 py-10 sm:px-8">
-          {/*
-            * Plain anchors, so find-in-page and a bookmarked #connection both
-            * still work.
-            *
-            * It used to be `hidden … xl:flex`, on the argument that 172px
-            * costs more width than it saves scrolling. True — but the result
-            * was that the only map of a page with a hundred controls on it
-            * disappeared below 1280px, which is most laptops. So it changes
-            * SHAPE instead of disappearing: a column beside the content where
-            * there is room, and a scrolling row above it where there is not.
-            */}
-          <nav
-            aria-label="Settings sections"
-            className="sticky top-4 hidden h-fit w-[172px] shrink-0 flex-col gap-0.5 xl:flex"
-          >
-            {RAIL.filter((item) => !item.admin || configured).map((item) => (
-              <span key={item.id} className="contents">
-                {item.group && (
-                  <span className="label-mono mt-3 px-2 py-1 text-fg-subtle/60 first:mt-0">
-                    {item.group}
-                  </span>
-                )}
-                <a
-                  href={`#${item.id}`}
-                  className="rounded-xs px-2 py-1 text-[12px] text-fg-subtle transition-colors duration-150 hover:bg-surface hover:text-fg"
-                >
-                  {item.label}
-                </a>
-              </span>
-            ))}
-          </nav>
+        <div className="mx-auto w-full max-w-[1000px] px-5 py-10 sm:px-8">
+          {/* The page had twenty-five h2s and no h1, so the largest text on
+              the longest screen in the product was a 15px section heading.
+              It spans both columns because it names the whole page, not the
+              content column. */}
+          <h1 className="mb-(--space-6) text-title text-fg">
+            {t("settings.title")}
+          </h1>
 
-          <div className="min-w-0 max-w-[760px] flex-1">
-            {/* The same rail, laid on its side, for every width below xl. */}
+          <div className="flex gap-(--space-5)">
+            {/*
+              * Plain anchors, so find-in-page and a bookmarked #connection both
+              * still work.
+              *
+              * It used to be `hidden … xl:flex`, on the argument that 172px
+              * costs more width than it saves scrolling. True — but the result
+              * was that the only map of a page with a hundred controls on it
+              * disappeared below 1280px, which is most laptops. So it changes
+              * SHAPE instead of disappearing: a column beside the content where
+              * there is room, and a scrolling row above it where there is not.
+              *
+              * `lg` and not `xl`, because below xl the content column was
+              * capped at 760px inside a 936px space and simply left 176px of
+              * nothing on the right — the rail was being hidden to buy width
+              * that was never spent. 200px so that "Is your work in your
+              * account?" stops wrapping to three lines.
+              *
+              * Twenty links and five group labels come to roughly 600px, which
+              * runs off the bottom of a 900px laptop, so it scrolls. The
+              * scrollport is <main>, which sits under a 48px bar: 48 + 16 top
+              * + 16 bottom is the 5rem below.
+              */}
             <nav
               aria-label="Settings sections"
-              className="no-scrollbar -mx-5 mb-8 flex gap-1 overflow-x-auto px-5 sm:-mx-8 sm:px-8 xl:hidden"
+              className="no-scrollbar sticky top-4 hidden h-fit max-h-[calc(100vh-5rem)] w-[200px] shrink-0 flex-col gap-0.5 overflow-y-auto lg:flex"
             >
-              {RAIL.filter((item) => !item.admin || configured).map((item) => (
-                <a
-                  key={item.id}
-                  href={`#${item.id}`}
-                  className="shrink-0 rounded-xs border border-line px-2 py-1 text-[11.5px] whitespace-nowrap text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
-                >
-                  {item.label}
-                </a>
+              {rail.map((item, i) => (
+                <span key={item.id} className="contents">
+                  {item.group && (
+                    <span
+                      className={cn(
+                        "px-2 py-1 text-meta text-fg-subtle",
+                        i > 0 && "mt-(--space-3)",
+                      )}
+                    >
+                      {item.group}
+                    </span>
+                  )}
+                  {/* No pill, no fill, no border — the current section is
+                      carried by ink and weight, the same way every other
+                      state on this page now is. aria-current says it out
+                      loud for anybody not reading the weight. */}
+                  <a
+                    href={`#${item.id}`}
+                    aria-current={current === item.id ? "true" : undefined}
+                    className={cn(
+                      "rounded-xs px-2 py-1 text-body transition-colors duration-150",
+                      current === item.id
+                        ? "font-medium text-fg"
+                        : "text-fg-subtle hover:text-fg",
+                    )}
+                  >
+                    {item.label}
+                  </a>
+                </span>
               ))}
             </nav>
 
-            <h2 className="label-mono mt-14 mb-4 border-b border-line pb-2 text-fg-subtle first:mt-0">
-              you <span className="ml-2 normal-case text-fg-subtle/70">who you are</span>
-            </h2>
+            <div className="min-w-0 flex-1">
+            {/* The same rail, laid on its side, for every width below lg —
+                and it now renders the five group labels the column rail has
+                always rendered. Dropping them here turned a list that knows
+                it has five parts into twenty identical pills, which is the
+                codebase disagreeing with itself at two widths over data that
+                was already in RAIL. */}
+            <nav
+              ref={strip}
+              aria-label="Settings sections"
+              className="no-scrollbar -mx-5 mb-(--space-5) flex items-baseline gap-(--space-3) overflow-x-auto px-5 sm:-mx-8 sm:px-8 lg:hidden"
+            >
+              {rail.map((item, i) => (
+                <span key={item.id} className="contents">
+                  {item.group && (
+                    <span
+                      className={cn(
+                        "shrink-0 text-meta whitespace-nowrap text-fg-subtle",
+                        i > 0 && "ml-(--space-2)",
+                      )}
+                    >
+                      {item.group}
+                    </span>
+                  )}
+                  {/* The underline is on every link and transparent on all
+                      but one, so the words do not shift by a pixel when the
+                      current section changes under a scrolling thumb. */}
+                  <a
+                    href={`#${item.id}`}
+                    aria-current={current === item.id ? "true" : undefined}
+                    className={cn(
+                      "shrink-0 border-b pb-0.5 text-body whitespace-nowrap transition-colors duration-150",
+                      current === item.id
+                        ? "border-accent font-medium text-fg"
+                        : "border-transparent text-fg-subtle hover:text-fg",
+                    )}
+                  >
+                    {item.label}
+                  </a>
+                </span>
+              ))}
+            </nav>
+
+            <GroupHeading first label="you" note="who you are" />
 
             <Section
               id="account"
@@ -287,9 +489,7 @@ export default function SettingsPage() {
                 which is precisely when somebody is trying to find out why. */}
             <SignInMethods />
 
-            <h2 className="label-mono mt-14 mb-4 border-b border-line pb-2 text-fg-subtle first:mt-0">
-              money <span className="ml-2 normal-case text-fg-subtle/70">what you pay, if anything</span>
-            </h2>
+            <GroupHeading label="money" note="what you pay, if anything" />
 
             <Section
               id="plan"
@@ -299,9 +499,10 @@ export default function SettingsPage() {
               <YourPlan />
             </Section>
 
-            <h2 className="label-mono mt-14 mb-4 border-b border-line pb-2 text-fg-subtle first:mt-0">
-              where your work is kept <span className="ml-2 normal-case text-fg-subtle/70">and whether it is anywhere but this browser</span>
-            </h2>
+            <GroupHeading
+              label="where your work is kept"
+              note="and whether it is anywhere but this browser"
+            />
 
             <Section
               id="safe"
@@ -333,7 +534,7 @@ export default function SettingsPage() {
               hint="The app keeps working with no network. What it cannot do is reach your account, and it says so rather than pretending the last thing you typed went somewhere."
             >
               <Row label="Right now">
-                <span className="text-[12.5px] text-fg-muted">
+                <span className="text-body text-fg-muted">
                   {!isClient
                     ? "…"
                     : offline
@@ -342,7 +543,7 @@ export default function SettingsPage() {
                 </span>
               </Row>
               <Row label="Installed">
-                <span className="text-[12.5px] text-fg-muted">
+                <span className="text-body text-fg-muted">
                   {!isClient
                     ? "…"
                     : installed
@@ -351,18 +552,24 @@ export default function SettingsPage() {
                 </span>
               </Row>
               {isClient && offlineSupported() && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void clearOffline().then(() =>
-                      notify("Offline cache cleared — reload to fetch fresh"),
-                    );
-                  }}
-                  className="flex w-fit items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-                >
-                  <Icon name="refresh" size={12} />
-                  Clear the offline cache
-                </button>
+                /* An action that writes gets a shape; an action that
+                   navigates gets a word. This one writes. The shape is a
+                   fill rather than an outline because nothing on this page
+                   is bordered any more except the things you type into. */
+                <Loose>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void clearOffline().then(() =>
+                        notify("Offline cache cleared — reload to fetch fresh"),
+                      );
+                    }}
+                    className="flex w-fit items-center gap-2 rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-fg transition-colors duration-150 hover:bg-surface-3"
+                  >
+                    <Icon name="refresh" size={12} />
+                    Clear the offline cache
+                  </button>
+                </Loose>
               )}
             </Section>
 
@@ -374,22 +581,29 @@ export default function SettingsPage() {
               title="This browser's copy"
               hint="Everything lives in this browser."
             >
-              <button
-                type="button"
-                onClick={() => {
-                  resetWorkspace();
-                  notify("Workspace reset to the samples");
-                  router.push("/library");
-                }}
-                className="flex w-fit items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-danger/50 hover:text-danger"
-              >
-                <Icon name="refresh" size={12} />
-                Reset projects to the samples
-              </button>
-              <p className="font-mono text-[10px] leading-relaxed text-fg-subtle">
-                Discards local project changes. Chat history and appearance are
-                kept separately and survive this.
-              </p>
+              <Loose>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetWorkspace();
+                    notify("Workspace reset to the samples");
+                    router.push("/library");
+                  }}
+                  className="flex w-fit items-center gap-2 rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-danger transition-colors duration-150 hover:bg-surface-3"
+                >
+                  <Icon name="refresh" size={12} />
+                  Reset projects to the samples
+                </button>
+              </Loose>
+              {/* Sans, and at reading size. This is a sentence about what
+                  happens to your work; it was set in 10px monospace, which
+                  is the face for things you paste, not for prose. */}
+              <Loose>
+                <p className="max-w-[58ch] text-body text-fg-muted">
+                  Discards local project changes. Chat history and appearance
+                  are kept separately and survive this.
+                </p>
+              </Loose>
             </Section>
 
             <Section
@@ -400,9 +614,10 @@ export default function SettingsPage() {
               <EraseAccount />
             </Section>
 
-            <h2 className="label-mono mt-14 mb-4 border-b border-line pb-2 text-fg-subtle first:mt-0">
-              how the app behaves <span className="ml-2 normal-case text-fg-subtle/70">preferences for the tool, not for any document</span>
-            </h2>
+            <GroupHeading
+              label="how the app behaves"
+              note="preferences for the tool, not for any document"
+            />
 
             <Section
               id="appearance"
@@ -422,7 +637,14 @@ export default function SettingsPage() {
               </Row>
 
               <Row label="Accent" hint="Used for focus, cursors and the active state.">
-                <div className="flex flex-wrap gap-1.5">
+                {/* The one place in the product where colour is the subject
+                    rather than a signal, so here the colour gets to be the
+                    control: a 20px square with its name under it. The ring
+                    is inset and in --color-fg, which is not a container —
+                    it is the only way to say "this one" about a colour, and
+                    it is drawn on the square rather than around the button
+                    so it reads on all six swatches in both themes. */}
+                <div className="flex flex-wrap gap-(--space-3)">
                   {(Object.keys(ACCENTS) as AccentName[]).map((name) => (
                     <button
                       key={name}
@@ -430,19 +652,33 @@ export default function SettingsPage() {
                       onClick={() => a.set("accent", name)}
                       aria-pressed={a.accent === name}
                       title={ACCENTS[name].label}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[11.5px] transition-colors duration-150",
-                        a.accent === name
-                          ? "border-line-strong bg-surface-2 text-fg"
-                          : "border-line text-fg-subtle hover:text-fg-muted",
-                      )}
+                      className="flex flex-col items-start gap-(--space-1)"
                     >
                       <span
                         aria-hidden="true"
-                        className="size-2.5 rounded-full"
-                        style={{ background: ACCENTS[name].swatch }}
+                        className="size-5 rounded-xs"
+                        style={{
+                          background: ACCENTS[name].swatch,
+                          // The unselected hairline is the sample's own
+                          // edge, not a container: Mono's swatch is very
+                          // nearly the light canvas, and without an edge
+                          // that square is not on the screen at all.
+                          boxShadow:
+                            a.accent === name
+                              ? "inset 0 0 0 2px var(--color-fg)"
+                              : "inset 0 0 0 1px var(--color-line)",
+                        }}
                       />
-                      {ACCENTS[name].label}
+                      <span
+                        className={cn(
+                          "text-meta transition-colors duration-150",
+                          a.accent === name
+                            ? "font-medium text-fg"
+                            : "text-fg-subtle",
+                        )}
+                      >
+                        {ACCENTS[name].label}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -502,7 +738,7 @@ export default function SettingsPage() {
               </Row>
 
               <Row label="Sidebar width">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-(--space-3)">
                   <input
                     type="range"
                     min={180}
@@ -513,22 +749,26 @@ export default function SettingsPage() {
                     onChange={(e) => a.set("sidebarWidth", Number(e.target.value))}
                     className="h-1 w-[180px] cursor-pointer appearance-none rounded-full bg-line-strong accent-[var(--color-accent)] outline-none"
                   />
-                  <span className="font-mono text-[10px] text-fg-subtle">
+                  {/* A measurement is a fact, not something you paste into
+                      a config file, so it goes sans with the other facts. */}
+                  <span className="text-meta text-fg-subtle">
                     {a.sidebarWidth}px
                   </span>
                 </div>
               </Row>
 
-              <button
-                type="button"
-                onClick={() => {
-                  a.reset();
-                  notify("Appearance reset");
-                }}
-                className="mt-1 text-[12.5px] text-fg-subtle transition-colors hover:text-fg"
-              >
-                Reset appearance
-              </button>
+              <Loose>
+                <button
+                  type="button"
+                  onClick={() => {
+                    a.reset();
+                    notify("Appearance reset");
+                  }}
+                  className="rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-fg transition-colors duration-150 hover:bg-surface-3"
+                >
+                  Reset appearance
+                </button>
+              </Loose>
             </Section>
 
             <Section
@@ -536,25 +776,34 @@ export default function SettingsPage() {
               title="Shortcuts"
               hint="The ones that work anywhere. Each editor has its own, and ⌘/ lists whichever set applies to what you are looking at."
             >
-              <ul className="flex flex-col gap-1.5">
-                {(anywhere?.items ?? []).map((item) => (
-                  <li
-                    key={item.keys}
-                    className="flex items-baseline gap-3 text-[12.5px]"
-                  >
-                    <kbd className="kbd shrink-0">{item.keys}</kbd>
-                    <span className="text-fg-muted">{item.what}</span>
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                onClick={() => setShortcutsOpen(true)}
-                className="mt-1 flex w-fit items-center gap-2 rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-              >
-                <Icon name="list" size={12} />
-                Every shortcut
-              </button>
+              <Loose>
+                {/* .kbd keeps its box. A key cap is literally a glyph on a
+                    physical key, which is the one thing on this page whose
+                    border is drawing the object rather than a region. */}
+                <ul className="flex flex-col gap-(--space-2)">
+                  {(anywhere?.items ?? []).map((item) => (
+                    <li
+                      key={item.keys}
+                      className="flex items-baseline gap-(--space-3) text-body"
+                    >
+                      <kbd className="kbd shrink-0">{item.keys}</kbd>
+                      <span className="text-fg-muted">{item.what}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Loose>
+              <Loose>
+                {/* Opens the full list; it navigates rather than writes, so
+                    it is a word and not a shape. */}
+                <button
+                  type="button"
+                  onClick={() => setShortcutsOpen(true)}
+                  className="flex w-fit items-center gap-2 text-body text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors duration-150 hover:text-fg"
+                >
+                  <Icon name="list" size={12} />
+                  Every shortcut
+                </button>
+              </Loose>
             </Section>
 
             <Section
@@ -571,32 +820,36 @@ export default function SettingsPage() {
               hint="Which model answers, and in what order the server falls through them when one is busy."
             >
               <Row label="Provider">
-                <span className="rounded-xs border border-line px-1.5 py-0.5 font-mono text-[10.5px] text-fg-muted">
+                <span className="font-mono text-meta text-fg-muted">
                   {aiProvider}
                 </span>
               </Row>
               <Row label="Rotation" hint="Tried top to bottom.">
                 {ai === null ? (
-                  <span className="text-[12.5px] text-fg-subtle">Asking…</span>
+                  <span className="text-body text-fg-subtle">Asking…</span>
                 ) : ai.models.length === 0 ? (
-                  <p className="max-w-[52ch] text-[12.5px] leading-relaxed text-fg-subtle">
+                  <p className="max-w-[52ch] text-body text-fg-muted">
                     No model is configured, so the built-in assistant answers
                     instead — it works offline and never leaves this browser,
                     and it is not as good. Set{" "}
-                    <code className="font-mono text-[11.5px]">
+                    <code className="font-mono text-meta">
                       OPENROUTER_API_KEY
                     </code>{" "}
                     to change that.
                   </p>
                 ) : (
-                  <ol className="flex flex-col gap-1">
+                  <ol className="flex flex-col gap-(--space-1)">
                     {ai.models.map((model, i) => (
                       <li
                         key={model}
-                        className="flex items-baseline gap-2 font-mono text-[10.5px] text-fg-muted"
+                        className="flex items-baseline gap-(--space-2) text-meta"
                       >
+                        {/* The ordinal is a count and goes sans; the model
+                            id is a literal you would paste, and keeps the
+                            mono face. They were one mono run before, which
+                            made the numbering look like part of the id. */}
                         <span className="text-fg-subtle">{i + 1}.</span>
-                        {model}
+                        <span className="font-mono text-fg-muted">{model}</span>
                       </li>
                     ))}
                   </ol>
@@ -655,17 +908,20 @@ export default function SettingsPage() {
               hint="A small window that stays above everything else, opens with a hotkey, and keeps what you write in the same account. Files dropped on it land in your library here."
             >
               <Row label="Version">
-                <span className="font-mono text-[10.5px] text-fg-muted">
+                <span className="text-meta text-fg-muted">
                   {DESKTOP_VERSION}
                 </span>
               </Row>
               <Row label="Download">
-                <div className="flex flex-wrap gap-1.5">
+                {/* Five bordered pills for five links that navigate. A link
+                    that goes somewhere is a word; the shapes are for the
+                    buttons that write something. */}
+                <div className="flex flex-wrap gap-(--space-3)">
                   {DOWNLOADS.map((item) => (
                     <a
                       key={item.href}
                       href={item.href}
-                      className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                      className="flex items-center gap-1.5 text-body text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors duration-150 hover:text-fg"
                     >
                       <Icon name="download" size={11} />
                       {item.label}
@@ -673,28 +929,32 @@ export default function SettingsPage() {
                   ))}
                 </div>
               </Row>
-              <p className="max-w-[54ch] text-[11.5px] leading-relaxed text-fg-subtle">
-                The builds are not code-signed, so macOS and Windows both warn
-                once — the message every unsigned app gets.{" "}
-                <a
-                  href={RELEASES_URL}
-                  className="underline decoration-line-strong underline-offset-2 hover:text-fg"
-                >
-                  All releases
-                </a>
-                .
-              </p>
+              <Loose>
+                <p className="max-w-[54ch] text-body text-fg-muted">
+                  The builds are not code-signed, so macOS and Windows both
+                  warn once — the message every unsigned app gets.{" "}
+                  <a
+                    href={RELEASES_URL}
+                    className="underline decoration-line-strong underline-offset-2 hover:text-fg"
+                  >
+                    All releases
+                  </a>
+                  .
+                </p>
+              </Loose>
             </Section>
 
-            <h2 className="label-mono mt-14 mb-4 border-b border-line pb-2 text-fg-subtle first:mt-0">
-              the shared workspace <span className="ml-2 normal-case text-fg-subtle/70">what changes for everyone, not just for you</span>
-            </h2>
+            <GroupHeading
+              label="the shared workspace"
+              note="what changes for everyone, not just for you"
+            />
 
             {/* Only where there is something to administer. The console that
                 used to live in the sidebar was hidden by the same rule, and
                 for the same reason: a permanently present group that only
                 ever says "this needs a database" teaches people to skip it. */}
             {configured && <Administration data={admin} />}
+            </div>
           </div>
         </div>
       </main>

@@ -83,7 +83,7 @@ export function TypographyPanel({
       className="anim-pop absolute top-full right-0 z-40 mt-1.5 max-h-[min(78vh,680px)] w-[320px] overflow-y-auto rounded-md border border-line-strong bg-surface p-3 text-left shadow-[0_24px_70px_-12px_rgba(0,0,0,0.85)]"
     >
       <div className="mb-2 flex items-center justify-between">
-        <span className="label-mono">Setting</span>
+        <span className="text-meta text-fg-subtle">Setting</span>
         <button
           type="button"
           onClick={() => set(DEFAULT_TYPOGRAPHY)}
@@ -378,7 +378,7 @@ function Field({
 }) {
   return (
     <div className="mb-2.5">
-      <span className="label-mono mb-1 block">{label}</span>
+      <span className="text-meta text-fg-subtle mb-1 block">{label}</span>
       {children}
     </div>
   );

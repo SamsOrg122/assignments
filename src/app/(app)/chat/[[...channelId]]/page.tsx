@@ -9,6 +9,21 @@
  * drawer below 1024px — which left chat on a phone with no way to reach a
  * second conversation. The rail draws in every state, including the one where
  * there is no conversation at all.
+ *
+ * THE TOP BAR IS THREE THINGS, NOT FIVE. The avatar stack, a bordered "N
+ * members" button beside it and a bordered gear made three objects and two
+ * boxes out of one question — who is in here — with the faces already
+ * answering it. The stack IS the button now: same click, same message, same
+ * count, and the count keeps the `sm:` it always had so a phone still shows
+ * faces alone. The gear is a bare icon like the sidebar toggle two columns to
+ * its left; a button in a bar is not an input, not an object with an address
+ * and not a floating layer, so it gets no border under the container rule.
+ *
+ * The thread panel keeps exactly one line: the `border-l` between it and the
+ * conversation, which is a split between two regions that scroll
+ * independently. Its two internal `border-b`s are gone — space separates the
+ * head from the parent message and the parent from the replies, and a rule
+ * that could have been a gap was never earning the ink.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -34,6 +49,7 @@ import { ChannelGate } from "@/components/chat/ChannelGate";
 import { ChannelSettings } from "@/components/chat/ChannelSettings";
 import { RoomsRail } from "@/components/chat/RoomsRail";
 import { Icon } from "@/components/ui/Icon";
+import { cn } from "@/lib/cn";
 
 export default function ChatPage() {
   const params = useParams<{ channelId?: string[] }>();
@@ -112,34 +128,50 @@ export default function ChatPage() {
         right={
           active ? (
           <div className="flex items-center gap-2">
-            <div className="flex -space-x-1.5">
-              {others.slice(0, 4).map((id) => {
-                const person = personById(id);
-                return (
-                  <span
-                    key={id}
-                    title={person.name}
-                    className="grid size-6 place-items-center rounded-full border-2 border-canvas font-mono text-[9px]"
-                    style={{
-                      background: `${person.color}22`,
-                      color: person.color,
-                      boxShadow: `inset 0 0 0 1px ${person.color}55`,
-                    }}
-                  >
-                    {person.initials}
-                  </span>
-                );
-              })}
-            </div>
+            {/* One control, not two objects and a border between them. The
+                faces were already the answer to "who is in here"; the words
+                beside them are the same fact spelled out, and they keep the
+                `sm:` they have always had so a phone shows the stack alone. */}
             <button
               type="button"
               onClick={() => {
                 const count = channelMessages(messages, active.id).length;
                 notify(`${count} message${count === 1 ? "" : "s"} in this channel`);
               }}
-              className="hidden rounded-sm border border-line px-2 py-1 font-mono text-[10px] text-fg-subtle transition-colors hover:text-fg sm:block"
+              aria-label={`${others.length + 1} members`}
+              className="flex items-center gap-2 rounded-sm text-fg-subtle transition-colors hover:text-fg"
             >
-              {others.length + 1} members
+              <span className="flex -space-x-1.5">
+                {others.slice(0, 4).map((id) => {
+                  const person = personById(id);
+                  return (
+                    <span
+                      key={id}
+                      title={person.name}
+                      className="grid size-6 place-items-center rounded-full border-2 border-canvas text-meta"
+                      style={{
+                        background: `${person.color}22`,
+                        color: person.color,
+                        boxShadow: `inset 0 0 0 1px ${person.color}55`,
+                      }}
+                    >
+                      {person.initials}
+                    </span>
+                  );
+                })}
+              </span>
+              {/* The words stand down for the faces, and only while there
+                  are faces: a channel you just made holds you alone, and
+                  hiding both would leave a focusable button with nothing in
+                  it on a phone. Before this the words were `hidden sm:block`
+                  outright, so that room had no members control below 640px at
+                  all — this keeps the one it had and gives the phone the one
+                  it did not. */}
+              <span
+                className={cn("text-meta", others.length > 0 && "hidden sm:block")}
+              >
+                {others.length + 1} members
+              </span>
             </button>
             {active.kind !== "ai" && (
               <button
@@ -147,7 +179,7 @@ export default function ChatPage() {
                 onClick={() => setSettingsOpen(true)}
                 aria-label="Channel settings"
                 title="Channel settings"
-                className="rounded-sm border border-line p-1.5 text-fg-subtle transition-colors hover:border-line-strong hover:text-fg"
+                className="rounded-sm p-1.5 text-fg-subtle transition-colors hover:text-fg"
               >
                 <Icon name="settings" size={12} />
               </button>
@@ -169,17 +201,17 @@ export default function ChatPage() {
               size={13}
               className="shrink-0 text-fg-subtle"
             />
-            <span className="truncate text-[13px] font-medium text-fg">
+            <span className="truncate text-object text-fg">
               {active.kind === "channel" ? `#${active.name}` : active.name}
             </span>
             {active.topic && (
-              <span className="hidden min-w-0 truncate text-[12px] text-fg-subtle md:block">
+              <span className="hidden min-w-0 truncate text-body text-fg-subtle md:block">
                 {active.topic}
               </span>
             )}
           </>
         ) : (
-          <span className="text-[13px] font-medium text-fg">Chat</span>
+          <span className="text-object text-fg">Chat</span>
         )}
       </TopBar>
 
@@ -192,7 +224,7 @@ export default function ChatPage() {
 
         {!active ? (
           <div className="grid min-h-0 flex-1 place-items-center px-6 text-center">
-            <p className="text-[13px] text-fg-subtle">
+            <p className="text-body text-fg-subtle">
               {hydrated ? "No conversations yet." : ""}
             </p>
           </div>
@@ -218,9 +250,9 @@ export default function ChatPage() {
 
         {parent && active && active.kind !== "ai" && (
           <aside className="hidden w-[380px] shrink-0 flex-col border-l border-line lg:flex">
-            <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
-              <span className="label-mono">Thread</span>
-              <span className="ml-auto font-mono text-[10px] text-fg-subtle">
+            <div className="flex items-center gap-2 px-3 pt-3 pb-(--space-2)">
+              <span className="text-meta text-fg-subtle">Thread</span>
+              <span className="ml-auto text-meta text-fg-subtle">
                 {threadReplies(messages, parent.id).length} replies
               </span>
               <button
@@ -233,13 +265,15 @@ export default function ChatPage() {
               </button>
             </div>
 
-            <div className="border-b border-line px-4 py-3">
-              <p className="mb-1 font-mono text-[10px] text-fg-subtle">
+            {/* The message the thread hangs off, and then the replies. What
+                separates them is `--space-4` of air rather than the hairline
+                that used to sit here: a gap that size does the same job, and a
+                rule and a gap doing one job is one of them wasted. */}
+            <div className="px-4 pb-(--space-4)">
+              <p className="mb-(--space-1) text-meta text-fg-subtle">
                 {personById(parent.authorId).name}
               </p>
-              <p className="text-[13px] leading-relaxed text-fg-muted">
-                {parent.body}
-              </p>
+              <p className="text-body text-fg-muted">{parent.body}</p>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
@@ -258,7 +292,13 @@ export default function ChatPage() {
         )}
       </main>
 
-      {/* Mobile: the thread takes the whole screen. */}
+      {/* Mobile: the thread takes the whole screen.
+
+          This header keeps the `border-b` its desktop twin gave up, and the
+          difference is structural rather than an oversight: the aside has a
+          `border-l` telling you it is a separate region, and this layer has no
+          edge of its own — it is painted over the whole page, so the line is
+          its ceiling, which is one of the three places a rule is allowed. */}
       {parent && active && (
         <div className="fixed inset-0 z-[60] flex flex-col bg-canvas lg:hidden">
           <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
@@ -270,7 +310,7 @@ export default function ChatPage() {
             >
               <Icon name="chevron-left" size={14} />
             </button>
-            <span className="label-mono">Thread</span>
+            <span className="text-meta text-fg-subtle">Thread</span>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <MessageList channelId={active.id} threadParentId={parent.id} />

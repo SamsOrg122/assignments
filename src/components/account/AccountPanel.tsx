@@ -49,29 +49,37 @@ export function AccountPanel() {
     <div className="flex flex-col gap-3.5">
       {/* Who you are right now. Always shown, account or not. */}
       <div className="flex items-center gap-3 rounded-md border border-line bg-surface p-3.5">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-3 font-mono text-[12px] text-fg">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-3 text-body text-fg">
           {identity.initials}
         </span>
         <label className="min-w-0 flex-1">
-          <span className="block text-[11px] text-fg-subtle">
+          <span className="block text-meta text-fg-subtle">
             Your name, as other people see it
           </span>
           <input
             value={identity.name}
             onChange={(e) => setName(e.target.value)}
             aria-label="Your display name"
-            className="mt-0.5 w-full bg-transparent text-[14px] text-fg outline-none placeholder:text-fg-subtle"
+            className="mt-0.5 w-full bg-transparent text-object text-fg outline-none placeholder:text-fg-subtle"
             placeholder="You"
           />
         </label>
+        {/*
+          * A pill, until now: a border and a tinted fill around two words.
+          * Both were spare. The state is already in the ink — subtle for a
+          * device, warn while a confirmation is outstanding, leaf once it is
+          * done — and globals.css is explicit that a fill may reinforce a
+          * state but never carry it. With the ink carrying it, the fill was
+          * carrying nothing and the border was drawing a box around a fact.
+          */}
         <span
           className={cn(
-            "shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px]",
+            "shrink-0 text-meta",
             !hasAccount
-              ? "border-line text-fg-subtle"
+              ? "text-fg-subtle"
               : identity.pending
-                ? "border-warn/40 bg-warn/[0.08] text-warn"
-                : "border-leaf/40 bg-leaf-soft text-leaf",
+                ? "text-warn"
+                : "text-leaf",
           )}
         >
           {hasAccount ? identity.email : "this device"}
@@ -81,7 +89,7 @@ export function AccountPanel() {
       {hasAccount && identity.pending && (
         // Not a warning about something being broken: the account works, in
         // this browser, right now. It is a warning about what it can't do yet.
-        <div className="rounded-md border border-warn/35 bg-warn/[0.07] p-3 text-[12.5px] leading-relaxed text-fg-muted">
+        <div className="rounded-md border border-warn/35 bg-warn/[0.07] p-3 text-body leading-relaxed text-fg-muted">
           <p>
             {identity.email} hasn&apos;t been confirmed yet. Everything works
             here and your work is syncing — but you can&apos;t sign in with it
@@ -93,7 +101,7 @@ export function AccountPanel() {
               const again = await resendConfirmation(identity.email ?? "");
               notify(again.ok ? (again.note ?? "Sent again.") : again.reason);
             }}
-            className="mt-1.5 text-[12px] text-fg-muted underline decoration-line-strong underline-offset-2 hover:text-fg"
+            className="mt-1.5 text-body text-fg-muted underline decoration-line-strong underline-offset-2 hover:text-fg"
           >
             Send it again
           </button>
@@ -118,7 +126,7 @@ export function AccountPanel() {
                 setMode("choose");
                 notify("Signed out — your work stays in this browser");
               }}
-              className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+              className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
             >
               Sign out
             </button>
@@ -127,11 +135,11 @@ export function AccountPanel() {
               onClick={() =>
                 setMode(mode === "new-password" ? "choose" : "new-password")
               }
-              className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+              className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
             >
               Change password
             </button>
-            <p className="text-[12px] text-fg-subtle">
+            <p className="text-body text-fg-subtle">
               Signing out leaves everything on this device. Nothing is deleted.
             </p>
           </div>
@@ -145,6 +153,17 @@ export function AccountPanel() {
         </>
       ) : mode === "choose" ? (
         <>
+          {/*
+            * Both actions wear the same shape, and that is the point.
+            *
+            * "Create an account" used to be the filled accent button and
+            * "Stay on this device" an outline — directly under a sentence
+            * reading "Neither one is a trial version of the other". The UI was
+            * arguing with its own copy, and the copy is the half that is true.
+            * A filled accent on this page would also be the only one on it,
+            * and the rule is that the fill answers "what do I press to start
+            * something" — settings is not a place you start anything.
+            */}
           <div className="grid gap-2.5 sm:grid-cols-2">
             <Choice
               title="Keep it on this device"
@@ -162,7 +181,7 @@ export function AccountPanel() {
                     keepOnDevice();
                     notify("Keeping your work on this device");
                   }}
-                  className="w-full rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                  className="w-full rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-fg transition-colors duration-150 hover:bg-surface-3"
                 >
                   Stay on this device
                 </button>
@@ -188,7 +207,7 @@ export function AccountPanel() {
                 <button
                   type="button"
                   onClick={() => setMode("sign-up")}
-                  className="w-full rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+                  className="w-full rounded-sm bg-surface-2 px-2.5 py-1.5 text-body font-medium text-fg transition-colors duration-150 hover:bg-surface-3"
                 >
                   Create an account
                 </button>
@@ -210,7 +229,7 @@ export function AccountPanel() {
             />
           </div>
 
-          <p className="text-[12px] leading-relaxed text-fg-subtle">
+          <p className="text-body leading-relaxed text-fg-subtle">
             Either way the free plan is the same product.{" "}
             <Link
               href="/legal#privacy"
@@ -264,19 +283,17 @@ function Choice({
         chosen ? "border-line-strong bg-surface" : "border-line bg-surface/60",
       )}
     >
-      <p className="flex items-center gap-2 text-[13px] font-medium text-fg">
+      <p className="flex items-center gap-2 text-body font-medium text-fg">
         {title}
         {chosen && (
-          <span className="rounded-full border border-line px-1.5 py-0.5 font-mono text-[9.5px] text-fg-subtle">
-            now
-          </span>
+          <span className="text-meta text-fg-subtle">now</span>
         )}
       </p>
       <ul className="mt-2.5 mb-3.5 flex-1 space-y-1.5">
         {points.map((point) => (
           <li
             key={point}
-            className="flex gap-2 text-[12.5px] leading-snug text-fg-muted"
+            className="flex gap-2 text-body leading-snug text-fg-muted"
           >
             <span
               aria-hidden="true"
@@ -287,7 +304,7 @@ function Choice({
         ))}
       </ul>
       {action}
-      <p className="mt-2 text-[11px] leading-relaxed text-fg-subtle">{footer}</p>
+      <p className="mt-2 text-body leading-relaxed text-fg-subtle">{footer}</p>
     </div>
   );
 }

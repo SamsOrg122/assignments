@@ -28,7 +28,7 @@ export function WhereIsMyWork() {
   const home = whereWorkIs(configured, Boolean(identity.email));
 
   return (
-    <p className="mx-auto mt-5 max-w-[54ch] border-t border-line pt-5 text-[12px] leading-relaxed text-fg-subtle">
+    <p className="mx-auto mt-5 max-w-[54ch] border-t border-line pt-5 text-body leading-relaxed text-fg-subtle">
       {home === "no-database" ? (
         <>
           Expecting to find work here? This deployment has no database, so

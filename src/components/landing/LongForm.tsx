@@ -159,7 +159,7 @@ export function Contents({
       aria-labelledby={headingId}
       className="mt-8 rounded-md border border-line bg-surface p-4"
     >
-      <h2 id={headingId} className="label-mono text-fg-subtle">
+      <h2 id={headingId} className="text-meta text-fg-subtle">
         {title ?? words.contents}
       </h2>
       <ol className="mt-3 space-y-1.5">
@@ -418,7 +418,7 @@ export function RelatedPages({
       aria-labelledby={headingId}
       className="mt-16 border-t border-line pt-8"
     >
-      <h2 id={headingId} className="label-mono text-fg-subtle">
+      <h2 id={headingId} className="text-meta text-fg-subtle">
         {title ?? words.related}
       </h2>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">

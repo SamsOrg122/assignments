@@ -165,7 +165,7 @@ export function FolderRail({
                 if (e.key === "Escape") setRenaming(null);
               }}
               aria-label={t("library.folderName")}
-              className="w-full rounded-xs border border-accent bg-surface-2 px-1.5 py-1 text-[12.5px] text-fg outline-none"
+              className="w-full rounded-xs border border-accent bg-surface-2 px-1.5 py-1 text-body text-fg outline-none"
               style={{ marginLeft: depth * 12 }}
             />
           ) : (
@@ -174,7 +174,7 @@ export function FolderRail({
               onClick={() => onSelect(folder.id)}
               onContextMenu={(e) => openMenu(e, folder)}
               className={cn(
-                "flex w-full items-center gap-1.5 rounded-xs px-1.5 py-1 text-left text-[12.5px] transition-colors duration-150",
+                "flex w-full items-center gap-1.5 rounded-xs px-1.5 py-1 text-left text-body transition-colors duration-150",
                 selected === folder.id
                   ? "bg-surface-3 text-fg"
                   : "text-fg-muted hover:bg-surface-2 hover:text-fg",
@@ -216,7 +216,7 @@ export function FolderRail({
       )}
       <div className="flex flex-col gap-0.5">
         <div className="mb-1 flex items-center gap-2">
-          <span className="label-mono flex-1">{t("library.folders")}</span>
+          <span className="text-meta text-fg-subtle flex-1">{t("library.folders")}</span>
           <button
             type="button"
             onClick={() => {
@@ -224,7 +224,7 @@ export function FolderRail({
               setRenaming(id);
               setDraft("New folder");
             }}
-            className="flex items-center gap-1 rounded-xs px-1 py-0.5 text-[11px] text-fg-subtle transition-colors duration-150 hover:text-fg"
+            className="flex items-center gap-1 rounded-xs px-1 py-0.5 text-meta text-fg-subtle transition-colors duration-150 hover:text-fg"
           >
             <Icon name="plus" size={10} />
             {t("library.newFolder")}
@@ -235,7 +235,7 @@ export function FolderRail({
           type="button"
           onClick={() => onSelect(null)}
           className={cn(
-            "flex items-center gap-1.5 rounded-xs px-1.5 py-1 text-left text-[12.5px] transition-colors duration-150",
+            "flex items-center gap-1.5 rounded-xs px-1.5 py-1 text-left text-body transition-colors duration-150",
             selected === null
               ? "bg-surface-3 text-fg"
               : "text-fg-muted hover:bg-surface-2 hover:text-fg",
@@ -287,7 +287,7 @@ export function LabelBar({
             aria-pressed={on}
             onClick={() => onToggle(label)}
             className={cn(
-              "rounded-full border px-2 py-0.5 text-[11.5px] transition-colors duration-150",
+              "rounded-full border px-2 py-0.5 text-meta transition-colors duration-150",
               on
                 ? "border-accent/50 bg-accent-soft text-accent"
                 : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
@@ -302,7 +302,7 @@ export function LabelBar({
         <button
           type="button"
           onClick={() => active.forEach(onToggle)}
-          className="text-[11.5px] text-fg-subtle underline decoration-line-strong underline-offset-2 hover:text-fg"
+          className="text-meta text-fg-subtle underline decoration-line-strong underline-offset-2 hover:text-fg"
         >
           {t("library.clear")}
         </button>
@@ -352,7 +352,7 @@ export function LabelEditor({
       />
       <div className="relative w-full max-w-[380px] rounded-lg border border-line bg-surface p-4">
         <p className="text-[14px] font-medium text-fg">{t("labels.title")}</p>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-fg-muted">
+        <p className="mt-1 text-body leading-relaxed text-fg-muted">
           {t("labels.help")}
         </p>
         <input
@@ -362,7 +362,7 @@ export function LabelEditor({
           onKeyDown={(e) => e.key === "Enter" && save()}
           aria-label="Labels, separated by commas"
           placeholder={t("labels.placeholder")}
-          className="mt-3 w-full rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
+          className="mt-3 w-full rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-body text-fg outline-none focus:border-accent"
         />
 
         {suggestions.length > 0 && (
@@ -374,7 +374,7 @@ export function LabelEditor({
                 onClick={() =>
                   setDraft((d) => (d.trim() ? `${d.replace(/,\s*$/, "")}, ${label}` : label))
                 }
-                className="rounded-full border border-line px-2 py-0.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                className="rounded-full border border-line px-2 py-0.5 text-meta text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
               >
                 + {label}
               </button>
@@ -386,14 +386,14 @@ export function LabelEditor({
           <button
             type="button"
             onClick={save}
-            className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+            className="rounded-sm bg-accent px-2.5 py-1.5 text-body font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
           >
             {t("labels.save")}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+            className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
           >
             {t("labels.cancel")}
           </button>

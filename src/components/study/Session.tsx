@@ -129,7 +129,7 @@ export function Session({
             {editing ? (
               <div className="grid gap-2 rounded-md border border-line bg-surface p-3">
                 <label className="grid gap-1">
-                  <span className="label-mono text-fg-subtle">Front</span>
+                  <span className="text-meta text-fg-subtle">Front</span>
                   <textarea
                     value={draft.front}
                     onChange={(e) => setDraft({ ...draft, front: e.target.value })}
@@ -138,7 +138,7 @@ export function Session({
                   />
                 </label>
                 <label className="grid gap-1">
-                  <span className="label-mono text-fg-subtle">Back</span>
+                  <span className="text-meta text-fg-subtle">Back</span>
                   <textarea
                     value={draft.back}
                     onChange={(e) => setDraft({ ...draft, back: e.target.value })}

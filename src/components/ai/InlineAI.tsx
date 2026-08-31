@@ -362,7 +362,7 @@ function AIPopover({ target }: { target: AITarget }) {
       >
         <div className="flex items-center gap-2 border-b border-line px-3 py-2">
           <Icon name="sparkle" size={13} className="text-accent" />
-          <span className="label-mono">Ask AI</span>
+          <span className="text-meta text-fg-subtle">Ask AI</span>
           <span className="ml-auto truncate font-mono text-[10px] text-fg-subtle">
             {target.selectionText
               ? `${target.selectionText.split(/\s+/).filter(Boolean).length} words selected`

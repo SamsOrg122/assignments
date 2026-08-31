@@ -109,7 +109,7 @@ export function PresenterClient() {
         <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[1.2fr_1fr]">
           {/* Notes get the most room, because they are the reason this exists. */}
           <section className="flex min-h-0 flex-col rounded-md border border-line bg-surface p-4">
-            <p className="label-mono mb-2">Notes</p>
+            <p className="text-meta text-fg-subtle mb-2">Notes</p>
             <h2 className="mb-2 text-[17px] leading-snug font-medium text-fg">
               {current?.title || "Untitled slide"}
             </h2>
@@ -128,7 +128,7 @@ export function PresenterClient() {
 
           <div className="flex min-h-0 flex-col gap-3">
             <section className="rounded-md border border-line bg-surface p-3.5">
-              <p className="label-mono mb-1.5">This slide</p>
+              <p className="text-meta text-fg-subtle mb-1.5">This slide</p>
               <ul className="space-y-1">
                 {(current?.bullets ?? []).map((bullet, i) => (
                   <li
@@ -150,7 +150,7 @@ export function PresenterClient() {
             </section>
 
             <section className="min-h-0 flex-1 rounded-md border border-line bg-surface p-3.5">
-              <p className="label-mono mb-1.5">Next</p>
+              <p className="text-meta text-fg-subtle mb-1.5">Next</p>
               {next ? (
                 <>
                   <p className="text-[14px] font-medium text-fg">{next.title || "Untitled"}</p>

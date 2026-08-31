@@ -53,7 +53,7 @@ export function BibliographyBlock({
   return (
     <div className="rounded-md border border-line bg-surface">
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
-        <span className="label-mono">
+        <span className="text-meta text-fg-subtle">
           {shown.length} {block.scope === "cited" ? "cited" : "source"}
           {shown.length === 1 ? "" : "s"}
         </span>

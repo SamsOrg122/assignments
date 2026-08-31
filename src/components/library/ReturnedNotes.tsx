@@ -84,7 +84,7 @@ export function ReturnedNotes() {
     <div className="anim-slide-up mb-4 flex items-start gap-2.5 rounded-md border border-accent/40 bg-accent-soft p-3">
       <Icon name="quote" size={12} className="mt-0.5 shrink-0 text-accent" />
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] text-fg">
+        <p className="text-body text-fg">
           {formatNumber(total)} note{total === 1 ? "" : "s"} came back on{" "}
           {arrivals.length === 1
             ? "a document"
@@ -96,7 +96,7 @@ export function ReturnedNotes() {
             <li key={arrival.projectId}>
               <Link
                 href={`/p/${arrival.projectId}`}
-                className="text-[12.5px] text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg"
+                className="text-body text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg"
               >
                 {arrival.name}
                 <span className="text-fg-subtle"> · {arrival.count}</span>

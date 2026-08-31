@@ -128,7 +128,7 @@ export function AttachmentChips({
         <span
           key={f.id}
           className={cn(
-            "anim-pop flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[11.5px]",
+            "anim-pop flex items-center gap-1.5 rounded-sm border px-2 py-1 text-meta",
             f.status === "ready"
               ? "border-line bg-surface-2 text-fg-muted"
               : "border-warn/30 bg-warn/10 text-warn",
@@ -169,7 +169,7 @@ export function FileCard({ file }: { file: FileAttachment }) {
         className={cn("shrink-0", readable ? "text-fg-muted" : "text-warn")}
       />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[12.5px] text-fg">{file.name}</span>
+        <span className="block truncate text-body text-fg">{file.name}</span>
         <span className="block truncate text-[10.5px] text-fg-subtle">
           {describe(file)}
           {file.note ? ` · ${file.note}` : ""}
@@ -229,7 +229,7 @@ export function DropZone({
       {children}
       {over > 0 && (
         <div className="anim-fade pointer-events-none absolute inset-1 z-20 grid place-items-center rounded-md border border-dashed border-accent bg-canvas/80 backdrop-blur-sm">
-          <span className="flex items-center gap-2 text-[12.5px] text-accent">
+          <span className="flex items-center gap-2 text-body text-accent">
             <Icon name="download" size={13} />
             {hint}
           </span>

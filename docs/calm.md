@@ -971,3 +971,58 @@ louder than the other forty-three — and the eight are the ones you opened the 
 `/settings`, where you are.
 
 Word's problem was never that it had too many features. It was that it drew a box around all of them.
+
+---
+
+## 11. What it actually measured, afterwards
+
+Written after the pass rather than before it, so the numbers below are results and not targets. The
+app-wide figures are `scripts/design-scale.mjs`'s own counters, run over the same file set before and
+after; the per-screen figures are the DOM at 1800×1050, counting only elements that actually rendered
+with a size.
+
+**App-wide, in scope (the storefront excluded, as §9 says):**
+
+| | before | after |
+|---|---|---|
+| inline `text-[Npx]` | 1,287 | 839 |
+| `border border-line` / `border-t border-line` | 560 | 479 |
+| `font-mono` | 202 | 152 |
+| `uppercase` | 14 | 12 |
+| sizes below 11px | 221 | 162 |
+| `.label-mono` | 86 | 0 |
+
+**Per screen, rendered:**
+
+| | sizes | boxes | mono runs | accent fills |
+|---|---|---|---|---|
+| `/library` | 4 — 30, 15, 13, 11 | 3 | 0 | 1 |
+| `/due` | 2 — 30, 13 | 2 | 0 | 0 |
+| `/chat` | 3 — 15, 13, 11 | 14 | 0 | 1 |
+| `/settings` | 5 — 30, 15, 13, 11, and 10 on seven keycaps | 22 | 12 | 1 |
+| `/more` | 3 — 15, 13, 11 | 6 | 0 | 0 |
+
+Every size on every one of those screens now comes out of `--text-*`. The exceptions are named
+rather than rounded away: `/settings` renders 10px on the seven `<kbd>` keycaps in Shortcuts, which
+are keys and not prose, and its twelve remaining monospace runs are a file path, a model name and
+three provider identifiers — exactly what §6 says the face is for.
+
+### Where it fell short, and why that is written here
+
+`/settings` was targeted at 4 boxes and holds 22. Fifteen of those are things §4 permits on sight —
+two text inputs, six buttons, seven keycaps. The rest are the two account `Choice` cards and the
+avatar row, which are objects you pick up, plus the seven small state rings in Connection. The
+figure will not reach 4 without deciding that a filled button may lose its edge, and that is a
+different argument from this one.
+
+The app-wide inline-size count is still 839. That is the ratchet working as designed rather than
+failing: §8 is explicit that twelve hundred sizes cannot migrate in one commit, and what this pass
+owes is that the five screens somebody actually looks at read from one scale and that no file can
+ever go back up. Both are true and both are checked.
+
+One number moved that was not on anybody's list. `--color-fg-subtle` in the light theme was
+`#71717c`, which measures 4.66:1 on the light canvas — half a point below the 5.2:1 the top of
+`globals.css` has promised since the tokens were written, on the ink §2 hands every date, count and
+group label on a list screen. It is now `#696974`, 5.24:1, and `scripts/contrast-floors.mjs` fails
+the build if it drifts again. Nothing in this pass got quieter; one thing that was quieter than it
+claimed got fixed.

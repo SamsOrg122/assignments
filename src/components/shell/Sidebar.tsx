@@ -359,7 +359,10 @@ export function Sidebar() {
         <div className="flex h-12 shrink-0 items-center gap-2 px-3">
           <Link
             href="/library"
-            className="flex items-center gap-2 rounded-sm px-1 py-1 text-[13px] font-medium tracking-[-0.01em] text-fg"
+            /* Same size as the nav rows below and one level above them: the
+               level is weight and ink, not a fourteenth font size. The
+               tracking is the wordmark's own and is not a type step. */
+            className="flex items-center gap-2 rounded-sm px-1 py-1 text-body font-medium tracking-[-0.01em] text-fg"
           >
             <LogoTile size={20} className="rounded-[5px]" />
             Tougather
@@ -374,11 +377,24 @@ export function Sidebar() {
           </button>
         </div>
 
-        <div className="shrink-0 px-2.5 pb-2">
+        {/*
+          * No border, because nobody types into this — it opens the palette.
+          * A border is for a field, for an object you pick up, or for a layer
+          * over the page, and this is none of them; it is a nav row that
+          * happens to start with a magnifier, so it takes the nav row's shape
+          * and the density row height and lines up with the five rows below.
+          *
+          * Losing the box is also what lets the ⌘K cap stay where it is.
+          * `.kbd` carries a real border, and a bordered cap inside a bordered
+          * field is the nesting that had to be undone on /library's search by
+          * moving the cap outside the box. Here the outer box is the thing
+          * that was wrong, so the cap does not have to move at all.
+          */}
+        <div className="shrink-0 px-2.5 pb-(--space-2)">
           <button
             type="button"
             onClick={() => openPalette()}
-            className="flex w-full items-center gap-2 rounded-md border border-line bg-surface px-2 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-body text-fg-muted transition-colors duration-150 hover:bg-surface hover:text-fg"
           >
             <Icon name="search" size={13} className="text-fg-subtle" />
             <span>{t("nav.search")}</span>
@@ -399,9 +415,22 @@ export function Sidebar() {
           * where one position is an advert.
           */}
         {hasTeam && (
-          <div className="shrink-0 px-2.5 pb-2">
+          <div className="shrink-0 px-2.5 pb-(--space-2)">
+            {/*
+              * The same shape /due's status segments and /settings' five
+              * Segmented controls take, so the app has one segmented
+              * vocabulary rather than three. The wrapper is gone: two words
+              * with a chip on the chosen one say "switch" without drawing a
+              * box around a two-item list.
+              *
+              * The chip reinforces and is never the carrier — surface-2 is
+              * 1.24:1 on canvas in dark and 1.08:1 in light, so somebody who
+              * cannot see it still has full ink and 500 weight to go on. That
+              * pairing is the fix for the pressed states that shipped as a
+              * fill nobody could see, rather than a way of moving the bug.
+              */}
             <div
-              className="flex rounded-md border border-line bg-surface p-0.5"
+              className="flex gap-(--space-2)"
               role="tablist"
               aria-label="Personal or team"
             >
@@ -413,10 +442,10 @@ export function Sidebar() {
                   aria-selected={scope === option}
                   onClick={() => setScope(option)}
                   className={cn(
-                    "flex-1 rounded-sm px-2 py-1 text-[11.5px] capitalize transition-colors",
+                    "rounded-xs px-2 py-0.5 text-body capitalize transition-colors",
                     scope === option
-                      ? "bg-surface-3 font-medium text-fg"
-                      : "text-fg-muted hover:text-fg",
+                      ? "bg-surface-2 font-medium text-fg"
+                      : "text-fg-subtle hover:text-fg",
                   )}
                 >
                   {option}
@@ -432,7 +461,7 @@ export function Sidebar() {
           * the words on them — so a bookmark, a link in an email and ⌘K all
           * still land where they did.
           */}
-        <nav className="flex shrink-0 flex-col gap-0.5 px-2.5 pb-3">
+        <nav className="flex shrink-0 flex-col gap-0.5 px-2.5 pb-(--space-3)">
           <NavLink
             href="/library"
             icon="home"
@@ -481,12 +510,25 @@ export function Sidebar() {
         </nav>
 
         <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto pb-3">
-          <div className="mb-1 px-4">
-            <span className="label-mono">{t("nav.recent")}</span>
+          {/* 11px above 13px rows, with the smaller one higher in the
+              outline. That looks like a mistake and is not: a group label
+              names a region, it does not title content, which is why
+              /settings' group headings are smaller than the sections under
+              them too. The nesting is only so the word starts at the same x
+              as the row labels below — 10px of list padding plus 8px of row
+              padding — instead of 2px short of them. */}
+          <div className="mb-(--space-1) px-2.5">
+            <span className="block px-2 text-meta text-fg-subtle">
+              {t("nav.recent")}
+            </span>
           </div>
 
           {recent.length === 0 ? (
-            <p className="mx-2.5 rounded-md border border-dashed border-line px-3 py-2 text-[11.5px] leading-relaxed text-fg-subtle">
+            /* Two sentences, so they are set as sentences. While this shows,
+               it is the whole content of the region — the one thing there is
+               to read here — which is exactly when a dashed box round it is
+               claiming the least and costing the most. */
+            <p className="mx-2.5 px-2 text-body text-fg-muted">
               Nothing open yet. Documents, chats and notes appear here as you
               use them — start in Work or Chat above.
             </p>
@@ -586,7 +628,7 @@ export function Sidebar() {
                   <button
                     type="button"
                     onClick={() => setExpanded((v) => !v)}
-                    className="w-full px-2 py-1 text-left font-mono text-[10px] text-fg-subtle transition-colors hover:text-fg-muted"
+                    className="w-full px-2 py-1 text-left text-meta text-fg-subtle transition-colors hover:text-fg-muted"
                   >
                     {expanded ? "show less" : `+${hidden} more`}
                   </button>
@@ -594,7 +636,7 @@ export function Sidebar() {
               )}
 
               {expanded && beyond > 0 && (
-                <li className="px-2 py-1 text-[10.5px] leading-relaxed text-fg-subtle">
+                <li className="px-2 py-1 text-body text-fg-subtle">
                   {beyond} older {beyond === 1 ? "thing" : "things"} are on{" "}
                   <Link href="/library" className="underline hover:text-fg">
                     work
@@ -616,6 +658,9 @@ export function Sidebar() {
           <KeepPromptCompact />
         </div>
 
+        {/* This rule stays. It is a floor — the boundary between the list
+            that scrolls and the permanent furniture it scrolls past — which is
+            one of the three places a rule is allowed to be. */}
         <div className="shrink-0 border-t border-line px-2.5 py-2">
           {/*
             * Who you are, where the work is kept, and the way into Settings.
@@ -639,15 +684,28 @@ export function Sidebar() {
                 "text-fg-muted hover:bg-surface hover:text-fg",
               )}
             >
-              <span className="grid size-[18px] shrink-0 place-items-center rounded-full bg-surface-3 font-mono text-[8.5px] text-fg">
+              {/* The circle grew rather than the initials shrinking. 8.5px
+                  mono was the smallest type in the shell, and the only reason
+                  it was that small is that the disc was 18px across; the row
+                  is already ~30px tall, so 22px costs nothing else and the
+                  initials come up to the same 11px every other fact in this
+                  column is set at. Initials are a name, and a name is
+                  language, so they are not mono either. */}
+              <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-surface-3 text-meta text-fg">
                 {identity.initials}
               </span>
-              <span className="min-w-0 flex-1 truncate text-[13px]">
+              <span className="min-w-0 flex-1 truncate text-body">
                 {identity.name}
               </span>
+              {/* Your name is a row title and the sync state is a fact about
+                  it, so the two are now a type step apart rather than a change
+                  of face. "Sync failed" and "Sync paused" keep text-danger:
+                  this is the one place the furniture is allowed to be loud,
+                  because it is the only place that says a claim the app makes
+                  has stopped being true. */}
               <span
                 className={cn(
-                  "shrink-0 font-mono text-[9.5px]",
+                  "shrink-0 text-meta",
                   badge.wrong ? "text-danger" : "text-fg-subtle",
                 )}
               >
@@ -712,15 +770,27 @@ function NavLink({
          information available only to people who could see the shade. */
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-2 rounded-md px-2 text-[13px] transition-colors duration-150",
+        "flex items-center gap-2 rounded-md px-2 text-body transition-colors duration-150",
         "py-[var(--ui-row-y)]",
-        active ? "bg-surface-2 text-fg" : "text-fg-muted hover:bg-surface hover:text-fg",
+        /* Which page you are on is carried by ink and weight; the fill only
+           reinforces. surface-2 is 1.24:1 on canvas in dark and 1.08:1 in
+           light, so alone it was a state nobody could see — and the
+           reference's active-row border is not the answer either, because a
+           fill plus a border is two signals for one thing. */
+        active
+          ? "bg-surface-2 font-medium text-fg"
+          : "text-fg-muted hover:bg-surface hover:text-fg",
       )}
     >
       <Icon name={icon} size={14} className="shrink-0" />
       {label}
       {badge !== undefined && badge > 0 && (
-        <span className="ml-auto grid min-w-[16px] place-items-center rounded-full bg-accent px-1 font-mono text-[9px] text-on-accent">
+        /* The written exception to one accent fill per screen. A count of
+           things you have not seen is the only thing in the furniture saying
+           something happened while you were away, and it competes with no
+           primary action because the shell has none. Sans, and the pill grew
+           to hold 11px digits. */
+        <span className="ml-auto grid min-h-[16px] min-w-[16px] place-items-center rounded-full bg-accent px-1.5 text-meta text-on-accent">
           {badge > 99 ? "99+" : badge}
         </span>
       )}
@@ -767,10 +837,14 @@ function RecentRow({
         onContextMenu={onOpenMenu}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex items-center gap-2 rounded-md pr-7 pl-2 text-[13px] transition-colors duration-150",
+          "flex items-center gap-2 rounded-md pr-7 pl-2 text-body transition-colors duration-150",
           "py-[var(--ui-row-y)]",
+          /* Three states, three inks, and the fill under the current one is
+             reinforcement rather than the carrier — the same as the nav rows,
+             and the same as /chat's rooms rail, which lists these very rooms
+             250px away and now says so in the same voice. */
           active
-            ? "bg-surface-2 text-fg"
+            ? "bg-surface-2 font-medium text-fg"
             : unread > 0
               ? "text-fg hover:bg-surface"
               : "text-fg-muted hover:bg-surface hover:text-fg",
@@ -796,7 +870,7 @@ function RecentRow({
           {label}
         </span>
         {unread > 0 && (
-          <span className="ml-auto grid min-w-[16px] shrink-0 place-items-center rounded-full bg-accent px-1 font-mono text-[9px] text-on-accent">
+          <span className="ml-auto grid min-h-[16px] min-w-[16px] shrink-0 place-items-center rounded-full bg-accent px-1.5 text-meta text-on-accent">
             {unread > 99 ? "99+" : unread}
           </span>
         )}

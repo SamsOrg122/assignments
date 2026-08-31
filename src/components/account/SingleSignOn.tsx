@@ -125,7 +125,7 @@ export function SingleSignOn({
         style={{ background: stage ? "var(--pad-edge)" : "var(--color-line)" }}
       />
       <span
-        className="font-mono text-[10px]"
+        className="text-meta"
         style={{ color: stage ? "var(--pad-ink-3)" : "var(--color-fg-subtle)" }}
       >
         or
@@ -150,8 +150,8 @@ export function SingleSignOn({
             className={cn(
               "flex items-center justify-center gap-2 disabled:opacity-60",
               stage
-                ? "pad-chip px-4 py-2.5 text-[13px]"
-                : "rounded-sm border border-accent/50 bg-accent-soft px-2.5 py-1.5 text-[12.5px] text-accent transition-colors duration-150 hover:border-accent",
+                ? "pad-chip px-4 py-2.5 text-body"
+                : "rounded-sm border border-accent/50 bg-accent-soft px-2.5 py-1.5 text-body text-accent transition-colors duration-150 hover:border-accent",
             )}
           >
             <Icon name="lock" size={stage ? 13 : 11} />
@@ -193,8 +193,8 @@ export function SingleSignOn({
               className={cn(
                 "flex items-center justify-center gap-2.5 disabled:opacity-60",
                 stage
-                  ? "pad-chip px-4 py-2.5 text-[13px]"
-                  : "rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg",
+                  ? "pad-chip px-4 py-2.5 text-body"
+                  : "rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg",
               )}
             >
               <BrandMark id={provider.id} size={stage ? 16 : 14} />
@@ -207,7 +207,7 @@ export function SingleSignOn({
       </div>
 
       {problem && (
-        <p className="mt-2 text-[12px] leading-relaxed text-danger" role="alert">
+        <p className="mt-2 text-body leading-relaxed text-danger" role="alert">
           {problem}
         </p>
       )}

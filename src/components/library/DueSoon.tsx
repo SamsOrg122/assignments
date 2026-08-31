@@ -51,17 +51,20 @@ export function DueSoon() {
   if (soon.length === 0) return null;
 
   return (
-    <section
-      aria-label="Due soon"
-      className="mb-4 rounded-md border border-line bg-surface p-2.5"
-    >
-      <div className="mb-1.5 flex items-center gap-2">
-        <span className="label-mono text-fg-subtle">Due soon</span>
+    /* No box. Five dated rows are a list, and a list belongs to the page it
+       is on — the border was here because a panel on this palette is a 1.12:1
+       step and could not group anything by tone, so it drew four lines
+       instead. What groups them now is a label and 40px of air, and the one
+       thing on this page allowed to be warm — a late deadline — is no longer
+       arguing with a rectangle drawn round it. */
+    <section aria-label="Due soon" className="mb-(--space-5)">
+      <div className="mb-(--space-3) flex items-center gap-2">
+        <span className="text-meta text-fg-subtle">Due soon</span>
         <Link
           /* /due, not /assignments: this strip is a dated list and /due is the
              dated list. The board is one of /due's two doors. */
           href="/due"
-          className="ml-auto text-[11px] text-fg-subtle transition-colors hover:text-fg"
+          className="ml-auto text-meta text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg"
         >
           All of it
         </Link>
@@ -81,18 +84,21 @@ export function DueSoon() {
                   size={11}
                   className="shrink-0 text-fg-subtle"
                 />
-                <span className="min-w-0 flex-1 truncate text-[12px] text-fg">
+                <span className="min-w-0 flex-1 truncate text-body text-fg">
                   {assignment.title}
                 </span>
                 {assignment.course && (
-                  <span className="hidden shrink-0 text-[11px] text-fg-subtle sm:block">
+                  <span className="hidden shrink-0 text-meta text-fg-subtle sm:block">
                     {assignment.course}
                   </span>
                 )}
                 <span
                   className={cn(
-                    "shrink-0 text-[11px] font-medium",
-                    how.tone === "late" ? "text-warn" : "text-fg-muted",
+                    // Late is the one warm thing on this page, and it is
+                    // carried by ink AND weight together — never by ink
+                    // alone, and never by a fill.
+                    "shrink-0 text-meta",
+                    how.tone === "late" ? "text-warn font-medium" : "text-fg-muted",
                   )}
                 >
                   {how.text}

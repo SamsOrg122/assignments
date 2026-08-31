@@ -320,7 +320,7 @@ export function ImageBlock({
       {/* Alt text and weight, out of the way but not hidden: one is what a
           screen reader says, the other is why the workspace got heavy. */}
       <div className="mt-1.5 flex items-center gap-2 opacity-0 transition-opacity duration-150 group-hover/image:opacity-100 focus-within:opacity-100 print:hidden">
-        <label className="label-mono shrink-0" htmlFor={`alt-${block.id}`}>
+        <label className="text-meta text-fg-subtle shrink-0" htmlFor={`alt-${block.id}`}>
           Alt
         </label>
         <input

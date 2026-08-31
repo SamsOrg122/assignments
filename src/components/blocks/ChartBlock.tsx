@@ -472,7 +472,7 @@ function ChartTooltip({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="label-mono">{label}</span>
+      <span className="text-meta text-fg-subtle">{label}</span>
       {children}
     </div>
   );

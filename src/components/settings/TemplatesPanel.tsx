@@ -56,9 +56,9 @@ export function TemplatesPanel() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <p className="label-mono mb-1.5">Yours</p>
+        <p className="text-meta text-fg-subtle mb-1.5">Yours</p>
         {mine.length === 0 ? (
-          <p className="text-[12.5px] leading-relaxed text-fg-subtle">
+          <p className="text-body leading-relaxed text-fg-subtle">
             Nothing saved yet. Right-click any project in the Library and choose
             “Save as template” — the blocks are copied, so the project carries on
             its own way afterwards.
@@ -76,9 +76,9 @@ export function TemplatesPanel() {
                   value={template.name}
                   onChange={(e) => rename(template.id, e.target.value)}
                   aria-label={`Name of ${template.name}`}
-                  className="min-w-0 flex-1 rounded-xs border border-transparent bg-transparent px-1 py-0.5 text-[13px] text-fg outline-none hover:border-line focus:border-accent"
+                  className="min-w-0 flex-1 rounded-xs border border-transparent bg-transparent px-1 py-0.5 text-body text-fg outline-none hover:border-line focus:border-accent"
                 />
-                <span className="font-mono text-[10px] text-fg-subtle">
+                <span className="text-meta text-fg-subtle">
                   {outlineOf(template).length} sections
                 </span>
                 <button
@@ -90,7 +90,7 @@ export function TemplatesPanel() {
                       ? "Publish it to everyone in the workspace"
                       : "Needs a database — there is no shared workspace to publish to"
                   }
-                  className="rounded-xs border border-line px-1.5 py-0.5 text-[11px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-45"
+                  className="rounded-xs border border-line px-1.5 py-0.5 text-meta text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-45"
                 >
                   {busy === template.id ? "…" : "Publish"}
                 </button>
@@ -112,15 +112,15 @@ export function TemplatesPanel() {
       </div>
 
       <div>
-        <p className="label-mono mb-1.5">The workspace&rsquo;s</p>
+        <p className="text-meta text-fg-subtle mb-1.5">The workspace&rsquo;s</p>
         {!configured ? (
-          <p className="text-[12.5px] leading-relaxed text-fg-subtle">
+          <p className="text-body leading-relaxed text-fg-subtle">
             No database is configured, so there is no shared workspace yet.
             Templates you save stay in this browser — which works, and is worth
             knowing before you build one for a team.
           </p>
         ) : workspace.length === 0 ? (
-          <p className="text-[12.5px] leading-relaxed text-fg-subtle">
+          <p className="text-body leading-relaxed text-fg-subtle">
             Nothing published. An admin can publish one of yours above, and
             everybody in this workspace will find it in the template picker —
             everybody meaning whoever the database counts as a member, since
@@ -135,14 +135,14 @@ export function TemplatesPanel() {
                   size={12}
                   className="shrink-0 text-fg-subtle"
                 />
-                <span className="min-w-0 flex-1 truncate text-[13px] text-fg">
+                <span className="min-w-0 flex-1 truncate text-body text-fg">
                   {template.name}
                 </span>
                 <button
                   type="button"
                   disabled={busy === template.id}
                   onClick={() => doWithdraw(template)}
-                  className="rounded-xs border border-line px-1.5 py-0.5 text-[11px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-45"
+                  className="rounded-xs border border-line px-1.5 py-0.5 text-meta text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-45"
                 >
                   {busy === template.id ? "…" : "Withdraw"}
                 </button>

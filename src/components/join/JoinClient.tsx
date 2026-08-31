@@ -287,7 +287,7 @@ export function JoinClient({ token: segment }: { token: string | null }) {
               means nothing without the sentence saying what it was for. */}
           {about && phase.at !== "landed" && (
             <div className={card}>
-              <p className="label-mono flex items-center gap-1.5">
+              <p className="text-meta text-fg-subtle flex items-center gap-1.5">
                 <Icon name={about.icon} size={12} className="text-fg-subtle" />
                 {about.eyebrow}
               </p>
@@ -314,7 +314,7 @@ export function JoinClient({ token: segment }: { token: string | null }) {
 
           {!about && !reading && (
             <div className={card}>
-              <p className="label-mono">Link</p>
+              <p className="text-meta text-fg-subtle">Link</p>
               <h1 className="mt-2 text-[16px] leading-snug font-medium text-fg">
                 {resuming ? "There is no link waiting here" : "This link is incomplete"}
               </h1>
@@ -432,7 +432,7 @@ export function JoinClient({ token: segment }: { token: string | null }) {
           {/* Where you landed. */}
           {phase.at === "landed" && (
             <div className={card} role="status" aria-live="polite">
-              <p className="label-mono flex items-center gap-1.5">
+              <p className="text-meta text-fg-subtle flex items-center gap-1.5">
                 <Icon name="check" size={12} className="text-fg-subtle" />
                 {phase.landing.already ? "Already done" : "Done"}
               </p>
@@ -522,7 +522,7 @@ export function JoinClient({ token: segment }: { token: string | null }) {
               link, which nobody standing here can act on as written. */}
           {phase.at === "refused" && (
             <div className={card} role="status" aria-live="polite">
-              <p className="label-mono flex items-center gap-1.5">
+              <p className="text-meta text-fg-subtle flex items-center gap-1.5">
                 <Icon name="x" size={12} className="text-fg-subtle" />
                 {unfinished ? "Not ready yet" : "Not this link"}
               </p>

@@ -47,7 +47,7 @@ export function LookPanel({
       className="absolute top-full right-0 z-40 mt-2 w-[340px] rounded-lg border border-line bg-surface p-3 shadow-xl"
     >
       <div className="mb-2 flex items-center justify-between">
-        <span className="label-mono">Backdrop</span>
+        <span className="text-meta text-fg-subtle">Backdrop</span>
         <button
           type="button"
           onClick={onClose}
@@ -101,7 +101,7 @@ export function LookPanel({
       </div>
 
       <div className={cn("mt-3", !look && "pointer-events-none opacity-40")}>
-        <span className="label-mono">Accent</span>
+        <span className="text-meta text-fg-subtle">Accent</span>
         <div className="mt-1.5 flex items-center gap-1.5">
           <button
             type="button"

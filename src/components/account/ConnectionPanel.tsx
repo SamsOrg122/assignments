@@ -55,30 +55,34 @@ export function ConnectionPanel() {
   }, [config?.url, config?.anonKey, run]);
 
   return (
-    <div className="flex flex-col gap-2.5">
-      <div className="overflow-hidden rounded-md border border-line bg-surface">
+    <div className="flex flex-col gap-(--space-3)">
+      {/*
+        * Seven statements, and until now eight lines: a box around the list
+        * and a rule between every pair inside it. Neither was carrying
+        * anything. The rows are already grouped by the one thing on the page
+        * that varies — the ✓ or ✕ in the gutter — and they already align on
+        * a common left edge, which is how a well-set table has read for five
+        * hundred years without a wall around it. See the note in
+        * settings/Section.tsx: one vertical edge the eye can run is worth
+        * more than sixty-two borders.
+        */}
+      <div className="flex flex-col">
         {result === null ? (
-          <p className="p-3.5 text-[12.5px] text-fg-subtle">Checking…</p>
+          <p className="text-body text-fg-subtle">Checking…</p>
         ) : (
-          result.checks.map((check, index) => (
-            <div
-              key={check.label}
-              className={cn(
-                "flex gap-3 p-3.5",
-                index > 0 && "border-t border-line",
-              )}
-            >
+          result.checks.map((check) => (
+            <div key={check.label} className="flex gap-3 py-(--space-2)">
               <span
                 aria-hidden="true"
                 className={cn(
-                  "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border font-mono text-[10px]",
+                  "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border text-meta",
                   TONE[check.state],
                 )}
               >
                 {MARK[check.state]}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[12.5px] font-medium text-fg">
+                <p className="text-body font-medium text-fg">
                   {check.label}
                   <span className="sr-only">
                     {": "}
@@ -89,11 +93,11 @@ export function ConnectionPanel() {
                         : check.state}
                   </span>
                 </p>
-                <p className="mt-0.5 text-[12.5px] leading-relaxed break-words text-fg-muted">
+                <p className="mt-0.5 text-body leading-relaxed break-words text-fg-muted">
                   {check.detail}
                 </p>
                 {check.fix && (
-                  <p className="mt-1 text-[12px] leading-relaxed text-fg-subtle">
+                  <p className="mt-1 text-body leading-relaxed text-fg-subtle">
                     {check.fix}
                   </p>
                 )}
@@ -108,7 +112,7 @@ export function ConnectionPanel() {
           type="button"
           onClick={run}
           disabled={busy}
-          className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-60"
+          className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-60"
         >
           {busy ? "Checking…" : "Check again"}
         </button>
@@ -118,12 +122,12 @@ export function ConnectionPanel() {
             void syncNow();
             notify("Syncing now");
           }}
-          className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+          className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
         >
           Sync now
         </button>
         {result && (
-          <p className="text-[12px] text-fg-subtle">
+          <p className="text-body text-fg-subtle">
             {result.healthy
               ? "Accounts work on this deployment."
               : "Fix the ✕ lines above, then check again."}

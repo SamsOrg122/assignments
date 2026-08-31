@@ -1,0 +1,586 @@
+{
+  "src/app/(app)/agenda/page.tsx": {
+    "inlineSize": 22,
+    "border": 10,
+    "uppercase": 2,
+    "tiny": 8
+  },
+  "src/app/(app)/assignments/page.tsx": {
+    "inlineSize": 18,
+    "border": 8,
+    "tiny": 2
+  },
+  "src/app/(app)/chat/[[...channelId]]/page.tsx": {
+    "border": 1
+  },
+  "src/app/(app)/community/page.tsx": {
+    "inlineSize": 22,
+    "border": 10,
+    "mono": 1,
+    "uppercase": 1,
+    "tiny": 1
+  },
+  "src/app/(app)/due/page.tsx": {
+    "border": 2
+  },
+  "src/app/(app)/kit/page.tsx": {
+    "inlineSize": 18,
+    "border": 8,
+    "mono": 4,
+    "tiny": 4
+  },
+  "src/app/(app)/library/page.tsx": {
+    "border": 3,
+    "uppercase": 1
+  },
+  "src/app/(app)/more/page.tsx": {
+    "inlineSize": 1,
+    "border": 1
+  },
+  "src/app/(app)/notes/page.tsx": {
+    "inlineSize": 26,
+    "border": 2,
+    "uppercase": 1,
+    "tiny": 1
+  },
+  "src/app/(app)/p/[projectId]/page.tsx": {
+    "inlineSize": 3
+  },
+  "src/app/(app)/settings/page.tsx": {
+    "mono": 3
+  },
+  "src/app/(app)/study/page.tsx": {
+    "inlineSize": 12,
+    "border": 4,
+    "tiny": 1
+  },
+  "src/app/(app)/team/page.tsx": {
+    "inlineSize": 54,
+    "border": 29,
+    "mono": 2,
+    "tiny": 5
+  },
+  "src/app/auth/callback/CallbackClient.tsx": {
+    "inlineSize": 8,
+    "border": 1
+  },
+  "src/app/auth/callback/page.tsx": {
+    "inlineSize": 1
+  },
+  "src/app/f/FillClient.tsx": {
+    "inlineSize": 20,
+    "border": 1,
+    "mono": 1,
+    "tiny": 1
+  },
+  "src/app/offline/page.tsx": {
+    "inlineSize": 5,
+    "border": 1
+  },
+  "src/app/present/PresenterClient.tsx": {
+    "inlineSize": 16,
+    "border": 5,
+    "mono": 3,
+    "tiny": 1
+  },
+  "src/app/signin/SignInClient.tsx": {
+    "inlineSize": 7,
+    "tiny": 2
+  },
+  "src/app/signin/page.tsx": {
+    "inlineSize": 1
+  },
+  "src/app/v/ViewerClient.tsx": {
+    "inlineSize": 10,
+    "border": 4,
+    "mono": 1,
+    "tiny": 1
+  },
+  "src/components/account/AccountForm.tsx": {
+    "inlineSize": 4,
+    "border": 8,
+    "tiny": 1
+  },
+  "src/components/account/AccountPanel.tsx": {
+    "border": 3
+  },
+  "src/components/account/ConnectionPanel.tsx": {
+    "border": 2
+  },
+  "src/components/account/SingleSignOn.tsx": {
+    "border": 1
+  },
+  "src/components/agenda/EventEditor.tsx": {
+    "inlineSize": 15,
+    "border": 9
+  },
+  "src/components/ai/InlineAI.tsx": {
+    "inlineSize": 10,
+    "border": 9,
+    "mono": 4,
+    "tiny": 3
+  },
+  "src/components/assignments/AssignmentEditor.tsx": {
+    "inlineSize": 5,
+    "border": 2
+  },
+  "src/components/assignments/DeadlineChip.tsx": {
+    "inlineSize": 2
+  },
+  "src/components/blocks/BibliographyBlock.tsx": {
+    "inlineSize": 5,
+    "border": 5,
+    "mono": 1,
+    "tiny": 1
+  },
+  "src/components/blocks/ChartBlock.tsx": {
+    "inlineSize": 9,
+    "border": 6,
+    "mono": 3,
+    "uppercase": 1,
+    "tiny": 1
+  },
+  "src/components/blocks/CodeBlock.tsx": {
+    "inlineSize": 5,
+    "border": 7,
+    "mono": 3
+  },
+  "src/components/blocks/FigureCaption.tsx": {
+    "inlineSize": 2
+  },
+  "src/components/blocks/FormBlock.tsx": {
+    "inlineSize": 16,
+    "border": 12,
+    "mono": 2,
+    "tiny": 3
+  },
+  "src/components/blocks/ImageBlock.tsx": {
+    "inlineSize": 8,
+    "border": 3,
+    "mono": 2,
+    "tiny": 2
+  },
+  "src/components/blocks/MathPopover.tsx": {
+    "inlineSize": 6,
+    "border": 5,
+    "mono": 3,
+    "tiny": 1
+  },
+  "src/components/blocks/NotePopover.tsx": {
+    "inlineSize": 5,
+    "border": 4,
+    "mono": 1,
+    "tiny": 1
+  },
+  "src/components/blocks/PivotEditor.tsx": {
+    "inlineSize": 7,
+    "border": 4
+  },
+  "src/components/blocks/RefPicker.tsx": {
+    "inlineSize": 4,
+    "border": 2,
+    "mono": 1
+  },
+  "src/components/blocks/SheetTabs.tsx": {
+    "inlineSize": 5,
+    "border": 4,
+    "mono": 1,
+    "tiny": 2
+  },
+  "src/components/blocks/SlidesBlock.tsx": {
+    "border": 1
+  },
+  "src/components/blocks/TableBlock.tsx": {
+    "inlineSize": 37,
+    "border": 24,
+    "mono": 16,
+    "tiny": 11
+  },
+  "src/components/blocks/TextBlock.tsx": {
+    "inlineSize": 5,
+    "border": 1,
+    "mono": 2,
+    "tiny": 1
+  },
+  "src/components/blocks/TocBlock.tsx": {
+    "inlineSize": 4,
+    "border": 1,
+    "mono": 1,
+    "uppercase": 1,
+    "tiny": 1
+  },
+  "src/components/board/ArrangeMenu.tsx": {
+    "inlineSize": 6,
+    "border": 5,
+    "mono": 1,
+    "tiny": 3
+  },
+  "src/components/board/BoardItemView.tsx": {
+    "inlineSize": 6,
+    "border": 2,
+    "mono": 1,
+    "tiny": 1
+  },
+  "src/components/board/CommentPin.tsx": {
+    "inlineSize": 8,
+    "border": 3,
+    "mono": 1,
+    "tiny": 3
+  },
+  "src/components/board/Minimap.tsx": {
+    "border": 1
+  },
+  "src/components/board/ProjectCardBody.tsx": {
+    "inlineSize": 5,
+    "border": 2,
+    "mono": 2,
+    "tiny": 2
+  },
+  "src/components/board/PromoteDialog.tsx": {
+    "inlineSize": 5,
+    "border": 5,
+    "mono": 1,
+    "tiny": 1
+  },
+  "src/components/board/TemplateGallery.tsx": {
+    "inlineSize": 2,
+    "border": 1
+  },
+  "src/components/canvas/BlockComments.tsx": {
+    "inlineSize": 9,
+    "border": 3,
+    "mono": 2,
+    "tiny": 3
+  },
+  "src/components/canvas/BlockShell.tsx": {
+    "inlineSize": 3,
+    "border": 1,
+    "mono": 1,
+    "tiny": 1
+  },
+  "src/components/canvas/Canvas.tsx": {
+    "inlineSize": 4,
+    "border": 3
+  },
+  "src/components/canvas/SlashMenu.tsx": {
+    "inlineSize": 2,
+    "border": 2
+  },
+  "src/components/chat/ChannelGate.tsx": {
+    "inlineSize": 1,
+    "border": 1
+  },
+  "src/components/chat/Composer.tsx": {
+    "border": 2
+  },
+  "src/components/chat/MessageList.tsx": {
+    "border": 2
+  },
+  "src/components/chat/PeoplePicker.tsx": {
+    "inlineSize": 3,
+    "border": 7,
+    "mono": 2,
+    "tiny": 3
+  },
+  "src/components/chat/RoomsRail.tsx": {
+    "border": 1
+  },
+  "src/components/chat/TeamAssistant.tsx": {
+    "inlineSize": 2,
+    "border": 9
+  },
+  "src/components/chat/attachments.tsx": {
+    "inlineSize": 3,
+    "border": 2,
+    "mono": 1,
+    "tiny": 3
+  },
+  "src/components/editors/BoardEditor.tsx": {
+    "inlineSize": 14,
+    "border": 11,
+    "mono": 3,
+    "tiny": 2
+  },
+  "src/components/editors/CodeEditor.tsx": {
+    "inlineSize": 2
+  },
+  "src/components/editors/DeckEditor.tsx": {
+    "inlineSize": 8,
+    "border": 5,
+    "mono": 1,
+    "tiny": 1
+  },
+  "src/components/editors/DeckStylePanel.tsx": {
+    "inlineSize": 7,
+    "border": 3,
+    "tiny": 3
+  },
+  "src/components/editors/DesignPlaceholder.tsx": {
+    "inlineSize": 3
+  },
+  "src/components/editors/DictationBar.tsx": {
+    "inlineSize": 10,
+    "border": 7,
+    "mono": 2,
+    "tiny": 1
+  },
+  "src/components/editors/FindReplace.tsx": {
+    "inlineSize": 8,
+    "border": 5,
+    "mono": 1,
+    "tiny": 3
+  },
+  "src/components/editors/LookPanel.tsx": {
+    "inlineSize": 3,
+    "border": 1,
+    "mono": 1,
+    "uppercase": 1,
+    "tiny": 2
+  },
+  "src/components/editors/NotesList.tsx": {
+    "inlineSize": 5,
+    "border": 1,
+    "mono": 3,
+    "uppercase": 1,
+    "tiny": 2
+  },
+  "src/components/editors/PagePanel.tsx": {
+    "inlineSize": 12,
+    "border": 6,
+    "mono": 3,
+    "tiny": 3
+  },
+  "src/components/editors/ProjectTopBar.tsx": {
+    "inlineSize": 5,
+    "border": 3
+  },
+  "src/components/editors/SlideObjects.tsx": {
+    "inlineSize": 10,
+    "border": 9,
+    "mono": 5,
+    "tiny": 10
+  },
+  "src/components/editors/SuggestionsPanel.tsx": {
+    "inlineSize": 10,
+    "border": 5,
+    "mono": 2,
+    "uppercase": 1,
+    "tiny": 2
+  },
+  "src/components/editors/TypographyPanel.tsx": {
+    "inlineSize": 10,
+    "border": 5,
+    "mono": 2,
+    "tiny": 2
+  },
+  "src/components/editors/VersionTimeline.tsx": {
+    "inlineSize": 9,
+    "border": 5,
+    "mono": 4,
+    "tiny": 4
+  },
+  "src/components/editors/WritingEditor.tsx": {
+    "inlineSize": 8,
+    "border": 4,
+    "mono": 5,
+    "tiny": 4
+  },
+  "src/components/join/JoinClient.tsx": {
+    "inlineSize": 29,
+    "border": 4
+  },
+  "src/components/kit/AssetCard.tsx": {
+    "inlineSize": 3,
+    "border": 1,
+    "mono": 1,
+    "tiny": 1
+  },
+  "src/components/kit/InsertMenu.tsx": {
+    "inlineSize": 2,
+    "border": 1
+  },
+  "src/components/library/DesktopNotes.tsx": {
+    "border": 1
+  },
+  "src/components/library/Folders.tsx": {
+    "inlineSize": 4,
+    "border": 4,
+    "mono": 3,
+    "tiny": 3
+  },
+  "src/components/library/ImportZone.tsx": {
+    "inlineSize": 1,
+    "border": 3
+  },
+  "src/components/library/SaveAsTemplate.tsx": {
+    "border": 3
+  },
+  "src/components/library/Shelf.tsx": {
+    "border": 1
+  },
+  "src/components/library/TemplatePicker.tsx": {
+    "inlineSize": 2,
+    "border": 3,
+    "mono": 1,
+    "tiny": 2
+  },
+  "src/components/library/WhereIsMyWork.tsx": {
+    "border": 1
+  },
+  "src/components/notes/AttachMenu.tsx": {
+    "inlineSize": 7,
+    "border": 3,
+    "tiny": 2
+  },
+  "src/components/notes/NoteAssistant.tsx": {
+    "inlineSize": 13,
+    "tiny": 1
+  },
+  "src/components/presence/Avatars.tsx": {
+    "inlineSize": 2,
+    "mono": 2,
+    "tiny": 2
+  },
+  "src/components/presence/Cursors.tsx": {
+    "inlineSize": 1,
+    "mono": 1,
+    "tiny": 1
+  },
+  "src/components/settings/AdminSections.tsx": {
+    "border": 2,
+    "mono": 7
+  },
+  "src/components/settings/Dictionary.tsx": {
+    "border": 3
+  },
+  "src/components/settings/EraseAccount.tsx": {
+    "border": 3
+  },
+  "src/components/settings/TemplatesPanel.tsx": {
+    "border": 2
+  },
+  "src/components/settings/WorkIsSafe.tsx": {
+    "mono": 2
+  },
+  "src/components/share/EmailDraft.tsx": {
+    "inlineSize": 1
+  },
+  "src/components/share/ShareMenu.tsx": {
+    "inlineSize": 22,
+    "border": 9,
+    "mono": 2,
+    "tiny": 1
+  },
+  "src/components/shell/CommandPalette.tsx": {
+    "inlineSize": 6,
+    "border": 4,
+    "mono": 1,
+    "tiny": 2
+  },
+  "src/components/shell/ProjectSettings.tsx": {
+    "inlineSize": 4,
+    "border": 1
+  },
+  "src/components/shell/ShortcutSheet.tsx": {
+    "inlineSize": 3,
+    "mono": 1
+  },
+  "src/components/shell/Sidebar.tsx": {
+    "border": 1
+  },
+  "src/components/shell/StorageAlarm.tsx": {
+    "inlineSize": 2
+  },
+  "src/components/shell/TopBar.tsx": {
+    "border": 1
+  },
+  "src/components/slides/DeckWorkbench.tsx": {
+    "inlineSize": 10,
+    "border": 7,
+    "mono": 2,
+    "tiny": 1
+  },
+  "src/components/slides/MasterPanel.tsx": {
+    "inlineSize": 10,
+    "border": 7
+  },
+  "src/components/slides/SlideView.tsx": {
+    "inlineSize": 2,
+    "border": 1,
+    "mono": 1
+  },
+  "src/components/social/Friends.tsx": {
+    "inlineSize": 1,
+    "border": 18,
+    "mono": 2,
+    "tiny": 1
+  },
+  "src/components/sources/CitePicker.tsx": {
+    "inlineSize": 7,
+    "border": 2,
+    "mono": 2,
+    "tiny": 2
+  },
+  "src/components/sources/SourcesPanel.tsx": {
+    "inlineSize": 10,
+    "border": 8,
+    "mono": 3,
+    "tiny": 4
+  },
+  "src/components/study/NewSet.tsx": {
+    "inlineSize": 10,
+    "border": 4,
+    "tiny": 2
+  },
+  "src/components/study/Session.tsx": {
+    "inlineSize": 20,
+    "border": 9
+  },
+  "src/components/transcript/Receipt.tsx": {
+    "inlineSize": 17,
+    "border": 5,
+    "tiny": 2
+  },
+  "src/components/transcript/Recorder.tsx": {
+    "inlineSize": 21,
+    "border": 10,
+    "mono": 12,
+    "tiny": 12
+  },
+  "src/components/ui/Avatar.tsx": {
+    "inlineSize": 3,
+    "border": 1
+  },
+  "src/components/ui/Dialog.tsx": {
+    "border": 2
+  },
+  "src/components/ui/Menu.tsx": {
+    "border": 2
+  },
+  "src/components/ui/Toast.tsx": {
+    "inlineSize": 1,
+    "border": 1
+  },
+  "src/components/viewer/CommentRail.tsx": {
+    "inlineSize": 8,
+    "border": 3,
+    "tiny": 2
+  },
+  "src/components/viewer/GuestEditor.tsx": {
+    "inlineSize": 6,
+    "border": 3
+  },
+  "src/components/viewer/SharedProject.tsx": {
+    "inlineSize": 23,
+    "border": 16,
+    "mono": 5,
+    "uppercase": 2,
+    "tiny": 2
+  },
+  "src/components/voice/VoiceDock.tsx": {
+    "inlineSize": 7,
+    "border": 4,
+    "mono": 5,
+    "tiny": 5
+  }
+}

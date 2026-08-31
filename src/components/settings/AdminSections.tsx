@@ -60,23 +60,28 @@ export function SignInMethods() {
       hint="Configured in Supabase and read back from the project itself. This reports what is switched on; it cannot switch anything on, because the identity provider is not ours."
       variant="card"
     >
-      <ul className="flex flex-col gap-1.5">
-        <li className="flex items-baseline gap-2 text-[12.5px]">
+      <ul className="flex flex-col gap-(--space-2)">
+        <li className="flex items-baseline gap-(--space-2) text-body">
           <Icon name="check" size={11} className="text-fg-subtle" />
           <span className="text-fg">Email and password</span>
           <span className="text-fg-subtle">— always available</span>
         </li>
         {providers.map((provider) => (
-          <li key={provider.id} className="flex items-baseline gap-2 text-[12.5px]">
+          <li
+            key={provider.id}
+            className="flex items-baseline gap-(--space-2) text-body"
+          >
             <Icon name="check" size={11} className="text-fg-subtle" />
             <span className="text-fg">{provider.label}</span>
-            <span className="font-mono text-[10.5px] text-fg-subtle">
+            {/* `google`, `azure` — the literal provider id you would type
+                into Supabase, so this one keeps the mono face. */}
+            <span className="font-mono text-meta text-fg-subtle">
               {provider.id}
             </span>
           </li>
         ))}
         {options.ssoDomains.map((domain) => (
-          <li key={domain} className="flex items-baseline gap-2 text-[12.5px]">
+          <li key={domain} className="flex items-baseline gap-(--space-2) text-body">
             <Icon name="lock" size={11} className="text-fg-subtle" />
             <span className="text-fg">{domain}</span>
             <span className="text-fg-subtle">— single sign-on (SAML)</span>
@@ -85,13 +90,13 @@ export function SignInMethods() {
       </ul>
 
       {!providers.length && !options.ssoDomains.length && (
-        <p className="mt-2.5 text-[12px] leading-relaxed text-fg-subtle">
+        <p className="max-w-[68ch] text-body text-fg-muted">
           Nothing beyond a password. To add Google or Microsoft accounts,
           enable the provider in Supabase → Authentication → Providers and it
           appears here and on the sign-in screen by itself — there is no
           second variable to remember. For SAML, register the connection with
           the Supabase CLI and set{" "}
-          <code className="font-mono text-[11.5px]">
+          <code className="font-mono text-meta">
             AUTH_SSO_DOMAINS=your-domain.com
           </code>
           . Until then no buttons appear, which is deliberate: a sign-in
@@ -144,20 +149,22 @@ export function Administration({ data }: { data: AdminData }) {
         variant="card"
       >
         {!settled && (
-          <p className="text-[12.5px] text-fg-subtle">Checking what is configured…</p>
+          <p className="text-body text-fg-subtle">Checking what is configured…</p>
         )}
 
         {settled && blocked && (
+          /* A refusal is not an object, an input or a floating layer, so it
+             does not get a border. Which refusal it is stays visible in the
+             ink: a setup step reads as ordinary prose, a real failure reads
+             in danger. */
           <div
-            className={`rounded-sm border p-3 text-[12.5px] leading-relaxed ${
-              blocked.setup
-                ? "border-warn/35 bg-warn/[0.07] text-fg-muted"
-                : "border-danger/35 bg-danger/[0.07] text-danger"
+            className={`max-w-[68ch] text-body ${
+              blocked.setup ? "text-fg-muted" : "text-danger"
             }`}
           >
             {blocked.reason}
             {blocked.setup && (
-              <span className="mt-2 block text-fg-subtle">
+              <span className="mt-(--space-2) block text-fg-subtle">
                 <Link
                   href="/settings#connection"
                   className="underline decoration-line-strong underline-offset-2 hover:text-fg"
@@ -165,7 +172,7 @@ export function Administration({ data }: { data: AdminData }) {
                   Connection
                 </Link>{" "}
                 above says exactly what is missing, and{" "}
-                <code className="font-mono text-[11.5px]">supabase/schema.sql</code>{" "}
+                <code className="font-mono text-meta">supabase/schema.sql</code>{" "}
                 is what to run once it is there.
               </span>
             )}
@@ -173,15 +180,16 @@ export function Administration({ data }: { data: AdminData }) {
         )}
 
         {settled && state && (
-          <div className="flex items-baseline gap-2 text-[12.5px]">
+          <div className="flex flex-wrap items-baseline gap-(--space-2) text-body">
             <span className="text-fg-muted">
               {state.members.length === 1
                 ? "1 person"
                 : `${state.members.length} people`}{" "}
               in this workspace.
             </span>
+            {/* Your role is a fact about you, not a badge you earned. */}
             {state.role && (
-              <span className="rounded-xs border border-line px-1.5 py-0.5 text-[10.5px] text-fg-muted">
+              <span className="text-meta text-fg-subtle">
                 You are {ROLE_LABELS[state.role].toLowerCase()}
               </span>
             )}
@@ -200,22 +208,39 @@ export function Administration({ data }: { data: AdminData }) {
             {state.members.length === 0 ? (
               <Empty>Nobody has joined this workspace yet.</Empty>
             ) : (
-              <ul className="flex flex-col divide-y divide-line">
+              /*
+               * The one rule left on this page, and it is a table head — the
+               * single place §4 allows a line, because it separates the
+               * header row from the rows rather than claiming a region.
+               *
+               * The head earns it here and not on the log below because this
+               * table has a column nobody can read without being told: an
+               * eight-character id is not self-describing, where a date and
+               * a sentence are. The rows themselves have no lines at all;
+               * they read as a table because the columns align, which is how
+               * tables have worked for five hundred years.
+               */
+              <ul className="flex flex-col">
+                <li className="flex flex-wrap items-baseline gap-x-(--space-2) border-b border-line pb-(--space-2) text-meta text-fg-subtle">
+                  <span>person</span>
+                  <span>id</span>
+                  <span className="ml-auto">role</span>
+                </li>
                 {state.members.map((member) => (
                   <li
                     key={member.userId}
-                    className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-2"
+                    className="flex flex-wrap items-baseline gap-x-(--space-2) py-(--space-2)"
                   >
-                    <span className="text-[13px] text-fg">
+                    <span className="text-body text-fg">
                       {member.displayName ?? unnamedMember(member.anonymous)}
                     </span>
-                    <span className="font-mono text-[10.5px] text-fg-subtle">
+                    <span className="font-mono text-meta text-fg-subtle">
                       {member.userId.slice(0, 8)}
                     </span>
-                    <span className="ml-auto rounded-xs border border-line px-1.5 py-0.5 text-[10.5px] text-fg-muted">
+                    <span className="ml-auto text-meta text-fg-muted">
                       {ROLE_LABELS[member.role] ?? member.role}
                     </span>
-                    <span className="w-full text-[11.5px] text-fg-subtle">
+                    <span className="w-full text-meta text-fg-subtle">
                       {ROLE_HINTS[member.role] ?? ""}
                     </span>
                   </li>
@@ -275,22 +300,24 @@ export function Administration({ data }: { data: AdminData }) {
                   : "Only an admin can read the log. That is the policy doing its job rather than a fault."}
               </Empty>
             ) : (
-              <ul className="flex flex-col divide-y divide-line">
+              <ul className="flex flex-col">
                 {state.audit.map((entry) => (
                   <li
                     key={entry.id}
-                    className="flex flex-wrap items-baseline gap-x-2 py-2"
+                    className="flex flex-wrap items-baseline gap-x-(--space-2) py-(--space-2)"
                   >
-                    <span className="font-mono text-[10.5px] text-fg-subtle">
+                    {/* A timestamp is a fact, not something you paste: sans.
+                        The actor id beside it is an id and keeps mono. */}
+                    <span className="text-meta text-fg-subtle">
                       {formatDateTime(entry.at)}
                     </span>
-                    <span className="text-[12.5px] text-fg-muted">
+                    <span className="text-body text-fg-muted">
                       {describeAudit(entry)}
                     </span>
                     {entry.subject && (
-                      <span className="text-[12.5px] text-fg">— {entry.subject}</span>
+                      <span className="text-body text-fg">— {entry.subject}</span>
                     )}
-                    <span className="ml-auto font-mono text-[10px] text-fg-subtle">
+                    <span className="ml-auto font-mono text-meta text-fg-subtle">
                       {entry.actorId?.slice(0, 8) ?? "system"}
                     </span>
                   </li>
@@ -326,10 +353,13 @@ function Retention({
   const total = (doomed?.projects ?? 0) + (doomed?.audit ?? 0);
 
   return (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-2 text-[12.5px] text-fg-muted">
+    <div className="flex flex-col gap-(--space-3)">
+      <div className="flex flex-wrap items-center gap-(--space-3)">
+        <label className="flex items-center gap-(--space-2) text-body text-fg-muted">
           Keep for
+          {/* The field keeps its border. It is the shape your text goes
+              inside, and it is one of the two things left on this page that
+              a border is honestly for. */}
           <input
             inputMode="numeric"
             value={draft}
@@ -337,7 +367,7 @@ function Retention({
             placeholder="everything"
             onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))}
             aria-label="Days to keep deleted work"
-            className="w-[92px] rounded-sm border border-line bg-surface-2 px-2 py-1 text-[13px] text-fg outline-none focus:border-accent disabled:opacity-60"
+            className="w-[92px] rounded-sm border border-line bg-surface-2 px-2 py-1 text-body text-fg outline-none focus:border-accent disabled:opacity-60"
           />
           days
         </label>
@@ -346,7 +376,7 @@ function Retention({
             <button
               type="button"
               onClick={() => onSave(draft ? Number(draft) : null)}
-              className="rounded-sm border border-line px-2.5 py-1 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+              className="rounded-sm bg-surface-2 px-2.5 py-1 text-body font-medium text-fg transition-colors duration-150 hover:bg-surface-3"
             >
               Save
             </button>
@@ -357,7 +387,7 @@ function Retention({
                   setDraft("");
                   void onSave(null);
                 }}
-                className="text-[12px] text-fg-subtle underline decoration-line-strong underline-offset-2 hover:text-fg"
+                className="text-body text-fg-subtle underline decoration-line-strong underline-offset-2 hover:text-fg"
               >
                 Keep everything instead
               </button>
@@ -366,15 +396,15 @@ function Retention({
         )}
       </div>
 
-      <p className="text-[12px] leading-relaxed text-fg-subtle">
+      <p className="max-w-[68ch] text-body text-fg-muted">
         {days === null
           ? "Nothing is being removed. That is the default, and it stays the default: a column that quietly defaulted to thirty days would delete somebody's work on our schedule rather than theirs."
           : `Deleted projects and log entries older than ${days} days can be removed.`}
       </p>
 
       {days !== null && doomed && (
-        <div className="rounded-sm border border-line bg-surface-2 p-2.5">
-          <p className="text-[12.5px] text-fg-muted">
+        <div>
+          <p className="max-w-[68ch] text-body text-fg-muted">
             {total === 0
               ? "Nothing is old enough to remove yet."
               : `${doomed.projects} deleted projects and ${doomed.audit} log entries are past that.`}
@@ -384,16 +414,17 @@ function Retention({
               type="button"
               disabled={busy}
               onClick={() => onPurge()}
-              className="mt-2 rounded-sm border border-danger/40 px-2.5 py-1 text-[12px] text-danger transition-colors duration-150 hover:bg-danger/[0.07] disabled:opacity-60"
+              className="mt-(--space-2) rounded-sm bg-surface-2 px-2.5 py-1 text-body font-medium text-danger transition-colors duration-150 hover:bg-surface-3 disabled:opacity-60"
             >
               Remove them now
             </button>
           )}
-          <p className="mt-2 text-[11.5px] leading-relaxed text-fg-subtle">
+          <p className="mt-(--space-2) max-w-[68ch] text-body text-fg-subtle">
             Running it here does it once. To have it happen nightly, schedule{" "}
-            <code className="font-mono">purge_expired</code> with pg_cron — the
-            exact line is in <code className="font-mono">supabase/schema.sql</code>.
-            We do not pretend it is scheduled when it is not.
+            <code className="font-mono text-meta">purge_expired</code> with
+            pg_cron — the exact line is in{" "}
+            <code className="font-mono text-meta">supabase/schema.sql</code>. We
+            do not pretend it is scheduled when it is not.
           </p>
         </div>
       )}

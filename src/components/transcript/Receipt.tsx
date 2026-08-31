@@ -252,7 +252,7 @@ function Section({
 }) {
   return (
     <div className="mt-5">
-      <span className="label-mono text-fg-subtle">{title}</span>
+      <span className="text-meta text-fg-subtle">{title}</span>
       {note && (
         <p className="mt-1 text-[11px] leading-relaxed text-fg-subtle">{note}</p>
       )}

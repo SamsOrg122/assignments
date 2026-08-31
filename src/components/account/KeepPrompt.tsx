@@ -34,6 +34,10 @@ function useHasOwnWork(): boolean {
   return projects.some((p) => p.updatedAt > SEED_TS);
 }
 
+/** Both doors, in the sentence that asks the question. */
+const DOOR =
+  "underline decoration-line-strong underline-offset-2 transition-colors duration-150 hover:text-fg";
+
 export function KeepPrompt() {
   const choiceMade = useAuth((s) => s.choiceMade);
   const keepOnDevice = useAuth((s) => s.keepOnDevice);
@@ -41,32 +45,37 @@ export function KeepPrompt() {
 
   if (choiceMade || !theirs) return null;
 
+  /*
+   * A sentence, not a tray.
+   *
+   * This was a bordered, filled row with an icon, a paragraph, a filled
+   * accent button and an outlined one — and it sat 82 pixels from "New
+   * document", which is the one filled control this screen is allowed. Two
+   * filled accents on one screen means "what do I press to start something"
+   * has two answers, and the wrong one was the more insistent.
+   *
+   * On a 390px phone the flex column made it 304 pixels tall: three quarters
+   * of the first screen of a page called Your work, spent on a question about
+   * storage. A sentence wraps. A flex row holding two buttons does not.
+   *
+   * Every word survives, both doors keep their addresses, `keepOnDevice` is
+   * untouched, and it is still asked exactly once — `choiceMade` is still set
+   * by both answers, including the one that changes nothing.
+   */
   return (
-    <div className="anim-slide-up mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-line bg-surface px-3.5 py-3">
-      <Icon name="users" size={13} className="shrink-0 text-fg-subtle" />
-      <p className="min-w-0 flex-1 text-[13px] leading-snug text-fg-muted">
-        <span className="text-fg">
-          This is saved in this browser only.
-        </span>{" "}
-        Open Tougather on another computer — or in a different browser here —
-        and none of it will be there. An account is what carries it across.
-      </p>
-      <span className="flex shrink-0 items-center gap-2">
-        <Link
-          href="/settings#account"
-          className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
-        >
-          See the options
-        </Link>
-        <button
-          type="button"
-          onClick={keepOnDevice}
-          className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-        >
-          Keep it here
-        </button>
-      </span>
-    </div>
+    <p className="anim-slide-up mb-(--space-5) max-w-[68ch] text-body text-fg-muted">
+      <span className="text-fg">This is saved in this browser only.</span> Open
+      Tougather on another computer — or in a different browser here — and none
+      of it will be there. An account is what carries it across.{" "}
+      <Link href="/settings#account" className={DOOR}>
+        See the options
+      </Link>
+      {", or "}
+      <button type="button" onClick={keepOnDevice} className={DOOR}>
+        Keep it here
+      </button>
+      .
+    </p>
   );
 }
 
@@ -88,23 +97,30 @@ export function KeepPromptCompact() {
 
   if (choiceMade || !theirs || onLibrary) return null;
 
+  /*
+   * The same question, the same once, in the sidebar's column — and now in the
+   * same shape as the wide one, because two shapes for one question was half
+   * the reason it read as a nag. The box and the fill go for the reason they
+   * go everywhere: a panel on this palette is a 1.03:1 step in light, so the
+   * border was doing all the grouping, and 40px of air does it without an
+   * edge. Stacked rather than side by side, because the sidebar resizes down
+   * to a width where two words in a row each wrap onto three lines.
+   */
   return (
-    <div className="anim-slide-up mx-2.5 mb-2 rounded-md border border-line bg-surface p-2.5">
-      <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-fg">
+    <div className="anim-slide-up mx-2.5 my-(--space-5)">
+      <p className="flex items-center gap-1.5 text-body font-medium text-fg">
         <Icon name="users" size={11} className="shrink-0 text-fg-subtle" />
         Only in this browser
       </p>
-      <p className="mt-1.5 text-[11.5px] leading-relaxed text-fg-muted">
+      <p className="mt-(--space-1) text-body text-fg-muted">
         Your work won&apos;t be here on another computer or in another browser.
         {accountsAvailable()
           ? " An account carries it across."
           : " An account will carry it across."}
       </p>
-      {/* Stacked, not side by side: the sidebar is resizable down to a width
-          where two buttons in a row each wrap onto three lines. */}
       <Link
         href="/settings#account"
-        className="mt-2.5 block rounded-sm bg-accent px-2 py-1.5 text-center text-[11.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+        className={`mt-(--space-2) block text-body text-fg ${DOOR}`}
       >
         See the options
       </Link>
@@ -112,7 +128,7 @@ export function KeepPromptCompact() {
         type="button"
         onClick={keepOnDevice}
         aria-label="Keep my work in this browser and stop asking"
-        className="mt-1.5 w-full rounded-sm px-2 py-1 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:text-fg"
+        className={`mt-(--space-1) block text-body text-fg-subtle ${DOOR}`}
       >
         Keep it here
       </button>

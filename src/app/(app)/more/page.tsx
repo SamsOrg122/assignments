@@ -29,7 +29,7 @@ export default function MorePage() {
   return (
     <>
       <TopBar>
-        <span className="text-[13px] font-medium text-fg">Everything</span>
+        <span className="text-body font-medium text-fg">Everything</span>
       </TopBar>
 
       <main className="flex-1 overflow-y-auto">
@@ -37,7 +37,7 @@ export default function MorePage() {
           <h1 className="text-[15px] font-medium tracking-tight text-fg">
             Everything in here, and how to get to it
           </h1>
-          <p className="mt-1.5 max-w-[64ch] text-[12.5px] leading-relaxed text-fg-muted">
+          <p className="mt-1.5 max-w-[64ch] text-body leading-relaxed text-fg-muted">
             The sidebar shows the handful of rows you have a reason for. This
             is the rest as well — every page, the question it answers, and,
             where you have not got something yet, what brings it back. Nothing
@@ -238,11 +238,11 @@ function Group({
 }) {
   return (
     <section className="mb-9 break-inside-avoid">
-      <h2 className="label-mono border-b border-line pb-2 text-fg-subtle">
+      <h2 className="text-meta border-b border-line pb-2 text-fg-subtle">
         {title}
       </h2>
       {note && (
-        <p className="mt-2 text-[11.5px] leading-relaxed text-fg-subtle">
+        <p className="mt-2 text-meta leading-relaxed text-fg-subtle">
           {note}
         </p>
       )}
@@ -300,21 +300,21 @@ function Row({
         className="group -mx-2 block rounded-sm px-2 py-2 transition-colors duration-150 hover:bg-surface"
       >
         <span className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-[13px] text-fg group-hover:underline">
+          <span className="text-body text-fg group-hover:underline">
             {name}
           </span>
           {/* Printed, not hidden behind the link, so it can be read out or
               typed into an address bar by somebody being helped over a
               phone. */}
           {path !== null && (
-            <span className="text-[11px] text-fg-subtle">{path ?? href}</span>
+            <span className="text-meta text-fg-subtle">{path ?? href}</span>
           )}
         </span>
-        <span className="mt-0.5 block max-w-[52ch] text-[12px] leading-relaxed text-fg-muted">
+        <span className="mt-0.5 block max-w-[52ch] text-body leading-relaxed text-fg-muted">
           {answers}
         </span>
         {unlocks && (
-          <span className="mt-1 block max-w-[52ch] text-[11.5px] leading-relaxed text-fg-subtle">
+          <span className="mt-1 block max-w-[52ch] text-meta leading-relaxed text-fg-subtle">
             {unlocks}
           </span>
         )}

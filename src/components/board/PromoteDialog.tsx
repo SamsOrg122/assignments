@@ -150,7 +150,7 @@ export function PromoteDialog({
       >
         <div className="flex items-center gap-2 border-b border-line px-3 py-2">
           <Icon name="promote" size={13} className="text-accent" />
-          <span className="label-mono">Promote to a project</span>
+          <span className="text-meta text-fg-subtle">Promote to a project</span>
           <button
             type="button"
             onClick={onClose}
@@ -162,7 +162,7 @@ export function PromoteDialog({
         </div>
 
         <div className="px-3 py-3">
-          <label className="label-mono mb-1.5 block">Name</label>
+          <label className="text-meta text-fg-subtle mb-1.5 block">Name</label>
           <input
             ref={inputRef}
             value={name}
@@ -170,7 +170,7 @@ export function PromoteDialog({
             className="mb-3.5 w-full rounded-sm border border-line bg-surface-2 px-2.5 py-2 text-[13px] text-fg outline-none focus:border-accent"
           />
 
-          <label className="label-mono mb-1.5 block">As a</label>
+          <label className="text-meta text-fg-subtle mb-1.5 block">As a</label>
           <div className="grid grid-cols-2 gap-1">
             {CHOICES.map((k) => (
               <button

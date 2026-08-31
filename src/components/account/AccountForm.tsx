@@ -233,10 +233,10 @@ export function AccountForm({
   if (step.kind === "handover")
     return (
       <div className={sheet}>
-        <p className="text-[13px] font-medium text-fg">
+        <p className="text-body font-medium text-fg">
           Signed in as {step.identity.email}
         </p>
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-muted">
+        <p className="mt-1.5 text-body leading-relaxed text-fg-muted">
           This browser is holding {step.count}{" "}
           {step.count === 1 ? "project" : "projects"} that {step.count === 1 ? "isn't" : "aren't"}{" "}
           in that account yet — made before you signed in. Whose {step.count === 1 ? "is it" : "are they"}?
@@ -250,16 +250,16 @@ export function AccountForm({
               notify(`Bringing your work into ${step.identity.email}`);
               finish();
             }}
-            className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+            className="rounded-sm bg-accent px-2.5 py-1.5 text-body font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
           >
             Mine — bring {step.count === 1 ? "it" : "them"} into this account
           </button>
 
           <div className="rounded-sm border border-line p-2.5">
-            <p className="text-[12.5px] text-fg-muted">
+            <p className="text-body text-fg-muted">
               Not mine — leave {step.count === 1 ? "it" : "them"} out of the account.
             </p>
-            <p className="mt-1 text-[11.5px] leading-relaxed text-fg-subtle">
+            <p className="mt-1 text-body leading-relaxed text-fg-subtle">
               {step.count === 1 ? "It is" : "They are"} removed from this browser, so take the
               backup file first. Nothing is deleted from anyone&apos;s account.
             </p>
@@ -285,7 +285,7 @@ export function AccountForm({
                       notify(`Saved ${filename}`);
                     });
                 }}
-                className="rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
               >
                 {backedUp ? "Backup saved ✓" : "Save a backup file"}
               </button>
@@ -297,7 +297,7 @@ export function AccountForm({
                   notify(`Signed in as ${step.identity.email}`);
                   finish();
                 }}
-                className="rounded-sm border border-line px-2.5 py-1.5 text-[12px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:cursor-not-allowed disabled:opacity-45"
+                className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:cursor-not-allowed disabled:opacity-45"
               >
                 Clear this browser and continue
               </button>
@@ -312,7 +312,7 @@ export function AccountForm({
   if (step.kind === "note")
     return (
       <div className={sheet}>
-        <p className="rounded-sm border border-accent/35 bg-accent-soft p-2.5 text-[12.5px] leading-relaxed text-fg-muted">
+        <p className="rounded-sm border border-accent/35 bg-accent-soft p-2.5 text-body leading-relaxed text-fg-muted">
           {step.note}
         </p>
         <div className="mt-3 flex items-center gap-2">
@@ -322,14 +322,14 @@ export function AccountForm({
               reset();
               finish();
             }}
-            className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+            className="rounded-sm bg-accent px-2.5 py-1.5 text-body font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
           >
             Carry on working
           </button>
           <button
             type="button"
             onClick={reset}
-            className="rounded-sm border border-line px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+            className="rounded-sm border border-line px-2.5 py-1.5 text-body text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
           >
             Back
           </button>
@@ -378,7 +378,7 @@ export function AccountForm({
           {wantsEmail && (
             <label className="block">
               <span
-                className="mb-1.5 block text-[11.5px] font-medium"
+                className="mb-1.5 block text-meta font-medium"
                 style={{ color: "var(--pad-ink-2)" }}
               >
                 Email
@@ -398,7 +398,7 @@ export function AccountForm({
           {wantsPassword && (
             <label className="relative block">
               <span
-                className="mb-1.5 block text-[11.5px] font-medium"
+                className="mb-1.5 block text-meta font-medium"
                 style={{ color: "var(--pad-ink-2)" }}
               >
                 {mode === "new-password" ? "New password" : "Password"}
@@ -427,7 +427,7 @@ export function AccountForm({
         {mode === "sign-in" && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <label
-              className="flex cursor-pointer items-center gap-2 text-[12.5px]"
+              className="flex cursor-pointer items-center gap-2 text-body"
               style={{ color: "var(--pad-ink-2)" }}
             >
               <input
@@ -450,7 +450,7 @@ export function AccountForm({
                 onMode("reset");
                 reset();
               }}
-              className="text-[12.5px] underline underline-offset-2 transition-opacity hover:opacity-75"
+              className="text-body underline underline-offset-2 transition-opacity hover:opacity-75"
               style={{ color: "var(--pad-ink-3)" }}
             >
               Forgot?
@@ -459,7 +459,7 @@ export function AccountForm({
         )}
 
         {mode === "reset" && (
-          <p className="mt-4 max-w-[46ch] text-[12.5px] leading-relaxed text-white/50">
+          <p className="mt-4 max-w-[46ch] text-body leading-relaxed text-white/50">
             We&apos;ll email a link that signs you in and lets you set a new one.
           </p>
         )}
@@ -467,7 +467,7 @@ export function AccountForm({
         {failure && (
           <div
             className={cn(
-              "mt-5 max-w-[56ch] rounded-sm border p-3 text-[12.5px] leading-relaxed",
+              "mt-5 max-w-[56ch] rounded-sm border p-3 text-body leading-relaxed",
               failure.setup
                 ? "border-warn/40 bg-warn/[0.08] text-white/75"
                 : "border-danger/45 bg-danger/[0.09] text-danger",
@@ -491,7 +491,7 @@ export function AccountForm({
                       : { kind: "failed", failure: again, email },
                   );
                 }}
-                className="mt-1.5 block text-[12px] text-white/70 underline underline-offset-2 hover:text-white"
+                className="mt-1.5 block text-body text-white/70 underline underline-offset-2 hover:text-white"
               >
                 Send the confirmation email again
               </button>
@@ -500,7 +500,7 @@ export function AccountForm({
         )}
 
         {!configured && (
-          <p className="mt-5 max-w-[56ch] rounded-sm border border-warn/40 bg-warn/[0.08] p-3 text-[12.5px] leading-relaxed text-white/75">
+          <p className="mt-5 max-w-[56ch] rounded-sm border border-warn/40 bg-warn/[0.08] p-3 text-body leading-relaxed text-white/75">
             No database is configured, so there is nothing to sign in to yet.
             Your work is safe in this browser meanwhile —{" "}
             <Link
@@ -534,7 +534,7 @@ export function AccountForm({
         {/* The reassurance goes to the floor. It is worth saying and it is
             not worth putting between somebody and the button. */}
         <p
-          className="mt-auto max-w-[46ch] pt-8 text-[11.5px] leading-relaxed"
+          className="mt-auto max-w-[46ch] pt-8 text-meta leading-relaxed"
           style={{ color: "var(--pad-ink-3)" }}
         >
           {mode === "sign-up"
@@ -555,7 +555,7 @@ export function AccountForm({
       noValidate
       className="rounded-md border border-line bg-surface p-3.5"
     >
-      <p className="text-[13px] font-medium text-fg">
+      <p className="text-body font-medium text-fg">
         {mode === "sign-up"
           ? "Create an account"
           : mode === "reset"
@@ -566,7 +566,7 @@ export function AccountForm({
       </p>
 
       {mode === "reset" && (
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-subtle">
+        <p className="mt-1.5 text-body leading-relaxed text-fg-subtle">
           We&apos;ll email a link that signs you in and lets you set a new one.
         </p>
       )}
@@ -574,19 +574,19 @@ export function AccountForm({
       <div className="mt-3 flex flex-col gap-2">
         {wantsEmail && (
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-fg-subtle">Email</span>
+            <span className="text-meta text-fg-subtle">Email</span>
             <input
               type="email"
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
+              className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-body text-fg outline-none focus:border-accent"
             />
           </label>
         )}
         {wantsPassword && (
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-fg-subtle">
+            <span className="text-meta text-fg-subtle">
               {mode === "new-password" ? "New password" : "Password"}
               {mode !== "sign-in" && (
                 <span className="ml-1 text-fg-subtle">
@@ -601,7 +601,7 @@ export function AccountForm({
               }
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
+              className="rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-body text-fg outline-none focus:border-accent"
             />
           </label>
         )}
@@ -610,7 +610,7 @@ export function AccountForm({
       {failure && (
         <div
           className={cn(
-            "mt-3 rounded-sm border p-2.5 text-[12.5px] leading-relaxed",
+            "mt-3 rounded-sm border p-2.5 text-body leading-relaxed",
             failure.setup
               ? "border-warn/35 bg-warn/[0.07] text-fg-muted"
               : "border-danger/35 bg-danger/[0.07] text-danger",
@@ -634,7 +634,7 @@ export function AccountForm({
                     : { kind: "failed", failure: again, email },
                 );
               }}
-              className="mt-1.5 block text-[12px] text-fg-muted underline decoration-line-strong underline-offset-2 hover:text-fg"
+              className="mt-1.5 block text-body text-fg-muted underline decoration-line-strong underline-offset-2 hover:text-fg"
             >
               Send the confirmation email again
             </button>
@@ -643,7 +643,7 @@ export function AccountForm({
       )}
 
       {!configured && (
-        <p className="mt-3 rounded-sm border border-warn/35 bg-warn/[0.07] p-2.5 text-[12.5px] leading-relaxed text-fg-muted">
+        <p className="mt-3 rounded-sm border border-warn/35 bg-warn/[0.07] p-2.5 text-body leading-relaxed text-fg-muted">
           No database is configured, so there is nothing to sign in to yet. Your
           work is safe in this browser meanwhile —{" "}
           <Link
@@ -664,7 +664,7 @@ export function AccountForm({
         <button
           type="submit"
           disabled={busy}
-          className="rounded-sm bg-accent px-2.5 py-1.5 text-[12.5px] font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
+          className="rounded-sm bg-accent px-2.5 py-1.5 text-body font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
         >
           {commit}
         </button>
@@ -676,7 +676,7 @@ export function AccountForm({
               onMode(mode === "sign-up" ? "sign-in" : "sign-up");
               reset();
             }}
-            className="text-[12px] text-fg-subtle underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-muted"
+            className="text-body text-fg-subtle underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-muted"
           >
             {mode === "sign-up" ? "I have one already" : "Create one instead"}
           </button>
@@ -689,7 +689,7 @@ export function AccountForm({
               onMode("reset");
               reset();
             }}
-            className="ml-auto text-[12px] text-fg-subtle underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-muted"
+            className="ml-auto text-body text-fg-subtle underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-muted"
           >
             Forgotten your password?
           </button>
@@ -702,7 +702,7 @@ export function AccountForm({
               onMode("sign-in");
               reset();
             }}
-            className="ml-auto text-[12px] text-fg-subtle underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-muted"
+            className="ml-auto text-body text-fg-subtle underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-muted"
           >
             Back to signing in
           </button>

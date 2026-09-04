@@ -51,6 +51,22 @@ url = "2"
 tokio = { version = "1", features = ["time", "sync"] }
 getrandom = "0.3"
 tauri-plugin-deep-link = "2"
+# The microphone, in Rust rather than in the webview, and this is the decision
+# the whole Record slot rests on.
+#
+# The system webview has `MediaRecorder` and `getUserMedia` — measured, see
+# docs/desktop.md — so capturing *in* the window looked possible. Two things
+# rule it out. The window's content policy is `connect-src 'self' ipc:` with
+# no exceptions, so audio captured there could not be sent anywhere without
+# widening the one policy `config_check.rs` exists to protect. And wry connects
+# no `permission-request` handler on WebKitGTK at all, so what `getUserMedia`
+# does there on a machine with a real microphone is unverified — with a
+# credible report that the promise never settles, which is worse than a
+# refusal because it is not catchable.
+#
+# cpal talks to ALSA, CoreAudio and WASAPI directly. It needs `libasound2-dev`
+# on Linux at build time, which `.github/workflows/desktop.yml` now installs.
+cpal = "0.15"
 
 # Desktop only, and only for one job: on Windows and Linux the browser's
 # `tougather://` link starts a *second* copy of the app, which has to hand the

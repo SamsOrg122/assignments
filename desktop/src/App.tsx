@@ -3,12 +3,15 @@ import { listen } from "@tauri-apps/api/event";
 import {
   createNote,
   deleteNote,
+  filesWaiting,
   hideWindow,
   listNotes,
   previewOf,
   readyToQuit,
   restoreNote,
+  recordStanding,
   saveNote,
+  setSheetOpen,
   storePath,
   syncNow,
   syncStanding,
@@ -25,6 +28,9 @@ import { StatusPill, type Flash } from "./StatusPill";
 import { Connection } from "./Connection";
 import { AskPanel } from "./AskPanel";
 import { cancel as cancelAssistant } from "./assistant";
+import { SLOTS } from "./slots";
+import { DropSheet } from "./DropSheet";
+import { RecordSheet } from "./RecordSheet";
 
 type Status =
   | { kind: "ready" }
@@ -33,12 +39,28 @@ type Status =
   | { kind: "failed"; why: string };
 
 /**
- * The note.
+ * The bar, and the sheet under it.
  *
- * One note on screen at a time, and a list you pull down over it. In a
- * 340-pixel window a permanent sidebar would leave about 200 pixels to write
- * in, and the thing this app is for is writing something down before you
- * forget it — not browsing.
+ * This was a 340 × 480 window that started hidden. Two things were wrong with
+ * that and neither was visible from inside the code. It occupied a note-sized
+ * rectangle of screen all day to do a job that needs 44 pixels of it — and
+ * because `visible: false` and nothing in `setup()` ever showed it, installing
+ * the app put *nothing* on screen, forever, unless somebody found the tray
+ * icon unaided. A capture tool nobody can see captures nothing.
+ *
+ * So: a 460 × 44 strip at the top of the screen, always on top, there from the
+ * moment it is installed. Pressing a slot grows this same window downward into
+ * a sheet; Escape shrinks it back. One window, one label, one identifier —
+ * see `visibility.rs` and the migration section of docs/desktop.md for why
+ * those three are storage keys wearing the costume of names.
+ *
+ * What is on the bar comes from `src-tauri/slots.json` and nowhere else, and
+ * `config_check.rs` reads that same file. A fourth slot arrives with a failing
+ * test.
+ *
+ * The note itself is unchanged: same store, same autosave, same list, same
+ * undo, same 256 KB refusal, same Ask panel. It is a sheet now instead of the
+ * whole window.
  */
 export function App() {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -56,6 +78,32 @@ export function App() {
   const [dropping, setDropping] = useState(false);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [askingAI, setAskingAI] = useState(false);
+  /** Which sheet is open under the bar, or null when it is just the bar. */
+  const [sheet, setSheet] = useState<string | null>(null);
+  /* The event listener below is registered once and would otherwise close
+     over the first value this ever had. */
+  const sheetRef = useRef<string | null>(null);
+  const [waiting, setWaiting] = useState(0);
+  /**
+   * Shown until the first thing is captured, and then never again.
+   *
+   * The resting state of this bar is blankness: after a week you learn that
+   * text on it means something and nothing means nothing, and that is the only
+   * property that makes an all-day presence tolerable rather than wallpaper.
+   * But blankness on the first run reads as broken, and the opening move is
+   * the only one somebody is guaranteed to see.
+   */
+  const [firstRun, setFirstRun] = useState(false);
+  /**
+   * Something is being recorded, whether or not the sheet is open.
+   *
+   * This is the one thing on the bar that has to be true when nobody is
+   * looking at it. Closing the sheet does not stop a recording — it should
+   * not, because the point of a recording is that you get on with the meeting
+   * — and a bar that gives no sign of it is a bar somebody leaves listening
+   * for an afternoon.
+   */
+  const [recording, setRecording] = useState(false);
 
   const box = useRef<HTMLTextAreaElement>(null);
   // The id the pending write belongs to. Switching notes flushes first, but a
@@ -93,6 +141,11 @@ export function App() {
         if (!alive) return;
         const first = all[0] ?? (await createNote());
         if (!alive) return;
+        /* Nothing written and nothing dropped means nobody has used this yet,
+           which is the one moment the bar says something out loud. Derived
+           rather than stored: a flag in settings would be a third thing that
+           can disagree with the other two. */
+        setFirstRun(all.length === 0 || (all.length === 1 && !all[0]!.body.trim()));
         setNotes(all.length ? all : [first]);
         setActiveId(first.id);
         writingFor.current = first.id;
@@ -180,6 +233,53 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    /* `record:level` arrives eight times a second while the microphone is
+       open, so it doubles as the liveness signal; `record:done` is the end.
+       Asked once at start too, because the window can be reloaded while Rust
+       is still recording. */
+    recordStanding().then(setRecording).catch(() => {});
+    const level = listen("record:level", () => setRecording(true));
+    const done = listen("record:done", () => setRecording(false));
+    return () => {
+      void level.then((off) => off());
+      void done.then((off) => off());
+    };
+  }, []);
+
+  useEffect(() => {
+    /* The count beside Drop. Read once at start and again after every drop,
+       because `store/files.rs::waiting` has counted these since the drop
+       target was built and nothing has ever asked it — which is why the
+       feature has worked for months and has no users. */
+    const read = () => filesWaiting().then(setWaiting).catch(() => {});
+    read();
+    const kept = listen("drop:kept", read);
+    const sent = listen("sync:stood", read);
+    return () => {
+      void kept.then((off) => off());
+      void sent.then((off) => off());
+    };
+  }, []);
+
+  useEffect(() => {
+    /* Escape closes the nearest thing, and on this window the nearest thing
+       is the sheet. It does not hide the bar: the bar is the app now, and a
+       key that makes the whole product vanish is a key people press once. */
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (showConnection) return setShowConnection(false);
+      if (askingAI) {
+        void cancelAssistant();
+        return setAskingAI(false);
+      }
+      if (listOpen) return setListOpen(false);
+      if (sheet !== null) setSheet(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sheet, listOpen, askingAI, showConnection]);
+
+  useEffect(() => {
     // Rust does the signing in, so it is Rust that knows when it finished —
     // the browser came back through a link this window never sees.
     const done = listen<Standing>("auth:signed-in", (event) => {
@@ -206,7 +306,28 @@ export function App() {
     // pressed the hotkey is about to start typing. Focusing the window is not
     // the same as focusing the note — the webview restores whatever had focus
     // when it was hidden, which after a couple of toggles is a header button.
-    const stop = listen("note:shown", () => {
+    const stop = listen<boolean>("note:shown", (event) => {
+      /*
+       * The hotkey means "the note", and pressing it twice puts the app away.
+       *
+       * Rust shows the window when it is hidden and sends this event when it
+       * is not; which of the two the second press should do depends on
+       * whether the note is already open, and that is known here rather than
+       * in Rust. So: closed → open the note. Already open → put the whole
+       * thing away, which is what a second press of a summon shortcut has
+       * always meant.
+       */
+      // The payload is "were you already on screen". Already showing the
+      // note and asked for the note again means put it away; anything else
+      // means give me the note.
+      if (event.payload === true && sheetRef.current === "note") {
+        // The same two steps `putAway` takes, inlined because that helper is
+        // declared below this effect and a listener registered once must not
+        // close over a stale copy of it.
+        void flush().then(hideWindow);
+        return;
+      }
+      setSheet("note");
       setListOpen(false);
       requestAnimationFrame(() => {
         const field = box.current;
@@ -220,7 +341,10 @@ export function App() {
     return () => {
       void stop.then((off) => off());
     };
-  }, []);
+    // `flush` is built once by `useAutosave`, so this is a stable value and
+    // listing it costs a comparison rather than a re-subscription — the same
+    // reasoning as `pending` on the sync effect above.
+  }, [flush]);
 
   /* ── Typing ──────────────────────────────────────────────────────────── */
 
@@ -255,6 +379,8 @@ export function App() {
       setDraft("");
       setStatus({ kind: "ready" });
       setListOpen(false);
+      setSheet("note");
+      setFirstRun(false);
       requestAnimationFrame(() => box.current?.focus());
     } catch (error) {
       setStatus({ kind: "failed", why: String(error) });
@@ -339,58 +465,112 @@ export function App() {
         : "No keychain on this computer, so signing in can't be remembered."
       : null;
 
+  /*
+   * The window is exactly two heights, and this is the only place either is
+   * asked for. `open` is derived rather than stored so the sign-in door and
+   * the connection panel — which must be readable and are not slots — cannot
+   * end up showing inside a 44-pixel strip.
+   */
+  const sheetOpen = sheet !== null || mustSignIn || showConnection;
+  useEffect(() => {
+    void setSheetOpen(sheetOpen).catch(() => {});
+    // Read by the hotkey listener, which is registered once and would
+    // otherwise be looking at whatever was open when the app started.
+    sheetRef.current = sheet;
+  }, [sheetOpen, sheet]);
+
   return (
-    <div className="note">
+    <div className={sheetOpen ? "note open" : "note"}>
       <header className="bar" data-tauri-drag-region>
-        {mustSignIn ? null : (
-          <button
-            type="button"
-            className="chip"
-            aria-expanded={listOpen}
-            onClick={() => {
-              setAskingAI(false);
-              setListOpen((o) => !o);
-            }}
-          >
-            {listOpen ? "Close" : `Notes (${notes.length})`}
-          </button>
-        )}
+        <span className="mark" aria-hidden="true" data-tauri-drag-region />
+
+        {/*
+          * The slots, from `src-tauri/slots.json` and from nowhere else.
+          *
+          * Words rather than glyphs, and the file's own comment says why: a
+          * picture of a page is guessable and a picture of a microphone is
+          * guessable, but nothing in the world signals "paste whatever is on
+          * my clipboard right now". Four short words and a dot is what decides
+          * this window's width.
+          */}
+        {mustSignIn
+          ? null
+          : SLOTS.map((slot) => (
+              <button
+                key={slot.id}
+                type="button"
+                className={sheet === slot.id ? "slot on" : "slot"}
+                aria-pressed={sheet === slot.id}
+                title={slot.what}
+                onClick={() => {
+                  setFirstRun(false);
+                  setAskingAI(false);
+                  setListOpen(false);
+                  setSheet((was) => (was === slot.id ? null : slot.id));
+                }}
+              >
+                {slot.word}
+                {slot.id === "drop" && waiting > 0 ? (
+                  <span className="count">{waiting}</span>
+                ) : null}
+                {slot.id === "record" && recording ? (
+                  <span className="live-dot" aria-label="recording" />
+                ) : null}
+              </button>
+            ))}
 
         <span className="name" data-tauri-drag-region>
           {mustSignIn
-            ? "Tougather note"
-            : askingAI
-              ? "Assistant"
-              : active
-                ? titleOf(active) || "New note"
-                : ""}
+            ? "Tougather"
+            : firstRun
+              ? `${HOTKEY_LABEL} to write · drag a file here`
+              : askingAI
+                ? "Assistant"
+                : sheet === "note" && active
+                  ? titleOf(active) || "New note"
+                  : ""}
         </span>
 
-        {mustSignIn ? null : (
+        {sheet === "note" && !mustSignIn ? (
           <>
             <button
               type="button"
-              className={askingAI ? "chip on" : "chip"}
+              className={askingAI ? "icon on" : "icon"}
               aria-pressed={askingAI}
               title="Ask the assistant"
               onClick={() => {
                 setListOpen(false);
-                setAskingAI((open) => {
+                setAskingAI((was) => {
                   // Leaving the panel abandons anything in flight rather than
                   // letting an answer arrive into a window nobody is reading.
-                  if (open) void cancelAssistant();
-                  return !open;
+                  if (was) void cancelAssistant();
+                  return !was;
                 });
               }}
             >
-              Ask
+              <span aria-hidden="true">✦</span>
+              <span className="sr-only">Ask the assistant</span>
+            </button>
+            <button
+              type="button"
+              className="icon"
+              aria-expanded={listOpen}
+              title={`All notes (${notes.length})`}
+              onClick={() => {
+                setAskingAI(false);
+                setListOpen((o) => !o);
+              }}
+            >
+              <span aria-hidden="true">☰</span>
+              <span className="sr-only">All notes</span>
             </button>
             <button type="button" className="icon" title="New note" onClick={startNew}>
               <span aria-hidden="true">+</span>
               <span className="sr-only">New note</span>
             </button>
           </>
-        )}
+        ) : null}
+
         <button
           type="button"
           className="icon"
@@ -409,13 +589,24 @@ export function App() {
         flash={flash}
       />
 
+      {/*
+        * The halo, moved onto the bar.
+        *
+        * `lib.rs` has taken dropped paths natively since step 4,
+        * `store/files.rs` keeps them, `sync.rs::push_files` sends them, and
+        * `/kit` has had the shelf and the empty state waiting the whole time.
+        * The only affordance was a glow that appeared *after* you had already
+        * begun dragging — over a window that was hidden. A permanently visible
+        * strip floating above the email you are dragging out of is the
+        * affordance that feature has been missing since the day it was built.
+        */}
       {dropping ? (
         <div className="drop-halo" aria-hidden>
-          <p>Drop to keep it in your library</p>
+          <p>Drop it here — it lands in your library</p>
         </div>
       ) : null}
 
-      {workingAlone && !showConnection ? (
+      {sheetOpen && workingAlone && !showConnection ? (
         <p className="banner">
           <span className="banner-text">{workingAlone}</span>
           <button
@@ -428,7 +619,7 @@ export function App() {
         </p>
       ) : null}
 
-      {showConnection ? (
+      {!sheetOpen ? null : showConnection ? (
         <Connection
           problem={account?.problem ?? null}
           onChanged={setAccount}
@@ -482,6 +673,10 @@ export function App() {
             </li>
           ))}
         </ul>
+      ) : sheet === "record" ? (
+        <RecordSheet />
+      ) : sheet === "drop" ? (
+        <DropSheet waiting={waiting} />
       ) : (
         <label className="write note-enter" key={activeId ?? "none"}>
           <span className="sr-only">Note</span>
@@ -499,6 +694,7 @@ export function App() {
         </label>
       )}
 
+      {sheetOpen ? (
       <footer className="foot">
         {mustSignIn ? (
           <span>Your notes stay on this computer until you sign in.</span>
@@ -520,6 +716,7 @@ export function App() {
           />
         )}
       </footer>
+      ) : null}
     </div>
   );
 }

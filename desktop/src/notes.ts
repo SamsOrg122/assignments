@@ -23,6 +23,41 @@ export const restoreNote = (id: string) =>
   invoke<Note | null>("note_restore", { id });
 export const storePath = () => invoke<string>("store_path");
 export const hideWindow = () => invoke<void>("hide_window");
+
+/**
+ * Grow the window into a sheet, or shrink it back to the bar.
+ *
+ * A boolean, because the Rust side takes a boolean — see
+ * `visibility::set_sheet` for why this is a named command rather than a window
+ * permission the webview holds.
+ */
+export const setSheetOpen = (open: boolean) => invoke<void>("set_sheet", { open });
+
+/** How many dropped files have not reached the account yet. */
+export const filesWaiting = () => invoke<number>("files_waiting");
+
+/* ── Recording ────────────────────────────────────────────────────────── */
+
+/**
+ * What came of a recording.
+ *
+ * `note` is not decoration. It is where the desktop says out loud that the
+ * dates in the document have *not* been put in the agenda — the web app's
+ * `land.ts` does that, with a per-row check against the words each fact came
+ * from, and a second implementation of it here would be a second set of rules
+ * for writing into somebody's calendar.
+ */
+export interface RecordDone {
+  name: string | null;
+  words: number;
+  seconds: number;
+  note: string;
+}
+
+export const recordStart = () => invoke<void>("record_start");
+export const recordStop = () => invoke<RecordDone>("record_stop");
+export const recordCancel = () => invoke<void>("record_cancel");
+export const recordStanding = () => invoke<boolean>("record_standing");
 export const readyToQuit = () => invoke<void>("ready_to_quit");
 
 /**

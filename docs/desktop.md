@@ -319,3 +319,81 @@ So the recommendation is a wording change on the download page, not a build targ
 **Not verified, and it matters:** what `getUserMedia` does in WebKitGTK **on a machine that actually has a microphone**. This container has zero audio devices, so what I measured (a 16 ms `OverconstrainedError`) tells us nothing about the permission path. The expected behaviour, given wry connects no `permission-request` handler, is a denial — but I have not seen one, and I have seen a credible report that the promise simply never settles, which would be worse because it is not catchable. `src/lib/speech/level.ts` and `src/lib/speech/mock.ts` both `await meterMicrophone()` on their first line, and a hang is not a throw — their `try/catch` would never fire. **The plan is unaffected**, because nothing in it asks the webview for a microphone, but anyone who later builds Option B on the webview instead of on `cpal` needs to settle this on real hardware first.
 
 **Not verified:** anything about macOS or Windows behaviour by observation. Those conclusions rest on wry's source, this repository's bundled browser-support data, and Apple/Microsoft's documented permission model. They are strong but they are not measurements.
+
+---
+
+## 12. What was actually built, and where this plan was overruled
+
+Written after the fact. The plan above is the reasoning as it stood; this is what happened to it.
+
+**Built, in the order §"What to build first" asks for:** the ESLint ban on `@/lib/speech` (and it was
+tested by writing an import and watching it fail, not asserted); the 460 × 44 window, `visible: true`,
+top centre on first run only, keeping the label `note` and the identifier `com.tougather.note`; the
+`set_sheet` command beside `hide_window`, taking a boolean, with no new entry in the capability file;
+the two `config_check.rs` assertions rewritten to state the new truth rather than deleted; the first
+assertion in `prove-linux.sh` inverted, plus a second that measures the resting height in pixels; the
+bar; and the drop halo moved onto it with the unsent count beside it.
+
+`slots.json` exists and `config_check.rs::every_slot_earned_its_place` reads it with `include_str!`,
+asserting the ceiling and that every slot answers all three admission questions. That is the
+mechanism §"The rule that decides whether a fifth tool gets in" asked for.
+
+### Where the founder overruled this document, and what changed as a result
+
+§"What not to build" says **no native audio recorder**, and §"Option B" calls native capture *"a
+funded quarter with a commercial decision in front of it"*. The founder read that and asked for
+recording in the bar anyway. It is built.
+
+What made it a week rather than a quarter is that the blocker this document identified was the right
+one and it turned out to be smaller than it looked: *"there is no server provider anywhere in this
+codebase, so a recorded file lands in Kit as bytes nobody can turn into text."* That is now
+`POST /api/listen`, which is 300 lines on the same rotation, guard and allowance the two existing
+model endpoints use. It was not a vendor decision in the end, because OpenRouter — already the only
+model credential here — fronts models that accept an audio part. No second vendor, no second key.
+
+The rest followed from decisions this document had already made:
+
+- **Capture is in Rust (`cpal`), not the webview.** §"Not verified, and it matters" is why: wry
+  connects no permission handler on WebKitGTK, so `getUserMedia` there is unverified with a credible
+  report that the promise never settles. A hang is not catchable. The second reason is the one this
+  document did not raise and which is decisive: the webview's `connect-src 'self' ipc:` means audio
+  captured there could not be *sent* anywhere without widening the policy `config_check.rs` exists to
+  protect.
+- **The key still does not ship.** Audio goes to the site with the account's own access token, the
+  same way `assistant/mod.rs` already reaches the model. `assistant/mod.rs`'s own line stands: *"a key
+  compiled into a downloadable binary is a key everybody has."*
+- **Reading it back is `/api/transcript`, unchanged.** Not reimplemented in Rust. It is the endpoint
+  that checks every quoted fact really appears in the transcript, and a second implementation of
+  "what did this meeting decide" would drift from the first with only one of them carrying the check.
+- **It lands through the artefact path.** `assistant/commands.rs::keep_artefact` already writes a
+  document into the file queue for the web app to adopt; recording writes the same shape. No new
+  table, no new page, no new sync path — which is what §3 of the admission rule demands.
+- **It does not file appointments.** `land.ts` does that, with `assertReal` and a per-row account of
+  everything it withheld. The document says so on its own last line rather than leaving it to be
+  discovered.
+
+`libasound2-dev` is now in both jobs of `desktop.yml`, because `cpal` needs ALSA at build time on
+Linux.
+
+### The correction this document owes itself
+
+§"Option A" recommends handing off to the browser and calls it *"what this plan builds"*, on the
+grounds that recording in the bar is a quarter's work. That recommendation was wrong, and the error
+was in the estimate rather than the reasoning: it priced native capture as a vendor decision plus a
+transcription service, when what was actually missing was one route on a gateway this repository
+already pays for. The hand-off would have shipped a Record button that opens a browser window, which
+§"Option A" itself admits is *"a real disappointment"*.
+
+Everything the document says about **honesty** — that the mock recites, that a fabricated meeting
+with a calendar attached is the worst thing this could ship, that `getUserMedia` on WebKitGTK is
+unverified — held up and shaped every part of what was built.
+
+### Still not built, and still for the reasons given
+
+**Keep** (the clipboard slot) and the screenshot slot. Keep needs `tauri-plugin-clipboard-manager`
+and a fifth entry in the capability file; the screenshot slot needs three separate permission stories
+and a signed macOS bundle. Both remain as this document describes them.
+
+**The whole-app download** remains an argued no, for the reasons in §"The whole-app download". Nothing
+about the ear changes that: the eight Node routes are still Node routes, and *Install Tougather* from
+the browser is still the answer.

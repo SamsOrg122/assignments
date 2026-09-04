@@ -8,6 +8,7 @@
 use tauri::{AppHandle, Manager, Runtime, State};
 
 use crate::store::{
+    files,
     notes::{self, Note},
     Store,
 };
@@ -123,6 +124,27 @@ pub fn store_path<R: Runtime>(app: AppHandle<R>) -> Result<String, String> {
 #[tauri::command]
 pub fn hide_window<R: Runtime>(app: AppHandle<R>) {
     visibility::hide(&app);
+}
+
+/// Open a sheet under the bar, or close it.
+///
+/// The argument is a boolean and that is deliberate — see `visibility::set_sheet`
+/// for why this is a named command rather than a window permission the webview
+/// holds. The window keeps its width and its position; only the height moves.
+#[tauri::command]
+pub fn set_sheet<R: Runtime>(app: AppHandle<R>, open: bool) {
+    visibility::set_sheet(&app, open);
+}
+
+/// How many dropped files are still waiting to be sent.
+///
+/// The bar shows this beside Drop. `store/files.rs::waiting` has counted them
+/// since the drop target was built; nothing has ever asked it. A count that
+/// nobody can see is the difference between a feature that works and a feature
+/// people know about, and this whole redesign is about that difference.
+#[tauri::command]
+pub fn files_waiting(store: State<'_, Store>) -> Result<i64, String> {
+    with(&store, files::waiting)
 }
 
 /// The window telling Rust it has finished writing and may be closed.

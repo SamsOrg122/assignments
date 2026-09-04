@@ -1,0 +1,52 @@
+{
+  "_": [
+    "What is on the bar, and the argument for each one being there.",
+    "",
+    "This file exists because the sidebar in the web app reached ten rows before",
+    "anybody wrote a rule down, and docs/desktop.md §'The rule that decides",
+    "whether a fifth tool gets in' is that rule. All three questions must be yes:",
+    "",
+    "  1. intake     Does it put something into the account that would otherwise",
+    "                be lost? A viewer belongs in the browser, not here.",
+    "  2. away       Is the moment you need it a moment the browser is not on",
+    "                screen? If switching to a tab would have been fine, switching",
+    "                to a tab is the answer.",
+    "  3. lands      Does what it makes land on a page that already exists? No new",
+    "                table, no new page, no new sidebar row.",
+    "",
+    "The frontend renders this list and nothing else, and config_check.rs reads",
+    "this same file with include_str! the way it already reads",
+    "capabilities/default.json. So a fourth slot arrives with a failing test in",
+    "the diff and an argument in the commit message, which is the entire point.",
+    "A claim about discipline is not a check; this is."
+  ],
+
+  "maxSlots": 5,
+
+  "slots": [
+    {
+      "id": "note",
+      "word": "Note",
+      "what": "Type; it goes to SQLite first and the sync queue carries it up.",
+      "intake": "A thought that exists nowhere else until it is written down.",
+      "away": "The reason to write something down is that you are in the middle of something else.",
+      "lands": "notes, and /notes on the web reads the same rows."
+    },
+    {
+      "id": "record",
+      "word": "Record",
+      "what": "Record a conversation. It becomes a document with a summary and the points.",
+      "intake": "Speech exists for as long as it is being said and then it is gone.",
+      "away": "You are in the room, or on a call in another application. A browser tab is not where the conversation is.",
+      "lands": "kit_files as a made document, the same queue and the same reader the assistant's documents already use."
+    },
+    {
+      "id": "drop",
+      "word": "Drop",
+      "what": "A file, a screenshot, a PDF, dragged onto the bar.",
+      "intake": "The file is on this computer and nowhere in the account.",
+      "away": "You are dragging it out of an email or a folder, which is not a browser tab.",
+      "lands": "kit_files, and /kit already has the shelf: 'From your desktop'."
+    }
+  ]
+}

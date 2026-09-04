@@ -81,11 +81,35 @@ DISPLAY="$DISPLAY_NUM" nohup "$BIN" > /tmp/tougather-app.log 2>&1 &
 export DISPLAY="$DISPLAY_NUM"
 sleep 18
 
-# ── It starts out of the way ─────────────────────────────────────────────
-if [ -z "$(xdotool search --onlyvisible --name Tougather 2>/dev/null)" ]; then
-  ok "it starts with no window on screen"
+# ── It starts ON screen, and this assertion is inverted on purpose ───────
+#
+# It used to check the opposite: that nothing was visible before the hotkey.
+# That was right while the app was a note you summon, and it is exactly wrong
+# now that it is a bar. `docs/desktop.md` warns that leaving it as it was would
+# be worse than deleting it — it would keep passing, for the wrong reason,
+# forever, and this is the one test in the repository that has ever caught a
+# real bug in the real window.
+#
+# What it is guarding: `visible: true` in tauri.conf.json and nothing in
+# setup() hiding it again. Before, `visible` was false and setup() never called
+# show(), so installing the app put nothing on screen at all unless somebody
+# found the tray icon unaided.
+if [ -n "$(xdotool search --onlyvisible --name Tougather 2>/dev/null)" ]; then
+  ok "the bar is on screen the moment it starts, with no hotkey pressed"
 else
-  bad "a window was already up before the hotkey"
+  bad "nothing is visible after launch — the bar is the app, and it is missing"
+fi
+
+# 44 pixels tall, not a note-sized rectangle. Checked in pixels because the
+# whole point of the redesign is how much screen this occupies all day.
+BAR="$(xdotool search --onlyvisible --name Tougather 2>/dev/null | head -1)"
+if [ -n "$BAR" ]; then
+  H="$(xdotool getwindowgeometry "$BAR" | awk -F'x' '/Geometry/ {print $2}')"
+  if [ "${H:-0}" -le 60 ]; then
+    ok "it rests as a bar (${H}px tall), not as a window"
+  else
+    bad "it is ${H}px tall at rest — that is a window, not a bar"
+  fi
 fi
 
 # ── The store exists and has the note the app made for itself ────────────

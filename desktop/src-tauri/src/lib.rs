@@ -9,6 +9,7 @@ mod assistant;
 mod auth;
 mod commands;
 mod config_check;
+mod record;
 mod store;
 mod sync;
 mod tray;
@@ -89,7 +90,13 @@ pub fn run() {
             commands::sync_standing,
             commands::sync_now,
             commands::hide_window,
+            commands::set_sheet,
+            commands::files_waiting,
             commands::ready_to_quit,
+            record::commands::record_start,
+            record::commands::record_stop,
+            record::commands::record_cancel,
+            record::commands::record_standing,
             auth::commands::auth_standing,
             auth::commands::auth_begin,
             auth::commands::auth_with_password,
@@ -115,12 +122,38 @@ pub fn run() {
 
             if let Some(window) = visibility::window(&handle) {
                 window::make_it_float(&window);
+
+                /*
+                 * First run only: lift the bar to the top of the screen.
+                 *
+                 * `center: true` in the config centres a 44-pixel strip on both
+                 * axes, which puts it across the middle of whatever you are
+                 * reading. `tauri-plugin-window-state` restores a remembered
+                 * position on every run after the first, and moving a window
+                 * somebody deliberately put somewhere is the kind of
+                 * helpfulness people uninstall software over — so the flag is
+                 * written the first time and never read for anything else.
+                 */
+                let store = app.state::<store::Store>();
+                let guard = store
+                    .0
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                if store::settings::get(&guard, PLACED)
+                    .ok()
+                    .flatten()
+                    .is_none()
+                {
+                    visibility::rest_at_the_top(&window);
+                    let _ = store::settings::set(&guard, PLACED, "1");
+                }
             }
 
             tray::build(&handle)?;
 
             app.manage(auth::Auth::default());
             app.manage(assistant::Assistant::default());
+            app.manage(record::Recorder::default());
             sync::keep_in_step(&handle);
             wake_up_the_account(&handle);
 
@@ -324,6 +357,9 @@ fn mime_of(name: &str) -> &'static str {
     }
 }
 
+/// Written once, the first time the bar is put on screen. See `setup()`.
+const PLACED: &str = "bar.placed";
+
 /// Sign-in finished in the browser and came back through the deep link.
 pub const SIGNED_IN_EVENT: &str = "auth:signed-in";
 /// It came back, and it did not work.
@@ -426,7 +462,7 @@ fn global_shortcut<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             // Press, not release. Acting on both would toggle twice per tap
             // and leave the note exactly where it started.
             if event.state() == ShortcutState::Pressed {
-                visibility::toggle(app);
+                visibility::summon(app);
             }
         })
         .build()

@@ -1,16 +1,62 @@
-# Tougather note
+# Tougather, the bar
 
-A small window that stays above every other app, opens with a keystroke, and
-keeps what you write in your Tougather account.
+A 460 × 44 strip at the top of your screen, above every other app, there from
+the moment you install it. Press a word on it and the same window grows
+downward into a sheet; Escape shrinks it back.
 
 Tauri v2 — a Rust shell around the system's own webview — rather than
-Electron. For a 340×480 note the difference is not ideology: an Electron build
+Electron. For a bar this size the difference is not ideology: an Electron build
 ships a browser per app and starts around 150 MB, and this is a thing people
 are meant to leave running all day.
 
+## What is on it
+
+Three slots, and `src-tauri/slots.json` is the only place they are declared.
+The frontend renders that file and `config_check.rs` reads it with
+`include_str!`, so a fourth slot arrives with a failing test and an argument in
+the commit message rather than as a button somebody added.
+
+| Slot | What it takes in | Where it lands |
+| --- | --- | --- |
+| **Note** | a thought, typed | `notes`, and `/notes` on the web |
+| **Record** | a conversation, from the microphone | a document, in your library |
+| **Drop** | a file dragged onto the bar | `/kit`, under *From your desktop* |
+
+The rule a slot has to pass is at the top of `slots.json`: it must be an
+*intake* (not a viewer), needed at a moment the browser is *not on screen*, and
+it must land on a page that *already exists*. The bar never shows you your
+things — that is what the browser is for.
+
+### Recording, and the two honest limits
+
+The microphone is opened by Rust (`src-tauri/src/record/`), not by the webview,
+and both reasons are load-bearing. The window's content policy is
+`connect-src 'self' ipc:` with no exceptions, so audio captured in the webview
+could not be sent anywhere without widening the one policy a test exists to
+protect. And wry connects no permission handler on WebKitGTK, so what
+`getUserMedia` does there is unverified — with a credible report that the
+promise never settles, which is worse than a refusal because it is not
+catchable.
+
+The words come back from `/api/listen` on the site, using your own account's
+token. **No model key is ever compiled into this binary** — a key in a
+downloadable binary is a key everybody has.
+
+Two things it will not do, on purpose:
+
+- **It cannot transcribe without a connection.** The system webview has no
+  speech recognition on any platform (no `SpeechRecognition`, measured), so
+  there is nothing to fall back to offline. Notes still work offline; recording
+  does not.
+- **It does not put dates in your agenda.** The document carries them, in the
+  words they were said in. Filing them happens on the site, where
+  `src/lib/transcript/land.ts` checks every one against its source — and a
+  second implementation of that here would be a second set of rules for
+  writing into somebody's calendar.
+
 ## Where it is
 
-Built in five steps, each one testable on its own.
+Built in steps, each one testable on its own.
 
 | Step | What it adds | State |
 | --- | --- | --- |
@@ -19,6 +65,8 @@ Built in five steps, each one testable on its own.
 | 3 | Signing in, through your own browser | **done** |
 | 4 | Sync queue, and the notes section in the web Library | **done** |
 | 5 | GitHub Actions matrix build for macOS, Windows, Linux | **done** |
+| 6 | The bar: slots, the visible-at-launch window, Drop surfaced | **done** |
+| 7 | Record: cpal capture, server transcription, a document out | **done** |
 
 ## Running it
 

@@ -40,9 +40,19 @@ mod tests {
             w["skipTaskbar"], true,
             "it would sit in the taskbar all day"
         );
+        /*
+         * Inverted, and stated rather than deleted.
+         *
+         * This asserted `visible: false` while the app was a note you summon
+         * with a hotkey, and that was right then. It is wrong now: the window
+         * is a 44-pixel bar that is the app's entire presence, and `false`
+         * here means somebody installs it and nothing appears on screen,
+         * forever, unless they find the tray icon unaided. That is what
+         * shipped for six versions.
+         */
         assert_eq!(
-            w["visible"], false,
-            "it would appear uninvited at every start"
+            w["visible"], true,
+            "nothing would be on screen after installing it"
         );
         assert_eq!(
             w["resizable"], true,
@@ -50,11 +60,66 @@ mod tests {
         );
     }
 
+    /// The collapsed height, and the one number two files have to agree on.
+    ///
+    /// `visibility::BAR_HEIGHT` resizes the window back to this after a sheet
+    /// closes, and `styles.css` fixes `.bar` at the same number. If the config
+    /// and the constant drift apart the bar either clips its own buttons or
+    /// floats a strip of empty canvas under itself — neither of which fails a
+    /// build, and both of which look like a rendering bug rather than a
+    /// three-line disagreement.
     #[test]
-    fn it_is_the_size_that_was_asked_for() {
+    fn it_rests_as_a_bar_and_not_as_a_window() {
         let w = note_window();
-        assert_eq!(w["width"], 340);
-        assert_eq!(w["height"], 480);
+        assert_eq!(
+            w["height"],
+            crate::visibility::BAR_HEIGHT as u64,
+            "the resting height and visibility::BAR_HEIGHT disagree"
+        );
+        assert_eq!(w["width"], 460, "four words and a dot need about this much");
+        assert_eq!(
+            w["minHeight"],
+            crate::visibility::BAR_HEIGHT as u64,
+            "a minimum above the bar height would stop it collapsing"
+        );
+    }
+
+    /// What is allowed on the bar, and the argument for each of them.
+    ///
+    /// `slots.json` is read here with `include_str!` exactly as
+    /// `capabilities/default.json` is below, and the frontend renders that
+    /// same file and nothing else. So a new slot cannot arrive as a button
+    /// somebody added — it arrives as a change to this file, with a failing
+    /// count and three questions to answer in the commit message.
+    ///
+    /// The three questions are docs/desktop.md's admission rule, and the
+    /// sidebar in the web app reaching ten rows is what happens without one.
+    #[test]
+    fn every_slot_earned_its_place() {
+        let slots: Value =
+            serde_json::from_str(include_str!("../slots.json")).expect("slots.json is JSON");
+        let list = slots["slots"].as_array().expect("there is a slots array");
+        let max = slots["maxSlots"].as_u64().expect("maxSlots is a number");
+
+        assert!(
+            list.len() as u64 <= max,
+            "{} slots on a bar that allows {max}. A fifth is a decision, not a commit.",
+            list.len()
+        );
+
+        for slot in list {
+            let id = slot["id"].as_str().expect("a slot has an id");
+            for question in ["intake", "away", "lands"] {
+                let answer = slot[question].as_str().unwrap_or("");
+                assert!(
+                    answer.len() > 20,
+                    "slot `{id}` does not answer `{question}`. \
+                     See the rule at the top of slots.json: an intake, at a \
+                     moment the browser is not on screen, landing on a page \
+                     that already exists."
+                );
+            }
+        }
     }
 
     #[test]

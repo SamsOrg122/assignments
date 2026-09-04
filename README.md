@@ -471,6 +471,7 @@ work rather than a setting, and it is not done.
 |---|---|---|
 | `OPENROUTER_API_KEY` | server | The real assistant. Without it, the local stub. |
 | `OPENROUTER_MODELS` | server | Rotation order. Optional — there's a default list. |
+| `OPENROUTER_LISTEN_MODELS` | server | Which models `/api/listen` asks to *hear*. A separate list because reading audio is a capability, not a quality — a better writer that cannot accept an audio part is not a fallback, it is a model that will be handed nothing and answer anyway. Optional; see `src/lib/ai/openrouter/models.ts`, where the default is three slugs believed to accept audio rather than three verified to. |
 | `OPENROUTER_APP_URL` | server | Attribution in OpenRouter's dashboard. Optional. |
 | `NEXT_PUBLIC_SUPABASE_URL` | browser | Accounts, sync, and hosted live sessions. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser | Same pair — both or neither. |

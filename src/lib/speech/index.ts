@@ -9,6 +9,7 @@
  */
 
 import { webSpeechProvider } from "./webspeech";
+import { serverSpeechProvider } from "./server";
 import { mockSpeechProvider } from "./mock";
 import type { SpeechHandlers, SpeechProvider, SpeechSession } from "./types";
 
@@ -28,9 +29,25 @@ const FATAL = new Set([
   "audio-capture",
 ]);
 
+/*
+ * Three providers, in the only order that is defensible.
+ *
+ * The browser recogniser first: free, live, and revises as you speak. Then the
+ * server ear, which is equally real — it posts the actual audio to
+ * `/api/listen` — and costs a model call per half minute. The mock is last and
+ * it is not a recogniser at all; it recites a scripted monologue, which is a
+ * fine demo and a catastrophe anywhere the words are believed.
+ *
+ * Adding the middle entry is what makes the fall-through safe. Before it,
+ * every browser without Web Speech went straight from "real" to "fiction" in
+ * one step, and the surfaces that could not survive that — the recorder —
+ * had to refuse to run rather than take the risk.
+ */
 function pick(): SpeechProvider {
   if (override) return override;
-  return webSpeechProvider.isAvailable() ? webSpeechProvider : mockSpeechProvider;
+  if (webSpeechProvider.isAvailable()) return webSpeechProvider;
+  if (serverSpeechProvider.isAvailable()) return serverSpeechProvider;
+  return mockSpeechProvider;
 }
 
 export function speechProviderName(): string {
@@ -57,10 +74,26 @@ export async function listen(
   let swapped: SpeechSession | null = null;
   let primary: SpeechSession | null = null;
 
+  /*
+   * What a dead browser recogniser falls back TO, which changed.
+   *
+   * It used to be the mock, unconditionally — one fatal error and the user was
+   * being read a scripted monologue about interface density under the
+   * impression that it was their own dictation. The server ear is tried first
+   * now: it is real audio and real words, and a fatal Web Speech error says
+   * nothing about whether `MediaRecorder` works.
+   *
+   * The mock survives as the last resort because a browser with no capture at
+   * all still has to be able to demonstrate the interaction, and because
+   * deleting it would not delete the problem — it would move it to whoever
+   * next needs a demo and re-adds something worse.
+   */
   const fallBack = async () => {
     if (swapped || heardAnything) return;
     primary?.cancel();
-    swapped = await mockSpeechProvider.start(handlers);
+    swapped = serverSpeechProvider.isAvailable()
+      ? await serverSpeechProvider.start(handlers, lang)
+      : await mockSpeechProvider.start(handlers);
   };
 
   primary = await provider.start({

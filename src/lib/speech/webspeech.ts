@@ -1,12 +1,18 @@
 "use client";
 
 /**
- * Real capture via the Web Speech API, where the browser has it (Chrome and
- * Edge do; Firefox and headless builds don't). This is genuinely live — it is
- * not a simulation — which is why it is tried first.
+ * Real capture via the Web Speech API, where the browser has it. This is
+ * genuinely live — it is not a simulation — which is why it is tried first.
+ *
+ * WHICH BROWSERS, corrected. This said "Chrome and Edge do", and this
+ * repository's own `node_modules/caniuse-lite` contradicts it: feature
+ * `speech-recognition` records Edge as `n` — no support — for versions 146
+ * through 150. WebView2 is Edge without the browser, so a downloaded app has
+ * none of it either. It is Chrome and Safari; everywhere else falls through
+ * to `server.ts`.
  *
  * `transcribe(audio)` is deliberately unimplemented here: the Web Speech API
- * has no batch mode. A server provider fills that in.
+ * has no batch mode. `server.ts` is the provider that fills that in.
  */
 
 import { meterMicrophone } from "./level";

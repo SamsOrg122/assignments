@@ -36,6 +36,7 @@ import { persist } from "zustand/middleware";
 import { versioned } from "../persistence/versioned";
 import { uid } from "../factories";
 import { webSpeechProvider } from "../speech/webspeech";
+import { serverSpeechProvider } from "../speech/server";
 import { meterMicrophone, type LevelStop } from "../speech/level";
 import type { SpeechProvider, SpeechSession, TranscriptChunk } from "../speech/types";
 import {
@@ -250,8 +251,32 @@ export function hydrateTranscript(): void {
  * "simulated" and means it. The recorder asks a narrower question: is real
  * capture possible. When the answer is no, `startRecording()` refuses and
  * says so, rather than recording fiction.
+ *
+ * Two ways to be real now, and the second one is why this stopped being a
+ * Chrome-only feature. `webSpeechProvider` recognises in the browser and costs
+ * nothing; `serverSpeechProvider` records the audio and posts it to
+ * `/api/listen`, which needs only `MediaRecorder` and a connection — so
+ * Firefox, Edge and the webview inside the desktop app can all record a real
+ * meeting now. Neither is the simulated provider, and that is the whole
+ * question this function is asked.
  */
-export const recorderAvailable = (): boolean => webSpeechProvider.isAvailable();
+export const recorderAvailable = (): boolean =>
+  webSpeechProvider.isAvailable() || serverSpeechProvider.isAvailable();
+
+/**
+ * Which of the two is doing the work, for a surface that wants to say so.
+ *
+ * Worth showing, because the two behave visibly differently: the browser
+ * recogniser revises what it has heard as you speak, and the server one lands
+ * a paragraph at a time about half a minute behind. Somebody who is not told
+ * that reads the delay as a hang.
+ */
+export const recogniserName = (): "browser" | "server" | null =>
+  webSpeechProvider.isAvailable()
+    ? "browser"
+    : serverSpeechProvider.isAvailable()
+      ? "server"
+      : null;
 
 /**
  * The simulated provider, loaded only when a caller asked for it by name.
@@ -341,6 +366,15 @@ interface Engine {
   done: boolean;
   cycling: boolean;
   failures: number;
+  /**
+   * The browser recogniser gave up mid-meeting and the server ear took over.
+   *
+   * Once, and it is recorded so it cannot happen twice: a hand-over that could
+   * repeat would flip between two providers every few seconds on a connection
+   * that is failing for both, and produce a transcript interleaved from two
+   * recognisers with a gap at every switch.
+   */
+  handedOver: boolean;
   /** A chunk has arrived on this run. Until then, nothing is being heard. */
   everHeard: boolean;
   /** Epoch ms of the last chunk of any kind. */
@@ -435,6 +469,45 @@ function onError(e: Engine, message: string) {
   const denied = message === "not-allowed" || message === "audio-capture";
   const recording = find(e.id);
   const heardSomething = (recording?.segments.length ?? 0) > 0;
+
+  /*
+   * Before giving up: hand the meeting to the server ear.
+   *
+   * These two failures are not the same thing and were treated as one. "No
+   * microphone" is unrecoverable — there is nothing to record with, and
+   * `/api/listen` cannot help because it is handed audio, not a device. But
+   * "the recogniser stopped and would not restart" is a statement about
+   * Chrome's speech service, not about the microphone, and the microphone is
+   * still open. That is precisely the case the server ear exists for: it needs
+   * `MediaRecorder` and a connection, neither of which the browser recogniser
+   * dying says anything about.
+   *
+   * Handing over rather than stopping is the difference between a meeting that
+   * ends at minute four with "the browser stopped transcribing" and one that
+   * carries on with a visible note about how. What is already heard is kept
+   * either way; this keeps the rest of it too.
+   */
+  if (
+    !denied &&
+    e.failures >= GIVE_UP_AFTER &&
+    !e.handedOver &&
+    e.provider !== serverSpeechProvider &&
+    serverSpeechProvider.isAvailable()
+  ) {
+    e.handedOver = true;
+    e.failures = 0;
+    e.provider = serverSpeechProvider;
+    state().setStatus("reconnecting");
+    state().setProblem(
+      "This browser's recogniser stopped. Still recording — the words are being read on the server now, so they arrive a paragraph at a time.",
+    );
+    if (e.retry) clearTimeout(e.retry);
+    e.retry = setTimeout(() => {
+      e.retry = null;
+      if (engine === e && !e.stopping && !e.done) void cycle(e);
+    }, RETRY_MS[0]);
+    return;
+  }
 
   if (denied || e.failures >= GIVE_UP_AFTER) {
     state().setProblem(
@@ -591,7 +664,7 @@ export async function startRecording(options: StartOptions = {}): Promise<StartO
   const simulate = options.simulate === true;
   if (!simulate && !recorderAvailable()) {
     state().setProblem(
-      "This browser can't transcribe, so nothing was recorded. Chrome and Edge can.",
+      "This browser can't record at all — it has no microphone capture, so there was nothing to send anywhere.",
     );
     return "no-recogniser";
   }
@@ -659,7 +732,15 @@ async function run(
   lang: string | undefined,
   simulate: boolean,
 ) {
-  const provider = simulate ? await simulatedProvider() : webSpeechProvider;
+  /* Browser first where it exists — it is free, immediate, and revises as it
+     goes. The server ear is the fallback rather than the default for exactly
+     one reason: it costs a model call per half minute, and asking somebody to
+     pay for a recogniser their browser already has would be rude. */
+  const provider = simulate
+    ? await simulatedProvider()
+    : webSpeechProvider.isAvailable()
+      ? webSpeechProvider
+      : serverSpeechProvider;
   const e: Engine = {
     id,
     provider,
@@ -674,6 +755,7 @@ async function run(
     done: false,
     cycling: false,
     failures: 0,
+    handedOver: false,
     everHeard: false,
     lastChunkAt: Date.now(),
     sessionStart: find(id)?.segments.length ?? 0,

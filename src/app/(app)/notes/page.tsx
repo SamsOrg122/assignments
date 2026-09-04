@@ -559,14 +559,14 @@ export default function NotesPage() {
                     icon="mic"
                     title={
                       canTranscribe === false
-                        ? "This browser can't transcribe. Chrome and Edge can."
+                        ? "This browser can't reach a microphone at all, so there is nothing to record."
                         : "Record a conversation. It becomes a document, and the appointments and deadlines in it are filed."
                     }
                   >
                     {/* Said here rather than after the press: a button that
                         opens something which then refuses is a button that
                         wasted your time. */}
-                    {canTranscribe === false ? "Record (Chrome or Edge)" : "Record"}
+                    {canTranscribe === false ? "Record (not here)" : "Record"}
                   </Tool>
                   <Tool
                     onClick={() => setAsking(true)}

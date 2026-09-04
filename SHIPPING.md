@@ -88,7 +88,8 @@ On the hosting dashboard, for **production**:
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | the project |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the project |
-| `OPENROUTER_API_KEY` | without it the assistant answers with a refusal |
+| `OPENROUTER_API_KEY` | without it the assistant answers with a refusal, and recording works only in Chrome and Safari |
+| `OPENROUTER_LISTEN_MODELS` | optional. If recording fails with "no model could hear that", the default slugs cannot accept audio on your account — put ones that can here |
 | `NEXT_PUBLIC_SITE_URL` | `https://tougather.com` — sign-in redirects are built from it |
 | `AI_DAILY_LIMIT` | optional; defaults to 120 |
 | `NEXT_PUBLIC_SIGNIN_PHOTO` | optional; a path under `public/` to use your own photograph on the sign-in screen instead of the one shipped |

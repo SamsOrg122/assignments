@@ -68,7 +68,59 @@ export function coolDown(model: string, now = Date.now()) {
 
 /** Preference order with recently-failed models demoted to the back. */
 export function rotation(now = Date.now()): string[] {
-  const models = configuredModels();
+  return demote(configuredModels(), now);
+}
+
+/**
+ * The models that are asked to *listen*, which is a different list.
+ *
+ * Reading audio is a capability, not a quality: a better writer that cannot
+ * accept an audio part is not a fallback for one that can, it is a model that
+ * will be handed nothing and answer anyway. So `/api/listen` walks its own
+ * list, and the two cannot drift into each other by somebody editing
+ * OPENROUTER_MODELS.
+ *
+ * `openrouter/auto` is deliberately absent, and it is the one entry the text
+ * rotation ends with. Auto picks a live model by itself, which is exactly the
+ * right behaviour when the job is "write something" and exactly the wrong one
+ * here — it can route to a text-only model, which then receives a message with
+ * an audio part it cannot read and composes a meeting instead of hearing one.
+ * A slug that does not exist fails loudly; a slug that routes to deafness
+ * fails silently, and this endpoint's whole problem is the silent kind.
+ */
+export const DEFAULT_LISTEN_MODELS = [
+  "google/gemini-2.5-flash",
+  "google/gemini-2.0-flash-001",
+  "openai/gpt-4o-audio-preview",
+];
+
+/**
+ * Configured list, or the guess above.
+ *
+ * Stated plainly because it matters to whoever debugs this: the default was
+ * written without being able to reach OpenRouter's model catalogue — this
+ * repository is built behind an egress policy that refuses openrouter.ai — so
+ * it is three slugs believed to accept an audio part, not three slugs
+ * verified to. If none of them answers, `/api/listen` says which ones it
+ * tried and why each refused, and `OPENROUTER_LISTEN_MODELS` replaces the
+ * list without a deploy of this file.
+ */
+export function configuredListenModels(): string[] {
+  const raw = process.env.OPENROUTER_LISTEN_MODELS?.trim();
+  if (!raw) return DEFAULT_LISTEN_MODELS;
+  const list = raw
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+  return list.length ? list : DEFAULT_LISTEN_MODELS;
+}
+
+/** The listening list, same cooldowns, same demotion. */
+export function listenRotation(now = Date.now()): string[] {
+  return demote(configuredListenModels(), now);
+}
+
+function demote(models: string[], now: number): string[] {
   const healthy = models.filter((m) => (cooldowns.get(m) ?? 0) <= now);
   const cooling = models.filter((m) => (cooldowns.get(m) ?? 0) > now);
   return [...healthy, ...cooling];

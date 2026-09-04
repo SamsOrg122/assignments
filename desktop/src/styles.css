@@ -53,7 +53,25 @@ body,
 }
 
 body {
-  background: var(--canvas);
+  /*
+   * The same ink the bar's lower edge is, and that is not laziness.
+   *
+   * The window is opaque, so whatever `.note`'s radius cuts out of its corners
+   * shows this instead. Matching it to the bar's darker stop makes those four
+   * corner slivers ten pixels of near-identical grey rather than four notches.
+   *
+   * A TRANSPARENT WINDOW WAS TRIED AND NOT SHIPPED, which is worth writing
+   * down so the next person does not spend the afternoon rediscovering it.
+   * `transparent: true` gives genuinely round corners and a real shadow on
+   * macOS, Windows and any compositing Linux desktop. On X11 with no
+   * compositor it gives a black rectangle where the application should be —
+   * not a degraded look, an unusable window — and this repository's only way
+   * to see a running window is Xvfb, which has no compositor. Shipping a
+   * change whose failure mode is "the app is a black bar" on the strength of
+   * reasoning alone is exactly the kind of thing the rest of this codebase
+   * refuses to do.
+   */
+  background: #1a1c1f;
   color: var(--fg);
   /* A note is not a document: selecting the chrome by dragging across it is
      never what someone meant. The note's own text turns this back on. */
@@ -62,16 +80,40 @@ body {
   overflow: hidden;
 }
 
+/*
+ * The object itself.
+ *
+ * A strip that floats over every other window all day has to read as a *thing*
+ * and not as a div: light from above, a real edge, and a shadow that says how
+ * far off the screen it is. Four layers do that, and each one is doing a
+ * different job:
+ *
+ *   the top inset highlight  — a lit top edge, which is what makes a surface
+ *                              look like it is facing up rather than painted
+ *   the hairline border      — the object's actual edge against a wallpaper
+ *                              that might be any colour
+ *   the close shadow         — contact, so it does not float unattached
+ *   the far shadow           — the height off the screen
+ *
+ * The gradient is two stops, four per cent apart. It should not be readable
+ * as a gradient; it should only stop the surface looking like flat paint.
+ */
 .note {
   display: flex;
   flex-direction: column;
   height: 100%;
-  /* Decorations are off, so the window has no border of its own. Without this
-     the note bleeds into whatever is behind it. */
-  border: 1px solid var(--line-lit);
-  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  /* Small, because every pixel of it is a corner the opaque window shows
+     through. Ten is enough to read as an object and small enough that the
+     slivers are not notches. */
+  border-radius: 10px;
   overflow: hidden;
-  background: var(--canvas);
+  background:
+    linear-gradient(180deg, #23252a 0%, #1a1c1f 100%);
+  /* Only the inset highlight. The drop shadow belongs to the window manager
+     now (`shadow: true`), and drawing a second one inside an opaque window
+     paints a dark band on the bar itself rather than under it. */
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
 }
 
 /*
@@ -81,10 +123,8 @@ body {
  * 44-pixel-tall window eats a third of its height and reads as a pill rather
  * than a toolbar. Sixteen when the sheet is open, where there is room for it.
  */
-.note {
-  border-radius: 10px;
-}
-
+/* A 14px corner on a 44-pixel strip eats a third of its height and reads as a
+   pill; there is room for it once a sheet is open. */
 .note.open {
   border-radius: 14px;
 }
@@ -92,18 +132,26 @@ body {
 .bar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  /* 2px, not 6. The slots are capsules with their own padding, so the gap is
+     only there to keep two adjacent hover states from touching; anything more
+     and four related things read as four unrelated ones. */
+  gap: 2px;
   /* Fixed, because it is the window's collapsed height and the Rust side
      names the same number. If these two disagree the bar either clips its own
      buttons or floats a strip of canvas under itself. See
      `visibility::BAR_HEIGHT`. */
   height: 44px;
   flex: none;
-  padding: 0 8px 0 11px;
-  background: var(--canvas);
+  padding: 0 7px 0 10px;
+  background: transparent;
   /* No rule under it. The bar and the sheet are one surface; a border there
      cut the window into two boxes stacked in a frame. */
   cursor: default;
+}
+
+/* The sheet needs the line the bar refuses, or the note runs into the slots. */
+.note.open .bar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /*
@@ -113,12 +161,26 @@ body {
  * are the four things this app does and everything else on the bar is
  * furniture. `slots.json` decides which ones exist.
  */
+/*
+ * A slot: a glyph, then a word, in a capsule.
+ *
+ * The first version was four identical grey words in a row with no glyphs, no
+ * capsule and no hover weight, and it read as a debug menu — nothing said
+ * "press me", and nothing distinguished one from another until you had read
+ * all four. The glyph gives the eye somewhere to land; the capsule gives the
+ * hand something to aim at; the word keeps the meaning exact, which is the
+ * part docs/desktop.md was right about and which no glyph replaces.
+ *
+ * 30 tall in a 44 bar: dense enough to read as a toolbar rather than as text
+ * floating in a strip, with 7px of air above and below so it is not cramped.
+ */
 .slot {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
@@ -126,27 +188,52 @@ body {
   font: inherit;
   font-size: 12px;
   font-weight: 500;
+  letter-spacing: -0.005em;
   cursor: pointer;
+  white-space: nowrap;
   transition:
-    background-color 160ms var(--spring),
-    border-color 160ms var(--spring),
-    color 160ms var(--spring),
-    transform 160ms var(--spring);
+    background-color 140ms var(--spring),
+    border-color 140ms var(--spring),
+    color 140ms var(--spring),
+    transform 140ms var(--spring);
+}
+
+/* Dimmer than the word, always. An icon at full strength beside 12px text is
+   a picture with a caption; at 70% it is a mark on a label. */
+.glyph {
+  flex: none;
+  opacity: 0.7;
+  transition: opacity 140ms var(--spring);
 }
 
 .slot:hover {
-  background: var(--surface-2);
+  background: rgba(255, 255, 255, 0.055);
   color: var(--fg);
+}
+
+.slot:hover .glyph {
+  opacity: 0.95;
 }
 
 .slot:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
 }
 
+/*
+ * Open. One slot can be, so this is the only filled thing on the bar — which
+ * is what makes it findable without reading. The fill is brass at low volume
+ * and the ink is full strength: docs/calm.md's rule that a fill reinforces a
+ * state and never carries it alone.
+ */
 .slot.on {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
   color: var(--fg);
+}
+
+.slot.on .glyph {
+  opacity: 1;
+  color: var(--accent);
 }
 
 .slot:focus-visible {
@@ -331,23 +418,42 @@ body {
   padding-top: 10px;
 }
 
-.mark {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--accent);
-  flex: none;
-}
-
+/*
+ * The middle: the open note's title, or nothing.
+ *
+ * Nothing, most of the time, and that is the property that makes an all-day
+ * bar tolerable rather than wallpaper: after a week you learn that text here
+ * means something. `padding-left` rather than a margin on the slots, so the
+ * gap belongs to the empty space instead of to the last button.
+ */
 .name {
   font-size: 12px;
   font-weight: 500;
   color: var(--fg);
   flex: 1;
   min-width: 0;
+  /* More on the left than the right: this sits after the last slot, and a
+     symmetric gap made the line read as a fifth, unpressable slot. */
+  padding: 0 8px 0 16px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * The first-run line, and the one exception to the silence above.
+ *
+ * Before the first capture, blankness reads as broken rather than as calm —
+ * and the opening move is the only one somebody is guaranteed to see. It
+ * disappears permanently once anything is written or dropped. Quieter than a
+ * title because it is an instruction and not a fact: it was previously set at
+ * the same size and colour as the slot words, which put a sentence in
+ * competition with the four buttons it was explaining.
+ */
+.name.hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--fg-subtle);
 }
 
 .chip {
@@ -384,14 +490,25 @@ body {
   color: var(--fg);
 }
 
+/*
+ * The controls on the right: assistant, list, new, put away.
+ *
+ * Square rather than capsule, and quieter than a slot. The distinction is the
+ * point — the left half is what this app is *for* and the right half is what
+ * you do to the window it is in, and a row where those two look alike is a row
+ * where "put away" sits at the same rank as "record a conversation".
+ *
+ * 26px, up from 22: a 22-pixel target is under every platform's minimum and
+ * these are pressed with a pointer on a strip that is 44 tall.
+ */
 .icon {
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 7px;
   background: transparent;
   color: var(--fg-subtle);
   font: inherit;
@@ -399,14 +516,31 @@ body {
   line-height: 1;
   cursor: pointer;
   transition:
-    background-color 160ms var(--spring),
-    color 160ms var(--spring),
-    transform 160ms var(--spring);
+    background-color 140ms var(--spring),
+    color 140ms var(--spring),
+    transform 140ms var(--spring);
 }
 
 .icon:hover {
-  background: var(--surface-2);
+  background: rgba(255, 255, 255, 0.055);
   color: var(--fg);
+}
+
+/*
+ * The put-away, one step brighter than the rest.
+ *
+ * At `--fg-subtle` a 15-pixel chevron at the far end of a 560-pixel strip
+ * reads as a stray caret rather than as the way out. It is the only control
+ * on the bar that is always there whatever else is open, so it is the one
+ * that has to be findable without hunting.
+ */
+.icon.away {
+  color: var(--fg-muted);
+}
+
+.icon.on {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--accent);
 }
 
 .icon:active {
@@ -431,15 +565,27 @@ body {
   padding: 0 8px 4px;
 }
 
+/*
+ * Paper, not a field.
+ *
+ * It had a hairline border, a 12px radius and a lifted shadow, which is the
+ * costume of an input on a form — and when it is empty, which is most of the
+ * time this window is open, that reads as a big blank box waiting for you
+ * rather than as a page you are writing on. Same surface, no edge, no lift:
+ * the sheet's ground steps up once for the thing you type into and stops
+ * there.
+ *
+ * The radius stays because the sheet has one; a square page inside a rounded
+ * window looks like it was pasted in.
+ */
 textarea {
   flex: 1;
   min-height: 0;
   width: 100%;
-  padding: 13px 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
   background: var(--surface);
-  box-shadow: var(--lift);
   color: var(--fg);
   font: inherit;
   font-size: 13.5px;
@@ -820,6 +966,20 @@ textarea::placeholder {
 .note:not(.open) .island {
   top: 9px;
   max-width: 220px;
+}
+
+/*
+ * With a sheet open the island sits at the bottom instead of under the bar.
+ *
+ * `top: 40px` puts it exactly where the connection banner is, and the two drew
+ * over each other: "Saved" cut a hole through the middle of the sentence
+ * explaining why the account could not be reached. Two transient messages
+ * fighting for one strip of pixels is worse than either of them alone, and the
+ * banner is the one that cannot move — it belongs above the thing it is about.
+ */
+.note.open .island {
+  top: auto;
+  bottom: 42px;
 }
 
 .note:not(.open) .island-label {

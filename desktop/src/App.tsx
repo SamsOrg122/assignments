@@ -32,6 +32,7 @@ import { SLOTS } from "./slots";
 import { DropSheet } from "./DropSheet";
 import { RecordSheet } from "./RecordSheet";
 import { KeepSheet } from "./KeepSheet";
+import { Ask, Away, List, Plus, SLOT_GLYPH } from "./Glyphs";
 
 type Status =
   | { kind: "ready" }
@@ -488,7 +489,20 @@ export function App() {
   return (
     <div className={sheetOpen ? "note open" : "note"}>
       <header className="bar" data-tauri-drag-region>
-        <span className="mark" aria-hidden="true" data-tauri-drag-region />
+        {/*
+          * No mark here, and it was tried twice.
+          *
+          * First as an 8px accent dot, which is the same shape and nearly the
+          * same colour as the dot that means "recording" — two meanings, one
+          * appearance, on a bar whose whole job is being readable at a glance.
+          * Then as the real silhouette through a mask, which at 15 pixels is
+          * four people in a ring rendered as an illegible smudge; the artwork
+          * is drawn for 512.
+          *
+          * So nothing. The words are the identity, an always-on-top utility
+          * strip does not need a logo on it, and those twenty pixels are worth
+          * more given to the line that tells a new user what to press.
+          */}
 
         {/*
           * The slots, from `src-tauri/slots.json` and from nowhere else.
@@ -515,6 +529,10 @@ export function App() {
                   setSheet((was) => (was === slot.id ? null : slot.id));
                 }}
               >
+                {(() => {
+                  const Glyph = SLOT_GLYPH[slot.id];
+                  return Glyph ? <Glyph /> : null;
+                })()}
                 {slot.word}
                 {slot.id === "drop" && waiting > 0 ? (
                   <span className="count">{waiting}</span>
@@ -525,7 +543,10 @@ export function App() {
               </button>
             ))}
 
-        <span className="name" data-tauri-drag-region>
+        <span
+          className={firstRun && !mustSignIn ? "name hint" : "name"}
+          data-tauri-drag-region
+        >
           {mustSignIn
             ? "Tougather"
             : firstRun
@@ -554,7 +575,7 @@ export function App() {
                 });
               }}
             >
-              <span aria-hidden="true">✦</span>
+              <Ask />
               <span className="sr-only">Ask the assistant</span>
             </button>
             <button
@@ -567,11 +588,11 @@ export function App() {
                 setListOpen((o) => !o);
               }}
             >
-              <span aria-hidden="true">☰</span>
+              <List />
               <span className="sr-only">All notes</span>
             </button>
             <button type="button" className="icon" title="New note" onClick={startNew}>
-              <span aria-hidden="true">+</span>
+              <Plus />
               <span className="sr-only">New note</span>
             </button>
           </>
@@ -579,11 +600,11 @@ export function App() {
 
         <button
           type="button"
-          className="icon"
+          className="icon away"
           title={`Put away (${HOTKEY_LABEL})`}
           onClick={putAway}
         >
-          <span aria-hidden="true">–</span>
+          <Away />
           <span className="sr-only">Put away</span>
         </button>
       </header>

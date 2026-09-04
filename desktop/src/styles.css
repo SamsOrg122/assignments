@@ -202,13 +202,31 @@ body {
   color: var(--fg-subtle);
 }
 
+/* What was actually captured, shown rather than summarised. Selectable,
+   because the first thing somebody does with a wrong capture is read it. */
+.sheet .caught {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 180px;
+  overflow-y: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 .sheet .bad {
   font-size: 11px;
   color: var(--warn, #d98324);
 }
 
-/* The one filled button in a sheet: the thing you came here to press. */
+/* The one filled button in a sheet: the thing you came here to press.
+   `align-self` because the recording sheet is a flex column, which would
+   otherwise stretch a button that says three words across 560 pixels. */
 .sheet .go {
+  align-self: flex-start;
   padding: 7px 14px;
   border: none;
   border-radius: 8px;
@@ -786,6 +804,28 @@ textarea::placeholder {
   transform: translateX(-50%);
   animation: island-in 260ms var(--spring) both;
   pointer-events: none;
+}
+
+/*
+ * Collapsed, the whole window is 44 pixels and the island's `top: 40px` put it
+ * four pixels inside the bottom edge of it — which is to say invisible,
+ * exactly when the bar is collapsed, which is nearly always.
+ *
+ * That would have been a silent regression: "Kept report.pdf" is the only
+ * confirmation a drop ever gets, and dropping a file onto a strip that then
+ * says nothing is indistinguishable from dropping it into nothing. So when
+ * there is no sheet, the island sits *in* the bar, over the space the note's
+ * title uses when there is one.
+ */
+.note:not(.open) .island {
+  top: 9px;
+  max-width: 220px;
+}
+
+.note:not(.open) .island-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .island-out {

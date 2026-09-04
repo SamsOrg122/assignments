@@ -41,6 +41,14 @@
       "lands": "kit_files as a made document, the same queue and the same reader the assistant's documents already use."
     },
     {
+      "id": "keep",
+      "word": "Keep",
+      "what": "Whatever is on the clipboard right now, kept as a note.",
+      "intake": "A copied paragraph or URL survives only until you copy the next thing.",
+      "away": "You copied it in another application — a PDF reader, an email, a chat — and going to a browser tab to paste it is the trip this avoids.",
+      "lands": "notes, the same rows /notes reads. No clips table: that would need a page, which would need a row to reach it."
+    },
+    {
       "id": "drop",
       "word": "Drop",
       "what": "A file, a screenshot, a PDF, dragged onto the bar.",

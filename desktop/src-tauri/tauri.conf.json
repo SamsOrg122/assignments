@@ -15,9 +15,9 @@
       {
         "label": "note",
         "title": "Tougather note",
-        "width": 460,
+        "width": 560,
         "height": 44,
-        "minWidth": 380,
+        "minWidth": 440,
         "minHeight": 44,
         "resizable": true,
         "decorations": false,

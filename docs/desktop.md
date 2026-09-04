@@ -388,11 +388,45 @@ Everything the document says about **honesty** — that the mock recites, that a
 with a calendar attached is the worst thing this could ship, that `getUserMedia` on WebKitGTK is
 unverified — held up and shaped every part of what was built.
 
-### Still not built, and still for the reasons given
+### Keep, built, and one thing this document got wrong about it
 
-**Keep** (the clipboard slot) and the screenshot slot. Keep needs `tauri-plugin-clipboard-manager`
-and a fifth entry in the capability file; the screenshot slot needs three separate permission stories
-and a signed macOS bundle. Both remain as this document describes them.
+**Keep is built.** §3 said it needs `tauri-plugin-clipboard-manager` *"and the capability file stays
+four entries long"* — that half was right and worth checking rather than assuming, so it was checked:
+the plugin is registered in `lib.rs` and reached only from `commands::keep_clipboard`, and
+`config_check.rs::the_frontend_holds_no_dangerous_permissions` still passes against a four-entry
+list. Capabilities gate the *JavaScript* API; a plugin called from Rust adds none.
+
+All three of §3's rules hold. Read on press only, never polled. Read from Rust, so the window never
+holds the clipboard API — which matters more here than anywhere else, because a capture tool that can
+read the clipboard from JavaScript is one webview bug away from reading a password manager's output.
+And it says what it read: the sheet shows the captured text with a delete beside it, because somebody
+who pressed this by accident has to be able to see it and undo it in the same second.
+
+### The bar is four slots and stops there
+
+`slots.json` allows five and holds four: Note, Record, Keep, Drop. What was considered for the fifth
+and refused, so the arguments do not have to be had again:
+
+- **Screenshot.** The second most valuable capture there is, and still refused for exactly the reasons
+  in §"What not to build": a new crate against a size-tuned release profile, plus three separate
+  permission stories — Wayland's portal with a system dialog per grab, macOS's Screen Recording TCC
+  entitlement *plus a signed bundle* when signing is deliberately off, and DXGI on Windows.
+- **Due** — one line of natural language becoming a deadline. It passes questions 1 and 2 and fails 3.
+  A deadline is an `assignments` or `agenda` row, the desktop syncs notes and files and nothing else,
+  and adding a third sync path for one slot is the kind of cost that arrives disguised as a small
+  feature. It is a note today, and `/due` reads notes.
+- **Ask.** Refused a slot in §1 and still refused. Asking a question is consulting, not capturing;
+  giving it a word on the bar would make the bar a place you go to have a conversation. It is a
+  control inside the note sheet, where it already works.
+- **A clipboard history.** Refused on the same grounds as polling: a list of everything you have
+  copied is a file with your passwords in it.
+
+Two things were added that are *not* slots, because the rule is about slots and not about the bar:
+a recording dot on the Record word, so an all-day bar cannot be quietly listening; and the status
+island moved inside the bar when it is collapsed. That second one was a real regression caught by
+looking: `.island` sits at `top: 40px`, which in a 44-pixel window is four pixels of it showing.
+"Kept report.pdf" is the only confirmation a drop ever gets, and a strip that says nothing after a
+drop is indistinguishable from one that dropped it into nothing.
 
 **The whole-app download** remains an argued no, for the reasons in §"The whole-app download". Nothing
 about the ear changes that: the eight Node routes are still Node routes, and *Install Tougather* from

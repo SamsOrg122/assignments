@@ -72,6 +72,9 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
+        // Registered here and reached only through `commands::keep_clipboard`,
+        // so the webview never holds the clipboard API. See Cargo.toml.
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             // Started by the OS rather than by a person, so it must come up
@@ -92,6 +95,7 @@ pub fn run() {
             commands::hide_window,
             commands::set_sheet,
             commands::files_waiting,
+            commands::keep_clipboard,
             commands::ready_to_quit,
             record::commands::record_start,
             record::commands::record_stop,

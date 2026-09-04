@@ -11,7 +11,7 @@ are meant to leave running all day.
 
 ## What is on it
 
-Three slots, and `src-tauri/slots.json` is the only place they are declared.
+Four slots, and `src-tauri/slots.json` is the only place they are declared.
 The frontend renders that file and `config_check.rs` reads it with
 `include_str!`, so a fourth slot arrives with a failing test and an argument in
 the commit message rather than as a button somebody added.
@@ -20,6 +20,7 @@ the commit message rather than as a button somebody added.
 | --- | --- | --- |
 | **Note** | a thought, typed | `notes`, and `/notes` on the web |
 | **Record** | a conversation, from the microphone | a document, in your library |
+| **Keep** | whatever is on the clipboard | `notes`, same as anything you type |
 | **Drop** | a file dragged onto the bar | `/kit`, under *From your desktop* |
 
 The rule a slot has to pass is at the top of `slots.json`: it must be an
@@ -42,7 +43,12 @@ The words come back from `/api/listen` on the site, using your own account's
 token. **No model key is ever compiled into this binary** — a key in a
 downloadable binary is a key everybody has.
 
-Two things it will not do, on purpose:
+**Keep** reads the clipboard when you press it and at no other time. It is never polled, no history
+is kept, and the read happens in Rust — so the window never holds the clipboard API and
+`capabilities/default.json` is still four entries long. The sheet shows you what it captured, with a
+delete beside it.
+
+Two things recording will not do, on purpose:
 
 - **It cannot transcribe without a connection.** The system webview has no
   speech recognition on any platform (no `SpeechRecognition`, measured), so
@@ -67,6 +73,7 @@ Built in steps, each one testable on its own.
 | 5 | GitHub Actions matrix build for macOS, Windows, Linux | **done** |
 | 6 | The bar: slots, the visible-at-launch window, Drop surfaced | **done** |
 | 7 | Record: cpal capture, server transcription, a document out | **done** |
+| 8 | Keep: the clipboard, on press, from Rust | **done** |
 
 ## Running it
 

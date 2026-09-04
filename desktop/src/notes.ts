@@ -36,6 +36,16 @@ export const setSheetOpen = (open: boolean) => invoke<void>("set_sheet", { open 
 /** How many dropped files have not reached the account yet. */
 export const filesWaiting = () => invoke<number>("files_waiting");
 
+/**
+ * Whatever is on the clipboard right now, as a note.
+ *
+ * Read on press and never polled — see the command's own comment for why that
+ * is a rule rather than an implementation detail. The note comes back so the
+ * window can show what was captured; somebody who pressed this by accident
+ * needs to see it, not be told it worked.
+ */
+export const keepClipboard = () => invoke<Note>("keep_clipboard");
+
 /* ── Recording ────────────────────────────────────────────────────────── */
 
 /**

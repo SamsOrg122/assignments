@@ -31,6 +31,7 @@ import { cancel as cancelAssistant } from "./assistant";
 import { SLOTS } from "./slots";
 import { DropSheet } from "./DropSheet";
 import { RecordSheet } from "./RecordSheet";
+import { KeepSheet } from "./KeepSheet";
 
 type Status =
   | { kind: "ready" }
@@ -116,6 +117,11 @@ export function App() {
     setStatus({ kind: "saving" });
     try {
       const saved = await saveNote(id, body);
+      // Something has been written, so this is no longer a first run. The
+      // hint is retired by *any* capture, not only by the ones that go
+      // through a slot — somebody who pressed the hotkey and typed has
+      // learned what the bar is for just as thoroughly.
+      if (body.trim()) setFirstRun(false);
       setNotes((all) =>
         [saved, ...all.filter((n) => n.id !== saved.id)].sort(
           (a, b) => b.updated_at - a.updated_at,
@@ -523,7 +529,7 @@ export function App() {
           {mustSignIn
             ? "Tougather"
             : firstRun
-              ? `${HOTKEY_LABEL} to write · drag a file here`
+              ? `${HOTKEY_LABEL} · drag a file here`
               : askingAI
                 ? "Assistant"
                 : sheet === "note" && active
@@ -675,6 +681,12 @@ export function App() {
         </ul>
       ) : sheet === "record" ? (
         <RecordSheet />
+      ) : sheet === "keep" ? (
+        <KeepSheet
+          onKept={() => {
+            listNotes().then(setNotes).catch(() => {});
+          }}
+        />
       ) : sheet === "drop" ? (
         <DropSheet waiting={waiting} />
       ) : (

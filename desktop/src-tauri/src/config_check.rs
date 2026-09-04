@@ -76,7 +76,10 @@ mod tests {
             crate::visibility::BAR_HEIGHT as u64,
             "the resting height and visibility::BAR_HEIGHT disagree"
         );
-        assert_eq!(w["width"], 460, "four words and a dot need about this much");
+        assert_eq!(
+            w["width"], 560,
+            "four words, a dot and the first-run line need about this much"
+        );
         assert_eq!(
             w["minHeight"],
             crate::visibility::BAR_HEIGHT as u64,

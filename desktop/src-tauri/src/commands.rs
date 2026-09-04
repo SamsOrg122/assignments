@@ -136,6 +136,52 @@ pub fn set_sheet<R: Runtime>(app: AppHandle<R>, open: bool) {
     visibility::set_sheet(&app, open);
 }
 
+/// Whatever is on the clipboard right now, as a note.
+///
+/// The one thing a bar can do that a browser tab structurally cannot: catch
+/// what you copied in a *different application* without leaving it. A URL from
+/// a browser, a paragraph out of a PDF reader, an address from an email.
+/// Today that has nowhere to go in Tougather at all — it survives until you
+/// copy something else.
+///
+/// Three rules, and none of them is optional:
+///
+///   1. READ ON PRESS ONLY. Never polled, no history kept. A capture tool that
+///      watches the clipboard is a capture tool with your password manager's
+///      output in a SQLite file, and this repository's own README argues that
+///      a token in a file is a token anything running as you can read.
+///   2. READ FROM RUST. The plugin is registered in `lib.rs` and reached only
+///      from here, so `capabilities/default.json` stays four entries long and
+///      the window's `default-src 'self'` policy stays intact.
+///   3. SAY WHAT IT READ. The command hands back the first line so the window
+///      can show it, and somebody who pressed this by accident can see what
+///      they captured and delete it immediately.
+///
+/// It becomes a note. Not a table of its own: a `clips` table would need a
+/// page to find clips on, which would need a row somewhere to reach that page,
+/// and that is the ten-rows-to-five mistake rebuilt from the database upward.
+#[tauri::command]
+pub fn keep_clipboard<R: Runtime>(
+    app: AppHandle<R>,
+    store: State<'_, Store>,
+) -> Result<Note, String> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+
+    let text = app
+        .clipboard()
+        .read_text()
+        .map_err(|_| "There is nothing on the clipboard that is text.".to_string())?;
+    let text = text.trim();
+    if text.is_empty() {
+        return Err("The clipboard is empty.".into());
+    }
+
+    let note = with(&store, notes::create)?;
+    // `note_save` rather than a bare insert: it is the path with the 256 KB
+    // refusal in it, and a clipboard can hold a whole book.
+    note_save(app, store, note.id, text.to_string())
+}
+
 /// How many dropped files are still waiting to be sent.
 ///
 /// The bar shows this beside Drop. `store/files.rs::waiting` has counted them

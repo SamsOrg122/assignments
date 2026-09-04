@@ -67,6 +67,15 @@ tauri-plugin-deep-link = "2"
 # cpal talks to ALSA, CoreAudio and WASAPI directly. It needs `libasound2-dev`
 # on Linux at build time, which `.github/workflows/desktop.yml` now installs.
 cpal = "0.15"
+# The clipboard, read from Rust and only when a button is pressed.
+#
+# The plugin is registered on the Rust side and called through a named command,
+# so `capabilities/default.json` stays four entries long — the JS API is what
+# that file gates, and the window never gets it. That matters here more than
+# anywhere else: a capture tool that can read the clipboard from JavaScript is
+# a capture tool one webview bug away from reading your password manager's
+# output.
+tauri-plugin-clipboard-manager = "2"
 
 # Desktop only, and only for one job: on Windows and Linux the browser's
 # `tougather://` link starts a *second* copy of the app, which has to hand the

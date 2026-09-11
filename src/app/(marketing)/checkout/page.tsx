@@ -14,7 +14,8 @@ export default function CheckoutPage() {
   return (
     <>
       <Nav />
-      <main>
+      {/* Clears the fixed nav pill: 56px tall, 14px from the top. */}
+      <main className="pt-24">
         <Section className="pt-14 pb-20 sm:pt-20">
           {/* Search params are read on the client, so the shell can still be
               prerendered — the order summary is the only dynamic part. */}

@@ -1,13 +1,22 @@
 /**
- * The hero.
+ * The opening, on the sheet.
  *
- * One sentence about the product, one understated line about impact, and a
- * real look at the thing itself — Library and Board overlapping, because that
- * pairing *is* the product and no amount of copy explains it faster.
+ * Not the hero any more — the landscape above is. This is the first thing on
+ * the frosted panel that slides over it, and its job changed with its position:
+ * it used to have to arrive and explain at once, and now it only has to
+ * explain, because arriving has already happened.
  *
- * No atmosphere of its own. The photograph above already sets the light, and a
- * second glow underneath it made the top of the page read as two competing
- * headers stacked on each other.
+ * ── WHY TWO COLUMNS ────────────────────────────────────────────────────
+ * The headline and the paragraph were stacked, which on a wide screen put a
+ * 78px sentence above a 19px one with the whole page's width under both — the
+ * reader's eye travels the full measure twice before reaching a button. Side
+ * by side, the headline is a title on the left and everything that answers it
+ * is one column on the right, so the second thing you read is already the
+ * argument. They stack again below 900px, where two columns would be two
+ * narrow ones.
+ *
+ * Every word here is unchanged, including the comparison links and the impact
+ * line. This was a re-layout, not a rewrite.
  */
 
 import Link from "next/link";
@@ -18,16 +27,20 @@ import { Icon } from "@/components/ui/Icon";
 
 export function Hero() {
   return (
-    <div className="relative overflow-hidden pt-8 pb-20 sm:pt-12 sm:pb-28">
+    <div className="relative overflow-hidden pt-24 pb-20 sm:pt-28 sm:pb-28">
       <Section className="relative">
-        {/* The measure lives on the h1, not a wrapper: `ch` resolves against
-            the element's own font-size, and on a wrapper that's the 16px body
-            text rather than the 74px headline. */}
-        <h1 className="headline max-w-[13ch] text-[clamp(40px,7.2vw,78px)] sm:max-w-[15ch]">
-          Everything you make, in one place.
-        </h1>
+        <div className="grid items-end gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
+          <div>
+            {/* The measure lives on the h1, not a wrapper: `ch` resolves against
+                the element's own font-size, and on a wrapper that's the 16px
+                body text rather than the 74px headline. */}
+            <h1 className="max-w-[11ch] text-[clamp(46px,6.6vw,92px)] leading-[1.02]">
+              Everything you make, in one place.
+            </h1>
+          </div>
 
-        <p className="mt-6 max-w-[54ch] text-[clamp(16px,2vw,19px)] leading-relaxed text-fg-muted text-pretty">
+          <div>
+        <p className="max-w-[54ch] text-[clamp(16px,2vw,19px)] leading-relaxed text-fg-muted text-pretty">
           Tougather is an AI-native workspace for entrepreneurs and students. A
           thesis, a deck, a budget, a board and your team&apos;s memory in one
           project — where Office hands you five files in five apps, each with a
@@ -85,6 +98,8 @@ export function Hero() {
             <Icon name="chevron-right" size={10} />
           </a>
         </p>
+          </div>
+        </div>
       </Section>
 
       {/* The product itself, running. Given the widest frame on the page. */}

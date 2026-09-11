@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+// The storefront's two faces. Declared on <html> so the marketing layout can
+// switch to them with one class rather than every page importing a font.
+import { newsreader, outfit } from "@/lib/fonts";
 import "./globals.css";
 // KaTeX ships its own stylesheet and fonts; Next bundles both from here, so an
 // equation renders offline and nothing is fetched from a CDN.
@@ -33,7 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
+      className={`${GeistSans.variable} ${GeistMono.variable} ${outfit.variable} ${newsreader.variable} h-full antialiased`}
       // The boot script writes these attributes before React hydrates.
       suppressHydrationWarning
     >

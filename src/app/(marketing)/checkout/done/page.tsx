@@ -33,7 +33,8 @@ export default function CheckoutDonePage() {
   return (
     <>
       <Nav />
-      <main>
+      {/* Clears the fixed nav pill: 56px tall, 14px from the top. */}
+      <main className="pt-24">
         <Section className="pt-14 pb-24 sm:pt-24">
           <div className="max-w-[560px]">
             <p className="text-meta mb-3 text-fg-subtle">Payment received</p>

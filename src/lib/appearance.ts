@@ -63,6 +63,12 @@ export const APPEARANCE_BOOT_SCRIPT = `try{
     : a.mode;
   var r=document.documentElement;
   r.dataset.theme=m; r.dataset.accent=a.accent; r.dataset.radius=a.radius;
+  /* Whether that theme is a CHOICE or just this app's default.
+     The app defaults to dark because a writing surface should; the storefront
+     defaults to light because a first impression should. Both are right, and
+     the only way to have both is to know which of the two the attribute above
+     is reporting. Present means somebody picked it. */
+  if(s.mode) r.dataset.themeChosen=""; else delete r.dataset.themeChosen;
   r.dataset.density=a.density; r.dataset.font=a.font; r.dataset.motion=a.motion;
   r.style.setProperty("--sidebar-w", a.sidebarWidth+"px");
   r.style.colorScheme=m;

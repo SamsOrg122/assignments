@@ -128,10 +128,20 @@ export function CTA({
     <Link
       href={href}
       className={cn(
-        "group inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[14px] font-medium transition-all duration-200",
+        // A pill, not a rounded rectangle, and 24px of radius rather than the
+        // app's 6. The app's controls are part of a working surface and should
+        // not draw attention; these are the two things the page exists to
+        // offer. Same shape as the nav's, so the CTA a reader saw at the top
+        // is recognisably the same object further down.
+        "group inline-flex items-center gap-2 rounded-full px-5 py-3 text-[14px] font-medium transition-all duration-200",
         variant === "primary"
-          ? "sheen bg-fg text-canvas shadow-[0_8px_28px_-10px_rgba(255,255,255,0.32)] hover:-translate-y-px hover:shadow-[0_14px_38px_-10px_rgba(255,255,255,0.45)]"
-          : "glass-soft text-fg hover:-translate-y-px hover:border-line-strong",
+          ? // The gradient, and it is the same one in three places on the page
+            // — the nav pill, here, and the featured price. Colour is how the
+            // storefront ranks; `docs/calm.md` is explicit that the app ranks
+            // by type instead, which is a different surface and a different
+            // problem.
+            "pill-cta"
+          : "glass text-fg hover:-translate-y-px",
         className,
       )}
     >

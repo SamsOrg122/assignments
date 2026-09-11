@@ -91,6 +91,9 @@ const COLUMNS: Array<{ title: string; links: FooterLink[] }> = [
 
 export function Footer() {
   return (
+    /* No background of its own. It is the last section of the sheet, and a
+       footer that paints its own ground puts a seam across a panel that is
+       supposed to be one object. */
     <footer className="relative border-t border-line">
       <div className="mx-auto w-full max-w-[1240px] px-5 py-14 sm:px-8">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,2fr)]">

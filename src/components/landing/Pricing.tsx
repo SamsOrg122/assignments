@@ -408,10 +408,14 @@ function PlanCard({
         <Link
           href="/library"
           className={cn(
-            "flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-[13px] font-medium transition-transform duration-150 hover:-translate-y-px",
+            "flex items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-[13px] font-medium transition-transform duration-150 hover:-translate-y-px",
             plan.featured
-              ? "bg-fg text-canvas"
-              : "border border-line-strong text-fg hover:bg-white/[0.04]",
+              ? // The third and last place the gradient appears on this page:
+                // the nav, the hero's call to action, and the plan most people
+                // want. Three is the number that makes it a signal; a fourth
+                // would make it a decoration.
+                "pill-cta"
+              : "glass text-fg",
           )}
         >
           {plan.cta}

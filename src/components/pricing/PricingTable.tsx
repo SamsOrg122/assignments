@@ -146,7 +146,12 @@ export function PricingTable() {
               className={cn(
                 "rounded-full px-3.5 py-1.5 text-[12.5px] transition-colors duration-150",
                 interval === value
-                  ? "bg-fg text-canvas"
+                  ? // A frosted chip rather than a slug of near-black. On the
+                    // dark palette `bg-fg` was a white pill on a dark ground;
+                    // on the glass one it is a black pill on a pale ground,
+                    // which is the loudest thing on the page for a control
+                    // that only says which of two numbers you are reading.
+                    "bg-[var(--card-hover)] text-fg shadow-[inset_0_1px_0_var(--hi)]"
                   : "text-fg-muted hover:text-fg",
               )}
             >
@@ -155,7 +160,7 @@ export function PricingTable() {
                 <span
                   className={cn(
                     "ml-1.5 text-[11px]",
-                    interval === "year" ? "text-canvas/70" : "text-leaf",
+                    interval === "year" ? "text-fg-muted" : "text-leaf",
                   )}
                 >
                   −{12 - YEARLY_MONTHS_CHARGED} months

@@ -20,7 +20,8 @@ export default function PricingPage() {
   return (
     <>
       <Nav />
-      <main>
+      {/* Clears the fixed nav pill: 56px tall, 14px from the top. */}
+      <main className="pt-24">
         <Section className="pt-16 pb-8 sm:pt-24 sm:pb-10">
           <p className="mb-4 text-[12.5px] text-fg-subtle">Pricing</p>
           <h1 className="headline max-w-[16ch] text-[clamp(34px,5.6vw,60px)]">

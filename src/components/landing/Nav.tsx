@@ -3,21 +3,28 @@
 /**
  * Storefront navigation.
  *
- * Editorial rather than the usual floating glass pill: a full-width rule, the
- * wordmark set in the page's display serif, and links in small letterspaced
- * Geist. The two faces meet here first, which is the point — the bar is the
- * first thing that has to say what kind of thing this is.
+ * A floating glass pill, and this file used to argue the other way.
  *
- * It rides transparent over the photograph and condenses on scroll: the height
- * drops, a hairline appears, and the backdrop frosts. Three small changes
- * rather than one big one, so it reads as the page settling rather than as a
- * bar swapping itself out.
+ * It said "editorial rather than the usual floating glass pill: a full-width
+ * rule", and a full-width rule was right for a page that opened on a
+ * photograph — a bar across the top read as a masthead. It is wrong for a page
+ * that opens on a landscape the content slides over: a rule cuts the picture
+ * in half at the one point where the picture is the argument.
+ *
+ * So the bar detaches. It is an object floating above the scene, the same
+ * material as every card below it, and what changes on scroll is only its
+ * opacity — from barely there over the sky to properly frosted once there is
+ * text behind it. One change rather than three, because the pill's shape and
+ * height are already doing the work the old version needed a height change for.
+ *
+ * Everything below the surface is untouched: the menus are still built from
+ * the page registry by `childrenOf`, the language still comes from the URL,
+ * and the mobile sheet is still the same component.
  */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
 import { NavMenu, type NavMenuItem } from "./NavMenu";
@@ -81,20 +88,10 @@ export function Nav() {
   }, []);
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-300",
-        lifted
-          ? "border-b border-line bg-canvas/72 backdrop-blur-xl"
-          : "border-b border-transparent",
-      )}
-    >
+    <header className="navpill" data-lifted={lifted ? "" : undefined}>
       <nav
         aria-label="Main"
-        className={cn(
-          "mx-auto flex w-full max-w-[1240px] items-center gap-3 px-5 transition-[height] duration-300 sm:px-8",
-          lifted ? "h-14" : "h-[72px]",
-        )}
+        className="flex h-full w-full items-center gap-3 pr-2.5 pl-4 sm:pl-5"
       >
         <Link href="/" className="group flex items-center gap-2.5 text-fg">
           {/* The mark itself, taking the nav's colour. */}
@@ -143,25 +140,25 @@ export function Nav() {
               returning user can find without opening Settings. */}
           <Link
             href="/signin"
-            className="rounded-sm px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:text-fg"
+            className="pill-link rounded-xl px-3 py-2 text-[13px]"
           >
             Sign in
           </Link>
           <Link
             href="/library"
-            className="hidden rounded-sm px-2.5 py-1.5 text-[12.5px] text-fg-muted transition-colors duration-150 hover:text-fg sm:block"
+            className="pill-link hidden rounded-xl px-3 py-2 text-[13px] sm:block"
           >
             Open Tougather
           </Link>
           <Link
             href="/library"
-            className="group flex items-center gap-1.5 rounded-full border border-line-strong px-3.5 py-1.5 text-[12.5px] text-fg transition-colors duration-200 hover:border-fg-subtle hover:bg-surface"
+            className="pill-cta group flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px]"
           >
             Start writing
             <Icon
               name="arrow-right"
-              size={12}
-              className="text-fg-subtle transition-transform duration-200 group-hover:translate-x-0.5"
+              size={13}
+              className="transition-transform duration-200 group-hover:translate-x-0.5"
             />
           </Link>
         </div>

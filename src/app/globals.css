@@ -625,83 +625,518 @@
    an accent here — a handful of panels, not every surface.
    ─────────────────────────────────────────────────────────── */
 
-/* The storefront is always the dark, near-black identity, even for someone
-   whose app preference is light. It's the brand, not a preference. */
+/*
+ * The storefront: glass over a drifting mesh, light by default.
+ *
+ * ── THE REVERSAL, STATED RATHER THAN SLIPPED IN ─────────────────────────
+ * This block used to pin the dark, near-black identity for everyone, and its
+ * comment said "It's the brand, not a preference." That is a defensible
+ * position and it is no longer the one this site takes. The storefront is now
+ * a light, lilac-and-bone surface by default and follows the reader's own
+ * appearance preference into dark — the same `[data-theme]` the app already
+ * reads, so there is one toggle on this site rather than two that can
+ * disagree.
+ *
+ * The palette is a different family from the app's greys on purpose. The app
+ * is a working surface and recedes; a storefront is four seconds of somebody
+ * deciding whether this is for them. `docs/calm.md` §9 says out loud that the
+ * storefront is out of the calm pass's scope for exactly this reason.
+ *
+ * ── HOW THE MATERIAL WORKS ──────────────────────────────────────────────
+ * Three layers, and nothing else:
+ *
+ *   .mesh    ten blurred colour fields, fixed behind everything, drifting
+ *            slowly. It is the only source of colour on the page.
+ *   .glass   a frosted panel: a translucent white fill, a real backdrop blur
+ *            and a lit top edge. Because it is translucent, the mesh under it
+ *            tints every card differently depending on where it sits.
+ *   .sheet   one big frosted panel that the whole page below the hero lives
+ *            on, so the landscape appears to slide under the content.
+ *
+ * The blur is what makes this work and it is also the expensive part. It is
+ * on exactly three things — the nav, the sheet and the cards — rather than on
+ * every surface, because a page with fifteen backdrop filters scrolls badly on
+ * a laptop and the difference is invisible.
+ */
 .storefront {
-  --color-canvas: #1b1c1f;
-  --color-surface: #242629;
-  --color-surface-2: #2c2e31;
-  --color-surface-3: #383a3e;
-  --color-line: rgba(255, 255, 255, 0.13);
-  --color-line-strong: rgba(255, 255, 255, 0.24);
-  --color-fg: #e8eaed;
-  --color-fg-muted: #b8bdc4;
-  --color-fg-subtle: #969ba1;
-  --color-accent: #5b8dff;
-  --color-accent-dim: #3f6ee0;
-  --color-accent-soft: rgba(91, 141, 255, 0.16);
-  --color-on-accent: #15161a;
-  /* The living green, used only where impact is the subject. */
-  --color-leaf: #4ad2a0;
-  --color-leaf-soft: rgba(74, 210, 160, 0.13);
+  --color-canvas: #efe9f3;
+  --color-surface: rgba(255, 255, 255, 0.58);
+  --color-surface-2: rgba(255, 255, 255, 0.78);
+  --color-surface-3: rgba(255, 255, 255, 0.9);
+  --color-line: rgba(34, 31, 42, 0.08);
+  --color-line-strong: rgba(34, 31, 42, 0.16);
+  --color-fg: #221f2a;
+  --color-fg-muted: rgba(34, 31, 42, 0.6);
+  --color-fg-subtle: rgba(34, 31, 42, 0.4);
+  --color-accent: #8a5cd4;
+  --color-accent-dim: #6f45b8;
+  --color-accent-soft: rgba(180, 140, 240, 0.18);
+  --color-on-accent: #ffffff;
+  --color-leaf: #1f8a63;
+  --color-leaf-soft: rgba(47, 165, 109, 0.14);
 
+  /* The material, separate from the palette: these are what .glass, .sheet
+     and the nav are built out of, and they are the tokens that flip in dark. */
+  --sheet: rgba(255, 255, 255, 0.78);
+  --card: rgba(255, 255, 255, 0.58);
+  --card-hover: rgba(255, 255, 255, 0.9);
+  --edge: rgba(255, 255, 255, 0.6);
+  --hi: rgba(255, 255, 255, 0.95);
+  --nav-rest: rgba(255, 255, 255, 0.42);
+  --nav-scrolled: rgba(255, 255, 255, 0.74);
+  --kbd: rgba(34, 31, 42, 0.07);
+  --drop: 0 24px 60px -30px rgba(20, 10, 40, 0.4);
+
+  /* The landscape in the hero. Named here rather than in the component so the
+     two themes are one diff and a designer can find every colour in the hero
+     without opening a React file. */
+  --hill-1: rgba(150, 120, 210, 0.34);
+  --hill-2: rgba(115, 85, 185, 0.46);
+  --hill-3: rgba(72, 52, 135, 0.72);
+  --tree: rgba(50, 34, 98, 0.88);
+  --water-a: rgba(255, 255, 255, 0.28);
+  --water-b: rgba(150, 190, 240, 0.45);
+  /* By day the sun has no edge. A white disc on a pale sky reads as a hole
+     punched in it, which is exactly how the first version looked — so in the
+     light theme the disc is small and the warm glow does the work. */
+  --sun: rgba(255, 252, 240, 1);
+  --sun-glow: rgba(255, 206, 140, 0.75);
+  /* 0 by day: the sun has no edge, it is too bright to have one. */
+  --moon: 0;
+  /* Multiplies every star's opacity, so one number turns the night sky on. */
+  --stars: 0;
+
+  /*
+   * The sky, and it is the fix for two problems at once.
+   *
+   * Without it the hero showed the mesh directly: ten blurred circles behind a
+   * treeline, which reads as a photograph out of focus rather than as a sky.
+   * And the wordmark was white on that, at about 1.4:1 — legible in a mockup
+   * and not on a screen.
+   *
+   * So the hero paints its own sky and the ink follows it. Light is a daytime
+   * scene and takes dark type; dark is a night scene and takes white. That is
+   * a real difference between the two themes rather than the same picture at
+   * two brightnesses — which is also why `--hero-ink` exists instead of the
+   * wordmark being white in both and hoping.
+   */
+  --sky-top: #aebbe2;
+  --sky-bottom: #f7e6d4;
+  --hero-ink: #2b2440;
+  --hero-ink-soft: rgba(43, 36, 64, 0.62);
+  --vignette: rgba(70, 50, 120, 0.22);
+
+  font-family: var(--font-storefront), var(--font-sans), system-ui, sans-serif;
   background: var(--color-canvas);
   color: var(--color-fg);
+  transition: background 600ms var(--ease-out-fast);
+}
+
+/*
+ * Dark, and it is the reader's choice rather than ours.
+ *
+ * `:root[data-theme="dark"]` is what the app's own appearance switch writes,
+ * and `APPEARANCE_BOOT_SCRIPT` writes it before React hydrates — so this never
+ * flashes the wrong palette. The mesh colours change in the component; these
+ * are everything else.
+ */
+/*
+ * Dark, and only when the reader asked for it.
+ *
+ * `[data-theme-chosen]` is the whole point of this selector. The app defaults
+ * to dark — a surface you write on for three hours should be — and the boot
+ * script writes `data-theme="dark"` for everybody on that basis. A storefront
+ * on the same rule would greet every first-time visitor with a night palette
+ * they never asked for, which is not what this page is.
+ *
+ * So the storefront reads the attribute only when the second one says it came
+ * from a stored preference. One toggle on the site, two sensible defaults, and
+ * the condition is written in `use-theme.ts` in exactly these terms so the
+ * mesh cannot disagree with the tokens.
+ */
+:root[data-theme="dark"][data-theme-chosen] .storefront {
+  --color-canvas: #0f0d17;
+  --color-surface: rgba(255, 255, 255, 0.06);
+  --color-surface-2: rgba(255, 255, 255, 0.1);
+  --color-surface-3: rgba(255, 255, 255, 0.14);
+  --color-line: rgba(255, 255, 255, 0.09);
+  --color-line-strong: rgba(255, 255, 255, 0.18);
+  --color-fg: #f3f1f8;
+  --color-fg-muted: rgba(243, 241, 248, 0.64);
+  --color-fg-subtle: rgba(243, 241, 248, 0.42);
+  --color-accent: #c9a6ff;
+  --color-accent-dim: #a77df0;
+  --color-accent-soft: rgba(201, 166, 255, 0.16);
+  --color-on-accent: #1a1424;
+  --color-leaf: #5fd39a;
+  --color-leaf-soft: rgba(95, 211, 154, 0.14);
+
+  --sheet: rgba(18, 15, 28, 0.86);
+  --card: rgba(255, 255, 255, 0.06);
+  --card-hover: rgba(255, 255, 255, 0.12);
+  --edge: rgba(255, 255, 255, 0.09);
+  --hi: rgba(255, 255, 255, 0.14);
+  --nav-rest: rgba(20, 16, 32, 0.5);
+  --nav-scrolled: rgba(20, 16, 32, 0.8);
+  --kbd: rgba(255, 255, 255, 0.1);
+  --drop: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+
+  --hill-1: rgba(44, 32, 84, 0.62);
+  --hill-2: rgba(30, 22, 62, 0.82);
+  --hill-3: rgba(17, 12, 38, 0.96);
+  --tree: rgba(7, 5, 18, 0.98);
+  --water-a: rgba(14, 10, 32, 0.35);
+  --water-b: rgba(8, 6, 22, 0.7);
+  /* At night it does: a moon is a disc with a soft halo, and the edge is the
+     thing that makes it a moon rather than a light. */
+  --sun: rgba(255, 236, 210, 0.92);
+  --sun-glow: rgba(255, 236, 210, 0.5);
+  /* 1 by night: a moon is exactly an edge. */
+  --moon: 1;
+  --stars: 1;
+
+  --sky-top: #0c0a1a;
+  --sky-bottom: #3a2456;
+  --hero-ink: #ffffff;
+  --hero-ink-soft: rgba(255, 255, 255, 0.8);
+  --vignette: rgba(10, 6, 26, 0.45);
+}
+
+/* Headlines, and only headlines. See `src/lib/fonts.ts`. */
+.storefront :is(h1, h2, .display) {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 300;
+  letter-spacing: -0.022em;
+}
+
+/* ── The mesh ───────────────────────────────────────────── */
+
+/*
+ * Ten blurred fields, fixed behind the page.
+ *
+ * `position: fixed` rather than absolute: the mesh is the room the page is in,
+ * not part of the document, so it must not scroll. `pointer-events: none`
+ * because it covers the viewport and is not a surface anybody interacts with.
+ */
+.mesh {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/*
+ * `@property` is what makes the colour animatable.
+ *
+ * A custom property is a string to the animation engine unless its type is
+ * declared, so without this the light-to-dark swap would jump. With it, the
+ * browser interpolates in colour space and the whole mesh crossfades.
+ */
+@property --c {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: #c4b2ec;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(64px);
+  will-change: transform;
+  background: radial-gradient(circle, var(--c) 0%, var(--c) 28%, transparent 70%);
+  transition: --c 1.2s ease;
+  animation: drift var(--d, 26s) ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(var(--tx, 30px), var(--ty, -24px), 0) scale(1.12);
+  }
+}
+
+/* ── The frosted sheet ──────────────────────────────────── */
+
+/*
+ * Everything below the hero sits on this.
+ *
+ * The negative margin is the whole trick: the sheet starts 64 pixels *above*
+ * where the hero ends, so the landscape runs under its rounded top edge and
+ * the page looks like one object sliding over another rather than two
+ * sections stacked.
+ */
+/*
+ * Every storefront page's `<main>` is the sheet.
+ *
+ * An element selector rather than a class on each page, and that is a
+ * deliberate choice about where a rule like this belongs. Six pages build
+ * their own `<main>` — pricing, impact, compare, contact and the two hubs —
+ * and adding a class to each is six chances to forget on the seventh. The
+ * invariant being expressed is "the content of a storefront page sits on
+ * frosted glass", which is a fact about the surface, not about six files.
+ *
+ * Without it those pages put prose straight onto the mesh, and a paragraph
+ * over ten drifting colour fields is a paragraph nobody finishes: the ground
+ * moves under the words and the contrast changes every two centimetres. The
+ * panel is what makes the mesh usable as a background rather than only as a
+ * picture.
+ */
+.storefront main {
+  position: relative;
+  z-index: 2;
+  background: var(--sheet);
+  box-shadow:
+    inset 0 1px 0 var(--hi),
+    inset 0 0 0 1px var(--edge);
+  transition: background 600ms var(--ease-out-fast);
+}
+
+/*
+ * The landing page only: the overlap.
+ *
+ * The negative margin is the whole trick there — the sheet starts 64 pixels
+ * *above* where the hero ends, so the landscape runs under its rounded top
+ * edge and the page reads as one object sliding over another rather than two
+ * sections stacked. No other page has a landscape to slide under, and a panel
+ * with a negative margin under a fixed nav would tuck its own corners behind
+ * the pill.
+ */
+.storefront main.sheet {
+  margin-top: -64px;
+  border-radius: 44px 44px 0 0;
+  box-shadow:
+    inset 0 1px 0 var(--hi),
+    inset 0 0 0 1px var(--edge),
+    0 -30px 80px -40px rgba(20, 10, 40, 0.4);
+}
+
+/* ── The nav, as an object rather than a masthead ────────── */
+
+/*
+ * Fixed rather than sticky, and that is the difference between a bar and a
+ * pill. Sticky means the element is in the document and the page starts below
+ * it; fixed takes it out, so the landscape begins at the top of the viewport
+ * and the nav floats over it with sky on all four sides.
+ */
+.navpill {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: min(1180px, calc(100% - 28px));
+  height: 56px;
+  border-radius: 28px;
+  background: var(--nav-rest);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow:
+    inset 0 1px 0 var(--hi),
+    inset 0 0 0 1px var(--edge),
+    0 14px 40px -22px rgba(20, 10, 40, 0.4);
+  transition: background 300ms var(--ease-out-fast);
+}
+
+/* The one thing that changes on scroll. Over the sky the pill can be nearly
+   transparent and still legible; over text it cannot. */
+.navpill[data-lifted] {
+  background: var(--nav-scrolled);
+}
+
+.pill-link {
+  color: var(--color-fg-muted);
+  white-space: nowrap;
+  transition:
+    background-color 180ms var(--ease-out-fast),
+    color 180ms var(--ease-out-fast);
+}
+
+.pill-link:hover {
+  background: var(--card-hover);
+  color: var(--color-fg);
+}
+
+/*
+ * The one filled thing on the bar.
+ *
+ * A gradient rather than a flat accent, and it is the same gradient the
+ * product mock's sidebar and the featured price wear — three places on the
+ * page, all of them "this is the thing to press". Colour is how the storefront
+ * ranks; the app ranks by type, which is `docs/calm.md`'s rule and a different
+ * problem.
+ */
+.pill-cta {
+  color: #fff;
+  white-space: nowrap;
+  background: linear-gradient(120deg, #b48cf0 0%, #f4a6d0 55%, #f6a24d 100%);
+  box-shadow:
+    0 12px 26px -12px rgba(180, 100, 200, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition:
+    filter 180ms var(--ease-out-fast),
+    transform 120ms var(--ease-out-fast);
+}
+
+.pill-cta:hover {
+  filter: brightness(1.05);
+}
+
+.pill-cta:active {
+  transform: scale(0.97);
+}
+
+/* ── The hero ───────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  z-index: 1;
+  height: 88vh;
+  min-height: 580px;
+  max-height: 900px;
+  overflow: hidden;
+}
+
+.land {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Darkens the corners so the wordmark has something to sit on whatever the
+   landscape does behind it. Without it the white type loses its edges against
+   the sun. */
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(90% 75% at 50% 42%, transparent 45%, var(--vignette) 100%);
+}
+
+.star {
+  fill: #fff;
+  /* `--stars` is 0 by day and 1 by night, so the sky is always in the markup
+     and simply invisible — a star that is added on a theme change pops. */
+  opacity: calc(var(--stars) * 0.8);
+  animation: twinkle var(--t, 3s) ease-in-out infinite alternate;
+}
+
+@keyframes twinkle {
+  from {
+    opacity: calc(var(--stars) * 0.25);
+  }
+  to {
+    opacity: calc(var(--stars) * 0.95);
+  }
+}
+
+.shimmer {
+  stroke: #fff;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  opacity: 0.35;
+  animation: shim var(--t, 4s) ease-in-out infinite alternate;
+}
+
+@keyframes shim {
+  from {
+    opacity: 0.1;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 0.5;
+    transform: translateX(6px);
+  }
+}
+
+/* The line that draws itself downward, twice a cycle, from each end. */
+@keyframes scroll-hint {
+  0% {
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  50% {
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+  51% {
+    transform-origin: bottom;
+  }
+  100% {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+}
+
+.scrollhint i {
+  display: block;
+  width: 1px;
+  height: 28px;
+  background: var(--hero-ink-soft);
+  animation: scroll-hint 1.8s ease-in-out infinite;
+}
+
+/* Nothing in the mesh or the hero may move for somebody who asked for that. */
+@media (prefers-reduced-motion: reduce) {
+  .blob,
+  .shimmer,
+  .star,
+  .scrollhint i {
+    animation: none !important;
+  }
 }
 
 /* ── Glass ──────────────────────────────────────────────── */
 
-/* One panel treatment, used sparingly. Two gradients: the fill, and a light
-   that catches the top edge the way it would on a real bevel. */
+/*
+ * One panel treatment, used everywhere a card is a card.
+ *
+ * No border property and no drop shadow at rest — both are `inset` box-shadows
+ * instead, and that is not a style choice. A 1px border on a translucent panel
+ * over a blurred background renders as a hard line that does not pick up the
+ * colour behind it, so twenty cards on one page read as twenty outlines. An
+ * inset ring is part of the same surface and tints with it.
+ *
+ * The fill is a token rather than a literal so the dark theme is a variable
+ * swap rather than a second copy of this rule.
+ */
 .glass {
   position: relative;
-  background:
-    linear-gradient(
-      168deg,
-      rgba(255, 255, 255, 0.07) 0%,
-      rgba(255, 255, 255, 0.028) 42%,
-      rgba(255, 255, 255, 0.014) 100%
-    ),
-    rgba(18, 18, 22, 0.58);
+  background: var(--card, rgba(255, 255, 255, 0.58));
   backdrop-filter: blur(20px) saturate(1.3);
   -webkit-backdrop-filter: blur(20px) saturate(1.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 0;
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
-    0 28px 70px -30px rgba(0, 0, 0, 0.9);
+    inset 0 1px 0 var(--hi, rgba(255, 255, 255, 0.95)),
+    inset 0 0 0 1px var(--edge, rgba(255, 255, 255, 0.6));
+  transition:
+    background 200ms var(--ease-out-fast),
+    box-shadow 200ms var(--ease-out-fast);
 }
 
-/* The lit edge. A hairline that brightens toward the centre-top, so panels
-   read as physical rather than as a translucent rectangle. */
-.glass::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(
-    150deg,
-    rgba(255, 255, 255, 0.28),
-    rgba(255, 255, 255, 0.04) 38%,
-    transparent 62%
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
-}
+/*
+ * The lit edge is gone, and the reason is worth keeping.
+ *
+ * It was a masked gradient pseudo-element drawing a hairline that brightened
+ * toward the top-left, over a panel that also had a 1px border — a bevel on
+ * top of an outline. On the near-black palette that read as one lit edge; on a
+ * translucent white panel it reads as two, and the second one is a grey seam
+ * about a pixel inside the first. The inset highlight in `.glass` above does
+ * the whole job with one shadow and no extra element.
+ */
 
 /* Quieter variant for panels that sit inside another panel. */
+/* Quieter, for a panel inside a panel: no blur of its own, because blurring
+   something that is already behind a blur costs a compositor pass and changes
+   nothing anybody can see. */
 .glass-soft {
-  background: rgba(255, 255, 255, 0.035);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.075);
+  position: relative;
+  background: var(--card, rgba(255, 255, 255, 0.4));
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--edge, rgba(255, 255, 255, 0.45));
 }
 
 /* Where blur is unsupported — or switched off for performance — the panels
@@ -773,19 +1208,30 @@
    for everything the product does — labels, numbers, controls, product copy.
    A landing page in one geometric sans is the house style of every SaaS
    template, and the serif is what stops this one reading like the rest. */
+/*
+ * ── THE GRADIENT FILL IS GONE, AND IT HAD TO GO ─────────────────────────
+ *
+ * This filled the letterforms with `linear-gradient(176deg, #ffffff 8%,
+ * var(--color-fg) 52%, #9a9aa6 100%)` through `background-clip: text` — a
+ * lit-from-above effect that worked on a near-black page and is *broken* on a
+ * light one. The first stop is literally white, so on the new palette the top
+ * half of every headline faded into the sheet. It was visible in the first
+ * screenshot of the rebuilt page: "What you are actually comparing." arriving
+ * with its first line half missing.
+ *
+ * The obvious repair is to make the stops tokens and keep the effect. It is
+ * not worth having. A gradient across a headline is the thing this project
+ * already argued against on the app side — `docs/calm.md`'s whole complaint is
+ * effects standing in for hierarchy — and it costs a real property: text with
+ * `color: transparent` cannot be selected visibly, and in forced-colours mode
+ * it disappears entirely.
+ *
+ * Solid ink, in the display face. The size and the family are the hierarchy.
+ */
 .headline {
-  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Charter,
-    "Bitstream Charter", Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  background: linear-gradient(
-    176deg,
-    #ffffff 8%,
-    var(--color-fg) 52%,
-    #9a9aa6 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-weight: 300;
+  color: var(--color-fg);
   letter-spacing: -0.022em;
   line-height: 1.06;
 }
@@ -829,11 +1275,12 @@
   will-change: transform;
 }
 .lift:hover {
-  transform: translateY(-3px);
-  border-color: var(--color-line-strong);
+  transform: translateY(-2px);
+  background: var(--card-hover, rgba(255, 255, 255, 0.9));
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.11),
-    0 34px 80px -30px rgba(0, 0, 0, 0.95);
+    inset 0 1px 0 var(--hi, rgba(255, 255, 255, 0.95)),
+    inset 0 0 0 1px var(--edge, rgba(255, 255, 255, 0.6)),
+    0 16px 30px -20px rgba(20, 10, 40, 0.4);
 }
 
 /* A light sweeping across the primary call to action on hover. One pass,

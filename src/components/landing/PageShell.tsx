@@ -57,7 +57,20 @@ export function PageShell({
   return (
     <>
       <Nav />
-      <main lang={lang}>
+      {/*
+        * The sheet, the same one the landing page's content sits on.
+        *
+        * Without it these pages put their prose straight onto the mesh, and a
+        * paragraph over ten drifting colour fields is a paragraph nobody
+        * finishes — the ground moves under the words and the contrast changes
+        * every two centimetres. The frosted panel is what makes the mesh
+        * usable as a background rather than only as a picture.
+        *
+        * The material itself comes from `.storefront main` in globals.css, so
+        * this only has to clear the fixed nav: 56px of pill plus 14px of top
+        * offset plus air.
+        */}
+      <main lang={lang} className="pt-24">
         <Section className="pt-16 pb-10 sm:pt-24 sm:pb-14">
           {eyebrow && (
             <p className="mb-4 text-[12.5px] text-fg-subtle">{eyebrow}</p>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/landing/Nav";
-import { HeroBanner } from "@/components/landing/HeroBanner";
+import { GlassHero } from "@/components/landing/GlassHero";
+import { Landscape } from "@/components/landing/Landscape";
 import { Hero } from "@/components/landing/Hero";
 import { Product } from "@/components/landing/Product";
 import { Switch } from "@/components/landing/Switch";
@@ -29,8 +30,29 @@ export default function LandingPage() {
   return (
     <>
       <Nav />
-      <main>
-        <HeroBanner />
+      {/*
+        * The landscape, full bleed, with nothing over it but the wordmark.
+        *
+        * It replaces `HeroBanner`, which was a photograph with the headline
+        * and the first paragraph on top of it. That had to carry the arrival
+        * and the argument at the same time, and a photograph with four
+        * hundred words on it does neither well. Here the picture does one job
+        * — this is a place, and it is calm — and the sheet below does the
+        * other.
+        */}
+      <GlassHero>
+        <Landscape />
+      </GlassHero>
+
+      {/*
+        * Everything else, on one frosted panel.
+        *
+        * `.sheet` has a negative top margin, so this starts 64 pixels above
+        * where the hero ends and the landscape runs under its rounded corners.
+        * That overlap is the whole effect: two objects, one sliding over the
+        * other, rather than two sections stacked.
+        */}
+      <main className="sheet">
         <Hero />
         <Product />
         {/* The argument comes straight after "what it is", because it is
@@ -41,8 +63,8 @@ export default function LandingPage() {
         <ForestBand />
         <Impact />
         <Pricing />
+        <Footer />
       </main>
-      <Footer />
     </>
   );
 }

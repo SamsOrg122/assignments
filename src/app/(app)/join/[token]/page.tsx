@@ -56,6 +56,21 @@ export const metadata: Metadata = {
   referrer: "no-referrer",
 };
 
+/**
+ * One envelope for every invite, for the packed-in build.
+ *
+ * An invite token cannot be known at build time — that is the entire point of
+ * it — so the static export writes `join/_.html` and
+ * `browser/lib/app-schema.js` answers every `/join/<token>` with that file.
+ * The token stays in the address, where this page already reads it from.
+ *
+ * Nothing about the token's secrecy changes: a prerendered shell contains no
+ * token, and accepting is still an explicit press checked by the database.
+ */
+export function generateStaticParams() {
+  return [{ token: "_" }];
+}
+
 export default async function JoinPage({
   params,
 }: {

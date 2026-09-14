@@ -55,4 +55,31 @@ if (nsis !== "Tougather-Setup-${version}.${ext}")
       "Change both, or neither.",
   );
 
+/*
+ * And the three names nobody wrote down.
+ *
+ * macOS and Linux take electron-builder's default templates, and the default
+ * is the only form that drops `x64` from the filename: `expandArtifactNamePattern`
+ * skips the architecture exactly when the pattern was *not* user-specified.
+ * So the moment somebody adds an `artifactName` to `mac` or `linux` — even one
+ * that looks identical to the default — `Tougather-0.1.0.dmg` silently becomes
+ * `Tougather-0.1.0-x64.dmg` and three links die.
+ *
+ * This is the single least guessable thing about this build, which is why it
+ * is asserted here rather than trusted.
+ */
+for (const target of ["mac", "dmg", "linux", "appImage", "deb"]) {
+  const named = pkg.build?.[target]?.artifactName;
+  if (named)
+    fail(
+      `browser/package.json sets an explicit artifactName on "${target}".\n\n` +
+        "That flips electron-builder out of its default naming, and its default is\n" +
+        "the only mode that leaves x64 out of the filename. The site links to\n" +
+        "Tougather-<version>.dmg and Tougather-<version>.AppImage; with a template\n" +
+        "of your own they become -x64 and -x86_64 and every link 404s.\n\n" +
+        "If the rename is wanted, change src/lib/browser.ts to match and update\n" +
+        "this check.",
+    );
+}
+
 console.log(`browser ${pkg.version}, and the site offers the same one.`);

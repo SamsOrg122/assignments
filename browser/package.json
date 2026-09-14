@@ -2,10 +2,16 @@
   "name": "tougather",
   "version": "0.1.0",
   "description": "Een browser met assistenten die naast je werken, elk in hun eigen tabblad.",
+  "homepage": "https://tougather.com",
+  "author": "Tougather <support@tougather.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SamsOrg122/assignments.git"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "bouw-app": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bouw-app.ps1",
+    "bouw-app": "node scripts/bouw-app.mjs",
     "dist:win": "node scripts/controleer-app.js && electron-builder --win",
     "dist:mac": "node scripts/controleer-app.js && electron-builder --mac",
     "dist:linux": "node scripts/controleer-app.js && electron-builder --linux"
@@ -58,7 +64,8 @@
         "deb"
       ],
       "category": "Network",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "maintainer": "Tougather <support@tougather.com>"
     }
   }
 }

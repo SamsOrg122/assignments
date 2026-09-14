@@ -1,0 +1,237 @@
+# Building the browser for the three desktops, and cutting the release the
+# website's Download buttons point at.
+#
+# Those buttons link straight to files inside a release — `Tougather-0.1.0.dmg`
+# and four siblings — because a "Download" that lands you on a list of seven
+# files named `amd64` and `aarch64` is not a download. The cost of that choice
+# is that the release has to exist and the names have to be exactly right, and
+# when either is wrong the symptom is a 404 with a green build everywhere else.
+# So this file ends with a check that refuses to publish a release that would
+# not satisfy the site.
+#
+# A dmg can only be made on a Mac and an NSIS installer on Windows, which is
+# why this is a matrix across three runner images rather than a script.
+#
+# Code signing is not wired up here yet. See `BROWSER_CAVEATS` in
+# src/lib/browser.ts: the site says out loud that these builds are unsigned,
+# which is the honest version of the same fact.
+
+name: Browser
+
+on:
+  push:
+    branches: ["**"]
+    paths: &paths
+      - "browser/**"
+      # The five filenames live here, and the check at the end reads them out
+      # of it. A change to this file changes what a correct release is.
+      - "src/lib/browser.ts"
+      - "scripts/browser-assets-present.mjs"
+      - ".github/workflows/browser.yml"
+  pull_request:
+    paths: *paths
+  # How a release is cut.
+  #
+  # Not on a tag push. Some environments cannot push a tag — a proxy that only
+  # allows the working branch, for instance — and "there is no way to cut a
+  # release from here" is a bad place to end up. `desktop.yml` learned this
+  # first; this is the same arrangement. Tick the box, and the release is
+  # named from the browser's own version.
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Attach the installers to a release (published, not draft)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: browser-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: The browser's own checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: browser/package-lock.json
+
+      # The site's five download URLs against browser/package.json: the
+      # version, the NSIS template, and the three default names that stop
+      # being default the moment somebody writes an artifactName of their own.
+      - name: The version and the names agree with the site
+        run: node scripts/browser-version-agrees.mjs
+
+      - name: Install
+        working-directory: browser
+        run: npm ci
+
+      # There is no test suite and no bundler in here by design — the renderer
+      # is plain HTML, CSS and JS. What can still be checked for nothing is
+      # that every file parses, which catches the one mistake a framework-less
+      # project makes: a syntax error that only shows up when the window opens.
+      - name: Everything parses
+        working-directory: browser
+        run: |
+          files=$(find . -name node_modules -prune -o -name dist -prune -o \
+            -name app -prune -o -name '*.js' -print -o -name '*.mjs' -print)
+          echo "$files" | xargs -n1 node --check
+          echo "$files" | wc -l | xargs echo "files checked:"
+
+      - name: Filenames that only work on Linux
+        run: node scripts/no-case-collisions.mjs
+
+  bundle:
+    name: ${{ matrix.name }}
+    needs: check
+    # Packing three operating systems takes minutes each, so only where it
+    # earns its place: the default branch, the branch this is developed on,
+    # or when somebody asks for a build.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/claude/assignments-web-app-udolko'
+    strategy:
+      # One platform failing must not hide whether the other two are fine.
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Apple silicon)
+            os: macos-14
+            script: dist:mac
+            arch: "--arm64"
+          - name: macOS (Intel)
+            os: macos-14
+            script: dist:mac
+            arch: "--x64"
+          - name: Windows
+            os: windows-latest
+            script: dist:win
+            arch: "--x64"
+          - name: Linux
+            os: ubuntu-latest
+            script: dist:linux
+            arch: "--x64"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          # Two lockfiles, because two things are installed here: the website
+          # (whose app is built into the browser) and the browser itself.
+          cache-dependency-path: |
+            package-lock.json
+            browser/package-lock.json
+
+      # The app that ships inside the browser is built out of this repository,
+      # so the website's dependencies are a build dependency of the browser.
+      - name: Install the app
+        run: npm ci
+
+      - name: Install the browser
+        working-directory: browser
+        run: npm ci
+
+      # Moves the server routes and the marketing site out of the way, builds
+      # the rest as a static export, and puts it in browser/app/. See
+      # browser/scripts/bouw-app.mjs for what is deliberately left out — the
+      # short version is every file that holds a key.
+      - name: Build the app into the browser
+        working-directory: browser
+        run: npm run bouw-app
+
+      # The npm scripts, not electron-builder directly: each one runs
+      # `controleer-app.js` first, which refuses to pack a browser with a 404
+      # where Tougather should be.
+      - name: Pack
+        working-directory: browser
+        run: npm run ${{ matrix.script }} -- ${{ matrix.arch }}
+
+      # Only what somebody installs. electron-builder also writes
+      # `builder-debug.yml` and, for deb, a `latest-linux.yml` for an updater
+      # that does not exist yet; neither belongs on a release page.
+      - name: Collect
+        uses: actions/upload-artifact@v4
+        with:
+          name: tougather-browser-${{ matrix.os }}${{ matrix.arch }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            browser/dist/*.dmg
+            browser/dist/*.exe
+            browser/dist/*.AppImage
+            browser/dist/*.deb
+
+  # Only when somebody asks. A release that happens because code was merged is
+  # a release nobody decided to make.
+  release:
+    name: Release
+    needs: bundle
+    if: inputs.publish_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # This job builds nothing, so without a checkout there is no
+      # package.json to read the version from and no check to run.
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Version
+        id: version
+        run: |
+          version="$(node -p "require('./browser/package.json').version")"
+          echo "tag=browser-v$version" >> "$GITHUB_OUTPUT"
+          echo "name=$version" >> "$GITHUB_OUTPUT"
+
+      # The gate. Every filename the site links to has to be in the pile that
+      # is about to be uploaded, or nothing is uploaded at all — because the
+      # failure this prevents is invisible from every other angle: green build,
+      # green deploy, rendered page, working button, 404.
+      - name: Every download link has a file behind it
+        run: node scripts/browser-assets-present.mjs artifacts
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Tougather Browser ${{ steps.version.outputs.name }}
+          files: artifacts/**/*
+          body: |
+            A browser with an assistant that works in its own tab, on your own
+            subscription. Tabs in a sidebar, workspaces with genuinely separate
+            sessions, and Tougather itself built in at ⌘⇧O.
+
+            **These builds are not signed.** Windows shows a blue "Windows
+            protected your PC" screen the first time — *More info → Run
+            anyway* gets past it. macOS asks you to confirm in System Settings
+            → Privacy & Security. There is no automatic updating yet, so a new
+            version means downloading it again.
+
+            | You have | Download |
+            | --- | --- |
+            | A Mac with Apple silicon | `Tougather-${{ steps.version.outputs.name }}-arm64.dmg` |
+            | An Intel Mac | `Tougather-${{ steps.version.outputs.name }}.dmg` |
+            | Windows | `Tougather-Setup-${{ steps.version.outputs.name }}.exe` |
+            | Linux | the `.AppImage`, or the `.deb` |
+
+            The assistant needs an agent signed in on your machine — today that
+            is Claude Code. Settings inside the browser prints the one command
+            that installs it. Nothing of ours is metered, and no key of ours
+            ships in this download.

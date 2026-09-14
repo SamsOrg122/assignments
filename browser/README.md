@@ -25,7 +25,7 @@ npm run dist:win
 ```
 
 `bouw-app` bouwt de Tougather-app naar `app/`, zonder de serverkant en zonder de
-website; `scripts/bouw-app.ps1` zegt wat er bewust buiten blijft. `dist:win`
+website; `scripts/bouw-app.mjs` zegt wat er bewust buiten blijft. `dist:win`
 levert daarna `dist/Tougather-Setup-0.1.0.exe` op: een installer die met één klik
 in het eigen profiel installeert, zonder beheerdersrechten.
 

@@ -55,6 +55,7 @@ import { Minimap } from "@/components/board/Minimap";
 import { ArrangeMenu } from "@/components/board/ArrangeMenu";
 import { TemplateGallery } from "@/components/board/TemplateGallery";
 import { Cursors } from "@/components/presence/Cursors";
+import { Toolbar, ToolGroup, ToolButton, ToolText } from "./Toolbar";
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 3;
@@ -1143,51 +1144,51 @@ export function BoardEditor({
         project={project}
         peers={peers}
         tools={
-          <span className="hidden shrink-0 items-center gap-1 sm:flex">
-            {(
-              [
-                ["text", "text", "Text"],
-                ["sticky", "sticky", "Sticky note"],
-                ["frame", "frame", "Frame"],
-                ["image", "image", "Image"],
-              ] as const
-            ).map(([kind, icon, label]) => (
-              <button
-                key={kind}
-                type="button"
-                onClick={() => addAtCentre(kind)}
-                title={label}
-                aria-label={label}
-                className="rounded-sm border border-line p-1.5 text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
-              >
-                <Icon name={icon} size={13} />
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setConnect((c) => (c ? null : { from: null }))}
-              title="Connect items (C)"
-              aria-label="Connect items"
-              aria-pressed={!!connect}
-              className={cnBtn(!!connect)}
-            >
-              <Icon name="link" size={13} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setTemplating(true)}
-              className="flex items-center gap-1 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
-            >
-              <Icon name="board" size={12} />
-              Template
-            </button>
-            <DropInMenu
-              projects={useProjects
-                .getState()
-                .projects.filter((p) => p.id !== project.id)}
-              onPick={(id) => addAtCentre("card", { projectId: id })}
-            />
-          </span>
+          <Toolbar className="hidden sm:flex">
+            {/* What you can put on the canvas. Four buttons that do a thing,
+                so none of them takes `active` — they are not toggles and must
+                not claim a state. */}
+            <ToolGroup>
+              {(
+                [
+                  ["text", "text", "Text"],
+                  ["sticky", "sticky", "Sticky note"],
+                  ["frame", "frame", "Frame"],
+                  ["image", "image", "Image"],
+                ] as const
+              ).map(([kind, icon, label]) => (
+                <ToolButton
+                  key={kind}
+                  icon={icon}
+                  label={label}
+                  onClick={() => addAtCentre(kind)}
+                />
+              ))}
+            </ToolGroup>
+
+            {/* The one mode on this bar: it changes what a click does next. */}
+            <ToolGroup>
+              <ToolButton
+                icon="link"
+                label="Connect items (C)"
+                active={!!connect}
+                onClick={() => setConnect((c) => (c ? null : { from: null }))}
+              />
+            </ToolGroup>
+
+            {/* Bringing in something that already exists. */}
+            <ToolGroup>
+              <ToolText icon="board" onClick={() => setTemplating(true)}>
+                Template
+              </ToolText>
+              <DropInMenu
+                projects={useProjects
+                  .getState()
+                  .projects.filter((p) => p.id !== project.id)}
+                onPick={(id) => addAtCentre("card", { projectId: id })}
+              />
+            </ToolGroup>
+          </Toolbar>
         }
       />
 
@@ -1570,16 +1571,14 @@ function DropInMenu({
   const [open, setOpen] = useState(false);
   return (
     <span className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
+      <ToolText
+        icon="board"
         title="Drop in a project"
-        aria-label="Drop in a project"
-        className="flex items-center gap-1 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
+        active={open}
+        onClick={() => setOpen((v) => !v)}
       >
-        <Icon name="board" size={12} />
         Drop in
-      </button>
+      </ToolText>
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
@@ -1619,7 +1618,3 @@ const toRect = (i: { x: number; y: number; width: number; height: number }): Rec
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-const cnBtn = (on: boolean) =>
-  on
-    ? "rounded-sm border border-accent bg-accent-soft p-1.5 text-accent"
-    : "rounded-sm border border-line p-1.5 text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg";

@@ -43,6 +43,7 @@ import { canOpen, useChat } from "@/lib/chat";
 import { EXPORT_LABELS, exportProject, type ExportFormat } from "@/lib/export";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { ToolText } from "@/components/editors/Toolbar";
 import { formatNumber } from "@/lib/format";
 import { EmailDraft } from "./EmailDraft";
 
@@ -326,20 +327,13 @@ export function ShareMenu({ project }: { project: Project }) {
 
   return (
     <span className="relative">
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={open}
-        className={cn(
-          "flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[11.5px] transition-colors duration-150",
-          open
-            ? "border-line-strong bg-surface-2 text-fg"
-            : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
-        )}
-      >
-        <Icon name="link" size={11} />
+      {/* The trigger has no box of its own, because it sits on the editor's
+          toolbar track with the other controls and a bordered pill inside a
+          track is a box inside a box. `aria-expanded` is what it was always
+          saying; the fill only reinforces. */}
+      <ToolText icon="link" active={open} onClick={toggle}>
         Share
-      </button>
+      </ToolText>
 
       {open && (
         <div

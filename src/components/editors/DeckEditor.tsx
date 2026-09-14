@@ -27,6 +27,7 @@ import { importPptxFile } from "@/lib/pptx";
 import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
 import { cn } from "@/lib/cn";
+import { Toolbar, ToolGroup, ToolButton } from "./Toolbar";
 import { lookStyle } from "@/lib/looks";
 import { Icon } from "@/components/ui/Icon";
 import { MasterPanel } from "@/components/slides/MasterPanel";
@@ -198,92 +199,91 @@ function DeckStage({
           project={project}
           peers={peers}
           tools={
-            // Icons-only below sm: five labelled buttons don't fit a phone,
-            // and a scroll container here would clip the panels that anchor
-            // to these buttons.
-            <span className="flex shrink-0 items-center gap-1">
-              <DeckTools
-                deck={deck}
-                onInsertSlide={(piece) =>
-                  insertSlidePiece(project.id, block.id, piece, deck.index)
-                }
-              />
+            /*
+             * Three groups, and only the first keeps its words.
+             *
+             * Eight labelled buttons on one track ate the whole bar: at
+             * 1440px the project's own name had been squeezed to nothing, so
+             * a deck showed its tools and not its title. Adding to the deck
+             * is what somebody does here all day and stays in words; the file
+             * pair and the two ways of showing it are icons with their names
+             * in `title` and `aria-label`, which is what the sm: breakpoint
+             * was already doing for a phone and is just as true of a laptop.
+             */
+            <Toolbar className="min-w-0 shrink">
+              <ToolGroup>
+                <DeckTools
+                  deck={deck}
+                  onInsertSlide={(piece) =>
+                    insertSlidePiece(project.id, block.id, piece, deck.index)
+                  }
+                />
+                <MasterPanel
+                  projectId={project.id}
+                  block={block}
+                  index={clamped}
+                />
+              </ToolGroup>
 
-              <MasterPanel
-                projectId={project.id}
-                block={block}
-                index={clamped}
-              />
+              {/* In and out of PowerPoint. */}
+              <ToolGroup>
+                <ToolButton
+                  icon="download"
+                  label={importing ? "Reading the PowerPoint file…" : "Import .pptx"}
+                  onClick={() => importRef.current?.click()}
+                />
+                <input
+                  ref={importRef}
+                  type="file"
+                  accept=".pptx"
+                  className="sr-only"
+                  aria-label="Import a PowerPoint file"
+                  onChange={(e) => void importDeck(e.target.files?.[0])}
+                />
+                <ToolButton
+                  icon="slides"
+                  label="Export .pptx"
+                  onClick={() => {
+                    const name = `${project.name || "Deck"}.pptx`;
+                    const bytes = buildPptx(block, project.name || "Deck");
+                    const url = URL.createObjectURL(
+                      new Blob([bytes as BlobPart], {
+                        type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                      }),
+                    );
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = name;
+                    a.style.display = "none";
+                    document.body.appendChild(a);
+                    a.click();
+                    requestAnimationFrame(() => {
+                      a.remove();
+                      URL.revokeObjectURL(url);
+                    });
+                    notify(`Saved ${name}`);
+                  }}
+                />
+              </ToolGroup>
 
-              <button
-                type="button"
-                onClick={() => importRef.current?.click()}
-                className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
-              >
-                <Icon name="download" size={11} />
-                <span className="hidden sm:inline">
-                  {importing ? "Reading…" : "Import .pptx"}
-                </span>
-              </button>
-              <input
-                ref={importRef}
-                type="file"
-                accept=".pptx"
-                className="sr-only"
-                aria-label="Import a PowerPoint file"
-                onChange={(e) => void importDeck(e.target.files?.[0])}
-              />
-
-              <button
-                type="button"
-                onClick={() => {
-                  const name = `${project.name || "Deck"}.pptx`;
-                  const bytes = buildPptx(block, project.name || "Deck");
-                  const url = URL.createObjectURL(
-                    new Blob([bytes as BlobPart], {
-                      type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                    }),
-                  );
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = name;
-                  a.style.display = "none";
-                  document.body.appendChild(a);
-                  a.click();
-                  requestAnimationFrame(() => {
-                    a.remove();
-                    URL.revokeObjectURL(url);
-                  });
-                  notify(`Saved ${name}`);
-                }}
-                className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
-              >
-                <Icon name="download" size={11} />
-                <span className="hidden sm:inline">Export .pptx</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!presenter.open())
-                    notify("Your browser blocked the second window — allow pop-ups for this site.");
-                  else setPresenting(true);
-                }}
-                className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
-              >
-                <Icon name="users" size={11} />
-                <span className="hidden sm:inline">Presenter view</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPresenting(true)}
-                className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg"
-              >
-                <Icon name="play" size={11} />
-                <span className="hidden sm:inline">Present</span>
-              </button>
-            </span>
+              {/* Showing it to a room. */}
+              <ToolGroup>
+                <ToolButton
+                  icon="users"
+                  label="Presenter view — notes on this screen, slides on the other"
+                  onClick={() => {
+                    if (!presenter.open())
+                      notify("Your browser blocked the second window — allow pop-ups for this site.");
+                    else setPresenting(true);
+                  }}
+                />
+                <ToolButton
+                  icon="play"
+                  label="Present"
+                  onClick={() => setPresenting(true)}
+                />
+              </ToolGroup>
+            </Toolbar>
           }
         />
       )}

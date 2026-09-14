@@ -21,8 +21,7 @@ import type { SlideBuild, SlidesBlock } from "@/lib/types";
 import { useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
 import { buildSteps } from "@/lib/deck/build";
-import { cn } from "@/lib/cn";
-import { Icon } from "@/components/ui/Icon";
+import { ToolText } from "@/components/editors/Toolbar";
 
 const BUILD_LABELS: Record<SlideBuild, string> = {
   none: "All at once",
@@ -61,21 +60,16 @@ export function MasterPanel({
 
   return (
     <span className="relative">
-      <button
-        type="button"
+      {/* No box: this sits on the deck's toolbar track beside Slide, Style
+          and Element, and the track is the box. */}
+      <ToolText
+        icon="frame"
+        title="Deck model and build"
+        active={open}
         onClick={() => setOpen((v) => !v)}
-        aria-pressed={open}
-        aria-label="Deck model and build"
-        className={cn(
-          "flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] transition-colors duration-150",
-          open
-            ? "border-line-strong text-fg"
-            : "text-fg-subtle hover:border-line-strong hover:text-fg",
-        )}
       >
-        <Icon name="frame" size={11} />
         <span className="hidden sm:inline">Model</span>
-      </button>
+      </ToolText>
 
       {open && (
         <>

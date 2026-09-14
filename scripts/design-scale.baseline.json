@@ -10,9 +10,6 @@
     "border": 8,
     "tiny": 2
   },
-  "src/components/chat/ChatClient.tsx": {
-    "border": 1
-  },
   "src/app/(app)/community/page.tsx": {
     "inlineSize": 22,
     "border": 10,
@@ -42,9 +39,6 @@
     "border": 2,
     "uppercase": 1,
     "tiny": 1
-  },
-  "src/components/projects/ProjectClient.tsx": {
-    "inlineSize": 3
   },
   "src/app/(app)/settings/page.tsx": {
     "mono": 3
@@ -270,6 +264,9 @@
     "inlineSize": 1,
     "border": 1
   },
+  "src/components/chat/ChatClient.tsx": {
+    "border": 1
+  },
   "src/components/chat/Composer.tsx": {
     "border": 2
   },
@@ -296,8 +293,8 @@
     "tiny": 3
   },
   "src/components/editors/BoardEditor.tsx": {
-    "inlineSize": 14,
-    "border": 11,
+    "inlineSize": 12,
+    "border": 7,
     "mono": 3,
     "tiny": 2
   },
@@ -305,8 +302,8 @@
     "inlineSize": 2
   },
   "src/components/editors/DeckEditor.tsx": {
-    "inlineSize": 8,
-    "border": 5,
+    "inlineSize": 4,
+    "border": 1,
     "mono": 1,
     "tiny": 1
   },
@@ -351,8 +348,7 @@
     "tiny": 3
   },
   "src/components/editors/ProjectTopBar.tsx": {
-    "inlineSize": 5,
-    "border": 3
+    "inlineSize": 1
   },
   "src/components/editors/SlideObjects.tsx": {
     "inlineSize": 10,
@@ -436,15 +432,13 @@
     "inlineSize": 13,
     "tiny": 1
   },
-  "src/components/presence/Avatars.tsx": {
-    "inlineSize": 2,
-    "mono": 2,
-    "tiny": 2
-  },
   "src/components/presence/Cursors.tsx": {
     "inlineSize": 1,
     "mono": 1,
     "tiny": 1
+  },
+  "src/components/projects/ProjectClient.tsx": {
+    "inlineSize": 3
   },
   "src/components/settings/AdminSections.tsx": {
     "border": 2,
@@ -466,7 +460,7 @@
     "inlineSize": 1
   },
   "src/components/share/ShareMenu.tsx": {
-    "inlineSize": 22,
+    "inlineSize": 21,
     "border": 9,
     "mono": 2,
     "tiny": 1
@@ -495,14 +489,14 @@
     "border": 1
   },
   "src/components/slides/DeckWorkbench.tsx": {
-    "inlineSize": 10,
-    "border": 7,
+    "inlineSize": 7,
+    "border": 6,
     "mono": 2,
     "tiny": 1
   },
   "src/components/slides/MasterPanel.tsx": {
-    "inlineSize": 10,
-    "border": 7
+    "inlineSize": 9,
+    "border": 6
   },
   "src/components/slides/SlideView.tsx": {
     "inlineSize": 2,

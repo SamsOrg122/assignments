@@ -12,12 +12,12 @@ import { useProjects } from "@/lib/store";
 import { useUI } from "@/lib/ui-store";
 import { TopBar } from "@/components/shell/TopBar";
 import { Avatars } from "@/components/presence/Avatars";
-import { Icon } from "@/components/ui/Icon";
 import { Avatar, KindChip } from "@/components/ui/Avatar";
 import { ShareMenu } from "@/components/share/ShareMenu";
 import { LookPanel } from "./LookPanel";
 import { DeadlineChip } from "@/components/assignments/DeadlineChip";
 import { cn } from "@/lib/cn";
+import { Toolbar, ToolGroup, ToolText } from "./Toolbar";
 
 export function ProjectTopBar({
   project,
@@ -75,78 +75,87 @@ export function ProjectTopBar({
 
       {tools}
 
-      {/* Design belongs to every kind of project, so it lives here rather
-          than in each editor's own toolset. */}
-      <span className="relative shrink-0">
-        <button
-          type="button"
-          onClick={() => setDesignOpen((v) => !v)}
-          aria-pressed={designOpen}
-          aria-label="Design"
-          title="Design — backdrop and accent"
-          className={cn(
-            "flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[11.5px] transition-colors duration-150",
-            project.look || designOpen
-              ? "border-accent/50 bg-accent-soft text-fg"
-              : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
-          )}
-        >
-          <Icon name="image" size={11} />
-          Design
-        </button>
-        {designOpen && (
-          <LookPanel
-            projectId={project.id}
-            look={project.look}
-            onClose={() => setDesignOpen(false)}
-          />
-        )}
-      </span>
+      {/*
+        * The other half of the bar, on the same track as the editor's own
+        * tools rather than as five more bordered pills.
+        *
+        * Design belongs to every kind of project, so it is here and not in
+        * each editor's toolset; the three after it are the ways of asking for
+        * help and the way to everything else. The hairlines say which is
+        * which. `Design` keeps its accent treatment when a look is set,
+        * because that is the one button here reporting that something about
+        * this document has been changed.
+        */}
+      <Toolbar className="relative shrink-0">
+        <ToolGroup>
+          <span className="relative">
+            <ToolText
+              icon="image"
+              title="Design — backdrop and accent"
+              active={designOpen}
+              onClick={() => setDesignOpen((v) => !v)}
+              className={cn(
+                project.look && !designOpen && "bg-accent-soft text-fg",
+              )}
+            >
+              Design
+            </ToolText>
+            {designOpen && (
+              <LookPanel
+                projectId={project.id}
+                look={project.look}
+                onClose={() => setDesignOpen(false)}
+              />
+            )}
+          </span>
+        </ToolGroup>
 
-      <span className="hidden shrink-0 items-center gap-1.5 md:flex">
-        <ShareMenu project={project} />
-        <button
-          type="button"
-          onClick={() =>
-            openAI({
-              projectId: project.id,
-              blockId: project.blocks[0]?.id ?? "",
-              // A board has no blocks, so it names itself as the surface —
-              // otherwise it would be offered a document's openers.
-              blockType:
-                project.kind === "board"
-                  ? "board"
-                  : (project.blocks[0]?.type ?? "text"),
-              selectionText: "",
-              anchor: { x: window.innerWidth / 2, y: 120 },
-            })
-          }
-          className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-        >
-          <Icon name="sparkle" size={11} />
-          AI
-          <kbd className="kbd">⌘J</kbd>
-        </button>
-        <button
-          type="button"
-          onClick={() => setVoiceOpen(true)}
-          title="Talk to the assistant (⌘⇧V)"
-          aria-label="Talk to the assistant"
-          className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-        >
-          <Icon name="mic" size={11} />
-          Talk
-          <kbd className="kbd">⌘⇧V</kbd>
-        </button>
-        <button
-          type="button"
-          onClick={() => openPalette()}
-          className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-[11.5px] text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
-        >
-          Actions
-          <kbd className="kbd">⌘K</kbd>
-        </button>
-      </span>
+        <ToolGroup>
+          <span className="hidden md:flex">
+            <ShareMenu project={project} />
+          </span>
+        </ToolGroup>
+
+        <span className="hidden md:contents">
+          <ToolGroup>
+            <ToolText
+              icon="sparkle"
+              onClick={() =>
+                openAI({
+                  projectId: project.id,
+                  blockId: project.blocks[0]?.id ?? "",
+                  // A board has no blocks, so it names itself as the surface
+                  // — otherwise it would be offered a document's openers.
+                  blockType:
+                    project.kind === "board"
+                      ? "board"
+                      : (project.blocks[0]?.type ?? "text"),
+                  selectionText: "",
+                  anchor: { x: window.innerWidth / 2, y: 120 },
+                })
+              }
+            >
+              AI
+              <kbd className="kbd">⌘J</kbd>
+            </ToolText>
+            <ToolText
+              icon="mic"
+              title="Talk to the assistant (⌘⇧V)"
+              onClick={() => setVoiceOpen(true)}
+            >
+              Talk
+              <kbd className="kbd">⌘⇧V</kbd>
+            </ToolText>
+          </ToolGroup>
+
+          <ToolGroup>
+            <ToolText onClick={() => openPalette()}>
+              Actions
+              <kbd className="kbd">⌘K</kbd>
+            </ToolText>
+          </ToolGroup>
+        </span>
+      </Toolbar>
     </TopBar>
   );
 }

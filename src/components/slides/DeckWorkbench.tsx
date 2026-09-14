@@ -38,6 +38,7 @@ import { addPiece, useKit, type KitImage, type KitPiece } from "@/lib/kit";
 import { imageObject, kitImage } from "@/lib/kit/insert";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/components/ui/Icon";
+import { ToolText } from "@/components/editors/Toolbar";
 
 /* ── The operations, once ───────────────────────────────── */
 
@@ -252,40 +253,29 @@ export function DeckTools({
     [assets],
   );
 
-  const button = cn(
-    "flex items-center gap-1.5 rounded-sm border border-line px-2 py-1.5 text-[11.5px] text-fg-subtle transition-colors duration-150 hover:border-line-strong hover:text-fg",
-  );
+  /* The three of these sit on the editor's toolbar track, so none of them
+     carries a box: a bordered pill inside a track is a box inside a box, and
+     the track's own hairlines already say where this group ends. Names hide
+     on a phone, and `compact` hides them in a slides block inside a document
+     where the bar is a strip beside the slide — the label survives in
+     `aria-label` either way. */
+  const name = compact ? "sr-only" : "hidden sm:inline";
 
   return (
     <>
-      <button
-        type="button"
-        onClick={addSlide}
-        aria-label="Add a slide"
-        className={button}
-      >
-        <Icon name="plus" size={11} />
-        <span className={compact ? "sr-only" : "hidden sm:inline"}>Slide</span>
-      </button>
+      <ToolText icon="plus" onClick={addSlide}>
+        <span className={name}>Slide</span>
+      </ToolText>
 
       <span className="relative">
-        <button
-          type="button"
+        <ToolText
+          icon="type"
+          active={styleOpen}
+          title={`Deck style — ${DECK_THEMES[style.theme].label}`}
           onClick={() => setStyleOpen((v) => !v)}
-          aria-pressed={styleOpen}
-          aria-label={`Deck style — ${DECK_THEMES[style.theme].label}`}
-          className={cn(
-            "flex items-center gap-1.5 rounded-sm border px-2 py-1.5 text-[11.5px] transition-colors duration-150",
-            styleOpen
-              ? "border-line-strong bg-surface-2 text-fg"
-              : "border-line text-fg-subtle hover:border-line-strong hover:text-fg",
-          )}
         >
-          <Icon name="type" size={11} />
-          <span className={compact ? "sr-only" : "hidden sm:inline"}>
-            {DECK_THEMES[style.theme].label}
-          </span>
-        </button>
+          <span className={name}>{DECK_THEMES[style.theme].label}</span>
+        </ToolText>
         {styleOpen && (
           <DeckStylePanel
             style={style}
@@ -296,21 +286,14 @@ export function DeckTools({
       </span>
 
       <span className="relative">
-        <button
-          type="button"
+        <ToolText
+          icon="board"
+          title="Element"
+          active={elementOpen}
           onClick={() => setElementOpen((v) => !v)}
-          aria-pressed={elementOpen}
-          aria-label="Element"
-          className={cn(
-            "flex items-center gap-1.5 rounded-sm border px-2 py-1.5 text-[11.5px] transition-colors duration-150",
-            elementOpen
-              ? "border-line-strong bg-surface-2 text-fg"
-              : "border-line text-fg-subtle hover:border-line-strong hover:text-fg",
-          )}
         >
-          <Icon name="board" size={11} />
-          <span className={compact ? "sr-only" : "hidden sm:inline"}>Element</span>
-        </button>
+          <span className={name}>Element</span>
+        </ToolText>
         {elementOpen && current && (
           <div className="anim-pop absolute top-full right-0 z-40 mt-1.5 w-[168px] rounded-md border border-line-strong bg-surface p-1.5 shadow-[0_24px_70px_-12px_rgba(0,0,0,0.75)]">
             {ELEMENTS.map(([kind, label]) => (

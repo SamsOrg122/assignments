@@ -74,7 +74,13 @@ export function ToolButton({
 }: {
   icon: React.ComponentProps<typeof Icon>["name"];
   label: string;
-  active: boolean;
+  /**
+   * A toggle passes this and gets `aria-pressed` with it. A button that just
+   * *does* something — drop a sticky on the board — passes nothing, because
+   * `aria-pressed={false}` on a thing that is not a toggle tells a screen
+   * reader there is a state to watch that will never change.
+   */
+  active?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -92,6 +98,47 @@ export function ToolButton({
       )}
     >
       <Icon name={icon} size={13} />
+    </button>
+  );
+}
+
+/** The same button with its name showing, for the few that cannot be guessed
+ *  from a glyph. Shares the track so the row stays one object. */
+export function ToolText({
+  icon,
+  children,
+  active,
+  onClick,
+  title,
+  className,
+}: {
+  icon?: React.ComponentProps<typeof Icon>["name"];
+  children: React.ReactNode;
+  active?: boolean;
+  onClick: () => void;
+  title?: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-pressed={active}
+      className={cn(
+        // text-meta, not the 11.5px these buttons were all written at. That
+        // half-pixel was off the scale in seven files and said nothing; 11px
+        // is the step the scale actually has, and a control word that is also
+        // an icon with a `title` is exactly what it is sized for.
+        "flex items-center gap-1.5 rounded-sm px-2 py-1.5 text-meta transition-colors duration-150",
+        active
+          ? "bg-surface-3 text-fg"
+          : "text-fg-subtle hover:bg-surface-2 hover:text-fg",
+        className,
+      )}
+    >
+      {icon && <Icon name={icon} size={11} />}
+      {children}
     </button>
   );
 }

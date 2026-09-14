@@ -26,7 +26,6 @@
  * click costs one line and saves the download.
  */
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import {
@@ -34,29 +33,9 @@ import {
   BROWSER_VERSION,
   BUILDS,
   buildById,
-  guessPlatform,
-  type PlatformId,
 } from "@/lib/browser";
+import { usePlatform } from "@/components/storefront/use-platform";
 import { cn } from "@/lib/cn";
-
-/**
- * Which build this visitor wants, resolved after mount.
- *
- * One hook rather than the same effect in two components, because the two must
- * agree: the big button offers one platform and the list underneath it hides
- * that same one, and two copies of this would eventually differ by a render.
- *
- * The deferral is the repository's convention for a first-commit state write —
- * setting state straight from an effect body cascades a render, and React's
- * lint says so. A microtask puts it after the paint instead.
- */
-function usePlatform(): PlatformId {
-  const [platform, setPlatform] = useState<PlatformId>("windows");
-  useEffect(() => {
-    void Promise.resolve().then(() => setPlatform(guessPlatform()));
-  }, []);
-  return platform;
-}
 
 export function DownloadButton({
   className,

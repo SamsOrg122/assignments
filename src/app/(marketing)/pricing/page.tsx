@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { Nav } from "@/components/landing/Nav";
-import { Footer } from "@/components/landing/Footer";
+import { Nav } from "@/components/storefront/Chrome";
+import { Footer } from "@/components/storefront/Footer";
 import { Section } from "@/components/landing/primitives";
 import { PricingTable } from "@/components/pricing/PricingTable";
 import { PaymentStatus } from "@/components/pricing/PaymentStatus";
@@ -21,7 +21,7 @@ export default function PricingPage() {
     <>
       <Nav />
       {/* Clears the fixed nav pill: 56px tall, 14px from the top. */}
-      <main className="pt-24">
+      <main className="paper">
         <Section className="pt-16 pb-8 sm:pt-24 sm:pb-10">
           <p className="mb-4 text-[12.5px] text-fg-subtle">Pricing</p>
           <h1 className="headline max-w-[16ch] text-[clamp(34px,5.6vw,60px)]">

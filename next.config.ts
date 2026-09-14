@@ -1,25 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  images: {
-    /**
-     * Generated storefront visuals are still served from Higgsfield's CDN.
-     * Tolerable for now because every slot renders its crafted fallback
-     * *underneath* the image, so an expired or unreachable asset degrades to
-     * the hand-built graphic rather than to a broken image.
-     *
-     * FOUNDER: for production, download the three assets into
-     * `public/visuals/` and point the slots at local paths — then this block
-     * can go. A landing page shouldn't depend on someone else's CDN.
-     */
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "d8j0ntlcm91z4.cloudfront.net",
-        pathname: "/**",
-      },
-    ],
-  },
+  /*
+   * No remote images.
+   *
+   * Three generated visuals used to be served from a CDN, with a hand-built
+   * graphic rendered underneath each as a fallback. The fallbacks were the
+   * better pictures — on palette, weightless, and they cannot expire — so
+   * they are now simply the pictures, and the site depends on nobody else's
+   * origin. The comment that used to live here asked for exactly this.
+   */
 };
 
 /**

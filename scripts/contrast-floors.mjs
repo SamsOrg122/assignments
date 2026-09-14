@@ -191,6 +191,39 @@ for (const floor of FLOORS) {
 
 // ── The ramp, printed and never failed ───────────────────────────────────
 
+/*
+ * And the storefront, which is a third surface this file did not know about.
+ *
+ * The marketing pages are their own palette — paper, ink and one coral, in a
+ * `.storefront` block that redefines every token the app defines. Its first
+ * version shipped its supporting grey at 6.35:1 and its meta grey at 4.03:1,
+ * both under the floors above, and nothing here noticed: this script only
+ * ever read `@theme` and the light override.
+ *
+ * A floor that applies to one of two surfaces is not a floor. So the
+ * storefront is held to the same numbers, measured once because it is
+ * committed to one appearance.
+ */
+const STOREFRONT = declarations(".storefront");
+
+const STOREFRONT_FLOORS = [
+  { ink: "--ink", min: 12, why: "the storefront's body text" },
+  { ink: "--graphite", min: 6.5, why: "supporting prose — ledes, card copy, footer links" },
+  { ink: "--mist", min: 5.2, why: "machine facts — sizes, versions, captions" },
+];
+
+const storefrontLines = [];
+for (const floor of STOREFRONT_FLOORS) {
+  const found = measure(STOREFRONT, floor.ink, "--paper");
+  const under = found < floor.min;
+  const name = `${floor.ink.replace("--", "")} on paper`;
+  if (under) failures.push({ name, theme: "storefront", found, min: floor.min, why: floor.why });
+  storefrontLines.push(`  ${under ? "·" : " "} ${name.padEnd(28)}${show(found)}   floor ${show(floor.min)}`);
+}
+
+console.log("\nThe storefront, measured on its own paper.\n");
+console.log(storefrontLines.join("\n"));
+
 const RAMP = ["--color-surface", "--color-surface-2", "--color-surface-3"];
 const ramp = RAMP.map((token) => ({
   token,

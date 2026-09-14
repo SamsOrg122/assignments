@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Nav } from "@/components/landing/Nav";
-import { Footer } from "@/components/landing/Footer";
+import { Nav } from "@/components/storefront/Chrome";
+import { Footer } from "@/components/storefront/Footer";
 import { Section } from "@/components/landing/primitives";
 
 export const metadata: Metadata = {
@@ -34,7 +34,7 @@ export default function CheckoutDonePage() {
     <>
       <Nav />
       {/* Clears the fixed nav pill: 56px tall, 14px from the top. */}
-      <main className="pt-24">
+      <main className="paper">
         <Section className="pt-14 pb-24 sm:pt-24">
           <div className="max-w-[560px]">
             <p className="text-meta mb-3 text-fg-subtle">Payment received</p>

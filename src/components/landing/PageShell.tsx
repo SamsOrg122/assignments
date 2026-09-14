@@ -8,8 +8,10 @@
  */
 
 import Link from "next/link";
-import { Nav } from "./Nav";
-import { Footer } from "./Footer";
+// The storefront's own nav and footer: one of each for the whole site, so an
+// inner page and the landing page are visibly the same place.
+import { Nav } from "@/components/storefront/Chrome";
+import { Footer } from "@/components/storefront/Footer";
 import { Section } from "./primitives";
 import { Icon } from "@/components/ui/Icon";
 

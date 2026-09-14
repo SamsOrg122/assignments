@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Nav } from "@/components/landing/Nav";
-import { Footer } from "@/components/landing/Footer";
+import { Nav } from "@/components/storefront/Chrome";
+import { Footer } from "@/components/storefront/Footer";
 import { Section } from "@/components/landing/primitives";
 import { Checkout } from "@/components/pricing/Checkout";
 
@@ -15,7 +15,7 @@ export default function CheckoutPage() {
     <>
       <Nav />
       {/* Clears the fixed nav pill: 56px tall, 14px from the top. */}
-      <main className="pt-24">
+      <main className="paper">
         <Section className="pt-14 pb-20 sm:pt-20">
           {/* Search params are read on the client, so the shell can still be
               prerendered — the order summary is the only dynamic part. */}

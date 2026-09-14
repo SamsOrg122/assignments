@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Hertekent</title>
+<main id="wortel">
+  <button class="rij">Openen</button>
+  <button class="rij">Openen</button>
+  <button class="rij" id="derde">Openen</button>
+</main>
+<script>
+  // Wat een lijst met virtueel scrollen doet: alles weg, alles terug, dezelfde
+  // knoppen met dezelfde tekst op dezelfde plek maar andere objecten.
+  globalThis.hertekenNu = () => {
+    const w = document.getElementById('wortel');
+    const html = w.innerHTML;
+    w.innerHTML = '';
+    w.innerHTML = html;
+  };
+</script>

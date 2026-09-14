@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Zwaar</title>
+<main id="m"></main>
+<script>
+  const m = document.getElementById('m');
+  let s = '';
+  for (let i = 0; i < 700; i++) {
+    s += '<section><h2>Blok ' + i + '</h2><button>Knop ' + i + '</button>'
+      + '<a href="/x' + i + '">Link ' + i + '</a>'
+      + '<input placeholder="Veld ' + i + '" value="GEHEIM' + i + '"></section>';
+  }
+  m.innerHTML = s;
+</script>

@@ -6,6 +6,7 @@ const { pathToFileURL } = require('node:url');
 // dezelfde regel hanteren. Zie het bestand voor waarom het daar staat.
 const { naarZoekURL, STANDAARD_ZOEKMACHINE } = require('./renderer/search.js');
 const { beoordeelURL, grendelSessie, grendelNavigatie } = require('./lib/grendel.js');
+const { brugVoor } = require('./lib/gids/brug.js');
 const voorkeuren = require('./lib/voorkeuren.js');
 const { volgDeBrowser } = require('./lib/app-stijl.js');
 const { meldSchemaAan, bedienApp, appURL } = require('./lib/app-schema.js');
@@ -2231,6 +2232,30 @@ ipcMain.handle('tab:activate', (e, id) => controllerFor(e)?.activateTab(id));
 ipcMain.handle('tab:heropen', (e) => controllerFor(e)?.heropenTab());
 ipcMain.handle('app:aanmelden', (e) => controllerFor(e)?.gaAanmelden());
 ipcMain.handle('agent:zoek', (e) => controllerFor(e)?.zoekAgentOpnieuw());
+
+/*
+ * De gids, voorlopig alleen om aan te zetten vanuit de console van de zijbalk.
+ *
+ * Er staat nog geen knop en geen sneltoets op: dit is de onderkant, en die is
+ * af voordat er iets bovenop komt. Wat het al wél kan is de hele reden dat het
+ * bestaat — vraag `browser.gids.snapshot()` en je krijgt te zien wat een
+ * assistent van de pagina zou zien, inclusief wat er níét in staat.
+ *
+ * De vorm is met opzet die van de latere aanroepen: een tabblad-id dat weg mag
+ * blijven voor "het tabblad waar ik nu naar kijk". Zie lib/gids/brug.js.
+ */
+const gidsBrug = (ctrl, tabId) => {
+  if (!ctrl) return null;
+  const view = tabId == null ? ctrl.tabs.get(ctrl.activeId) : ctrl.tabs.get(Number(tabId));
+  return view ? brugVoor(view.webContents) : null;
+};
+
+ipcMain.handle('gids:snapshot', async (e, tabId) =>
+  (await gidsBrug(controllerFor(e), tabId)?.snapshot()) ?? { status: 'geen tabblad' });
+ipcMain.handle('gids:zoek', async (e, ref, tabId) =>
+  (await gidsBrug(controllerFor(e), tabId)?.zoek(ref)) ?? { status: 'geen tabblad' });
+ipcMain.handle('gids:scroll', async (e, ref, tabId) =>
+  (await gidsBrug(controllerFor(e), tabId)?.scrollNaar(ref)) ?? { status: 'geen tabblad' });
 
 // Een veeg komt uit de pagina zelf; zie renderer/tabblad-preload.js. Geen
 // handle maar send: er valt niets terug te melden en de pagina hoeft niet te

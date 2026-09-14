@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Schaduw en frames</title>
+<main>
+  <h1>Schaduw</h1>
+  <button id="gewoon">Gewone knop</button>
+  <div id="gastheer"></div>
+  <iframe id="zelfde" src="/frame.html" width="320" height="140" title="Eigen frame"></iframe>
+  <iframe id="vreemd" src="http://127.0.0.1:1/leeg" width="200" height="100" title="Chat van elders"></iframe>
+</main>
+<script>
+  const w = document.getElementById('gastheer').attachShadow({ mode: 'open' });
+  const k = document.createElement('button');
+  k.id = 'inschaduw';
+  k.textContent = 'In de schaduw';
+  w.appendChild(k);
+</script>

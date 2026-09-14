@@ -78,6 +78,19 @@ contextBridge.exposeInMainWorld('browser', {
   // focus in een pagina ligt; dit is hoe die hier weer binnenkomen.
   onOpen: (fn) => ipcRenderer.on('ui:open', (_e, wat) => fn(wat)),
 
+  // De gids. Nog geen knop en geen sneltoets: dit is er om vanuit de console
+  // te kunnen zien wat een assistent van een pagina zou zien.
+  //
+  //   await browser.gids.snapshot()
+  //   await browser.gids.zoek('e9')
+  //
+  // Zonder tabId gaat het over het tabblad waar je nu naar kijkt.
+  gids: {
+    snapshot: (tabId) => ipcRenderer.invoke('gids:snapshot', tabId),
+    zoek: (ref, tabId) => ipcRenderer.invoke('gids:zoek', ref, tabId),
+    scroll: (ref, tabId) => ipcRenderer.invoke('gids:scroll', ref, tabId),
+  },
+
   onState: (fn) => ipcRenderer.on('tabs:state', (_e, state) => fn(state)),
   onFavicon: (fn) => ipcRenderer.on('tabs:favicon', (_e, data) => fn(data)),
 });

@@ -16,7 +16,7 @@ const { Toestemming } = require('./lib/toestemming.js');
 const { hangMenu } = require('./lib/menu.js');
 const sessies = require('./lib/sessies.js');
 const herstel = require('./lib/herstel.js');
-const { isAanmeldStart, isTerugkomst, foutIn, Aanmelding, useragentVoor } = require('./lib/inloggen.js');
+const { isAanmeldStart, isTerugkomst, isGeweigerd, foutIn, Aanmelding, useragentVoor } = require('./lib/inloggen.js');
 const { beoordeel } = require('./lib/gebaar.js');
 
 const SIDEBAR_WIDTH = 272;
@@ -1203,6 +1203,24 @@ class BrowserWindowController {
     this.zetWerkbank(false);
     const tabId = this.createTab(url);
     this.aanmelding.begin(tabId, url);
+
+    // Als Google ons halverwege de deur wijst, gebeurt dat op zijn eigen
+    // pagina en niet in een terugkomst. Zonder dit zie je een Google-scherm
+    // in een tabblad en moet je zelf raden wat er misging; zie isGeweigerd.
+    const wc = this.tabs.get(tabId)?.webContents;
+    if (wc) {
+      const kijk = (_e, doel) => {
+        if (!isGeweigerd(doel)) return;
+        wc.off('did-navigate', kijk);
+        this.sendIsland({
+          modus: 'actie',
+          regel: 'Google vertrouwt deze browser nog niet — aanmelden met een e-mailadres werkt wel',
+          bezig: false,
+        });
+      };
+      wc.on('did-navigate', kijk);
+      wc.once('destroyed', () => wc.off('did-navigate', kijk));
+    }
     this.sendIsland({
       modus: 'actie',
       regel: 'Aanmelden in een gewoon tabblad, zodat je daarna ook hier ingelogd bent',

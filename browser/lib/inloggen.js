@@ -68,6 +68,35 @@ function isTerugkomst(url) {
 }
 
 /**
+ * Heeft Google ons de deur gewezen?
+ *
+ * Google weigert aanmeldingen van clients die hij niet vertrouwt en stuurt je
+ * dan naar een eigen pagina met "deze browser of app is mogelijk niet veilig".
+ * Dat is géén terugkomst en géén foutmelding in het adres van Supabase — het
+ * gebeurt op Google zelf, halverwege — dus zonder dit zie je alleen een
+ * Google-pagina in een tabblad en moet je zelf maar raden wat er gebeurde.
+ *
+ * Twee redenen waarom dit ons kan overkomen, en ze staan allebei in
+ * docs/ACCOUNTS.md. De eerste is de useragent, en die is inmiddels in orde.
+ * De tweede is dat de Chromium hieronder oud is: het label zegt Chrome 130,
+ * en dat is van oktober 2024. Daar valt met een label niets aan te doen; dat
+ * vraagt een nieuwere Electron.
+ *
+ * De match is met opzet smal. Raden we mis, dan gebeurt er niets extra's —
+ * je ziet de pagina van Google, precies zoals nu.
+ */
+function isGeweigerd(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname !== 'accounts.google.com') return false;
+    const pad = u.pathname.toLowerCase();
+    return pad.includes('/signin/rejected') || pad.endsWith('/deniedsigninrejected');
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Wat er misging, als er iets misging.
  *
  * Supabase hangt een afwijzing aan het adres, soms in de zoekstring en soms
@@ -148,4 +177,4 @@ function useragentVoor(standaard, versie, naam = 'Tougather') {
     : zonder + ' TougatherBrowser/' + versie;
 }
 
-module.exports = { isAanmeldStart, isTerugkomst, foutIn, Aanmelding, useragentVoor, GELDIG_MS };
+module.exports = { isAanmeldStart, isTerugkomst, isGeweigerd, foutIn, Aanmelding, useragentVoor, GELDIG_MS };

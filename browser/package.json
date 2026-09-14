@@ -13,6 +13,7 @@
     "start": "electron .",
     "bouw-app": "node scripts/bouw-app.mjs",
     "test:gids": "electron test/gids.js",
+    "test:inloggen": "electron test/inloggen.js",
     "dist:win": "node scripts/controleer-app.js && electron-builder --win --publish never",
     "dist:mac": "node scripts/controleer-app.js && electron-builder --mac --publish never",
     "dist:linux": "node scripts/controleer-app.js && electron-builder --linux --publish never"

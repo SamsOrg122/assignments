@@ -81,7 +81,13 @@ heet sessiefixatie en hij is niet theoretisch.
 Een terugkomst wordt daarom alleen aangenomen als jij zelf net een aanmelding
 begon, uit precies het tabblad dat wij daarvoor openden, en binnen een kwartier.
 Alles daarbuiten gaat niet door en verschijnt als melding in de balk bovenin.
-`shots/drive-inloggen.mjs` doet die aanval na en kijkt of de deur dicht blijft.
+
+`npm run test:inloggen` doet die aanval na. Dat is dertig asserties in een
+echte Electron: welke adressen als aanmelding tellen, dat een terugkomst uit
+een ander tabblad wordt geweigerd, dat een aanmelding van een kwartier oud
+verloopt — en de belofte hierboven, nagespeeld met een neppe aanmeldserver die
+een koekje neerzet, waarna een tweede tabblad in dezelfde workspace ook
+aangemeld blijkt en een privéworkspace van niets weet. Hij draait mee in CI.
 
 ## De useragent
 
@@ -97,10 +103,22 @@ Wat er nu staat is een gewone Chrome-useragent met onze eigen naam erachter:
 
     … Chrome/130.0.6723.191 Safari/537.36 TougatherBrowser/0.1.0
 
-Een browser hoort te zeggen wie hij is; Edge en Opera doen precies hetzelfde. Of
-Google dit accepteert weet ik pas als jij het een keer probeert — ik voer geen
-wachtwoorden in, dus die stap is aan jou. Lukt het niet, dan is aanmelden met
-een e-mailadres de weg die het altijd doet.
+Een browser hoort te zeggen wie hij is; Edge en Opera doen precies hetzelfde.
+
+**Maar er staat nog iets in die regel: Chrome/130.** Dat is de Chromium van
+oktober 2024, en dit wordt gelezen in 2026. Aan dat getal valt met een label
+niets te doen — het ís de motor die eronder zit — en het opschroeven zou erger
+zijn dan het probleem: dan krijgt deze browser pagina's voorgeschoteld met
+dingen erin die zijn engine niet kan, en breekt het stil. De echte oplossing
+is een nieuwere Electron, en dat staat in `CLAUDE.md` niet voor niets als het
+eerste werk.
+
+Of Google hier overheen stapt weet ik pas als jij het een keer probeert; ik
+voer geen wachtwoorden in, dus die stap is aan jou. Wat wél veranderd is: als
+Google ons de deur wijst, zie je dat nu. Zijn afwijzing gebeurt op zijn eigen
+pagina en niet in een terugkomst, dus zonder hulp zag je alleen een
+Google-scherm in een tabblad en mocht je zelf raden. De balk bovenin zegt het
+nu, met de weg die het altijd doet erachteraan: aanmelden met een e-mailadres.
 
 ## Wat hier nog niet staat
 

@@ -99,6 +99,15 @@ jobs:
         working-directory: browser
         run: xvfb-run -a npm run test:gids -- --no-sandbox --disable-gpu
 
+      # Aanmelden met Google, and the promise underneath it: that signing in
+      # in a tab of your workspace leaves you signed in to Google everywhere
+      # in that workspace, and nowhere else. That is a claim about Electron's
+      # session partitions, which is exactly the kind of claim that is true
+      # until somebody changes one word in `createTab`.
+      - name: Signing in, and the door that keeps somebody else out
+        working-directory: browser
+        run: xvfb-run -a npm run test:inloggen -- --no-sandbox --disable-gpu
+
       - name: Filenames that only work on Linux
         run: node scripts/no-case-collisions.mjs
 

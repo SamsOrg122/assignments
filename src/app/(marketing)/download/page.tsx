@@ -43,9 +43,17 @@ export default function DownloadPage() {
               <a
                 key={build.id}
                 href={build.href}
-                className="glass-soft lift flex items-center gap-3 rounded-2xl px-4 py-3.5"
+                className="glass-soft lift flex items-start gap-3 rounded-2xl px-4 py-3.5"
               >
-                <Icon name="download" size={15} className="text-fg-subtle" />
+                {/* Aligned to the first line, not to the middle of the block:
+                    "installs without admin rights" wraps to three lines in a
+                    three-column grid, and a centred icon then floats opposite
+                    the gap between two of them. */}
+                <Icon
+                  name="download"
+                  size={15}
+                  className="mt-[3px] shrink-0 text-fg-subtle"
+                />
                 <span className="flex-1">
                   <span className="block text-[14px] text-fg">
                     {build.label}

@@ -90,6 +90,15 @@ jobs:
           echo "$files" | xargs -n1 node --check
           echo "$files" | wc -l | xargs echo "files checked:"
 
+      # The guide against real pages in a real Chromium. This is where the
+      # promises live that nothing else can check: that a snapshot never
+      # carries the value of a field, that a page cannot see the guide, and
+      # that a wait left open by a navigation is closed rather than leaked.
+      # A comment saying so is not a guarantee; this is.
+      - name: The guide, against real pages
+        working-directory: browser
+        run: xvfb-run -a npm run test:gids -- --no-sandbox --disable-gpu
+
       - name: Filenames that only work on Linux
         run: node scripts/no-case-collisions.mjs
 

@@ -23,8 +23,11 @@
  * is why no row here is drawn with a box and why the one that is current is
  * told apart by ink and weight — `text-fg font-medium` against `text-fg-subtle`
  * — rather than by its fill. The fill stays as reinforcement and cannot be the
- * carrier: `bg-surface-2` is 1.24:1 on canvas in dark and 1.08:1 in light, and
- * nothing that fails 3:1 is allowed to mean something on its own.
+ * carrier: each step of the surface ramp is 1.08–1.24:1 off the one under it,
+ * and nothing that fails 3:1 is allowed to mean something on its own. The rail
+ * sits on `nav` now — the furniture's own ground, which is the material the
+ * sidebar is made of too — so those fills are `nav-2` for hover and `nav-3`
+ * for the current row. The ratios, and the rule, are unchanged.
  *
  * The three borders left on this file are all the same case: the rail is a
  * region that scrolls independently of the conversation, so the edge between
@@ -44,7 +47,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   lastActivity,
-  personById,
   unreadCount,
   useChat,
   type Channel,
@@ -53,6 +55,7 @@ import { LOCAL_USER } from "@/lib/realtime";
 import { useHasTeam, useScope } from "@/lib/scope";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
+import { WhoDot } from "@/components/ui/Who";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { useMenu } from "@/components/ui/Menu";
 import { RowMenuButton } from "@/components/ui/RowMenuButton";
@@ -184,7 +187,13 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
     <aside
       aria-label="Rooms"
       className={cn(
-        "flex shrink-0 flex-col border-line bg-canvas",
+        /* The same ground as the sidebar, and for the same reason: this is
+           navigation, and navigation should be one material however many
+           columns it takes. It was bg-canvas, which put the room list on the
+           same ground as the messages beside it and a different one from the
+           column on its other side — two rails of chrome that disagreed
+           about what they were. */
+        "flex shrink-0 flex-col border-line bg-nav",
         // A column beside the conversation on a desktop; above it on a phone,
         // capped so the messages are still the bigger half of the screen.
         "max-h-[42vh] w-full border-b",
@@ -213,6 +222,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
               channel={assistant.channel}
               label={t("nav.assistant")}
               icon="sparkle"
+              accent
               unread={assistant.unread}
               active={assistant.channel.id === activeId}
               onOpenMenu={openMenuFor(assistant.channel.id)}
@@ -279,7 +289,8 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
             <RoomRow
               key={channel.id}
               channel={channel}
-              label={`# ${channel.name}`}
+              label={channel.name}
+              prefix="#"
               unread={unread}
               active={channel.id === activeId}
               locked={
@@ -302,7 +313,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
                   if (e.key === "Enter") void submitChannel();
                   else if (e.key === "Escape") cancelChannel();
                 }}
-                className="w-full rounded-sm border border-accent bg-surface-2 px-2 py-1 text-body text-fg outline-none"
+                className="w-full rounded-sm border border-accent bg-nav-2 px-2 py-1 text-body text-fg outline-none"
               />
             </li>
           )}
@@ -333,7 +344,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
           <button
             type="button"
             onClick={() => setPicking(true)}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-left text-body text-fg-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-left text-body text-fg-muted transition-colors duration-150 hover:bg-nav-2 hover:text-fg"
           >
             <Icon name="plus" size={12} className="shrink-0 text-fg-subtle" />
             <span className="truncate">Message someone</span>
@@ -348,7 +359,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
                 key={channel.id}
                 channel={channel}
                 label={channel.name}
-                dot={other ? personById(other).color : undefined}
+                who={other}
                 unread={unread}
                 active={channel.id === activeId}
                 onOpenMenu={openMenuFor(channel.id)}
@@ -384,7 +395,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
                 type="button"
                 onClick={() => setShowArchived((v) => !v)}
                 aria-expanded={archivedOpen}
-                className="flex w-full items-center gap-1.5 rounded-md px-2 py-[var(--ui-row-y)] text-left transition-colors duration-150 hover:bg-surface-2"
+                className="flex w-full items-center gap-1.5 rounded-md px-2 py-[var(--ui-row-y)] text-left transition-colors duration-150 hover:bg-nav-2"
               >
                 <Icon
                   name={archivedOpen ? "chevron-down" : "chevron-right"}
@@ -409,8 +420,8 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
                       className={cn(
                         "min-w-0 flex-1 truncate rounded-md px-2 py-[var(--ui-row-y)] text-body transition-colors duration-150",
                         channel.id === activeId
-                          ? "bg-surface-2 font-medium text-fg"
-                          : "text-fg-subtle hover:bg-surface hover:text-fg",
+                          ? "bg-nav-3 font-medium text-fg"
+                          : "text-fg-subtle hover:bg-nav-2 hover:text-fg",
                       )}
                     >
                       {channel.kind === "channel"
@@ -423,7 +434,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
                     <button
                       type="button"
                       onClick={() => setArchived(channel.id, false)}
-                      className="shrink-0 rounded-xs px-1.5 py-1 text-meta text-fg-subtle transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
+                      className="shrink-0 rounded-xs px-1.5 py-1 text-meta text-fg-subtle transition-colors duration-150 hover:bg-nav-2 hover:text-fg"
                     >
                       Restore
                     </button>
@@ -437,7 +448,7 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
                       type="button"
                       onClick={openMenuFor(channel.id)}
                       aria-label={`More for ${channel.name}`}
-                      className="shrink-0 rounded-xs px-1 py-1 text-fg-subtle transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
+                      className="shrink-0 rounded-xs px-1 py-1 text-fg-subtle transition-colors duration-150 hover:bg-nav-2 hover:text-fg"
                     >
                       <Icon name="dots" size={13} />
                     </button>
@@ -478,8 +489,10 @@ export function RoomsRail({ activeId }: { activeId?: string | null }) {
 function RoomRow({
   channel,
   label,
+  prefix,
   icon,
-  dot,
+  accent,
+  who,
   locked,
   unread,
   active,
@@ -487,9 +500,13 @@ function RoomRow({
 }: {
   channel: Channel;
   label: string;
+  /** "#", for a channel. Outside the name so it survives truncation. */
+  prefix?: string;
   icon?: IconName;
-  /** A person's colour, for a direct message. */
-  dot?: string;
+  /** The assistant's row, whose icon carries the accent rather than grey. */
+  accent?: boolean;
+  /** The other person in a direct message; supplies the dot's colour. */
+  who?: string;
   locked?: boolean;
   unread: number;
   active: boolean;
@@ -512,14 +529,18 @@ function RoomRow({
           // and a row with something unread stays in full ink because the
           // badge beside it is saying the same thing twice on purpose.
           active
-            ? "bg-surface-2 font-medium text-fg"
+            ? "bg-nav-3 font-medium text-fg"
             : unread > 0
-              ? "text-fg hover:bg-surface"
-              : "text-fg-subtle hover:bg-surface hover:text-fg",
+              ? "text-fg hover:bg-nav-2"
+              : "text-fg-subtle hover:bg-nav-2 hover:text-fg",
         )}
       >
         {icon && (
-          <Icon name={icon} size={12} className="shrink-0 text-fg-subtle" />
+          <Icon
+            name={icon}
+            size={12}
+            className={cn("shrink-0", accent ? "text-accent" : "text-fg-subtle")}
+          />
         )}
         {locked && (
           <Icon
@@ -529,12 +550,11 @@ function RoomRow({
             className="shrink-0 text-fg-subtle"
           />
         )}
-        {dot && (
-          <span
-            aria-hidden="true"
-            className="size-1.5 shrink-0 rounded-full"
-            style={{ background: dot }}
-          />
+        {who && <WhoDot id={who} />}
+        {prefix && (
+          <span aria-hidden="true" className="shrink-0 text-fg-subtle">
+            {prefix}
+          </span>
         )}
         <span className={cn("truncate", unread > 0 && "font-medium")}>
           {label}

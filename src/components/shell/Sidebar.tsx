@@ -38,7 +38,6 @@ import { countTeam, hydrateScope, settleScope, useHasTeam, useScope } from "@/li
 import { useTeamHydrated } from "@/lib/team";
 import {
   lastActivity,
-  personById,
   unreadCount,
   useChat,
   useChatHydrated,
@@ -53,6 +52,7 @@ import { useOffline } from "@/lib/offline";
 import { t } from "@/lib/i18n";
 import { KeepPromptCompact } from "@/components/account/KeepPrompt";
 import { Avatar } from "@/components/ui/Avatar";
+import { Who, WhoDot } from "@/components/ui/Who";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { LogoTile } from "@/components/ui/Logo";
@@ -349,7 +349,20 @@ export function Sidebar() {
         style={{ width: "var(--sidebar-w)" }}
         className={cn(
           "fixed inset-y-0 left-0 z-40 flex shrink-0 flex-col",
-          "border-r border-line bg-canvas",
+          /*
+           * The column is a different material from the page, and that is
+           * the single biggest thing making this app legible at a glance.
+           *
+           * It was bg-canvas — the same ground as the document beside it —
+           * so the shell and the work were one undifferentiated field and
+           * the only thing saying where one stopped was a 1px line. A
+           * sidebar is furniture you never edit; a document is the thing you
+           * do. Giving the furniture its own surface is what every tool with
+           * a left rail does, and it costs nothing: surface is 1.08–1.24:1
+           * off canvas, so this is a hint, not a slab, and everything that
+           * has to be *readable* here is still carried by ink and weight.
+           */
+          "border-r border-line bg-nav",
           "transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
           "lg:static lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:hidden",
@@ -394,7 +407,7 @@ export function Sidebar() {
           <button
             type="button"
             onClick={() => openPalette()}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-body text-fg-muted transition-colors duration-150 hover:bg-surface hover:text-fg"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-[var(--ui-row-y)] text-body text-fg-muted transition-colors duration-150 hover:bg-nav-2 hover:text-fg"
           >
             <Icon name="search" size={13} className="text-fg-subtle" />
             <span>{t("nav.search")}</span>
@@ -444,7 +457,7 @@ export function Sidebar() {
                   className={cn(
                     "rounded-xs px-2 py-0.5 text-body capitalize transition-colors",
                     scope === option
-                      ? "bg-surface-2 font-medium text-fg"
+                      ? "bg-nav-3 font-medium text-fg"
                       : "text-fg-subtle hover:text-fg",
                   )}
                 >
@@ -549,14 +562,10 @@ export function Sidebar() {
                           menu.open(e, projectMenu(p, actionsFor(p)))
                         }
                         onNavigate={closeOnMobile}
-                        leading={
-                          <Avatar
-                            glyph={p.glyph}
-                            kind={p.kind}
-                            size={13}
-                            className="shrink-0 text-fg-subtle"
-                          />
-                        }
+                        /* No text-fg-subtle: the mark is the kind's colour
+                           now, which is the whole reason a mixed list of
+                           projects, rooms and notes can be scanned. */
+                        leading={<Avatar glyph={p.glyph} kind={p.kind} size={13} />}
                       />
                     </li>
                   );
@@ -577,7 +586,8 @@ export function Sidebar() {
                           <Icon
                             name="sticky"
                             size={13}
-                            className="shrink-0 text-fg-subtle"
+                            className="shrink-0"
+                            style={{ color: "var(--kind-notes)" }}
                           />
                         }
                       />
@@ -590,15 +600,18 @@ export function Sidebar() {
                   c.kind === "dm"
                     ? c.memberIds.find((id) => id !== LOCAL_USER.id)
                     : undefined;
-                const person = other ? personById(other) : null;
                 return (
                   <li key={`c:${c.id}`}>
                     <RecentRow
                       href={`/chat/${c.id}`}
-                      label={c.kind === "channel" ? `# ${c.name}` : c.name}
+                      /* The hash is not part of the name. Baked into the
+                         label it truncated with it, so a long channel could
+                         lose the one character saying it was a channel. */
+                      label={c.name}
+                      prefix={c.kind === "channel" ? "#" : undefined}
                       active={c.id === activeChannel}
                       unread={item.unread}
-                      dot={person?.color}
+                      who={other}
                       locked={
                         c.access === "closed" && Boolean(c.passcodeHash)
                       }
@@ -614,7 +627,7 @@ export function Sidebar() {
                           <Icon
                             name="sparkle"
                             size={13}
-                            className="shrink-0 text-fg-subtle"
+                            className="shrink-0 text-accent"
                           />
                         ) : null
                       }
@@ -681,7 +694,7 @@ export function Sidebar() {
               className={cn(
                 "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 transition-colors duration-150",
                 "py-[var(--ui-row-y)]",
-                "text-fg-muted hover:bg-surface hover:text-fg",
+                "text-fg-muted hover:bg-nav-2 hover:text-fg",
               )}
             >
               {/* The circle grew rather than the initials shrinking. 8.5px
@@ -690,10 +703,14 @@ export function Sidebar() {
                   is already ~30px tall, so 22px costs nothing else and the
                   initials come up to the same 11px every other fact in this
                   column is set at. Initials are a name, and a name is
-                  language, so they are not mono either. */}
-              <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-surface-3 text-meta text-fg">
-                {identity.initials}
-              </span>
+                  language, so they are not mono either.
+
+                  It wears your colour now — the same disc, in the same hue,
+                  that sits on every message you have written. That is the
+                  point of deriving the colour rather than storing one: the
+                  face at the bottom of the column and the face at the top of
+                  your own messages have to be the same face. */}
+              <Who id={LOCAL_USER.id} initials={identity.initials} />
               <span className="min-w-0 flex-1 truncate text-body">
                 {identity.name}
               </span>
@@ -727,8 +744,8 @@ export function Sidebar() {
                 // resize handle allows.
                 "shrink-0 rounded-md p-1 transition-colors duration-150",
                 pathname?.startsWith("/settings")
-                  ? "bg-surface-2 text-fg"
-                  : "text-fg-subtle hover:bg-surface hover:text-fg",
+                  ? "bg-nav-3 text-fg"
+                  : "text-fg-subtle hover:bg-nav-2 hover:text-fg",
               )}
             >
               <Icon name="settings" size={14} />
@@ -778,8 +795,8 @@ function NavLink({
            reference's active-row border is not the answer either, because a
            fill plus a border is two signals for one thing. */
         active
-          ? "bg-surface-2 font-medium text-fg"
-          : "text-fg-muted hover:bg-surface hover:text-fg",
+          ? "bg-nav-3 font-medium text-fg"
+          : "text-fg-muted hover:bg-nav-2 hover:text-fg",
       )}
     >
       <Icon name={icon} size={14} className="shrink-0" />
@@ -809,9 +826,10 @@ function NavLink({
 function RecentRow({
   href,
   label,
+  prefix,
   active,
   unread,
-  dot,
+  who,
   locked,
   leading,
   menuLabel,
@@ -820,9 +838,12 @@ function RecentRow({
 }: {
   href: string;
   label: string;
+  /** "#", for a channel. Drawn outside the name so it survives truncation. */
+  prefix?: string;
   active: boolean;
   unread: number;
-  dot?: string;
+  /** The other person in a direct message; supplies the dot's colour. */
+  who?: string;
   locked?: boolean;
   leading?: React.ReactNode;
   menuLabel: string;
@@ -844,10 +865,10 @@ function RecentRow({
              and the same as /chat's rooms rail, which lists these very rooms
              250px away and now says so in the same voice. */
           active
-            ? "bg-surface-2 font-medium text-fg"
+            ? "bg-nav-3 font-medium text-fg"
             : unread > 0
-              ? "text-fg hover:bg-surface"
-              : "text-fg-muted hover:bg-surface hover:text-fg",
+              ? "text-fg hover:bg-nav-2"
+              : "text-fg-muted hover:bg-nav-2 hover:text-fg",
         )}
       >
         {locked && (
@@ -858,14 +879,13 @@ function RecentRow({
             className="shrink-0 text-fg-subtle"
           />
         )}
-        {dot && (
-          <span
-            aria-hidden="true"
-            className="size-1.5 shrink-0 rounded-full"
-            style={{ background: dot }}
-          />
-        )}
+        {who && <WhoDot id={who} />}
         {leading}
+        {prefix && (
+          <span aria-hidden="true" className="shrink-0 text-fg-subtle">
+            {prefix}
+          </span>
+        )}
         <span className={cn("truncate", unread > 0 && "font-medium")}>
           {label}
         </span>

@@ -18,6 +18,7 @@
  */
 
 import { KINDS } from "@/lib/kinds";
+import { kindHue } from "@/lib/hue";
 import {
   AVATAR_COLORS,
   AVATAR_COLOR_ORDER,
@@ -73,26 +74,59 @@ export function Avatar({
   glyph,
   kind,
   size = 14,
+  tile = false,
   className,
 }: {
   glyph: string | undefined;
   /** Supplies the fallback icon; folders pass none and fall back to text. */
   kind?: ProjectKind;
   size?: number;
+  /**
+   * Draw the mark on a tinted square of its kind's colour rather than bare.
+   *
+   * For the places a project is an *object you are picking out of a set* — a
+   * Library card, the row you are about to open, the thing named at the top
+   * of the editor. A dense list of rows passes `false` and gets the coloured
+   * mark alone, because forty tinted squares in a column is a quilt.
+   */
+  tile?: boolean;
   className?: string;
 }) {
   const animated = parseAvatar(glyph);
   const custom = glyph && (!kind || glyph !== KINDS[kind].glyph);
 
+  /*
+   * The colour, and the one thing it does not overrule.
+   *
+   * A kind has a hue and its mark wears it, which is what makes a list of
+   * twenty scannable — and it has to be *every* mark of that kind, because a
+   * scan works on the ones that are the same colour, so one grey tile in a
+   * grid of blue ones is a project that has quietly left the set.
+   *
+   * An animated motif is the exception, and only for the mark itself: those
+   * were picked in a colour, they draw from `--av`, and painting over
+   * somebody's choice is not a thing an identity system gets to do. The tile
+   * under it still says what kind of thing it is, because that was never the
+   * motif's job.
+   */
+  const hue = kind ? kindHue(kind) : undefined;
+
+  const box = tile ? Math.round(size * 1.7) : size;
+
   return (
     <span
       aria-hidden="true"
-      className={cn("avatar", className)}
-      style={
-        animated
-          ? { width: size, height: size, ["--av" as string]: AVATAR_COLORS[animated.color] }
-          : { width: size, height: size }
-      }
+      className={cn("avatar", tile && "avatar--tile", className)}
+      style={{
+        width: box,
+        height: box,
+        ...(hue ? { ["--hue" as string]: hue } : null),
+        ...(animated
+          ? { ["--av" as string]: AVATAR_COLORS[animated.color] }
+          : hue
+            ? { color: hue }
+            : null),
+      }}
     >
       {animated ? (
         <Mark motif={animated.motif} />
@@ -107,6 +141,27 @@ export function Avatar({
           ◇
         </span>
       )}
+    </span>
+  );
+}
+
+/**
+ * What kind of thing this is, said in one chip.
+ *
+ * The top of an editor, where there is room for the word as well as the
+ * colour. In a list the mark alone does this job; here the name of the kind
+ * is worth the eleven pixels, because the top bar is also the answer to
+ * "what am I even looking at" for somebody who arrived by link.
+ */
+export function KindChip({ kind, className }: { kind: ProjectKind; className?: string }) {
+  const meta = KINDS[kind];
+  return (
+    <span
+      className={cn("kindchip", className)}
+      style={{ ["--hue" as string]: kindHue(kind) }}
+    >
+      <Icon name={meta.icon} size={10} />
+      {meta.label}
     </span>
   );
 }

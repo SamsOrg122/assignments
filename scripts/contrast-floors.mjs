@@ -67,7 +67,15 @@ function declarations(selector) {
   return found;
 }
 
-const dark = declarations("@theme");
+/*
+ * Two theme blocks, because the eighteen identity hues are `@theme static`.
+ *
+ * Tailwind drops a `@theme` variable nothing visibly uses, and nothing
+ * visibly uses these — they are addressed by name at runtime from
+ * `lib/hue.ts`. `static` keeps them; naming the block here keeps this script
+ * measuring what actually ships rather than what the file happens to contain.
+ */
+const dark = { ...declarations("@theme"), ...declarations("@theme static") };
 const light = { ...dark, ...declarations(':root[data-theme="light"]') };
 
 /** The five alternative accents, each of which overrides the pair twice. */
@@ -167,6 +175,38 @@ const FLOORS = [
   },
 ];
 
+/*
+ * The eighteen identity hues, held to the same number as every other small ink.
+ *
+ * Six for the kinds of thing you can make, twelve for people. They are ink —
+ * the glyph on a Library tile, the `#` on a channel, two initials on a disc,
+ * the word in a kind chip — read at 11px by somebody scanning a list, which is
+ * the exact job `fg-subtle` has and the exact reason its floor is 5.2:1.
+ *
+ * They are not in FLOORS above because that table is a handful of named pairs
+ * with an argument each, and this is one argument applied eighteen times. The
+ * lines are folded into one summary row per theme so the report does not turn
+ * into thirty-six lines of the same sentence; a hue that drops below the floor
+ * is named in full, because then it is the thing you came to read.
+ *
+ * Six of the light values were tuned down to clear this on the day the check
+ * was written — deck, board and four of the person hues measured 4.80–5.16 on
+ * paper. The floor is the promise; the palette moves to meet it, which is the
+ * same way round `fg-subtle` was settled.
+ */
+const HUES = [
+  "--kind-doc",
+  "--kind-notes",
+  "--kind-deck",
+  "--kind-board",
+  "--kind-code",
+  "--kind-design",
+  ...Array.from({ length: 12 }, (_, i) => `--who-${i + 1}`),
+];
+const HUE_FLOOR = 5.2;
+const HUE_WHY =
+  "identity colour — the glyph on a tile, the initials on a disc, a kind chip";
+
 const failures = [];
 const lines = [];
 
@@ -189,6 +229,29 @@ for (const floor of FLOORS) {
   }
 }
 
+for (const theme of ["dark", "light"]) {
+  const tokens = theme === "light" ? light : dark;
+  const measured = HUES.map((ink) => ({ ink, found: measure(tokens, ink, "--color-canvas") }));
+  for (const { ink, found } of measured) {
+    if (found < HUE_FLOOR) {
+      failures.push({
+        name: `${ink.replace("--", "")} on canvas`,
+        theme,
+        found,
+        min: HUE_FLOOR,
+        why: HUE_WHY,
+      });
+    }
+  }
+  const worst = measured.reduce((a, b) => (b.found < a.found ? b : a));
+  const best = measured.reduce((a, b) => (b.found > a.found ? b : a));
+  const under = worst.found < HUE_FLOOR;
+  lines.push(
+    `  ${under ? "✕" : "·"} ${`${HUES.length} identity hues on canvas`.padEnd(30)} ` +
+      `${theme.padEnd(6)} ${show(worst.found)}   floor ${show(HUE_FLOOR)}` +
+      `   (worst ${worst.ink.replace("--", "")}, best ${flat(best.found)})`,
+  );
+}
 // ── The ramp, printed and never failed ───────────────────────────────────
 
 /*
@@ -224,7 +287,20 @@ for (const floor of STOREFRONT_FLOORS) {
 console.log("\nThe storefront, measured on its own paper.\n");
 console.log(storefrontLines.join("\n"));
 
-const RAMP = ["--color-surface", "--color-surface-2", "--color-surface-3"];
+const RAMP = [
+  "--color-surface",
+  "--color-surface-2",
+  "--color-surface-3",
+  // The furniture's ground and its two states. Printed here rather than
+  // floored, for the same reason as the surface ramp: the whole argument for
+  // `nav` is that it is a *material*, not a signal — a step you notice as
+  // "this column is a different thing" and never as "this row is selected".
+  // Both themes take about the same size of step in opposite directions,
+  // which is the thing worth being able to see in a CI log.
+  "--color-nav",
+  "--color-nav-2",
+  "--color-nav-3",
+];
 const ramp = RAMP.map((token) => ({
   token,
   dark: measure(dark, token, "--color-canvas"),

@@ -52,6 +52,7 @@ import { useMenu } from "@/components/ui/Menu";
 import { projectMenu } from "@/lib/project-menu";
 import { Icon } from "@/components/ui/Icon";
 import { Avatar } from "@/components/ui/Avatar";
+import { kindHue } from "@/lib/hue";
 import { RowMenuButton } from "@/components/ui/RowMenuButton";
 import { useProjectActions } from "@/components/projects/useProjectActions";
 import { cn } from "@/lib/cn";
@@ -439,6 +440,7 @@ export default function LibraryPage() {
                   onClick={() => setKind(k)}
                   label={KINDS[k].label}
                   icon={KINDS[k].icon}
+                  hue={kindHue(k)}
                   count={counts.get(k) ?? 0}
                 />
               ))}
@@ -627,19 +629,32 @@ function LibraryCard({
         prefetch
         onContextMenu={(e) => onMenu(e, project)}
         className={cn(
-          "flex h-full flex-col rounded-lg border border-line p-3.5 pr-10",
-          "transition-colors duration-150 hover:border-line-strong hover:bg-surface",
+          /*
+           * A card is an object, so it is made of something: `surface` on
+           * `canvas`, the same step the sidebar takes. Outlined cards on the
+           * page's own ground are a diagram of where a card would be, and
+           * with six of them on a grid the eye has to trace four borders to
+           * find one edge. Filled, the border is an edge on a real thing and
+           * hover can lift it to the next step instead of having nowhere to
+           * go.
+           */
+          "flex h-full flex-col rounded-lg border border-line bg-surface p-3.5 pr-10",
+          "transition-colors duration-150 hover:border-line-strong hover:bg-surface-2",
         )}
       >
         <span className="flex min-w-0 items-start gap-(--space-2)">
-          {/* No tile: an icon does not need a box drawn round it to be an
-              icon, and this one was the page's only third level of nesting. */}
-          <span
-            aria-hidden="true"
-            className="grid size-8 shrink-0 place-items-center text-fg-muted"
-          >
-            <Avatar glyph={project.glyph} kind={project.kind} size={18} />
-          </span>
+          {/*
+            * The tile came back, and the reason it was dropped no longer
+            * holds. It went because a box round an icon was nesting for
+            * nothing — a grey square inside a bordered card inside a grid —
+            * and that was true while every square was the same grey. It is
+            * a tint of this project's own colour now, which is not a box
+            * round the mark but the mark itself: six colours across a grid
+            * of thirty is what turns "read every title" into "the blue ones
+            * are my documents". The ring is the same hue at 22%, an edge
+            * rather than a border, so the cards still read as one set.
+            */}
+          <Avatar glyph={project.glyph} kind={project.kind} size={18} tile />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-object text-fg">
               {project.name}
@@ -665,12 +680,15 @@ function FilterChip({
   label,
   count,
   icon,
+  hue,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
   count: number;
   icon?: React.ComponentProps<typeof Icon>["name"];
+  /** The kind's colour; "All" has none, because it is not a kind. */
+  hue?: string;
 }) {
   return (
     <button
@@ -687,7 +705,12 @@ function FilterChip({
         active ? "text-fg font-medium" : "text-fg-subtle hover:text-fg",
       )}
     >
-      {icon && <Icon name={icon} size={11} />}
+      {/* The six filters wear the six colours, which is what makes the row a
+          legend for the grid under it rather than a second list of words. The
+          mark is coloured and the word is not: ink and weight still carry
+          which filter is on, and a colour that also meant "pressed" would be
+          the fill-as-state mistake in a new place. */}
+      {icon && <Icon name={icon} size={11} style={hue ? { color: hue } : undefined} />}
       {label}
       <span className="text-meta">{count}</span>
     </button>

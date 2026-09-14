@@ -26,6 +26,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { channelMessages, personById, threadReplies, useChat } from "@/lib/chat";
+import { Who } from "@/components/ui/Who";
 import { LOCAL_USER } from "@/lib/realtime";
 import { useProjects } from "@/lib/store";
 import { KINDS } from "@/lib/kinds";
@@ -152,21 +153,22 @@ function MessageRow({
             {shortTime(message.at)}
           </time>
         ) : (
-          <span
-            /* font-medium rides beside the token here rather than being
-               forgotten inside it: two letters at 11px sit on a 13%-alpha disc
-               of the person's own colour, and the weight is what keeps them
-               legible against it. */
-            className="grid size-7 place-items-center rounded-full text-meta font-medium"
-            style={{
-              background: `${author.color}22`,
-              color: author.color,
-              boxShadow: `inset 0 0 0 1px ${author.color}55`,
-            }}
-            aria-hidden="true"
-          >
-            {author.initials}
-          </span>
+          /*
+           * The disc, in this person's colour.
+           *
+           * It used to be `author.color`, which is a real field on a
+           * `Collaborator` and is `#8a8a8a` for every actual human — there is
+           * no colour column on a profile, so the directory hands back a
+           * neutral rather than inventing one and presenting it as theirs.
+           * The effect was that the two seeded ids had a colour and a channel
+           * full of real people was a column of identical grey circles, which
+           * is the one thing an avatar gutter exists not to be.
+           *
+           * `Who` derives the hue from the id instead: stable across screens
+           * and machines, never offered as a preference, and always beside
+           * the name. See lib/hue.ts.
+           */
+          <Who id={message.authorId} initials={author.initials} size={28} />
         )}
       </div>
 

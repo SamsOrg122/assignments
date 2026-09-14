@@ -31,6 +31,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { personById, useChat, type Channel } from "@/lib/chat";
+import { Who } from "@/components/ui/Who";
 import { friendName } from "@/components/social/Friends";
 import { LOCAL_USER } from "@/lib/realtime";
 import { usePeople } from "@/lib/team";
@@ -370,18 +371,5 @@ export function ChannelSettings({
 }
 
 function Avatar({ id }: { id: string }) {
-  const person = personById(id);
-  return (
-    <span
-      aria-hidden="true"
-      className="grid size-6 shrink-0 place-items-center rounded-full text-meta font-medium"
-      style={{
-        background: `${person.color}22`,
-        color: person.color,
-        boxShadow: `inset 0 0 0 1px ${person.color}55`,
-      }}
-    >
-      {person.initials}
-    </span>
-  );
+  return <Who id={id} initials={personById(id).initials} size={24} />;
 }

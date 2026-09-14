@@ -15,6 +15,26 @@ export interface KindMeta {
   icon: IconName;
   /** Extra search terms so "thesis" finds a Doc and "pitch" finds a Deck. */
   keywords: string;
+  /**
+   * The colour this kind is, everywhere.
+   *
+   * ── WHY A KIND HAS A COLOUR AND A STATE STILL DOES NOT ─────────────────
+   * This app's rule is that a fill may never be the sole carrier of a
+   * *state*, and that rule holds: the surface ramp measures 1.08–1.24:1 and
+   * somebody who cannot see it must still have ink and weight to go on.
+   *
+   * Identity is a different job. What kind of thing this is does not change,
+   * is never the only label — the name and the glyph are right there — and is
+   * exactly what colour is good at: you learn in a day that blue means a
+   * document and green means a board, and after that you find things in a
+   * list without reading it. That is what Figma does with layer types and
+   * what Slack does with people, and it is why a monochrome list of twenty
+   * projects is slower to use than a coloured one no matter how calm it is.
+   *
+   * The value is a CSS custom property name, not a hex: the six are declared
+   * once in globals.css and tuned there for both themes at once.
+   */
+  hue: string;
   /** Editors that aren't built out yet say so instead of pretending. */
   placeholder?: boolean;
 }
@@ -26,6 +46,7 @@ export const KINDS: Record<ProjectKind, KindMeta> = {
     glyph: "◆",
     icon: "text",
     keywords: "thesis doc document essay paper dissertation report write prose chapter",
+    hue: "--kind-doc",
   },
   notes: {
     label: "Notes",
@@ -33,6 +54,7 @@ export const KINDS: Record<ProjectKind, KindMeta> = {
     glyph: "◇",
     icon: "file",
     keywords: "notes notebook scratch jot memo minutes",
+    hue: "--kind-notes",
   },
   deck: {
     label: "Deck",
@@ -40,6 +62,7 @@ export const KINDS: Record<ProjectKind, KindMeta> = {
     glyph: "▲",
     icon: "slides",
     keywords: "deck slides presentation pitch talk keynote powerpoint",
+    hue: "--kind-deck",
   },
   board: {
     label: "Board",
@@ -47,6 +70,7 @@ export const KINDS: Record<ProjectKind, KindMeta> = {
     glyph: "◈",
     icon: "board",
     keywords: "board canvas whiteboard map spatial brainstorm freeform figma",
+    hue: "--kind-board",
   },
   code: {
     label: "Code",
@@ -54,6 +78,7 @@ export const KINDS: Record<ProjectKind, KindMeta> = {
     glyph: "■",
     icon: "code",
     keywords: "code program script prototype html css javascript",
+    hue: "--kind-code",
   },
   design: {
     label: "Design",
@@ -61,6 +86,7 @@ export const KINDS: Record<ProjectKind, KindMeta> = {
     glyph: "○",
     icon: "sparkle",
     keywords: "design vector figma sketch mockup ui",
+    hue: "--kind-design",
     placeholder: true,
   },
 };

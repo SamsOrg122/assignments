@@ -13,7 +13,7 @@ import { useUI } from "@/lib/ui-store";
 import { TopBar } from "@/components/shell/TopBar";
 import { Avatars } from "@/components/presence/Avatars";
 import { Icon } from "@/components/ui/Icon";
-import { KINDS } from "@/lib/kinds";
+import { Avatar, KindChip } from "@/components/ui/Avatar";
 import { ShareMenu } from "@/components/share/ShareMenu";
 import { LookPanel } from "./LookPanel";
 import { DeadlineChip } from "@/components/assignments/DeadlineChip";
@@ -37,11 +37,19 @@ export function ProjectTopBar({
 
   return (
     <TopBar right={<Avatars peers={peers} />}>
-      <Icon
-        name={KINDS[project.kind].icon}
-        size={13}
-        className="shrink-0 text-fg-subtle"
-      />
+      {/*
+        * What you are looking at, said in its own colour.
+        *
+        * This was the kind's icon in grey, which told you a document was a
+        * document and nothing else — the same mark, the same weight, above
+        * every one of the six editors. The avatar is the project's actual
+        * face (its motif, its emoji, whatever was picked for it) on a tile
+        * of its kind's colour, and the chip beside it names the kind in
+        * words, for somebody who arrived by link and has never seen this
+        * file. Figma's move: the object, its type, and then its name.
+        */}
+      <Avatar glyph={project.glyph} kind={project.kind} size={13} tile />
+      <KindChip kind={project.kind} className="hidden sm:inline-flex" />
       <input
         value={draft ?? project.name}
         onChange={(e) => setDraft(e.target.value)}

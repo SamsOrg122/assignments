@@ -50,6 +50,7 @@ import { ChannelSettings } from "@/components/chat/ChannelSettings";
 import { RoomsRail } from "@/components/chat/RoomsRail";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
+import { Who } from "@/components/ui/Who";
 
 export function ChatClient() {
   const params = useParams<{ channelId?: string[] }>();
@@ -142,23 +143,18 @@ export function ChatClient() {
               className="flex items-center gap-2 rounded-sm text-fg-subtle transition-colors hover:text-fg"
             >
               <span className="flex -space-x-1.5">
-                {others.slice(0, 4).map((id) => {
-                  const person = personById(id);
-                  return (
-                    <span
-                      key={id}
-                      title={person.name}
-                      className="grid size-6 place-items-center rounded-full border-2 border-canvas text-meta"
-                      style={{
-                        background: `${person.color}22`,
-                        color: person.color,
-                        boxShadow: `inset 0 0 0 1px ${person.color}55`,
-                      }}
-                    >
-                      {person.initials}
-                    </span>
-                  );
-                })}
+                {others.slice(0, 4).map((id) => (
+                  <Who
+                    key={id}
+                    id={id}
+                    initials={personById(id).initials}
+                    name={personById(id).name}
+                    size={24}
+                    /* The ring is the canvas, so overlapping discs read as
+                       separate faces rather than as one blob. */
+                    className="border-2 border-canvas"
+                  />
+                ))}
               </span>
               {/* The words stand down for the faces, and only while there
                   are faces: a channel you just made holds you alone, and

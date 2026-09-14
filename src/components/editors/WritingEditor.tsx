@@ -18,6 +18,7 @@ import { useUI } from "@/lib/ui-store";
 import { useProjects } from "@/lib/store";
 import { projectWordCount, outline } from "@/lib/summary";
 import { cn } from "@/lib/cn";
+import { Toolbar, ToolGroup, ToolButton } from "./Toolbar";
 import { Icon } from "@/components/ui/Icon";
 import { ProjectTopBar } from "./ProjectTopBar";
 import { TypographyPanel } from "./TypographyPanel";
@@ -186,104 +187,126 @@ export function WritingEditor({
           project={project}
           peers={peers}
           tools={
-            <span className="relative flex shrink-0 items-center gap-1">
-              <IconToggle
-                icon="sort"
-                label="Outline"
-                active={outlineOpen}
-                onClick={() => setOutlineOpen((v) => !v)}
-              />
-              <IconToggle
-                icon="quote"
-                label="Sources"
-                active={sourcesOpen}
-                onClick={() => {
-                  setSourcesOpen((v) => !v);
-                  setOutlineOpen(false);
-                }}
-              />
-              <IconToggle
-                icon="history"
-                label="Version timeline"
-                active={timelineOpen}
-                onClick={() => setTimelineOpen((v) => !v)}
-              />
-              <IconToggle
-                icon="mic"
-                label="Speak to prose"
-                active={dictating}
-                onClick={() => setDictating((v) => !v)}
-              />
-              <span className="relative">
-                <IconToggle
-                  icon="file"
-                  label="Page setup"
-                  active={pageOpen}
-                  onClick={() => setPageOpen((v) => !v)}
+            <Toolbar className="relative">
+              {/* Where am I in this document. */}
+              <ToolGroup>
+                <ToolButton
+                  icon="sort"
+                  label="Outline"
+                  active={outlineOpen}
+                  onClick={() => setOutlineOpen((v) => !v)}
                 />
-                {pageOpen && (
-                  <PagePanel
-                    projectId={project.id}
-                    page={project.page}
-                    onClose={() => setPageOpen(false)}
-                  />
-                )}
-              </span>
-              <span className="relative">
-                <IconToggle
-                  icon="type"
-                  label="Typography"
-                  active={typeOpen}
-                  onClick={() => setTypeOpen((v) => !v)}
+                <ToolButton
+                  icon="quote"
+                  label="Sources"
+                  active={sourcesOpen}
+                  onClick={() => {
+                    setSourcesOpen((v) => !v);
+                    setOutlineOpen(false);
+                  }}
                 />
-                {typeOpen && (
-                  <TypographyPanel
-                    projectId={project.id}
-                    typography={type}
-                    onClose={() => setTypeOpen(false)}
+                <ToolButton
+                  icon="history"
+                  label="Version timeline"
+                  active={timelineOpen}
+                  onClick={() => setTimelineOpen((v) => !v)}
+                />
+              </ToolGroup>
+
+              {/* What it looks like on the page. */}
+              <ToolGroup>
+                <span className="relative">
+                  <ToolButton
+                    icon="file"
+                    label="Page setup"
+                    active={pageOpen}
+                    onClick={() => setPageOpen((v) => !v)}
                   />
-                )}
-              </span>
-              <IconToggle
-                icon="download"
-                label={importing ? "Reading the Word file…" : "Import .docx"}
-                active={importing}
-                onClick={() => importRef.current?.click()}
-              />
-              <input
-                ref={importRef}
-                type="file"
-                accept=".docx"
-                className="sr-only"
-                aria-label="Import a Word file"
-                onChange={(e) => void importDocx(e.target.files?.[0])}
-              />
-              <IconToggle
-                icon="check"
-                label={suggestMode ? "Suggesting — typing proposes" : "Suggest changes"}
-                active={suggestMode}
-                onClick={() => {
-                  setSuggestMode(!suggestMode);
-                  if (!suggestMode) setReviewOpen(true);
-                }}
-              />
-              <IconToggle
-                icon="users"
-                label={
-                  proposed
-                    ? `Review ${proposed} proposed change${proposed === 1 ? "" : "s"}`
-                    : "Review proposed changes"
-                }
-                active={reviewOpen}
-                onClick={() => setReviewOpen((v) => !v)}
-              />
-              <IconToggle
-                icon="focus"
-                label="Focus mode"
-                active={focusMode}
-                onClick={() => setFocusMode(true)}
-              />
-            </span>
+                  {pageOpen && (
+                    <PagePanel
+                      projectId={project.id}
+                      page={project.page}
+                      onClose={() => setPageOpen(false)}
+                    />
+                  )}
+                </span>
+                <span className="relative">
+                  <ToolButton
+                    icon="type"
+                    label="Typography"
+                    active={typeOpen}
+                    onClick={() => setTypeOpen((v) => !v)}
+                  />
+                  {typeOpen && (
+                    <TypographyPanel
+                      projectId={project.id}
+                      typography={type}
+                      onClose={() => setTypeOpen(false)}
+                    />
+                  )}
+                </span>
+              </ToolGroup>
+
+              {/* Getting words in that you did not type here. */}
+              <ToolGroup>
+                <ToolButton
+                  icon="mic"
+                  label="Speak to prose"
+                  active={dictating}
+                  onClick={() => setDictating((v) => !v)}
+                />
+                <ToolButton
+                  icon="download"
+                  label={importing ? "Reading the Word file…" : "Import .docx"}
+                  active={importing}
+                  onClick={() => importRef.current?.click()}
+                />
+                <input
+                  ref={importRef}
+                  type="file"
+                  accept=".docx"
+                  className="sr-only"
+                  aria-label="Import a Word file"
+                  onChange={(e) => void importDocx(e.target.files?.[0])}
+                />
+              </ToolGroup>
+
+              {/* What two people do to one document. */}
+              <ToolGroup>
+                <ToolButton
+                  icon="check"
+                  label={
+                    suggestMode ? "Suggesting — typing proposes" : "Suggest changes"
+                  }
+                  active={suggestMode}
+                  onClick={() => {
+                    setSuggestMode(!suggestMode);
+                    if (!suggestMode) setReviewOpen(true);
+                  }}
+                />
+                <ToolButton
+                  icon="users"
+                  label={
+                    proposed
+                      ? `Review ${proposed} proposed change${proposed === 1 ? "" : "s"}`
+                      : "Review proposed changes"
+                  }
+                  active={reviewOpen}
+                  onClick={() => setReviewOpen((v) => !v)}
+                />
+              </ToolGroup>
+
+              {/* Everything else out of the way. Its own group because it is
+                  the only one of the ten that takes the toolbar away. */}
+              <ToolGroup>
+                <ToolButton
+                  icon="focus"
+                  label="Focus mode"
+                  active={focusMode}
+                  onClick={() => setFocusMode(true)}
+                />
+              </ToolGroup>
+            </Toolbar>
           }
         />
       )}
@@ -435,35 +458,6 @@ export function WritingEditor({
   );
 }
 
-function IconToggle({
-  icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: React.ComponentProps<typeof Icon>["name"];
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      aria-pressed={active}
-      className={cn(
-        "rounded-sm border p-1.5 transition-colors duration-150",
-        active
-          ? "border-line-strong bg-surface-2 text-fg"
-          : "border-line text-fg-subtle hover:text-fg",
-      )}
-    >
-      <Icon name={icon} size={13} />
-    </button>
-  );
-}
 
 /** Priority 4's "same content as an outline" view, and per-section goals. */
 function OutlinePanel({

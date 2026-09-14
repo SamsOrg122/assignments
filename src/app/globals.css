@@ -15,6 +15,26 @@
   --color-surface-2: #303134;
   --color-surface-3: #3c4043;
 
+  /* ── The ground the furniture stands on ──────────────────────────────
+     The sidebar and the rooms rail are not the page. They are permanent
+     chrome you never edit, and every tool with a left column says so by
+     making it a different material — which is the single cheapest thing
+     that stops an app reading as one undifferentiated grey field.
+
+     It needs its own three tokens rather than borrowing `surface`, because
+     the direction reverses between themes. On near-black the furniture is
+     *lighter* than the page; on paper it is *darker*, and light's `surface`
+     is #ffffff against a #fbfbfc canvas — a 1.02:1 step, which is to say
+     none at all. A rail that is legibly a rail in one theme and invisible
+     in the other is not a system.
+
+     Nothing here carries meaning on its own: `nav-2` is hover and `nav-3`
+     is the current row, both of them reinforcing ink and weight that say
+     the same thing, exactly as the surface ramp does on the page. */
+  --color-nav: #282a2d;
+  --color-nav-2: #303134;
+  --color-nav-3: #3c4043;
+
   /* Lines. Slightly stronger than before — the same alpha over a lighter
      ground reads as a fainter line. */
   --color-line: rgba(255, 255, 255, 0.13);
@@ -388,6 +408,14 @@
   --color-surface-2: #f2f2f4;
   --color-surface-3: #e6e6ea;
 
+  /* Downward, for the reason spelled out beside the dark values: the
+     furniture is the darker material here, because the page is the white
+     one. #f0f0f3 is 1.06:1 off the canvas — the same size of step the dark
+     theme takes, in the other direction. */
+  --color-nav: #f0f0f3;
+  --color-nav-2: #e7e7ec;
+  --color-nav-3: #dcdce3;
+
   --color-line: rgba(0, 0, 0, 0.12);
   --color-line-strong: rgba(0, 0, 0, 0.2);
 
@@ -400,6 +428,29 @@
      only number in this palette the calm pass moved: nothing here got
      quieter, one thing that was quieter than it claimed got fixed. */
   --color-fg-subtle: #696974;
+
+  /* The same six and the same twelve, darkened for paper: a hue that reads on
+     near-black is washed out on white, so each one drops in lightness and
+     gains chroma rather than being reused. */
+  --kind-doc: #2d5fd0;
+  --kind-notes: #8a6116;
+  --kind-deck: #b4397a;
+  --kind-board: #0f7754;
+  --kind-code: #6b3fd4;
+  --kind-design: #106f80;
+
+  --who-1: #2d5fd0;
+  --who-2: #0f7754;
+  --who-3: #b4397a;
+  --who-4: #8a6116;
+  --who-5: #6b3fd4;
+  --who-6: #106f80;
+  --who-7: #ba3e29;
+  --who-8: #3d7613;
+  --who-9: #af3991;
+  --who-10: #7a6212;
+  --who-11: #3556b8;
+  --who-12: #0d7665;
 
   --color-danger: #cc2f36;
   --color-warn: #8a6116;
@@ -502,6 +553,75 @@
   --color-accent-dim: #3a3a42;
   --color-accent-soft: rgba(0, 0, 0, 0.08);
   --color-on-accent: #ffffff;
+}
+
+
+/*
+ * A second theme block, and it is `static` on purpose.
+ *
+ * Tailwind emits a `@theme` variable only when something it can see uses it,
+ * and it cannot see these: every one of them is reached through `var()` from
+ * an inline style that JavaScript writes (`lib/hue.ts` hands out the names)
+ * or from a `color-mix()` inside a hand-written rule. Left in the main block
+ * they were tree-shaken out of the dark theme entirely — the light override
+ * survived, because that is hand-written CSS, so the app was correct on paper
+ * and colourless on near-black, which is the kind of bug a screenshot catches
+ * and a type checker never will.
+ *
+ * `static` means "emit these whether or not you can see a use". It is the
+ * right tool for a palette that is addressed by name at runtime.
+ */
+@theme static {
+  /* ── Colour that means something ──────────────────────────
+
+     Six hues for the six kinds of thing you can make, and a ring of twelve for
+     people. This is the one place in the app where colour is allowed to do a
+     job on its own, and the reason is that it is doing a different job.
+
+     ── THE RULE THIS DOES NOT BREAK ──────────────────────────────────────────
+     A fill may never be the sole carrier of a *state*. That still holds: the
+     surface ramp measures 1.08–1.24:1 against the canvas, so a tint is
+     invisible to a lot of people and a pressed button that only darkens is a
+     pressed button nobody can find. Ink and weight carry state; a fill
+     reinforces it.
+
+     Identity is not state. What kind of thing this is never changes, is never
+     the only label — the name and the glyph are right beside it — and is
+     exactly what colour is good at. You learn in a day that blue is a document
+     and green is a board, and after that you find things in a list of twenty
+     without reading it. Figma does this with layer types and Slack does it with
+     people, and a monochrome list is slower to use than a coloured one no
+     matter how calm it looks.
+
+     Each hue is declared twice, because a colour that reads on near-black is
+     washed out on paper and one that reads on paper is neon on near-black.
+     ──────────────────────────────────────────────────────── */
+
+  /* Dark. Lifted and slightly desaturated: full-chroma hues on #202124 buzz. */
+  --kind-doc: #7aa2ff;
+  --kind-notes: #d8a13c;
+  --kind-deck: #f08bbe;
+  --kind-board: #4ecf9d;
+  --kind-code: #b892ff;
+  --kind-design: #6fd3e0;
+
+  /* Twelve for people, and twelve rather than six so that a room of eight
+     rarely repeats. They are picked by hashing the person's id, so the same
+     person is the same colour on every screen and on every machine — which
+     is the entire point. A colour handed out in join order changes when
+     somebody leaves. */
+  --who-1: #7aa2ff;
+  --who-2: #4ecf9d;
+  --who-3: #f08bbe;
+  --who-4: #d8a13c;
+  --who-5: #b892ff;
+  --who-6: #6fd3e0;
+  --who-7: #f0836f;
+  --who-8: #8fd45e;
+  --who-9: #ff9fd0;
+  --who-10: #c9b26a;
+  --who-11: #93b0ff;
+  --who-12: #5fd0b8;
 }
 
 /* ── Radius ─────────────────────────────────────────────── */
@@ -3455,6 +3575,51 @@
 }
 .avatar-glyph {
   line-height: 1;
+}
+
+/* The tinted square, for the places a project is an object rather than a row.
+   `--hue` is the kind's colour; `color-mix` keeps the ground at a fixed
+   fraction of it in both themes, so one rule serves near-black and paper
+   without a second declaration. The ring is the same colour again, weaker —
+   an edge rather than a border, so a grid of these reads as a set of marks
+   and not as a set of boxes. */
+.avatar--tile {
+  border-radius: calc(var(--radius-sm) + 1px);
+  background: color-mix(in oklab, var(--hue, var(--color-fg)) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--hue, var(--color-fg)) 22%, transparent);
+}
+
+/* What kind of thing this is, as a word. Same colour logic as the tile; the
+   ink is the hue itself, which every one of the twelve is mixed to carry at
+   this size against both grounds. */
+.kindchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 2px 7px 2px 6px;
+  border-radius: 999px;
+  font-size: var(--text-meta);
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--hue, var(--color-fg-muted));
+  background: color-mix(in oklab, var(--hue, var(--color-fg)) 13%, transparent);
+}
+
+/* A person, as a disc of their own colour with their initials in it. Slack's
+   trick, and the reason it works is that the colour is the same on every
+   screen — see lib/hue.ts for why that is derived and not stored. */
+.who {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  font-size: var(--text-meta);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--hue);
+  background: color-mix(in oklab, var(--hue) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--hue) 30%, transparent);
 }
 
 .avatar-pixels {

@@ -43,9 +43,12 @@ Een Mac-versie bouw je op een Mac met `npm run dist:mac`, Linux met
   een Apple Developer-account met notarisatie.
 - **Laat hem zichzelf bijwerken.** Een browser zonder updates loopt binnen weken
   achter op beveiligingsfixes. `electron-updater` kan uit dezelfde releases lezen.
-- **Houd Electron bij.** Op 14 september 2026 draait dit op Electron 33, met de
-  Chromium van eind 2024; de nieuwste is 44. Voor een browser die mensen op het
-  open web gebruiken is dat het eerste dat moet.
+- **Houd Electron bij.** Dit draait nu op Electron 44, met een actuele
+  Chromium. Dat was tot september 2026 Electron 33 met de Chromium van eind
+  2024, en dat is precies de reden dat het bijgewerkt is: een browser op het
+  open web die twee jaar achterloopt mist niet alleen functies maar ook
+  beveiligingsfixes — en Google weigert aanmeldingen van clients die er te oud
+  uitzien. Houd dit bij; het loopt vanzelf weer achter.
 
 ## Hoe het werkt
 

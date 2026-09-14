@@ -101,17 +101,18 @@ beschreef iets anders dan wat er staat, en het label is wat de deur dichthoudt.
 
 Wat er nu staat is een gewone Chrome-useragent met onze eigen naam erachter:
 
-    … Chrome/130.0.6723.191 Safari/537.36 TougatherBrowser/0.1.0
+    … Chrome/152.0.7977.78 Safari/537.36 TougatherBrowser/0.1.0
 
 Een browser hoort te zeggen wie hij is; Edge en Opera doen precies hetzelfde.
 
-**Maar er staat nog iets in die regel: Chrome/130.** Dat is de Chromium van
-oktober 2024, en dit wordt gelezen in 2026. Aan dat getal valt met een label
-niets te doen — het ís de motor die eronder zit — en het opschroeven zou erger
-zijn dan het probleem: dan krijgt deze browser pagina's voorgeschoteld met
-dingen erin die zijn engine niet kan, en breekt het stil. De echte oplossing
-is een nieuwere Electron, en dat staat in `CLAUDE.md` niet voor niets als het
-eerste werk.
+Er stond tot voor kort nog iets vervelends in die regel: `Chrome/130`, de
+Chromium van oktober 2024, gelezen in 2026. Dat is precies het signaal waarop
+een aanmelding stukloopt, en eraan draaien met een label zou erger zijn dan het
+probleem — dan krijgt deze browser pagina's voorgeschoteld met dingen erin die
+zijn engine niet kan, en breekt het stil.
+
+De motor is daarom vervangen in plaats van het label. Electron 44 zegt
+`Chrome/152`, en dat is actueel.
 
 Of Google hier overheen stapt weet ik pas als jij het een keer probeert; ik
 voer geen wachtwoorden in, dus die stap is aan jou. Wat wél veranderd is: als

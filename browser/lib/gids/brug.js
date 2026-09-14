@@ -75,16 +75,58 @@ class Paginabrug {
    * JSON in. Dat is de enige weg — er is geen kanaal naar die wereld — en het
    * is veilig zolang álles wat erin gaat door `JSON.stringify` komt. Doe dat
    * nooit met de hand.
+   *
+   * ── DE AFSLUITER BESTAAT VANAF DE EERSTE REGEL ─────────────────────────
+   * Niet pas na het inladen, en dat is geen detail. Tussen "kijken of het er
+   * staat" en "aanroepen" zitten twee await's, en in die tussentijd kan de
+   * pagina wegnavigeren. Gebeurde dat, dan sloot de navigatie niets af — de
+   * afsluiter bestond nog niet — en liep de aanroep daarna tegen een vers
+   * document aan, waar `__gids` nog niet in zit. De beller kreeg dan "niet
+   * geladen" terug in plaats van "genavigeerd": een antwoord dat klinkt als
+   * een fout in het inladen terwijl er niets mis was.
+   *
+   * Op Electron 33 viel dat toevallig goed uit en op 44 niet. Zo'n race is
+   * niet stuk gegaan bij het bijwerken; hij werd zichtbaar.
    */
-  async roep(functie, argumenten = [], geduld = GEDULD_MS) {
-    if (this.wc.isDestroyed()) return { status: 'weg' };
-    await this.zorgDatHetErIs();
-    if (this.wc.isDestroyed()) return { status: 'weg' };
+  roep(functie, argumenten = [], geduld = GEDULD_MS) {
+    if (this.wc.isDestroyed()) return Promise.resolve({ status: 'weg' });
 
-    const args = argumenten.map((a) => JSON.stringify(a)).join(',');
-    const code = `(globalThis.__gids ? globalThis.__gids.${functie}(${args}) : { status: 'niet geladen' })`;
+    let af = false;
+    let klaar;
+    const uit = new Promise((r) => { klaar = r; });
 
-    return this.metKlok(this.wc.executeJavaScriptInIsolatedWorld(WERELD, [{ code }]), geduld);
+    const sluit = (reden) => {
+      if (af) return;
+      af = true;
+      this.openstaand.delete(sluit);
+      if (klok) clearTimeout(klok);
+      klaar({ status: reden });
+    };
+    // Eerst registreren, dan pas iets doen dat kan wachten.
+    this.openstaand.add(sluit);
+    const klok = geduld > 0 ? setTimeout(() => sluit('te laat'), geduld) : null;
+
+    void (async () => {
+      await this.zorgDatHetErIs();
+      if (af) return;
+      if (this.wc.isDestroyed()) { sluit('weg'); return; }
+
+      const args = argumenten.map((a) => JSON.stringify(a)).join(',');
+      const code = `(globalThis.__gids ? globalThis.__gids.${functie}(${args}) : { status: 'niet geladen' })`;
+
+      try {
+        const waarde = await this.wc.executeJavaScriptInIsolatedWorld(WERELD, [{ code }]);
+        if (af) return;
+        af = true;
+        this.openstaand.delete(sluit);
+        if (klok) clearTimeout(klok);
+        klaar(waarde);
+      } catch (fout) {
+        sluit('mislukt: ' + String(fout && fout.message ? fout.message : fout).split('\n')[0]);
+      }
+    })();
+
+    return uit;
   }
 
   /**
@@ -95,33 +137,6 @@ class Paginabrug {
    */
   wacht(functie, argumenten = []) {
     return this.roep(functie, argumenten, 0);
-  }
-
-  metKlok(belofte, geduld) {
-    return new Promise((klaar) => {
-      let af = false;
-      const sluit = (reden) => {
-        if (af) return;
-        af = true;
-        this.openstaand.delete(sluit);
-        clearTimeout(klok);
-        klaar({ status: reden });
-      };
-      this.openstaand.add(sluit);
-
-      const klok = geduld > 0 ? setTimeout(() => sluit('te laat'), geduld) : null;
-
-      belofte.then(
-        (waarde) => {
-          if (af) return;
-          af = true;
-          this.openstaand.delete(sluit);
-          clearTimeout(klok);
-          klaar(waarde);
-        },
-        (fout) => sluit('mislukt: ' + String(fout && fout.message ? fout.message : fout).split('\n')[0]),
-      );
-    });
   }
 
   /**

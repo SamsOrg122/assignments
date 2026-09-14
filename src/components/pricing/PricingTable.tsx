@@ -263,7 +263,9 @@ export function PricingTable() {
                   type="button"
                   onClick={() =>
                     plan.price === 0
-                      ? router.push("/library")
+                      ? // The free plan is the browser, so its button is the
+                        // download rather than the web app.
+                        router.push("/download")
                       : router.push(
                           `/checkout?plan=${plan.id}&interval=${interval}` +
                             (plan.perSeat ? `&seats=${seats}` : ""),

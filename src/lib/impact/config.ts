@@ -56,7 +56,7 @@ export const PLANS: Plan[] = [
   {
     id: "free",
     name: "Free",
-    blurb: "Everything that isn't AI, with enough AI to feel it.",
+    blurb: "The whole browser, and the assistant on your own plan.",
     price: 0,
     perSeat: false,
     includedCredits: 200,
@@ -67,34 +67,40 @@ export const PLANS: Plan[] = [
      * code counted nothing — a limit a customer discovers is not there is a
      * small lie that costs the next claim its credibility. If a limit is ever
      * wanted, it goes in the code first and in this list second.
+     *
+     * WHAT MOVED, AND IT IS THE PRODUCT'S SHAPE: the workspace used to be on
+     * this list. The browser is the product now and it is free in full — every
+     * tab, every workspace, the assistant — because the assistant costs us
+     * nothing to run: it thinks on the customer's own agent subscription. What
+     * a subscription with us buys is the workspace and the account behind it.
      */
     features: [
-      "Every editor, the Library and the Board",
-      "Sources, citations and version history",
-      "Word and PowerPoint in and out",
-      "200 AI credits a month",
+      "The browser in full: tabs, workspaces, the assistant",
+      "The assistant runs on your own agent plan, unmetered by us",
+      "Every editor in the workspace, on this device",
+      "200 AI credits a month for the workspace's own AI",
     ],
-    cta: "Start writing",
+    cta: "Download the browser",
   },
   {
     id: "pro",
     name: "Pro",
-    blurb: "For a thesis, a company, or both at once.",
+    blurb: "The workspace, on every machine you use.",
     price: 14,
     perSeat: false,
     includedCredits: 3000,
     metered: true,
     featured: true,
-    // What the money buys is the allowance. Everything else is on the free
-    // plan too, and saying otherwise on a pricing page is the kind of claim
-    // somebody checks.
+    // What the money buys is the workspace and its allowance. The browser is
+    // not on this list because the browser is free, and a paid plan that
+    // relists free things is a plan padding itself.
     features: [
+      "The workspace synced to your account, on every machine",
       "3,000 AI credits a month, then metered",
       "Speak-to-prose and workspace-aware AI",
-      "The whole workspace, as on the free plan",
       "One price, not per seat",
     ],
-    cta: "Start writing",
+    cta: "Start the subscription",
   },
   {
     id: "team",

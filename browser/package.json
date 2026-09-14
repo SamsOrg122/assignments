@@ -1,0 +1,64 @@
+{
+  "name": "tougather",
+  "version": "0.1.0",
+  "description": "Een browser met assistenten die naast je werken, elk in hun eigen tabblad.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "bouw-app": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bouw-app.ps1",
+    "dist:win": "node scripts/controleer-app.js && electron-builder --win",
+    "dist:mac": "node scripts/controleer-app.js && electron-builder --mac",
+    "dist:linux": "node scripts/controleer-app.js && electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.tougather.browser",
+    "productName": "Tougather",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload*.js",
+      "lib/**",
+      "renderer/**",
+      "mcp/**",
+      "app/**"
+    ],
+    "asarUnpack": [
+      "mcp/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Tougather",
+      "artifactName": "Tougather-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network",
+      "icon": "build/icon.png"
+    }
+  }
+}

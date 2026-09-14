@@ -1,0 +1,4 @@
+# The browser ships as a release, not as part of the website. Without this, a
+# deploy from a local checkout can upload browser/dist and browser/node_modules:
+# hundreds of megabytes the site never uses.
+/browser

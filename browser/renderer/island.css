@@ -1,0 +1,180 @@
+/* De balk van de assistent. Maten, lettertypes en de kleuren van de staten komen
+   uit tokens.css; wat hier staat is van deze laag alleen.
+
+   In het glasontwerp is er geen plafond meer om uit te groeien, dus dit is een
+   zwevende kaart in dezelfde taal als de commandobalk. In rust bestaat hij niet:
+   island.js meldt dan maat nul en het hoofdproces geeft de laag nul pixels. */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  /* Doorzichtig: alleen de kaart mag zichtbaar zijn, de rest laat de pagina door. */
+  background: transparent;
+  color: var(--ink);
+  font: 400 13px/1.4 var(--font-text);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+
+#kaart {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  width: max-content;
+  min-width: 120px;
+  max-width: 560px;
+  padding: 11px 16px;
+  border-radius: 16px;
+  background-color: var(--kaart);
+  backdrop-filter: blur(28px) saturate(1.3);
+  box-shadow: var(--schaduw-pop), var(--kaart-rand);
+  animation: neer var(--duur-wissel) var(--soepel);
+}
+
+@keyframes neer {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+}
+
+/* In rust tekent hij niets; de laag is dan toch nul pixels groot. */
+#kaart[data-vorm="rust"] {
+  display: none;
+}
+
+#rij {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+#glyph {
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+
+#tekst {
+  flex: 1;
+  min-width: 0;
+}
+
+#vorige {
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 14px;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity var(--duur-wissel) var(--soepel), transform var(--duur-wissel) var(--soepel);
+}
+
+#vorige.zichtbaar {
+  opacity: 1;
+  transform: none;
+}
+
+#huidig {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* De glans trekt alleen over de regel zolang hij bezig is; op een stilstaande
+   regel is dat onrust. */
+#huidig.bezig {
+  background-image: linear-gradient(
+    100deg,
+    var(--ink) 35%,
+    var(--accent) 50%,
+    var(--ink) 65%
+  );
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: glans 2.4s linear infinite;
+}
+
+@keyframes glans {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+
+#invoer {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  caret-color: var(--accent);
+  font: inherit;
+  font-size: 14px;
+  user-select: text;
+}
+
+#invoer::placeholder {
+  color: var(--ink-3);
+}
+
+#invoer:focus {
+  outline: none;
+}
+
+#stop,
+#ga {
+  flex: none;
+  border: 0;
+  border-radius: 9px;
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color var(--duur-vlak) var(--soepel);
+}
+
+#stop {
+  background: rgba(229, 72, 77, 0.14);
+  color: var(--gevaar);
+}
+
+#stop:hover {
+  background: rgba(229, 72, 77, 0.22);
+}
+
+#ga {
+  background: var(--ink);
+  color: #fff;
+}
+
+#ga:hover {
+  filter: brightness(1.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #kaart {
+    animation: none;
+  }
+  #huidig.bezig {
+    animation: none;
+    background: none;
+    color: var(--ink);
+  }
+  #vorige {
+    transition: none;
+  }
+}

@@ -88,6 +88,30 @@ On the hosting dashboard, for **production**:
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | the project |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the project |
+
+## Publish the browser release, or every download link 404s
+
+`src/lib/browser.ts` builds five URLs of the shape
+
+    https://github.com/SamsOrg122/assignments/releases/download/browser-v0.1.0/<file>
+
+and nothing on the site checks that they resolve — `scripts/browser-version-agrees.mjs`
+only proves the site and `browser/package.json` name the same version, which is the
+half a build can check. The other half is yours:
+
+1. Build the installers. `npm run bouw-app` first — `dist:*` refuses without `app/`,
+   because an installer without it ships a browser with a 404 where Tougather should be.
+   Windows and Linux can be built anywhere; the Mac ones need a Mac.
+2. Cut a release tagged exactly **`browser-v0.1.0`** and attach all five files under the
+   names in `BUILDS`. A tag that does not match, or a file renamed by a build flag, is a
+   dead button with no error anywhere.
+3. Sign them, or expect to lose people at the door. Unsigned, Windows shows a blue
+   full-screen "Windows protected your PC" on first run. `/download` says so in plain
+   words, which is the best that can be done from this side.
+
+Tag pushes are refused by this repository's git proxy, so cut the release from the
+GitHub UI or from a machine that can push tags.
+
 | `OPENROUTER_API_KEY` | without it the assistant answers with a refusal, and recording works only in Chrome and Safari |
 | `OPENROUTER_LISTEN_MODELS` | optional. If recording fails with "no model could hear that", the default slugs cannot accept audio on your account — put ones that can here |
 | `NEXT_PUBLIC_SITE_URL` | `https://tougather.com` — sign-in redirects are built from it |

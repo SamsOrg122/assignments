@@ -17,6 +17,10 @@ const eslintConfig = defineConfig([
     // judging it by the web app's rules and, worse, walking a few hundred
     // files of Rust build output under `src-tauri/target`.
     "desktop/**",
+    // The browser is a separate application in the same way: plain JavaScript
+    // for Electron with its own dependencies. The web app's rules do not fit it,
+    // and its node_modules and dist/ have no business being walked from here.
+    "browser/**",
   ]),
 ]);
 

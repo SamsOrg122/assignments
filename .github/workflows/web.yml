@@ -23,6 +23,9 @@ on:
       - "src/**"
       - "scripts/**"
       - "package.json"
+      # The browser's version is half of every download URL on the site, so a
+      # change to it has to run the check that compares the two.
+      - "browser/package.json"
       # `npm ci` reads the lockfile, and `tsc` and `eslint` read their own
       # configs. A change to any of them changes what these steps do, so a
       # change to any of them has to run them — otherwise the way to turn this
@@ -85,6 +88,13 @@ jobs:
       - name: The desktop version agrees with itself
         if: ${{ !cancelled() }}
         run: node scripts/desktop-version-agrees.mjs
+
+      # And the browser's, for the same reason: five download links on the site
+      # are built from a constant that has to match browser/package.json, and a
+      # mismatch fails nothing while making the product unreachable.
+      - name: The browser version agrees with itself
+        if: ${{ !cancelled() }}
+        run: node scripts/browser-version-agrees.mjs
 
       # The type scale, the mono rule, the container rule: a ratchet against a
       # committed per-file baseline. See the script's own header for why it is

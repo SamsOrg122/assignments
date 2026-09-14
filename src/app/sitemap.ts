@@ -33,6 +33,9 @@ import { PAGES, SLUGS, absoluteUrl, counterparts } from "@/lib/seo";
 /** The storefront routes that predate the registry. */
 const MARKETING = [
   "/",
+  // The thing the site is now for. A download page missing from the sitemap is
+  // a download page a crawler finds last.
+  "/download",
   "/pricing",
   "/about",
   "/impact",

@@ -3,6 +3,8 @@ import { Nav } from "@/components/landing/Nav";
 import { GlassHero } from "@/components/landing/GlassHero";
 import { Landscape } from "@/components/landing/Landscape";
 import { Hero } from "@/components/landing/Hero";
+import { BrowserPillars, OnYourPlan } from "@/components/landing/BrowserStory";
+import { WorkspaceIncluded } from "@/components/landing/WorkspaceIncluded";
 import { Product } from "@/components/landing/Product";
 import { Switch } from "@/components/landing/Switch";
 import { Signature } from "@/components/landing/Signature";
@@ -17,13 +19,14 @@ export const metadata: Metadata = {
   // Absolute, so the root template doesn't append the brand to a line that
   // already opens with it — "Tougather … · Tougather" is what a search result
   // would otherwise show.
-  title: { absolute: "Tougather — everything you make, in one place" },
+  title: { absolute: "Tougather — a browser that works while you do" },
   // Its own URL, said out loud. The sitemap advertises this page, and a
   // page in a sitemap with no canonical leaves the choice of URL to a crawler.
   alternates: { canonical: "/" },
   description:
-    `An AI-native workspace for entrepreneurs and students: write, present, draw and organise in one place. ` +
-    `${percent(IMPACT.shareOfRevenue.value)} of every euro — subscription and AI usage alike — is set aside for reforestation.`,
+    `A desktop browser with assistants in it. Give one a job and it works in its own tab while you keep going in yours — ` +
+    `thinking on your own subscription, so nothing is metered and nothing passes our servers. ` +
+    `${percent(IMPACT.shareOfRevenue.value)} of every euro is set aside for reforestation.`,
 };
 
 export default function LandingPage() {
@@ -53,10 +56,26 @@ export default function LandingPage() {
         * other, rather than two sections stacked.
         */}
       <main className="sheet">
+        {/*
+          * The order is the argument, in the order somebody decides.
+          *
+          *   Hero              what it is, and a button that gets it
+          *   BrowserPillars    the four things it does that a browser does not
+          *   OnYourPlan        why the AI in it costs nothing — the one claim
+          *                     a reader might not believe, so it comes early
+          *                     and gets a whole section
+          *   WorkspaceIncluded what the subscription is for
+          *   Product           that workspace, running, because no amount of
+          *                     copy explains it faster
+          *   Switch            and where you should stay put. Straight after
+          *                     "what it is", because it is meaningless before
+          *                     that and forgotten after the fold.
+          */}
         <Hero />
+        <BrowserPillars />
+        <OnYourPlan />
+        <WorkspaceIncluded />
         <Product />
-        {/* The argument comes straight after "what it is", because it is
-            meaningless before that and forgotten after the fold. */}
         <Switch />
         <Signature />
         <Mission />

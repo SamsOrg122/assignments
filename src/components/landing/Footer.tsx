@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import { CTA } from "./primitives";
+import { DownloadButton } from "./Download";
 import { IMPACT, percent } from "@/lib/impact/config";
 import { HUBS, page } from "@/lib/seo";
 import { LogoTile } from "@/components/ui/Logo";
@@ -110,9 +110,11 @@ export function Footer() {
               {percent(IMPACT.shareOfRevenue.value)} of every euro set aside for
               something growing.
             </p>
-            <CTA href="/library" className="mt-5">
-              Start writing
-            </CTA>
+            {/* The last thing on every page is the same thing as the first:
+                the product is a download now, and a footer that still says
+                "start writing" sends somebody to the web app they did not
+                come for. */}
+            <DownloadButton className="mt-5" size="small" />
           </div>
 
           <nav

@@ -28,6 +28,7 @@ import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
 import { NavMenu, type NavMenuItem } from "./NavMenu";
+import { DownloadButton } from "./Download";
 import { HUBS, PAGES, childrenOf, type Lang, type Slug } from "@/lib/seo";
 
 /**
@@ -35,8 +36,8 @@ import { HUBS, PAGES, childrenOf, type Lang, type Slug } from "@/lib/seo";
  * where "#pricing" resolves to nothing at all.
  */
 const LINKS = [
-  { href: "/#product", label: "Product" },
-  { href: "/#features", label: "Features" },
+  { href: "/#features", label: "The browser" },
+  { href: "/#workspace", label: "Workspace" },
   { href: "/impact", label: "Impact" },
   { href: "/pricing", label: "Pricing" },
 ];
@@ -150,17 +151,11 @@ export function Nav() {
           >
             Open Tougather
           </Link>
-          <Link
-            href="/library"
-            className="pill-cta group flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px]"
-          >
-            Start writing
-            <Icon
-              name="arrow-right"
-              size={13}
-              className="transition-transform duration-200 group-hover:translate-x-0.5"
-            />
-          </Link>
+          {/* The one filled thing on the bar, and it is the download: the
+              product is the browser, and the first action on every page
+              should be getting it. `DownloadButton` resolves the platform
+              itself, so this says "Download for macOS" to a Mac. */}
+          <DownloadButton size="small" />
         </div>
       </nav>
     </header>

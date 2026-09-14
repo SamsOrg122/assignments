@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.DS_Store
+
+# Bouwresultaat van de Tougather-app; zie scripts/bouw-app.ps1
+app/

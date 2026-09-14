@@ -20,6 +20,25 @@ No login, no setup. The workspace starts empty and persists to `localStorage`
 from the first edit (⌘K → "Load the sample workspace" fills it with examples;
 `/library?demo=1` does the same in memory, leaving storage untouched).
 
+## What is in here
+
+| Folder | What it is |
+| --- | --- |
+| `src/` | the website and the Tougather workspace, Next.js |
+| `browser/` | **the browser** — Electron, plain JS, its own dependencies and its own checks. The product. |
+| `desktop/` | the floating bar, Tauri. Older, and separate. |
+| `supabase/` | migrations |
+
+`browser/` and `desktop/` are excluded from this project's `tsconfig`, its ESLint
+config and its Vercel deploy: they are separate applications that happen to live in
+the same repository, and the web app's rules do not fit them. Each has its own
+`README.md` and `CLAUDE.md`.
+
+The website's download links are built from `BROWSER_VERSION` in `src/lib/browser.ts`,
+and `scripts/browser-version-agrees.mjs` fails the build if that drifts from
+`browser/package.json`.
+
+
 ## Structure
 
 ```

@@ -1,0 +1,428 @@
+/* Alle ontwerptokens op één plek, als eerste stylesheet geladen door index.html,
+   island.html en newtab.html.
+
+   Richting: het glasontwerp uit docs/ontwerp/glass-browser.html. Licht, met een
+   bewegende mesh onder een zijbalk van glas. Wit op glas in de zijbalk, donkere
+   inkt op de pagina. */
+
+/* Outfit, de font van het ontwerp. Meegeleverd in renderer/fonts/ onder de SIL
+   Open Font License 1.1; de licentietekst staat ernaast in OFL.txt. Eén
+   variabel bestand per subset dekt alle snedes, dus 200 tot 600 komen uit
+   dezelfde 32 kB. Meegeleverd en niet van een CDN: het CSP van deze pagina's
+   staat geen externe bronnen toe, en een browser die op zijn eigen chroom moet
+   wachten tot een lettertypeserver antwoordt is geen browser. */
+@font-face {
+  font-family: "Outfit";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url("fonts/outfit-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Outfit";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url("fonts/outfit-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* De kleur van een mesh-vlek is een geregistreerde eigenschap. Dat is de enige
+   manier om er een overgang op te zetten: een gewone variabele springt, een
+   geregistreerde van type <color> vloeit. Zo verkleurt de hele achtergrond
+   zacht mee als je van workspace wisselt. */
+@property --c {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: #c4b2ec;
+}
+
+:root {
+  color-scheme: light;
+
+  --sidebar-width: 272px;
+
+  /* De ruimte rondom de pagina, aan alle vier de kanten gelijk. Moet gelijk
+     blijven aan CONTENT_GAP in main.js: dat zet de native laag, dit tekent de
+     schaduw eronder. */
+  --gleuf: 10px;
+
+  /* De bovenbalk. Moet gelijk blijven aan BALK_HOOGTE in main.js: dat zet de
+     native laag, dit tekent wat erboven hangt. */
+  --balk-hoogte: 34px;
+
+  /* Wordt door app.js bijgesteld als er een paneel openstaat. */
+  --paneel-hoogte: 0px;
+  --radius-content: 18px;
+  --radius-tab: 11px;
+  --radius-field: 12px;
+  --radius-card: 20px;
+
+  --font: "Outfit", -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-text: var(--font);
+
+  /* Inkt: op de pagina en op lichte vlakken. */
+  --ink: #221f2a;
+  --ink-2: rgba(34, 31, 42, 0.58);
+  --ink-3: rgba(34, 31, 42, 0.35);
+  --accent: #b48cf0;
+  --gevaar: #e5484d;
+
+  /* Glas in de zijbalk. Alles wit-op-donker, want de zijbalk ligt over de mesh. */
+  --glas: rgba(255, 255, 255, 0.2);
+  --glas-hover: rgba(255, 255, 255, 0.28);
+  --glas-actief: rgba(255, 255, 255, 0.66);
+  --glas-rand: inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  --op-glas: rgba(255, 255, 255, 0.95);
+  --op-glas-zacht: rgba(255, 255, 255, 0.75);
+
+  /* De sluier die de zijbalk over de mesh legt: bovenaan iets dieper zodat de
+     vensterknoppen rust hebben, daaronder bijna niets. De mesh moet erdoorheen
+     komen, dat is het hele ontwerp. Waarden uit glass-browser.html. */
+  --sluier: linear-gradient(
+    180deg,
+    rgba(30, 26, 40, 0.28) 0%,
+    rgba(30, 26, 40, 0.12) 30%,
+    rgba(30, 26, 40, 0.1) 100%
+  );
+
+  --pane: rgba(255, 255, 255, 0.8);
+  --pane-rand: inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 10px 40px -24px rgba(0, 0, 0, 0.3);
+
+  --kaart: rgba(255, 255, 255, 0.82);
+  --kaart-rand: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  --schaduw-kaart: 0 30px 80px -20px rgba(20, 10, 40, 0.45);
+  --schaduw-pop: 0 20px 50px -20px rgba(20, 10, 40, 0.4);
+
+  --duur-tik: 120ms;
+  --duur-vlak: 180ms;
+  --duur-rij: 200ms;
+  --duur-wissel: 220ms;
+  --duur-morph: 350ms;
+  --soepel: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --overgang-vlak: background-color var(--duur-vlak) var(--soepel),
+    color var(--duur-vlak) var(--soepel), box-shadow var(--duur-vlak) var(--soepel),
+    opacity var(--duur-vlak) var(--soepel);
+
+  /* De stip van een workspace draagt het accent van zijn eigen palet, in
+     dezelfde volgorde als PALETTEN in main.js. Zo herken je een workspace aan
+     dezelfde kleur in de strip als in de achtergrond. */
+  --ws-0: #b48cf0;
+  --ws-1: #7cc46a;
+  --ws-2: #e07ad0;
+  --ws-3: #f0a460;
+  --ws-4: #5cb8e6;
+  --ws-5: #b48cf0;
+}
+
+/* Staten van de assistent. Als kanalen, zodat CSS ze via rgb(var(--modus-x))
+   kan gebruiken én glyph.js ze met getComputedStyle kan uitlezen — één bron voor
+   het canvas en de stylesheet, zonder build-stap. */
+:root {
+  --modus-rust: 148 140 170;
+  --modus-invoer: 180 140 240;
+  --modus-debuggen: 92 156 255;
+  --modus-zoeken: 229 72 77;
+  --modus-lezen: 246 162 77;
+  --modus-analyseren: 56 214 110;
+  --modus-actie: 246 162 77;
+  --modus-klaar: 56 214 110;
+}
+
+/* Het donkere thema is dezelfde taal met de mesh gedempt en de pagina donker.
+   Het ontwerp is licht bedoeld; dit is de variant, niet een tweede ontwerp. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --ink: #ece9f2;
+    --ink-2: rgba(236, 233, 242, 0.6);
+    --ink-3: rgba(236, 233, 242, 0.34);
+
+    --glas: rgba(255, 255, 255, 0.08);
+    --glas-hover: rgba(255, 255, 255, 0.14);
+    --glas-actief: rgba(255, 255, 255, 0.2);
+    --glas-rand: inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+
+    --sluier: linear-gradient(
+      180deg,
+      rgba(12, 10, 18, 0.6) 0%,
+      rgba(12, 10, 18, 0.46) 30%,
+      rgba(12, 10, 18, 0.42) 100%
+    );
+
+    --pane: rgba(24, 22, 30, 0.86);
+    --pane-rand: inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 10px 40px -24px rgba(0, 0, 0, 0.6);
+
+    --kaart: rgba(28, 26, 36, 0.86);
+    --kaart-rand: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duur-tik: 0ms;
+    --duur-vlak: 0ms;
+    --duur-rij: 0ms;
+    --duur-wissel: 0ms;
+    --duur-morph: 0ms;
+  }
+}
+
+/* Paletten -------------------------------------------------------------
+
+   Elke workspace heeft zijn eigen mesh. Tien kleuren, één per vlek, plus het
+   accent dat de voortgangsbalk en de actieve stip kleuren. Overgenomen uit
+   glass-browser.html. app.js zet data-palet op de body. */
+
+body,
+body[data-palet="home"] {
+  --c1: 150,160,90;
+  --c2: 178,190,88;
+  --c3: 192,184,160;
+  --c4: 196,178,236;
+  --c5: 244,166,208;
+  --c6: 196,178,236;
+  --c7: 238,200,228;
+  --c8: 248,160,80;
+  --c9: 120,214,245;
+  --c10: 242,120,204;
+  --accent: #b48cf0;
+}
+
+body[data-palet="studio"] {
+  --c1: 90,140,110;
+  --c2: 178,190,88;
+  --c3: 206,222,80;
+  --c4: 120,214,245;
+  --c5: 56,214,110;
+  --c6: 190,230,150;
+  --c7: 150,225,220;
+  --c8: 248,228,70;
+  --c9: 120,214,245;
+  --c10: 178,190,88;
+  --accent: #7cc46a;
+}
+
+body[data-palet="night"] {
+  --c1: 70,60,130;
+  --c2: 110,90,200;
+  --c3: 160,146,232;
+  --c4: 242,120,204;
+  --c5: 110,140,250;
+  --c6: 150,120,230;
+  --c7: 200,150,240;
+  --c8: 242,120,204;
+  --c9: 90,180,250;
+  --c10: 160,146,232;
+  --accent: #e07ad0;
+}
+
+body[data-palet="dune"] {
+  --c1: 170,120,80;
+  --c2: 230,180,120;
+  --c3: 246,200,140;
+  --c4: 120,200,190;
+  --c5: 248,160,80;
+  --c6: 240,210,160;
+  --c7: 160,215,200;
+  --c8: 246,160,90;
+  --c9: 120,214,225;
+  --c10: 230,140,110;
+  --accent: #f0a460;
+}
+
+body[data-palet="sea"] {
+  --c1: 60,110,150;
+  --c2: 90,170,220;
+  --c3: 150,220,240;
+  --c4: 120,214,245;
+  --c5: 60,150,200;
+  --c6: 170,230,230;
+  --c7: 200,235,245;
+  --c8: 80,190,230;
+  --c9: 120,214,245;
+  --c10: 140,180,240;
+  --accent: #5cb8e6;
+}
+
+body[data-palet="bos"] {
+  --c1: 54,96,66;
+  --c2: 96,150,92;
+  --c3: 140,186,108;
+  --c4: 72,122,86;
+  --c5: 186,206,140;
+  --c6: 44,82,60;
+  --c7: 120,168,104;
+  --c8: 160,196,124;
+  --c9: 60,108,78;
+  --c10: 104,158,98;
+  --accent: #5fae72;
+}
+
+body[data-palet="vuur"] {
+  --c1: 214,88,52;
+  --c2: 244,146,72;
+  --c3: 250,188,96;
+  --c4: 196,62,58;
+  --c5: 238,120,60;
+  --c6: 252,206,140;
+  --c7: 206,74,54;
+  --c8: 246,164,84;
+  --c9: 232,104,58;
+  --c10: 250,178,110;
+  --accent: #e8703c;
+}
+
+body[data-palet="vorst"] {
+  --c1: 186,214,238;
+  --c2: 142,186,224;
+  --c3: 216,234,246;
+  --c4: 108,158,206;
+  --c5: 232,242,250;
+  --c6: 160,200,232;
+  --c7: 124,172,214;
+  --c8: 204,228,244;
+  --c9: 96,146,196;
+  --c10: 176,208,236;
+  --accent: #5f92c8;
+}
+
+body[data-palet="bloesem"] {
+  --c1: 246,182,206;
+  --c2: 238,146,182;
+  --c3: 250,214,226;
+  --c4: 228,120,164;
+  --c5: 244,198,214;
+  --c6: 236,164,194;
+  --c7: 252,226,236;
+  --c8: 222,132,172;
+  --c9: 242,190,210;
+  --c10: 232,154,188;
+  --accent: #dd6d9e;
+}
+
+body[data-palet="inkt"] {
+  --c1: 48,54,110;
+  --c2: 72,80,152;
+  --c3: 104,112,190;
+  --c4: 36,42,88;
+  --c5: 88,96,168;
+  --c6: 126,134,208;
+  --c7: 56,64,126;
+  --c8: 96,104,178;
+  --c9: 68,76,144;
+  --c10: 112,120,196;
+  --accent: #6c76c8;
+}
+
+body[data-palet="citrus"] {
+  --c1: 238,220,96;
+  --c2: 196,214,86;
+  --c3: 250,232,132;
+  --c4: 164,196,76;
+  --c5: 244,226,110;
+  --c6: 212,222,92;
+  --c7: 182,206,80;
+  --c8: 248,238,158;
+  --c9: 204,216,88;
+  --c10: 232,224,104;
+  --accent: #b8c94e;
+}
+
+body[data-palet="steen"] {
+  --c1: 186,176,164;
+  --c2: 158,148,138;
+  --c3: 208,200,188;
+  --c4: 134,126,118;
+  --c5: 196,186,174;
+  --c6: 172,162,150;
+  --c7: 146,138,128;
+  --c8: 216,208,198;
+  --c9: 164,154,144;
+  --c10: 182,172,160;
+  --accent: #8d8478;
+}
+
+/* Privé ----------------------------------------------------------------
+
+   Donker, grijs en bijna zwart, met hooguit een spoor koelte erin. Geen kleur
+   die vrolijk wordt, want dit palet is er niet om mooi te zijn maar om je in
+   één blik te laten zien waar je bent: een privévenster dat eruitziet als een
+   gewoon venster is er een waarin je vergeet dat je erin zit.
+
+   De inkt blijft wit op glas, precies als elders; alleen wat eronder beweegt is
+   uitgedoofd. */
+
+body[data-palet="prive"] {
+  --c1: 34 34 40;
+  --c2: 52 52 60;
+  --c3: 26 26 30;
+  --c4: 68 68 78;
+  --c5: 20 20 24;
+  --c6: 44 44 52;
+  --c7: 30 30 36;
+  --c8: 58 58 66;
+  --c9: 24 24 30;
+  --c10: 40 40 48;
+  --accent: #9a9aa8;
+}
+
+/* De sluier mag hier zwaarder: met een uitgedoofde mesh eronder blijft witte
+   tekst anders op de grens van leesbaar. */
+body[data-palet="prive"] #sidebar::before {
+  background: linear-gradient(
+    180deg,
+    rgba(10, 10, 14, 0.52) 0%,
+    rgba(10, 10, 14, 0.4) 30%,
+    rgba(10, 10, 14, 0.36) 100%
+  );
+}
+
+/* Beweging achter het glas ----------------------------------------------
+
+   Drie standen, per workspace te kiezen.
+
+     stil       de vlekken staan stil. Voor wie de beweging afleidend vindt, en
+                voor een trage machine: tien vervaagde vlakken die schuiven is
+                het duurste wat deze zijbalk doet.
+     rustig     ze schuiven traag langs elkaar. De stand die er altijd was.
+     levendig   én de hele mesh verschuift langzaam van tint, zodat de kleuren
+                gaandeweg veranderen zonder ooit ergens te springen.
+
+   De tintdraai zit op de laag en niet op de vlekken: één draai voor alles
+   tegelijk houdt ze bij elkaar, tien losse draaien zouden uit elkaar lopen. */
+
+body[data-beweging="stil"] .blob {
+  animation: none;
+}
+
+body[data-beweging="levendig"] #mesh {
+  animation: tintdraai 90s linear infinite;
+}
+
+@keyframes tintdraai {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+
+/* Wie liever geen beweging ziet krijgt die ook hier niet, ongeacht de keuze. */
+@media (prefers-reduced-motion: reduce) {
+  body[data-beweging="levendig"] #mesh {
+    animation: none;
+  }
+}

@@ -49,8 +49,17 @@ if (!table) {
   process.exit(1);
 }
 
-const wanted = [...table.matchAll(/asset\(`([^`]+)`\)/g)].map(([, name]) =>
-  name.replaceAll("${BROWSER_VERSION}", version),
+/**
+ * Each build as the site describes it: the filename, and the size the button
+ * promises. They are read as one pair because they are one claim — this file
+ * is 86 MB and lives at that URL — and checking half of it is how the other
+ * half rots.
+ */
+const wanted = [...table.matchAll(/href: asset\(`([^`]+)`\),\s*\n\s*size: "([\d.]+) MB"/g)].map(
+  ([, name, size]) => ({
+    name: name.replaceAll("${BROWSER_VERSION}", version),
+    claimed: Number(size) * 1e6,
+  }),
 );
 
 const declared = (table.match(/^\s{4}id: "/gm) ?? []).length;
@@ -75,17 +84,44 @@ const walk = (d) => {
 walk(dir);
 
 const mb = (n) => `${(n / 1e6).toFixed(0)} MB`;
-const missing = wanted.filter((name) => !found.has(name));
+const missing = wanted.filter(({ name }) => !found.has(name));
 
-for (const name of wanted) {
+/**
+ * And the sizes, within a tenth.
+ *
+ * Loose on purpose: an installer grows a few megabytes between versions and
+ * nobody should have to edit a number for that. A tenth is wide enough to
+ * ignore ordinary drift and narrow enough to catch the case that matters —
+ * a button that says 86 MB over a link that spends 300 of somebody's data.
+ */
+const wrongSize = [];
+
+for (const { name, claimed } of wanted) {
   // `has`, not the size: a zero-byte file is present and wrong in a different
   // way, and reporting it as missing would send somebody looking for the wrong
   // problem.
+  if (!found.has(name)) {
+    console.log(`  MISSING ${name}`);
+    continue;
+  }
+  const actual = found.get(name);
+  const off = Math.abs(actual - claimed) / claimed > 0.1;
+  if (off) wrongSize.push({ name, claimed, actual });
   console.log(
-    found.has(name)
-      ? `  ok      ${name}  ${mb(found.get(name))}`
-      : `  MISSING ${name}`,
+    `  ${off ? "SIZE   " : "ok     "} ${name}  ${mb(actual)}` +
+      (off ? `  — the site says ${mb(claimed)}` : ""),
   );
+}
+
+if (wrongSize.length && !missing.length) {
+  console.error(
+    `\n${wrongSize.length} download button would misstate its size by more than a tenth:\n` +
+      wrongSize
+        .map(({ name, claimed, actual }) => `  ${name}: site ${mb(claimed)}, file ${mb(actual)}`)
+        .join("\n") +
+      "\n\nUpdate `size` in BUILDS in src/lib/browser.ts to the second number.",
+  );
+  process.exit(1);
 }
 
 if (missing.length) {

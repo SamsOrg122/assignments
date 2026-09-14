@@ -39,7 +39,14 @@ export interface Build {
   /** The distinction they have to make, when there is one. */
   note?: string;
   href: string;
-  /** Roughly, for the button. An honest order of magnitude beats no number. */
+  /**
+   * What the file actually weighs, for the button.
+   *
+   * Measured from the published release, not estimated — and
+   * `scripts/browser-assets-present.mjs` fails the next release if the real
+   * file has drifted more than a tenth away from what this says. A number on
+   * a button is a promise about someone's data allowance.
+   */
   size: string;
 }
 
@@ -61,35 +68,35 @@ export const BUILDS: Build[] = [
     label: "macOS",
     note: "Apple silicon",
     href: asset(`Tougather-${BROWSER_VERSION}-arm64.dmg`),
-    size: "~110 MB",
+    size: "103 MB",
   },
   {
     id: "mac-intel",
     label: "macOS",
     note: "Intel",
     href: asset(`Tougather-${BROWSER_VERSION}.dmg`),
-    size: "~115 MB",
+    size: "107 MB",
   },
   {
     id: "windows",
     label: "Windows",
     note: "installs without admin rights",
     href: asset(`Tougather-Setup-${BROWSER_VERSION}.exe`),
-    size: "~90 MB",
+    size: "86 MB",
   },
   {
     id: "linux-appimage",
     label: "Linux",
     note: "AppImage",
     href: asset(`Tougather-${BROWSER_VERSION}.AppImage`),
-    size: "~120 MB",
+    size: "113 MB",
   },
   {
     id: "linux-deb",
     label: "Linux",
     note: ".deb",
     href: asset(`tougather_${BROWSER_VERSION}_amd64.deb`),
-    size: "~85 MB",
+    size: "79 MB",
   },
 ];
 

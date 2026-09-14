@@ -10,7 +10,7 @@
     "border": 8,
     "tiny": 2
   },
-  "src/app/(app)/chat/[[...channelId]]/page.tsx": {
+  "src/components/chat/ChatClient.tsx": {
     "border": 1
   },
   "src/app/(app)/community/page.tsx": {
@@ -43,7 +43,7 @@
     "uppercase": 1,
     "tiny": 1
   },
-  "src/app/(app)/p/[projectId]/page.tsx": {
+  "src/components/projects/ProjectClient.tsx": {
     "inlineSize": 3
   },
   "src/app/(app)/settings/page.tsx": {

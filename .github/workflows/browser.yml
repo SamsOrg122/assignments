@@ -44,9 +44,13 @@ on:
         type: boolean
         default: false
 
+# A second push to the same branch makes the first one pointless. A release
+# build is not cancelled, though: it takes fifteen minutes across four
+# runners, and having a push land in the middle of one and quietly kill it is
+# how you end up believing the release failed for a reason.
 concurrency:
   group: browser-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 permissions:
   contents: read
@@ -162,9 +166,25 @@ jobs:
       # exists, reason=CI detected" — and dies on a missing GH_TOKEN *after*
       # building everything. Publishing is this workflow's release job's
       # business, and it is the only thing that runs the check first.
+      #
+      # Three attempts, because electron-builder fetches its own toolchain —
+      # NSIS, fpm, winCodeSign, the Electron binary itself — from GitHub
+      # releases while it works, and one of those downloads failing takes the
+      # whole build with it. That has already happened once here: the same
+      # commit built a Windows installer on one run and died fetching an NSIS
+      # binary on the next. Retrying a release build by hand is fine; having a
+      # release fail for a reason that has nothing to do with the code is not.
       - name: Pack
         working-directory: browser
-        run: npm run ${{ matrix.script }} -- ${{ matrix.arch }}
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm run ${{ matrix.script }} -- ${{ matrix.arch }}; then exit 0; fi
+            echo "::warning::pack attempt $attempt failed"
+            sleep $((attempt * 20))
+          done
+          echo "::error::pack failed three times"
+          exit 1
 
       # Only what somebody installs. electron-builder also writes
       # `builder-debug.yml` and, for deb, a `latest-linux.yml` for an updater

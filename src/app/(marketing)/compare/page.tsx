@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { H2, P, PageShell } from "@/components/landing/PageShell";
+import { HubGrid } from "@/components/storefront/page";
 import {
   Breadcrumbs,
   CallToAction,
   Contents,
-  H3,
   JsonLd,
   Takeaway,
   type TocItem,
@@ -42,21 +42,6 @@ function A({ href, children }: { href: string; children: React.ReactNode }) {
   );
 }
 
-/**
- * The line each card ends on.
- *
- * A hub that lists four pages without saying what any of them concluded makes
- * the reader open all four to find out. Every page in this cluster ends by
- * telling somebody to keep the tool they already have, so that sentence is the
- * one worth lifting up here.
- */
-function Verdict({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mt-3 border-l border-line-strong pl-3.5 text-[13.5px] leading-relaxed text-fg-muted text-pretty">
-      {children}
-    </p>
-  );
-}
 
 /** Bold the tool being kept, so the four verdicts are scannable as a set. */
 function Keep({ children }: { children: React.ReactNode }) {
@@ -166,6 +151,19 @@ export default function CompareHubPage() {
       eyebrow="Compare"
       title={entry.h1}
       lead="Four pages, four tools, and the same rule on every one of them: it opens with where the other tool is better. This page is what the four have in common — the trade you are actually being offered, and which of them to read first."
+      glow={["var(--sky)", "var(--lilac)"]}
+      after={
+        <HubGrid
+          title="The four comparisons."
+          lead="Each one ends on the honest verdict — including the cases where the answer is to keep what you have."
+          items={CARDS.map((card) => ({
+            href: card.slug,
+            title: card.anchor,
+            body: card.verdict,
+            more: "Read the comparison",
+          }))}
+        />
+      }
     >
       <JsonLd
         data={[
@@ -265,22 +263,6 @@ export default function CompareHubPage() {
         In the order most people read them. Each card ends with what that page
         concludes, which in every case is a tool somebody should keep.
       </P>
-      <ul className="mt-2 divide-y divide-line border-t border-line">
-        {CARDS.map((card) => (
-          <li key={card.slug} className="pb-6">
-            <H3>
-              <Link
-                href={card.slug}
-                className="transition-colors hover:text-fg-muted"
-              >
-                {card.anchor}
-              </Link>
-            </H3>
-            <P>{card.body}</P>
-            <Verdict>{card.verdict}</Verdict>
-          </li>
-        ))}
-      </ul>
 
       <H2 id="how-not-whether">If the question is how, not whether</H2>
       <P>

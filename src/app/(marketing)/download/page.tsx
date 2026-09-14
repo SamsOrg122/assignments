@@ -31,6 +31,8 @@ export default function DownloadPage() {
     <PageShell
       eyebrow="Download"
       title="Take the browser."
+      rail={false}
+      glow={["var(--tangerine)", "var(--orchid)"]}
       lead="Free, for macOS, Windows and Linux. The assistant inside it runs on the agent already on your machine, so there is no key to paste and nothing of ours to sign up for first."
     >
       <Section className="pt-12 pb-16">

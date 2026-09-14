@@ -185,7 +185,7 @@ export default function CommunityPage() {
                 </p>
               ) : visible.length === 0 && !problem ? (
                 <div className="hairline rounded-lg bg-surface px-6 py-14 text-center">
-                  <p className="display text-[19px] text-fg">Nothing here yet.</p>
+                  <p className="text-[19px] font-medium tracking-[-0.01em] text-fg">Nothing here yet.</p>
                   <p className="mx-auto mt-2 max-w-[46ch] text-[13px] leading-relaxed text-fg-muted">
                     Be the first: share an idea, the design of a document
                     you&rsquo;re proud of, or a template others can start from.

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { H2, P, PageShell } from "@/components/landing/PageShell";
+import { HubGrid } from "@/components/storefront/page";
 import {
   Breadcrumbs,
   CallToAction,
   Contents,
-  H3,
   JsonLd,
   Takeaway,
   type TocItem,
@@ -38,21 +38,6 @@ function A({ href, children }: { href: string; children: React.ReactNode }) {
     >
       {children}
     </Link>
-  );
-}
-
-/**
- * The line each card ends on: the one thing that guide settles.
- *
- * A hub listing four titles and four summaries makes the reader open all four
- * to find out whether any of them is about their problem. Each of these guides
- * turns on a single sentence, so that sentence is here.
- */
-function Verdict({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mt-3 border-l border-line-strong pl-3.5 text-[13.5px] leading-relaxed text-fg-muted text-pretty">
-      {children}
-    </p>
   );
 }
 
@@ -166,6 +151,19 @@ export default function GuidesHubPage() {
       eyebrow="Guides"
       title={entry.h1}
       lead="Four pieces of work that go wrong in the same few places: a thesis, a pitch deck, a spreadsheet, and a day without a connection. These guides are about the mechanics of finishing them rather than about motivation, and none of them needs you to buy anything."
+      glow={["var(--citrus)", "var(--mint)"]}
+      after={
+        <HubGrid
+          title="The four guides."
+          lead="Each card ends on the one thing that guide settles — the sentence you would want to have read even if you never opened the rest of it."
+          items={CARDS.map((card) => ({
+            href: card.slug,
+            title: card.anchor,
+            body: card.verdict,
+            more: "Read the guide",
+          }))}
+        />
+      }
     >
       <JsonLd data={[breadcrumbJsonLd(SLUG), pageJsonLd(SLUG)]} />
       <Breadcrumbs slug={SLUG} />
@@ -241,28 +239,6 @@ export default function GuidesHubPage() {
         billing code is still null. A guide that only works after a purchase is
         an advertisement with steps in it.
       </P>
-
-      <H2 id="the-guides">The four guides</H2>
-      <P>
-        Each card ends with the one thing that guide settles — the sentence you
-        would want to have read even if you never opened the rest of it.
-      </P>
-      <ul className="mt-2 divide-y divide-line border-t border-line">
-        {CARDS.map((card) => (
-          <li key={card.slug} className="pb-6">
-            <H3>
-              <Link
-                href={card.slug}
-                className="transition-colors hover:text-fg-muted"
-              >
-                {card.anchor}
-              </Link>
-            </H3>
-            <P>{card.body}</P>
-            <Verdict>{card.verdict}</Verdict>
-          </li>
-        ))}
-      </ul>
 
       <H2 id="whether-not-how">If the question is whether, not how</H2>
       <P>

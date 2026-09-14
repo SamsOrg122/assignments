@@ -222,7 +222,7 @@ export function Checkout() {
             <span className="text-[13px] text-fg">
               Total {interval === "year" ? "a year" : "a month"}
             </span>
-            <span className="display ml-auto text-[26px] leading-none text-fg">
+            <span className="ml-auto text-[26px] leading-none text-fg">
               {q ? euro(q.total) : "—"}
             </span>
           </div>

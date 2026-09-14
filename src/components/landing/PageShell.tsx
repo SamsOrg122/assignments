@@ -12,7 +12,8 @@ import Link from "next/link";
 // inner page and the landing page are visibly the same place.
 import { Nav } from "@/components/storefront/Chrome";
 import { Footer } from "@/components/storefront/Footer";
-import { Section } from "./primitives";
+import { PageHead, PSection } from "@/components/storefront/page";
+import { Rail } from "@/components/storefront/Rail";
 import { Icon } from "@/components/ui/Icon";
 
 export function PageShell({
@@ -22,6 +23,9 @@ export function PageShell({
   children,
   updated,
   lang,
+  glow,
+  after,
+  rail = true,
 }: {
   eyebrow?: string;
   title: string;
@@ -55,58 +59,80 @@ export function PageShell({
    * honours the nearest ancestor.
    */
   lang?: "en" | "nl";
+  /** Two colours for the wash behind the head, so each page has its weather. */
+  glow?: [string, string];
+  /**
+   * A full-width block below the prose.
+   *
+   * The hub pages — guides, comparisons — are indexes, and an index is a grid
+   * of things to choose between rather than a list inside a reading measure.
+   * This is where that grid goes: outside the 68-character column, across the
+   * whole page, where it can be four cards wide.
+   */
+  after?: React.ReactNode;
+  /**
+   * The rail beside the prose. On by default, off where it would repeat the
+   * page.
+   *
+   * `/download` is the case: its whole job is a download button, and a second
+   * identical one floating next to it in a card reads as a page arguing with
+   * itself. A rail earns its place next to a guide, where the reader is doing
+   * something else and the browser is the aside; on a page that is already
+   * the ask, it is noise.
+   */
+  rail?: boolean;
 }) {
   return (
     <>
       <Nav />
-      {/*
-        * The sheet, the same one the landing page's content sits on.
-        *
-        * Without it these pages put their prose straight onto the mesh, and a
-        * paragraph over ten drifting colour fields is a paragraph nobody
-        * finishes — the ground moves under the words and the contrast changes
-        * every two centimetres. The frosted panel is what makes the mesh
-        * usable as a background rather than only as a picture.
-        *
-        * The material itself comes from `.storefront main` in globals.css, so
-        * this only has to clear the fixed nav: 56px of pill plus 14px of top
-        * offset plus air.
-        */}
-      <main lang={lang} className="pt-24">
-        <Section className="pt-16 pb-10 sm:pt-24 sm:pb-14">
-          {eyebrow && (
-            <p className="mb-4 text-[12.5px] text-fg-subtle">{eyebrow}</p>
-          )}
-          <h1 className="headline max-w-[18ch] text-[clamp(34px,5.6vw,60px)]">
-            {title}
-          </h1>
-          {lead && (
-            <p className="mt-5 max-w-[58ch] text-[clamp(15px,1.7vw,18px)] leading-relaxed text-fg-muted text-pretty">
-              {lead}
-            </p>
-          )}
-          {updated && (
-            <p className="mt-6 font-mono text-[11px] text-fg-subtle">
-              Last changed {updated}
-            </p>
-          )}
-        </Section>
+      <main lang={lang}>
+        {/*
+          * The head, in the storefront's own voice.
+          *
+          * What this replaced was a title, a standfirst and a hairline in a
+          * narrow left column with the right half of the screen empty — a
+          * document template written before there was a design to put it in.
+          * `PageHead` gives it the same shapes the home page uses at a
+          * quieter setting, and a wash in the corner so a guide reached from
+          * a search result is visibly the same site.
+          */}
+        <PageHead
+          eyebrow={eyebrow}
+          title={title}
+          lead={lead}
+          meta={updated ? `Last changed ${updated}` : undefined}
+          glow={glow}
+        />
 
-        <div className="mx-auto h-px w-full max-w-[1240px] bg-line" />
+        <PSection className="pb-4">
+          {/*
+            * 68 characters, still — and a rail beside it.
+            *
+            * A paragraph is read one line at a time and the eye loses the
+            * start of the next line somewhere past seventy-five characters,
+            * so the measure does not move. What changed is the half of the
+            * page that measure used to leave empty: see `.longform` in
+            * globals.css for why it holds the browser rather than nothing.
+            */}
+          <div className={rail ? "longform" : "longform longform--solo"}>
+            <div>{children}</div>
+            {rail ? <Rail /> : null}
+          </div>
+        </PSection>
 
-        <Section className="py-12 sm:py-16">
-          <div className="max-w-[68ch]">{children}</div>
+        {after}
 
-          <p className="mt-16 border-t border-line pt-6 text-[13px] text-fg-subtle">
+        <PSection className="pb-24">
+          <p className="border-t border-line pt-6 text-[13.5px]">
             <Link
               href="/"
-              className="inline-flex items-center gap-1 text-fg-muted transition-colors hover:text-fg"
+              className="inline-flex items-center gap-1.5 text-fg-muted transition-colors hover:text-fg"
             >
               <Icon name="chevron-left" size={11} />
               Back to the homepage
             </Link>
           </p>
-        </Section>
+        </PSection>
       </main>
       <Footer />
     </>
@@ -126,7 +152,7 @@ export function H2({
   return (
     <h2
       id={id}
-      className="display mt-12 mb-3 scroll-mt-24 text-[clamp(21px,2.6vw,27px)] text-fg first:mt-0"
+      className="mt-14 mb-3 scroll-mt-28 text-[clamp(23px,2.8vw,30px)] font-medium tracking-[-0.025em] text-fg first:mt-0"
     >
       {children}
     </h2>
@@ -134,9 +160,10 @@ export function H2({
 }
 
 /**
- * The step under `H2`. Sans rather than the display serif, and one size above
- * body — a second serif tier at this scale reads as a slightly wrong `H2`
- * rather than as a subordinate heading.
+ * The step under `H2`. One size above body and a weight heavier — the site has
+ * one typeface now, so the levels are carried by size and weight rather than
+ * by changing face, which at this scale only ever reads as a slightly wrong
+ * `H2`.
  *
  * It lives here next to `H2` rather than in `LongForm.tsx` so there is one
  * place a heading level is defined; `LongForm` re-exports it so a long-form
@@ -152,7 +179,7 @@ export function H3({
   return (
     <h3
       id={id}
-      className="mt-8 mb-2 scroll-mt-24 text-[15.5px] font-medium text-fg"
+      className="mt-9 mb-2 scroll-mt-28 text-[17px] font-medium tracking-[-0.01em] text-fg"
     >
       {children}
     </h3>
@@ -161,7 +188,7 @@ export function H3({
 
 export function P({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mt-3 text-[15px] leading-relaxed text-fg-muted text-pretty">
+    <p className="mt-3.5 text-[16.5px] leading-[1.6] text-fg-muted text-pretty">
       {children}
     </p>
   );
@@ -173,11 +200,13 @@ export function List({ items }: { items: React.ReactNode[] }) {
       {items.map((item, i) => (
         <li
           key={i}
-          className="relative pl-5 text-[15px] leading-relaxed text-fg-muted"
+          className="relative pl-6 text-[16.5px] leading-[1.6] text-fg-muted"
         >
+          {/* A short coral rule rather than a bullet. One mark, used on every
+              list on the site, in the one accent this design has. */}
           <span
             aria-hidden="true"
-            className="absolute top-[0.62em] left-0 size-1.5 rounded-[1px] border border-fg-subtle"
+            className="absolute top-[0.72em] left-0 h-[2px] w-3 rounded-[1px] bg-[var(--coral)]"
           />
           {item}
         </li>
@@ -202,12 +231,12 @@ export function NotYet({
   needs: React.ReactNode;
 }) {
   return (
-    <div className="mt-6 rounded-md border border-warn/30 bg-warn/[0.06] p-4">
-      <p className="flex items-center gap-2 text-[13px] font-medium text-warn">
-        <span aria-hidden="true" className="size-1.5 rounded-full bg-warn" />
+    <div className="panelcard mt-7">
+      <p className="panelcard__head flex items-center gap-2.5">
+        <span aria-hidden="true" className="size-2 rounded-full bg-[#b47814]" />
         {what}
       </p>
-      <p className="mt-2 text-[13.5px] leading-relaxed text-fg-muted">{needs}</p>
+      <p className="mt-2.5 text-[15.5px] leading-[1.55] text-fg-muted">{needs}</p>
     </div>
   );
 }

@@ -187,7 +187,7 @@ export function PricingTable() {
                 )}
               >
                 <div className="flex items-baseline gap-2">
-                  <h2 className="display text-[19px] text-fg">{plan.name}</h2>
+                  <h2 className="text-[19px] text-fg">{plan.name}</h2>
                   {featured && (
                     <span className="rounded-full border border-accent/40 bg-accent-soft px-2 py-0.5 text-[10.5px] text-accent">
                       most people
@@ -199,7 +199,7 @@ export function PricingTable() {
                 </p>
 
                 <p className="mt-5 flex items-baseline gap-1.5">
-                  <span className="display text-[34px] leading-none text-fg">
+                  <span className="text-[34px] leading-none text-fg">
                     {plan.price === 0 ? "Free" : euro(q.perMonth)}
                   </span>
                   {plan.price > 0 && (
@@ -302,7 +302,7 @@ export function PricingTable() {
       {/* ── Comparison ───────────────────────────────────── */}
 
       <Section className="pb-14">
-        <h2 className="display mb-5 text-[clamp(21px,2.6vw,27px)] text-fg">
+        <h2 className="mb-6 text-[clamp(24px,2.8vw,32px)] font-medium tracking-[-0.028em] text-fg">
           Line by line
         </h2>
         <div className="overflow-x-auto">
@@ -363,7 +363,7 @@ export function PricingTable() {
       {/* ── Questions ────────────────────────────────────── */}
 
       <Section className="pb-20">
-        <h2 className="display mb-5 text-[clamp(21px,2.6vw,27px)] text-fg">
+        <h2 className="mb-6 text-[clamp(24px,2.8vw,32px)] font-medium tracking-[-0.028em] text-fg">
           The questions worth answering
         </h2>
         <div className="max-w-[70ch] divide-y divide-line border-y border-line">

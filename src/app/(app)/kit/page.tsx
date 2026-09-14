@@ -256,7 +256,7 @@ export default function KitPage() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-[980px] px-5 py-8 sm:px-8">
-          <h1 className="display text-[22px] text-fg">Your kit</h1>
+          <h1 className="text-[22px] font-medium tracking-[-0.015em] text-fg">Your kit</h1>
           <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-fg-muted">
             Everything you brought once and use everywhere — a typeface, a
             logo, a brief, a table you rebuild every term. Drop anything on

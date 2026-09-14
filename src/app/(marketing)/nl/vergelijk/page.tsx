@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { H2, P, PageShell } from "@/components/landing/PageShell";
+import { HubGrid } from "@/components/storefront/page";
 import {
   Breadcrumbs,
   CallToAction,
   Contents,
-  H3,
   JsonLd,
   Takeaway,
   type TocItem,
@@ -39,21 +39,6 @@ function A({ href, children }: { href: string; children: React.ReactNode }) {
     >
       {children}
     </Link>
-  );
-}
-
-/**
- * De regel waar elke kaart op eindigt.
- *
- * Een overzichtspagina die vier titels opsomt zonder te zeggen wat er uit kwam,
- * dwingt de lezer alle vier te openen. Elke pagina in deze reeks eindigt bij een
- * tool die iemand beter kan houden, dus die zin staat hier.
- */
-function Verdict({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mt-3 border-l border-line-strong pl-3.5 text-[13.5px] leading-relaxed text-fg-muted text-pretty">
-      {children}
-    </p>
   );
 }
 
@@ -174,6 +159,19 @@ export default function VergelijkHubPagina() {
       eyebrow="Vergelijken"
       title={entry.h1}
       lead="Vier pagina's, vier tools, en op alle vier dezelfde regel: ze beginnen bij wat de ander beter doet. Deze pagina is wat die vier gemeen hebben — de ruil die je krijgt aangeboden, en welke pagina je als eerste moet lezen."
+      glow={["var(--sky)", "var(--lilac)"]}
+      after={
+        <HubGrid
+          title="De vier vergelijkingen."
+          lead="Elke kaart eindigt op het eerlijke oordeel — ook waar dat is: hou wat je hebt."
+          items={CARDS.map((card) => ({
+            href: card.slug,
+            title: card.anchor,
+            body: card.verdict,
+            more: "Lees de vergelijking",
+          }))}
+        />
+      }
     >
       <JsonLd
         data={[
@@ -276,28 +274,6 @@ export default function VergelijkHubPagina() {
         Stripe-prijs-ID&apos;s in de betaalcode staan nog op null.
       </P>
 
-      <H2 id="vergelijkingen">De vier vergelijkingen</H2>
-      <P>
-        In de volgorde waarin ze meestal gelezen worden. Elke kaart eindigt bij
-        wat die pagina concludeert, en dat is telkens een tool die iemand beter
-        kan houden.
-      </P>
-      <ul className="mt-2 divide-y divide-line border-t border-line">
-        {CARDS.map((card) => (
-          <li key={card.slug} className="pb-6">
-            <H3>
-              <Link
-                href={card.slug}
-                className="transition-colors hover:text-fg-muted"
-              >
-                {card.anchor}
-              </Link>
-            </H3>
-            <P>{card.body}</P>
-            <Verdict>{card.verdict}</Verdict>
-          </li>
-        ))}
-      </ul>
 
       <H2 id="hoe-in-plaats-van-of">
         Gaat je vraag over hoe, niet over of

@@ -4260,3 +4260,507 @@
     transform: translate3d(0, -101%, 0);
   }
 }
+
+/* ── Inner pages, in the storefront's own voice ────────────────────────────
+
+   The twenty-five pages behind the homepage were a narrow column of prose
+   with the right half of the screen empty, which is what happens when a
+   document template is built before there is a design to put it in. They now
+   share the landing page's vocabulary — a head with a figure in it, panels
+   made of paper, colour arriving in objects — at a quieter setting.
+
+   Quieter is the point. A guide is read start to finish; the landing page is
+   looked at for four seconds. Same palette, same shapes, a third of the
+   contrast.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.phead {
+  position: relative;
+  padding: 148px 0 0;
+}
+
+/* One wash, top-right, masked out before it reaches the prose. Enough to say
+   this is the same site as the home page; not enough to be a background. */
+.phead__glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent 92%);
+  mask-image: linear-gradient(to bottom, #000 40%, transparent 92%);
+}
+
+.phead__glow span {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.42;
+}
+
+.phead__in {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 56px;
+  align-items: end;
+  padding-bottom: 52px;
+  border-bottom: 1px solid var(--hair);
+}
+
+.phead h1 {
+  font-size: clamp(38px, 5.2vw, 68px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 500;
+  max-width: 17ch;
+}
+
+.phead__lead {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--graphite);
+  max-width: 42ch;
+}
+
+.phead__meta {
+  margin-top: 18px;
+  font-size: 13.5px;
+  color: var(--mist);
+}
+
+/* The figure some of these pages open with: a share, a price, a count. */
+.phead__fig {
+  display: flex;
+  align-items: baseline;
+  gap: 0.12em;
+  font-size: clamp(64px, 9vw, 128px);
+  font-weight: 200;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.phead__fig small {
+  font-size: 0.26em;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--graphite);
+}
+
+/* ── Panels ───────────────────────────────────────────────────────────── */
+
+/*
+ * The paper card these pages are made of.
+ *
+ * White at 72% rather than solid: on a paper ground a solid white card is a
+ * hole, and at three-quarters it reads as a sheet lying on the page.
+ */
+.panelcard {
+  position: relative;
+  border-radius: var(--r-widget);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 18px 40px -32px rgba(10, 10, 20, 0.35);
+  padding: 26px 28px;
+}
+
+.panelcard--tight {
+  padding: 20px 22px;
+}
+
+/*
+ * The one on the page that is not paper.
+ *
+ * Every page here has exactly one section that matters more than the others —
+ * on the impact page it is the list of things we refuse to claim. That one
+ * gets ink, and the rest stay quiet. Two of these on a page and neither is
+ * emphatic any more.
+ */
+.panelcard--ink {
+  background: #121215;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f2f2f3;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 30px 60px -40px rgba(0, 0, 0, 0.6);
+}
+
+.panelcard--ink .panelcard__head {
+  color: #ffffff;
+}
+
+.panelcard--ink p {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.panelcard__head {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+/* ── The section rhythm these pages use ───────────────────────────────── */
+
+.psection {
+  padding: 92px 0 0;
+}
+
+.psection__head {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 48px;
+  align-items: start;
+  margin-bottom: 36px;
+}
+
+.psection h2 {
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+  max-width: 18ch;
+}
+
+.psection__head p {
+  font-size: 16.5px;
+  line-height: 1.55;
+  color: var(--graphite);
+  max-width: 56ch;
+}
+
+/* ── The share bar ────────────────────────────────────────────────────────
+
+   Where every euro goes, drawn rather than tabulated. A stacked bar reads as
+   one euro divided, which is what the sentence says; four rows of a table
+   read as four unrelated numbers that happen to add to a hundred.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.sharebar {
+  display: flex;
+  height: 76px;
+  border-radius: 18px;
+  overflow: hidden;
+  gap: 3px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.sharebar > span {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-left: 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #ffffff;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sharelist {
+  display: grid;
+  gap: 2px;
+  margin-top: 20px;
+}
+
+.shareline {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 20px;
+  align-items: baseline;
+  padding: 16px 4px;
+  border-top: 1px solid var(--hair);
+}
+
+.shareline:first-child {
+  border-top: 0;
+}
+
+.shareline b {
+  font-weight: 200;
+  font-size: 28px;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.shareline h4 {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.shareline p {
+  margin-top: 3px;
+  font-size: 14.5px;
+  color: var(--graphite);
+  max-width: 54ch;
+}
+
+/* ── A refusal ────────────────────────────────────────────────────────────
+
+   The list of things this page will not claim. Struck through, because a
+   sentence with a line through it is read as "not this" before it is read at
+   all, which is the whole point of the section.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.refusal {
+  display: grid;
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.refusal > div {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.refusal i {
+  margin-top: 7px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--coral);
+}
+
+.refusal p {
+  font-size: 16px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.refusal b {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* ── Provisional ──────────────────────────────────────────────────────── */
+
+/*
+ * The marker for a figure that is an intention rather than a fact.
+ *
+ * It has to be legible at a glance and impossible to mistake for a feature
+ * badge, which is why it is the warning amber and not the coral: coral is
+ * this site's "press this", and a caveat that looks like a call to action is
+ * worse than no caveat.
+ */
+.provisional {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--pill);
+  background: rgba(180, 120, 20, 0.1);
+  color: #7a5310;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.provisional::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #b47814;
+}
+
+/* ── A card grid, for the index pages ─────────────────────────────────── */
+
+.cardgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.cardgrid--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.indexcard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 26px 26px 24px;
+  border-radius: var(--r-widget);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 18px 40px -32px rgba(10, 10, 20, 0.35);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.indexcard:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 26px 50px -30px rgba(10, 10, 20, 0.4);
+}
+
+.indexcard h3 {
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.indexcard p {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--graphite);
+}
+
+.indexcard__more {
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 14.5px;
+  color: var(--coral);
+}
+
+/* A colour bar across the top of an index card, so a grid of them is a
+   spectrum rather than a spreadsheet. */
+.indexcard__bar {
+  height: 5px;
+  border-radius: 3px;
+  width: 46px;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 1000px) {
+  .phead__in {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+  .psection__head {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .cardgrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .phead {
+    padding-top: 118px;
+  }
+  .psection {
+    padding-top: 64px;
+  }
+  .cardgrid,
+  .cardgrid--2 {
+    grid-template-columns: 1fr;
+  }
+  .sharebar {
+    height: 60px;
+  }
+  .sharebar > span {
+    padding-left: 10px;
+    font-size: 13px;
+  }
+  .shareline {
+    grid-template-columns: 52px 1fr;
+    gap: 12px;
+  }
+  .shareline b {
+    font-size: 22px;
+  }
+  .panelcard {
+    padding: 20px 20px;
+  }
+}
+
+/* ── Long-form layout ─────────────────────────────────────────────────────
+
+   A guide is a 68-character column, and on a 1200-pixel page that leaves
+   half the screen empty. Two ways out of that: narrow the page, or put
+   something in the gap.
+
+   Narrowing it loses the head, which is two columns and is the thing that
+   makes these pages look like the rest of the site. So the gap gets a rail,
+   and the rail gets the one object that genuinely belongs beside a guide
+   about doing work in a browser: the browser.
+
+   It is sticky, because a reader who has scrolled four screens into a guide
+   is further along than one who just arrived, not further away.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.longform {
+  display: grid;
+  grid-template-columns: minmax(0, 68ch) minmax(240px, 1fr);
+  gap: 72px;
+  align-items: start;
+}
+
+.rail {
+  position: sticky;
+  top: 108px;
+  display: grid;
+  gap: 14px;
+}
+
+.rail__card {
+  border-radius: var(--r-widget);
+  padding: 22px 22px 20px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 18px 40px -32px rgba(10, 10, 20, 0.35);
+}
+
+.rail__card .brand {
+  font-size: 17px;
+}
+
+.rail__card p {
+  margin-top: 10px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--graphite);
+}
+
+.rail__card .btn {
+  margin-top: 16px;
+  width: 100%;
+  justify-content: center;
+}
+
+.rail__note {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--mist);
+}
+
+@media (max-width: 1080px) {
+  .longform {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 44px;
+  }
+  .rail {
+    position: static;
+    max-width: 420px;
+  }
+}
+
+/*
+ * A long-form page with no rail.
+ *
+ * The measure grows from 68 to 78 characters, which is the top of what is
+ * comfortable — without a rail there is nothing to justify holding the column
+ * as tight, and a 68-character column alone on a 1200-pixel page is the
+ * problem the rail was introduced to fix.
+ */
+.longform--solo {
+  grid-template-columns: minmax(0, 78ch);
+}

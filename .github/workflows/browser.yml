@@ -151,9 +151,17 @@ jobs:
         working-directory: browser
         run: npm run bouw-app
 
-      # The npm scripts, not electron-builder directly: each one runs
-      # `controleer-app.js` first, which refuses to pack a browser with a 404
-      # where Tougather should be.
+      # The npm scripts, not electron-builder directly, for two reasons: each
+      # one runs `controleer-app.js` first, which refuses to pack a browser
+      # with a 404 where Tougather should be, and each one carries
+      # `--publish never`.
+      #
+      # That second flag is not decoration. electron-builder infers a publish
+      # provider from `repository` in package.json and then, on CI, tries to
+      # publish by itself — "artifacts will be published if draft release
+      # exists, reason=CI detected" — and dies on a missing GH_TOKEN *after*
+      # building everything. Publishing is this workflow's release job's
+      # business, and it is the only thing that runs the check first.
       - name: Pack
         working-directory: browser
         run: npm run ${{ matrix.script }} -- ${{ matrix.arch }}

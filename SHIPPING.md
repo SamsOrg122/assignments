@@ -89,28 +89,45 @@ On the hosting dashboard, for **production**:
 | `NEXT_PUBLIC_SUPABASE_URL` | the project |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the project |
 
-## Publish the browser release, or every download link 404s
+## Cutting a browser release
 
-`src/lib/browser.ts` builds five URLs of the shape
+`src/lib/browser.ts` builds five download URLs of the shape
 
     https://github.com/SamsOrg122/assignments/releases/download/browser-v0.1.0/<file>
 
-and nothing on the site checks that they resolve — `scripts/browser-version-agrees.mjs`
-only proves the site and `browser/package.json` name the same version, which is the
-half a build can check. The other half is yours:
+so the release has to exist and the five filenames have to be exactly right. When
+either is wrong the symptom is a 404 with a green build, a green deploy, a rendered
+page and a working button — nothing anywhere reports it.
 
-1. Build the installers. `npm run bouw-app` first — `dist:*` refuses without `app/`,
-   because an installer without it ships a browser with a 404 where Tougather should be.
-   Windows and Linux can be built anywhere; the Mac ones need a Mac.
-2. Cut a release tagged exactly **`browser-v0.1.0`** and attach all five files under the
-   names in `BUILDS`. A tag that does not match, or a file renamed by a build flag, is a
-   dead button with no error anywhere.
-3. Sign them, or expect to lose people at the door. Unsigned, Windows shows a blue
-   full-screen "Windows protected your PC" on first run. `/download` says so in plain
-   words, which is the best that can be done from this side.
+**How to cut one.** Actions → **Browser** → *Run workflow*, on the branch you want,
+with **"Attach the installers to a release"** ticked. That builds all four bundles —
+two Macs, Windows, Linux — and publishes them under a tag named from
+`browser/package.json`. It is a box rather than a tag push because this repository's
+git proxy refuses tag pushes, and "there is no way to cut a release from here" is a
+bad place to end up.
 
-Tag pushes are refused by this repository's git proxy, so cut the release from the
-GitHub UI or from a machine that can push tags.
+Three checks stand between that button and a broken download:
+
+- `scripts/browser-version-agrees.mjs` — the site and `browser/package.json` name the
+  same version, the NSIS template is unchanged, and nobody has added an `artifactName`
+  to `mac` or `linux`. That last one is the least guessable thing about this build:
+  electron-builder only drops `x64` from a filename while the pattern is its own
+  default, so a template of your own — even one identical to the default — renames
+  three files and kills three links.
+- `browser/scripts/controleer-app.js` — refuses to pack without `app/`, because an
+  installer without it ships a browser with a 404 where Tougather should be.
+- `scripts/browser-assets-present.mjs` — runs in the release job against the files it
+  is about to upload. If one of the five names is missing, nothing is published and
+  the log lists what was actually built.
+
+**What is still not done for you.** The builds are unsigned, so Windows shows a blue
+full-screen "Windows protected your PC" on first run and macOS asks for a confirmation
+in Privacy & Security. `/download` says both in plain words, which is the best that can
+be done from this side; the fix is a code-signing certificate and an Apple Developer
+account, and the workflow has no signing step yet. There is also no auto-update.
+
+**Before the next version.** Change `version` in `browser/package.json` *and*
+`BROWSER_VERSION` in `src/lib/browser.ts` in the same commit; CI fails if they differ.
 
 | `OPENROUTER_API_KEY` | without it the assistant answers with a refusal, and recording works only in Chrome and Safari |
 | `OPENROUTER_LISTEN_MODELS` | optional. If recording fails with "no model could hear that", the default slugs cannot accept audio on your account — put ones that can here |

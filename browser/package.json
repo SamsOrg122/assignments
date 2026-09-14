@@ -12,9 +12,9 @@
   "scripts": {
     "start": "electron .",
     "bouw-app": "node scripts/bouw-app.mjs",
-    "dist:win": "node scripts/controleer-app.js && electron-builder --win",
-    "dist:mac": "node scripts/controleer-app.js && electron-builder --mac",
-    "dist:linux": "node scripts/controleer-app.js && electron-builder --linux"
+    "dist:win": "node scripts/controleer-app.js && electron-builder --win --publish never",
+    "dist:mac": "node scripts/controleer-app.js && electron-builder --mac --publish never",
+    "dist:linux": "node scripts/controleer-app.js && electron-builder --linux --publish never"
   },
   "devDependencies": {
     "electron": "^33.0.0",

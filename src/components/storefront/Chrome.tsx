@@ -18,9 +18,18 @@ export function Mark() {
   return <span className="mark" aria-hidden="true" />;
 }
 
+/*
+ * Four, and the first one leaves the page.
+ *
+ * It used to be two anchors into the landing page and two links out of it,
+ * which meant the only route to the page that explains the product properly
+ * was the footer — from a site whose first screen is a slogan. "What it is"
+ * goes first because it is the question, and the `#workspace` anchor it
+ * replaces still exists for anything already pointing at it.
+ */
 const LINKS = [
-  { href: "#browser", label: "The browser" },
-  { href: "#workspace", label: "Workspace" },
+  { href: "/about", label: "What it is" },
+  { href: "/#browser", label: "Why this one" },
   { href: "/impact", label: "Impact" },
   { href: "/pricing", label: "Pricing" },
 ];

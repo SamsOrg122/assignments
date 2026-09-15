@@ -14,6 +14,7 @@ import { Nav } from "@/components/storefront/Chrome";
 import { Footer } from "@/components/storefront/Footer";
 import { PageHead, PSection } from "@/components/storefront/page";
 import { Rail } from "@/components/storefront/Rail";
+import { Flow } from "@/components/storefront/Flow";
 import { Icon } from "@/components/ui/Icon";
 
 export function PageShell({
@@ -135,6 +136,11 @@ export function PageShell({
         </PSection>
       </main>
       <Footer />
+      {/* The same one island the landing page mounts. These pages are read
+          rather than scanned, so what moves here is only the headings — a
+          section announcing itself as you reach it — and whatever grid an
+          index page hands to `after`. See Flow.tsx. */}
+      <Flow />
     </>
   );
 }
@@ -152,6 +158,7 @@ export function H2({
   return (
     <h2
       id={id}
+      data-flow
       className="mt-14 mb-3 scroll-mt-28 text-[clamp(23px,2.8vw,30px)] font-medium tracking-[-0.025em] text-fg first:mt-0"
     >
       {children}
@@ -179,7 +186,7 @@ export function H3({
   return (
     <h3
       id={id}
-      className="mt-9 mb-2 scroll-mt-28 text-[17px] font-medium tracking-[-0.01em] text-fg"
+      className="mt-10 mb-2 scroll-mt-28 text-[18.5px] font-medium tracking-[-0.015em] text-fg"
     >
       {children}
     </h3>

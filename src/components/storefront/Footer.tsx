@@ -39,7 +39,7 @@ const COLUMNS: Array<{ head: string; links: Array<[string, string]> }> = [
   {
     head: "Company",
     links: [
-      ["About", "/about"],
+      ["What Tougather is", "/about"],
       ["Contact", "/contact"],
       ["Terms", "/legal"],
       ["Privacy", "/legal#privacy"],

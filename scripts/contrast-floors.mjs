@@ -287,6 +287,41 @@ for (const floor of STOREFRONT_FLOORS) {
 console.log("\nThe storefront, measured on its own paper.\n");
 console.log(storefrontLines.join("\n"));
 
+/*
+ * And the one band on that page which is not paper.
+ *
+ * `.section--dark` re-points the same three ink tokens onto a dark ground, so
+ * every rule underneath it comes out light without knowing anything has
+ * changed. That is a fourth surface, and a floor that applies to three of
+ * four surfaces is not a floor — this is the same mistake the storefront
+ * itself shipped before the block above existed, arriving one level deeper.
+ *
+ * Its ground is a stack of gradients, which has no single colour to measure
+ * against. `--band` is the flat colour the middle stop of that stack is, and
+ * it is the darkest reading the band has nowhere near its corners; the two
+ * radial washes over it only lighten, so a ratio taken here is the worst case
+ * and not an average.
+ */
+const DARK = declarations(".section--dark");
+
+const DARK_FLOORS = [
+  { ink: "--ink", min: 12, why: "the band's headline and its three figures" },
+  { ink: "--graphite", min: 6.5, why: "supporting prose — the lede and the line under each figure" },
+  { ink: "--mist", min: 5.2, why: "machine facts — the file path under each figure" },
+];
+
+const darkLines = [];
+for (const floor of DARK_FLOORS) {
+  const found = measure(DARK, floor.ink, "--band");
+  const under = found < floor.min;
+  const name = `${floor.ink.replace("--", "")} on the band`;
+  if (under) failures.push({ name, theme: "dark band", found, min: floor.min, why: floor.why });
+  darkLines.push(`  ${under ? "·" : " "} ${name.padEnd(28)}${show(found)}   floor ${show(floor.min)}`);
+}
+
+console.log("\nThe dark band, measured on the darkest stop of its gradient.\n");
+console.log(darkLines.join("\n"));
+
 const RAMP = [
   "--color-surface",
   "--color-surface-2",

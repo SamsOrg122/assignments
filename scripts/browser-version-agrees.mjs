@@ -82,4 +82,39 @@ for (const target of ["mac", "dmg", "linux", "appImage", "deb"]) {
     );
 }
 
-console.log(`browser ${pkg.version}, and the site offers the same one.`);
+/*
+ * The engine major, which is prose everywhere else.
+ *
+ * The homepage printed "33 Electron, Chromium from late 2024" for a release
+ * after the browser moved to 44. It was a true sentence typed into a
+ * component, it aged, and nothing here reads prose — on the page whose whole
+ * argument is that its figures resolve to a file, that is the worst thing to
+ * be wrong about. `ELECTRON_MAJOR` now lives beside the download URLs and the
+ * page interpolates it; this is what stops it drifting again.
+ */
+const declaredMajor = Number(site.match(/export const ELECTRON_MAJOR = (\d+)/)?.[1]);
+const range = pkg.devDependencies?.electron ?? pkg.dependencies?.electron;
+const realMajor = Number(String(range ?? "").match(/(\d+)/)?.[1]);
+
+if (!declaredMajor)
+  fail(
+    "src/lib/browser.ts no longer declares ELECTRON_MAJOR as a number literal.\n" +
+      "The homepage prints it. If it became computed, compute it from\n" +
+      "browser/package.json and delete this half of the check rather than loosening it.",
+  );
+
+if (!realMajor)
+  fail(`browser/package.json does not depend on electron in a form this check can read: ${range}`);
+
+if (declaredMajor !== realMajor)
+  fail(
+    `The website says Electron ${declaredMajor}; browser/package.json depends on ${range}.\n\n` +
+      "That number is printed on the homepage as a fact about the build people are\n" +
+      "downloading, next to the Chromium it carries. Update ELECTRON_MAJOR and\n" +
+      "CHROMIUM_MAJOR in src/lib/browser.ts together — the second is not derivable\n" +
+      "from the first and has to be read off Electron's release notes.",
+  );
+
+console.log(
+  `browser ${pkg.version} on Electron ${realMajor}, and the site says the same of both.`,
+);

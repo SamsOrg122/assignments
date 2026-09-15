@@ -22,6 +22,33 @@
  */
 export const BROWSER_VERSION = "0.1.0";
 
+/**
+ * The engine, said once.
+ *
+ * ── WHY THESE ARE HERE AND NOT ON THE PAGE ──────────────────────────────
+ * The homepage printed "33 Electron · Chromium from late 2024" for a whole
+ * release after the browser moved to 44. Nothing caught it: the sentence was
+ * hand-typed into a component, it was true when written, and no check reads
+ * prose. On the one page in this product whose argument is that its numbers
+ * can be verified, that is the worst possible thing to be wrong about.
+ *
+ * So the major lives here with the download URLs, `browser-version-agrees.mjs`
+ * fails the build when it stops matching `browser/package.json`, and the page
+ * interpolates it.
+ *
+ * Must equal the major of `electron` in `browser/package.json`.
+ */
+export const ELECTRON_MAJOR = 44;
+
+/**
+ * The Chromium that Electron major ships, as its own constant because it is
+ * the number a reader actually cares about and it cannot be derived from the
+ * other one — the Electron-to-Chromium mapping lives in Electron's release
+ * notes and nowhere in this repository. Checked by hand at the same moment
+ * the upgrade is done; `browser/README.md` carries the same figure.
+ */
+export const CHROMIUM_MAJOR = 152;
+
 const REPO = "https://github.com/SamsOrg122/assignments";
 
 /** Every build, for anyone who wants a format that is not offered here. */
@@ -150,9 +177,9 @@ export const BROWSER_CAVEATS: Array<{ title: string; detail: string }> = [
       "There is no updater in this build, so a new version means downloading it again. For a browser on the open web that is the first thing on the list to fix.",
   },
   {
-    title: "The engine is a version behind",
+    title: "Nothing here updates itself, including the engine",
     detail:
-      "It runs on Electron 33, which carries Chromium from late 2024. Pages render properly; security fixes since then are not in it. Treat it as an early build rather than as your only browser.",
+      `It runs on Electron ${ELECTRON_MAJOR}, which carries Chromium ${CHROMIUM_MAJOR} — current when this build was cut, and a browser on the open web is only as safe as its last engine. With no updater, that gap opens by itself from the day you install it. Downloading a new version is how it closes.`,
   },
   {
     title: "No Netflix, Spotify or other DRM video",

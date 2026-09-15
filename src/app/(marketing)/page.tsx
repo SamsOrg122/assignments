@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/storefront/Chrome";
 import { Hero } from "@/components/storefront/Hero";
-import { Argument, Features, Statement, Engine, Close } from "@/components/storefront/Sections";
+import { Argument, Features, Statement, Engine } from "@/components/storefront/Sections";
+import { Close } from "@/components/storefront/Get";
 import { Footer } from "@/components/storefront/Footer";
 import { IMPACT, percent } from "@/lib/impact/config";
 

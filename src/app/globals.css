@@ -770,23 +770,53 @@
 
 .storefront {
   /* ── Paper and ink ─────────────────────────────────────────────────── */
-  --paper: #f5f5f4;
+  /*
+   * #ebe9e5, not #f5f5f4.
+   *
+   * Every card, panel and widget on these pages is white or near-white, and
+   * against #f5f5f4 that is a step of 1.09:1 — so a page of objects read as
+   * one flat field with faint lines drawn on it. At #ebe9e5 the same objects
+   * stand off the ground at 1.21:1: nothing was added, the paper just stopped
+   * pretending to be the same material as the things lying on it.
+   *
+   * Both greys below moved with it. That is not a coincidence and not taste:
+   * a darker ground eats contrast at the bottom of the ramp, and the floors
+   * in `scripts/contrast-floors.mjs` are what caught it — graphite measured
+   * 6.10 against the new paper with a floor of 6.5, and mist 4.90 against a
+   * floor of 5.2. The page got darker; the type got darker with it.
+   */
+  --paper: #ebe9e5;
   --ink: #000000;
-  --graphite: #55555c;
-  /* #63636d, not the #767680 this design arrived with. That measured 4.12:1
-     on paper and the repo's floor for machine facts — sizes, versions, the
-     caption under a tile — is 5.2:1. The design's grey was chosen against a
-     whiter page than this one. */
-  --mist: #63636d;
+  --graphite: #4f4f56;
+  /* #5d5d67, and this is the second time this token has been darkened to meet
+     the same floor. It arrived as #767680 — 4.12:1, chosen against a whiter
+     page than this one — went to #63636d for 5.44:1, and follows the paper
+     down to 5.37:1 here. The floor for machine facts (sizes, versions, the
+     caption under a tile) is 5.2:1 and it has never moved. */
+  --mist: #5d5d67;
   --hair: rgba(0, 0, 0, 0.08);
 
   /* ── The palette, as objects ───────────────────────────────────────── */
+  /*
+   * Three of these were tints rather than colours.
+   *
+   * Lilac, sky and mint arrived at the top of their range — #c9b6ff, #8ed0ff,
+   * #b8f1d6 — which is fine behind a headline and washed out everywhere they
+   * are actually used: as the fill of a card, the ground of a panel, the body
+   * of a blob at 55%. Dropped into the middle of their range they are the
+   * same hues doing the job the other four already did.
+   *
+   * Ink stays legible on every one of them, which is the constraint that
+   * decided how far they could go: 7.9:1 on the new lilac, 10.1 on the sky,
+   * 13.6 on the mint — all of them well clear of the 6.5 this page asks of
+   * its *supporting* text, let alone of a card title.
+   */
   --coral: #f2582b;
   --orchid: #ff7bd3;
   --tangerine: #ff6b3d;
-  --lilac: #c9b6ff;
-  --sky: #8ed0ff;
-  --mint: #b8f1d6;
+  --lilac: #a98cff;
+  --sky: #5fbcff;
+  --mint: #7fe3b4;
   --citrus: #f4ee5c;
   --teal: #25565a;
   --teal-deep: #163a3d;
@@ -872,7 +902,21 @@
  * break out by sitting outside this element instead of fighting it.
  */
 .wrap {
-  width: min(1200px, calc(100% - 48px));
+  /*
+   * 1640, not 1200.
+   *
+   * At 1200 a 1440 screen showed the page down a 1200px chute with 120px of
+   * empty paper down each side, and every laptop wider than that just got
+   * more rail. The cap is still a cap — a 32" monitor should not be handed a
+   * 2400px row of bento cards — but it is now above the width of the screens
+   * this is actually read on, so the layout fills them.
+   *
+   * Nothing about the *reading* changed: `.lede` is still 50ch, `.h2` still
+   * 16ch, every paragraph on the page still carries its own measure. What got
+   * wider is the furniture around them — the drawn window, the card grids,
+   * the two panels of the close — which is the part that was starved.
+   */
+  width: min(1640px, calc(100% - 64px));
   margin-inline: auto;
 }
 
@@ -1835,7 +1879,13 @@
 /* ── Section rhythm ───────────────────────────────────────────────────── */
 
 .section {
-  padding: 160px 0 0;
+  /*
+   * 120, not 160. Six sections at 160 is a thousand pixels of nothing, and on
+   * a page whose colour lives inside objects that reads as a pale corridor
+   * with something interesting every screen and a half. The sections still
+   * breathe; they no longer drift apart.
+   */
+  padding: 120px 0 0;
 }
 
 .section__head {
@@ -1848,10 +1898,130 @@
 
 /* ── The argument ─────────────────────────────────────────────────────── */
 
+/* ── A section that is not paper ──────────────────────────────────────────
+
+   Six sections of near-white with the colour living inside the objects is a
+   calm page and, read end to end, a flat one: something interesting every
+   screen and a half, on the same ground every time. This is the band that
+   breaks it — full width, edge to edge, dark, with the white cards of the
+   argument lying on it at 15.6:1 instead of 1.2:1.
+
+   ── HOW IT INVERTS, AND WHY THAT IS THE WHOLE TRICK ────────────────────
+   Nothing inside it knows it is on a dark ground. The three ink tokens are
+   re-pointed on this element, so every rule underneath — `.h2`, `.lede`,
+   `.stat p`, `.tag`, the hairlines — keeps reaching for the same variable and
+   comes out light. It is the same move `.storefront` itself makes against the
+   app's palette, one level further in.
+
+   The three replacements are opaque hexes rather than white at an alpha,
+   because `contrast-floors.mjs` measures this block by name now and a ratio
+   against a translucent colour is a question about what is behind it. */
+
+.section--dark {
+  /* The flat colour the middle stop of the gradient below is. It exists so
+     `scripts/contrast-floors.mjs` has a single ground to measure the three
+     inks against — a stack of gradients has none — and it is the worst case:
+     the two radial washes over it only ever lighten. Change the gradient,
+     change this. */
+  --band: #10272a;
+
+  --ink: #ffffff;
+  --graphite: #97adaf;
+  --mist: #859b9d;
+  --hair: rgba(255, 255, 255, 0.16);
+  --glass: rgba(255, 255, 255, 0.08);
+  --glass-edge: rgba(255, 255, 255, 0.18);
+
+  position: relative;
+  /* Full bleed out of `.wrap`'s measure. `.storefront` already clips its own
+     overflow-x, so the 100vw cannot open a horizontal scrollbar, and the nav
+     is fixed rather than sticky so nothing here traps it. */
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+  margin-top: 120px;
+  padding: 116px 0 124px;
+  color: var(--ink);
+  background:
+    radial-gradient(90% 120% at 82% 0%, rgba(242, 88, 43, 0.22), transparent 58%),
+    radial-gradient(70% 100% at 8% 100%, rgba(169, 140, 255, 0.2), transparent 60%),
+    linear-gradient(168deg, #143134 0%, var(--band) 52%, #0c1f22 100%);
+}
+
+/* The section's own top padding is the band's padding now. */
+.section--dark.section {
+  padding-top: 116px;
+}
+
+.section--dark .tag {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--graphite);
+}
+
+/*
+ * The four cards, turned over.
+ *
+ * `.pain__card` hard-codes `rgba(255,255,255,0.86)` — it is not reading a
+ * token, so re-pointing the palette left it a white card with `--ink` on it,
+ * and `--ink` is now white. The labels went to roughly 1.2:1 and vanished,
+ * which is the failure mode of inverting by variable: the rules that opted
+ * out of the variables do not come with you.
+ *
+ * So they become the dark member of the pair rather than having their ink
+ * forced back to black. These four are the things you put up with elsewhere;
+ * on this band they should read as holes in it, not as the brightest objects
+ * on the page. The coral discs are untouched and are what carries them.
+ */
+.section--dark .pain__card {
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.11),
+    0 22px 44px -32px rgba(0, 0, 0, 0.6);
+  color: var(--ink);
+}
+
+/*
+ * The head of this band uses the width it was given.
+ *
+ * `.h2` is capped at 16ch and the lede at 50ch, which stacked is a column of
+ * text down the left of a 1640px band with nothing to its right. Side by
+ * side, aligned on their last line, they fill it — and the sentence that
+ * answers the headline sits beside the headline instead of under it.
+ */
+.section--dark .section__head {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 24px 64px;
+  align-items: end;
+}
+.section--dark .section__head .lede {
+  margin-top: 0;
+  padding-bottom: 6px;
+}
+
+@media (max-width: 900px) {
+  .section--dark .section__head {
+    grid-template-columns: 1fr;
+  }
+  .section--dark .section__head .lede {
+    margin-top: 18px;
+    padding-bottom: 0;
+  }
+}
+
 .problem__grid {
   display: grid;
-  grid-template-columns: 330px 1fr 320px;
-  gap: 24px;
+  /*
+   * Fractions, not two fixed rails and whatever is left.
+   *
+   * At 1200 the middle column came out at 470px and the gauge filled it. At
+   * 1640 the two 330px columns stayed 330px and the gauge was handed 900 —
+   * the same drawing with 400px of empty paper around it, which is how a
+   * wider page makes a section emptier instead of fuller. Fractions scale all
+   * three together.
+   */
+  grid-template-columns: 1fr 1.3fr 1fr;
+  gap: 40px;
   align-items: center;
 }
 
@@ -2605,59 +2775,348 @@
 
 /* ── The close ────────────────────────────────────────────────────────── */
 
-.cta__card {
+/*
+ * Two panels: your build, and every build.
+ *
+ * The left one is paper with a card floating on it; the right is a gradient
+ * with the other four artefacts fanned out from a pivot on its left edge. The
+ * gap between them is where the pivot sits, which is what ties the two halves
+ * into one object instead of two cards that happen to be adjacent.
+ */
+
+.get {
+  display: grid;
+  grid-template-columns: 1.04fr 0.96fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.get__paper,
+.get__fan {
   position: relative;
   overflow: hidden;
   border-radius: var(--r-media);
-  padding: 104px 40px 100px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.6);
-  -webkit-backdrop-filter: blur(30px);
-  backdrop-filter: blur(30px);
+  min-height: 700px;
+}
+
+.get__paper {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 48px 44px 56px;
+  background: linear-gradient(165deg, #ffffff 0%, #fbfbfb 46%, var(--paper) 100%);
   border: 1px solid rgba(255, 255, 255, 0.85);
   box-shadow:
     inset 0 1px 0 #ffffff,
     0 70px 140px -70px rgba(20, 20, 50, 0.4);
 }
 
-.cta__bg {
+/* Bigger than the panel and blurred past recognition: what is left is the
+   direction of the arc, not the circle it came from. */
+.get__arcs {
   position: absolute;
-  inset: 0;
-  z-index: 0;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  /* 14px, not 26. At 26 the three arcs dissolved into one pale wash and the
+     panel read as an empty white rectangle; the point of drawing arcs rather
+     than blobs is that a direction survives the blur. */
+  filter: blur(14px);
+  opacity: 0.9;
   pointer-events: none;
 }
 
-.cta__bg .blob {
-  animation: none;
-  opacity: 0.7;
-  filter: blur(64px);
-}
-
-.cta__card > * {
+.get__say,
+.get__hold {
   position: relative;
   z-index: 1;
 }
 
-.cta__card .h2 {
-  margin-inline: auto;
-  max-width: 15ch;
+/* The card is centred in whatever is left under the sentence rather than
+   pinned to the floor of the panel, which left a hole in the middle of it. */
+.get__hold {
+  flex: 1;
+  display: grid;
+  place-items: center;
 }
 
-.cta__card .lede {
-  margin: 20px auto 0;
-  max-width: 40ch;
+.get__say .h2 {
+  max-width: 11ch;
+}
+.get__say .lede {
+  margin-top: 18px;
+  max-width: 38ch;
 }
 
-.cta__actions {
+/* ── The card ─────────────────────────────────────────────────────────── */
+
+.get__card {
   display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 34px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  width: min(100%, 430px);
+  margin-inline: auto;
+  padding: 16px 18px;
+  border-radius: 24px;
+  text-decoration: none;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 34px 60px -30px rgba(20, 20, 50, 0.34);
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.get__card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 44px 74px -30px rgba(20, 20, 50, 0.4);
+}
+
+/* The wordmark as an app icon: the same conic sweep with the same hole in it,
+   squared off, because that is the shape a thing you install has. */
+.get__tile {
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: conic-gradient(
+    from 210deg,
+    var(--orchid),
+    var(--tangerine),
+    var(--citrus),
+    var(--mint),
+    var(--sky),
+    var(--lilac),
+    var(--orchid)
+  );
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+.get__tile::after {
+  content: "";
+  position: absolute;
+  inset: 34%;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.get__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.get__name {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.get__line {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--graphite);
+}
+.get__facts {
+  font-size: 12px;
+  color: var(--mist);
+}
+
+.get__go {
+  flex: none;
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--coral);
+  color: #ffffff;
+}
+.get__go svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ── The fan ──────────────────────────────────────────────────────────── */
+
+.get__fan {
+  /* The step and the radius live here rather than in the component, so the
+     fan closes up on a narrow screen without React knowing a breakpoint. */
+  --step: 21deg;
+  /* Scaled to the viewport, and the cap raised with `.wrap`: at a 1200px
+     measure the panel was 565 wide and 236 put the words across the middle of
+     it. At 1640 the same 236 left a third of the panel empty to the right of
+     every ray. */
+  --r: clamp(160px, 20vw, 300px);
+  background:
+    radial-gradient(130% 80% at 4% 8%, rgba(255, 255, 255, 0.5), transparent 58%),
+    linear-gradient(
+      177deg,
+      #a78bff 0%,
+      var(--lilac) 36%,
+      #d4e7ff 74%,
+      #eef5ff 100%
+    );
+}
+
+.get__pivot {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--paper);
+}
+
+/* A zero-sized box at the pivot: every ray is positioned against this one
+   point, so the fan stays a fan at any panel size.
+
+   Scoped to the panel, and that is not decoration: `.storefront ul` zeroes
+   the margin and padding of every list on these pages, and at 0,1,1 it beats
+   a bare `.get__rays`. The phone rule below gives this list a real padding
+   back, so it has to out-specify the reset or the words start flush against
+   the panel's rounded corner. */
+.get__fan .get__rays {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.get__ray {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  transform-origin: 0 50%;
+  transform: translateY(-50%) rotate(calc(var(--i) * var(--step)));
+}
+
+.get__ray a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0 6px var(--r);
+  /* Ink, all of it. The gradient above ends pale and these are links to
+     files: black is 8:1 at the darkest point of it and better everywhere
+     below, so nothing here depends on which third of the panel it landed in.
+     Size is the only hierarchy. */
+  color: var(--ink);
+  text-decoration: none;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.get__ray a:hover {
+  transform: translateX(10px);
+}
+
+.get__plat {
+  /* The display serif, which until now was downloaded on every page load and
+     set on nothing. It is the one thing on this page that looks written. */
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-size: clamp(30px, 3.5vw, 52px);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.get__sub {
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  opacity: 0.6;
+}
+
+.get__ray a:hover .get__plat {
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 1px;
+}
+
+@media (max-width: 1040px) {
+  .get__fan {
+    --step: 20deg;
+  }
+}
+
+/*
+ * The fan is for the two-column shape, and only that shape.
+ *
+ * It works because the panel beside the card is tall and narrow, which is the
+ * proportion a fan from a left-edge pivot fills. The moment the grid stacks,
+ * that panel becomes wide and short: the extreme rays run off the top and
+ * bottom while the right half of the panel stays empty, and there is no
+ * radius that fixes both at once — pushing the words out to fill the width
+ * pushes the top one through the ceiling.
+ *
+ * So below here the ornament becomes the list it always was: same gradient,
+ * same serif, same five links, in a column. A flourish that has to be
+ * squinted at is not one.
+ */
+@media (max-width: 900px) {
+  .get {
+    grid-template-columns: 1fr;
+  }
+  .get__paper {
+    min-height: 520px;
+    padding: 40px 28px 44px;
+  }
+  .get__fan {
+    min-height: 0;
+  }
+  .get__pivot {
+    display: none;
+  }
+  .get__fan .get__rays {
+    position: static;
+    width: auto;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 48px 34px 52px;
+  }
+  .get__ray {
+    position: static;
+    transform: none;
+  }
+  .get__ray a {
+    padding: 0;
+  }
+  .get__ray a:hover {
+    transform: translateX(6px);
+  }
+}
+
+@media (max-width: 640px) {
+  .get__fan .get__rays {
+    gap: 20px;
+    padding: 40px 26px 44px;
+  }
+  .get__plat {
+    font-size: 34px;
+  }
+  .get__card {
+    gap: 12px;
+    padding: 14px;
+  }
+  .get__sub {
+    font-size: 11.5px;
+  }
 }
 
 .cta__note {
-  margin-top: 20px;
+  margin-top: 28px;
+  text-align: center;
   font-size: 14px;
   color: var(--mist);
 }
@@ -4595,7 +5054,10 @@
   font-size: 16.5px;
   line-height: 1.55;
   color: var(--graphite);
-  max-width: 56ch;
+  /* 50, not 56. `ch` is the width of a zero and Outfit's is wide, so 56ch was
+     landing at about 80 characters of running text on the wider measure —
+     past the line length this page is comfortable at. */
+  max-width: 50ch;
 }
 
 /* ── The share bar ────────────────────────────────────────────────────────
@@ -4928,4 +5390,8 @@
  */
 .longform--solo {
   grid-template-columns: minmax(0, 78ch);
+  /* Centred, now that the measure around it is 1640 rather than 1200. One
+     78ch column pinned to the left of a page two and a half times that wide
+     reads as a layout that lost its other half. */
+  justify-content: center;
 }

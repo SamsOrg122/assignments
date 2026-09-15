@@ -90,17 +90,3 @@ export function BuildNote({ className }: { className?: string }) {
     </p>
   );
 }
-
-/** The same, for the closing card, where the version belongs too. */
-export function CloseNote() {
-  const build = buildById(usePlatform());
-  return (
-    <p className="cta__note">
-      Version 0.1.0, {build.size}. Unsigned —{" "}
-      <Link href="/download" style={{ textDecoration: "underline" }}>
-        what that means on first run
-      </Link>
-      .
-    </p>
-  );
-}

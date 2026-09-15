@@ -14,9 +14,9 @@
  * this page stays cheap to verify.
  */
 
-import Link from "next/link";
 import { Gauge, Arc, MiniGauge, DottedRing } from "./drawings";
-import { Mark, DownloadButton, CloseNote } from "./Chrome";
+import { Mark } from "./Chrome";
+import { CHROMIUM_MAJOR, ELECTRON_MAJOR } from "@/lib/browser";
 import { IMPACT, percent } from "@/lib/impact/config";
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -84,7 +84,12 @@ const PAINS = [
 
 export function Argument() {
   return (
-    <section className="section" id="browser">
+    /* The one dark band on the page, and it is this section because this is
+       the confrontational one: the claim a reader arrives least willing to
+       believe, answered with three figures that each name the file making
+       them true. A page of six pale sections reads flat however good each one
+       is; this is where it stops being paper. */
+    <section className="section section--dark" id="browser">
       <div className="wrap">
         <div className="section__head">
           <h2 className="h2">Every other AI browser sells you the model twice.</h2>
@@ -348,12 +353,20 @@ export function Engine() {
                 5<small>builds</small>
               </div>
               <p>Two Macs, Windows, and Linux as an AppImage or a .deb.</p>
+              {/* Read out of `browser/package.json`, not typed here, and
+                  `scripts/browser-version-agrees.mjs` fails the build if the
+                  two ever disagree. It said 33 for a while after the browser
+                  was on 44 — a true sentence about a version that had been
+                  gone for a release, on the page whose whole argument is that
+                  its numbers can be checked. */}
               <div className="num">
-                33<small>Electron</small>
+                {ELECTRON_MAJOR}
+                <small>Electron</small>
               </div>
               <p>
-                Which carries Chromium from late 2024. Bringing that forward is the first job on the
-                list, and we would rather you read it here.
+                Which carries Chromium {CHROMIUM_MAJOR}. It shipped on Electron 33 and the Chromium
+                of late 2024; bringing the engine forward was the first job on this list, and it is
+                done.
               </p>
               <div className="num">
                 {percent(IMPACT.shareOfRevenue.value)}
@@ -417,39 +430,6 @@ export function Engine() {
               </g>
             </svg>
           </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   The close
-   ═══════════════════════════════════════════════════════════════════════ */
-
-export function Close() {
-  return (
-    <section className="section" id="download">
-      <div className="wrap">
-        <div className="cta__card">
-          <div className="cta__bg" aria-hidden="true">
-            <span className="blob" style={{ width: 520, height: 420, left: "-8%", top: "-30%", background: "var(--lilac)" }} />
-            <span className="blob" style={{ width: 520, height: 420, right: "-10%", top: "-20%", background: "var(--orchid)" }} />
-            <span className="blob" style={{ width: 520, height: 420, left: "30%", bottom: "-50%", background: "var(--mint)" }} />
-            <span className="blob" style={{ width: 420, height: 380, right: "14%", bottom: "-40%", background: "var(--tangerine)", opacity: 0.5 }} />
-          </div>
-          <h2 className="h2">Take the browser.</h2>
-          <p className="lede">
-            Free, and it stays free. The assistant runs on the agent already signed in on your
-            machine, so there is no key to paste and no account of ours in the way.
-          </p>
-          <div className="cta__actions">
-            <DownloadButton />
-            <Link className="btn btn--glass glass" href="/download">
-              Every build
-            </Link>
-          </div>
-          <CloseNote />
         </div>
       </div>
     </section>

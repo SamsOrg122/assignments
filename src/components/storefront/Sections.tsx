@@ -14,123 +14,10 @@
  * this page stays cheap to verify.
  */
 
-import { Gauge, Arc, MiniGauge, DottedRing } from "./drawings";
+import { Arc, MiniGauge, DottedRing } from "./drawings";
 import { Mark } from "./Chrome";
 import { CHROMIUM_MAJOR, ELECTRON_MAJOR } from "@/lib/browser";
 import { IMPACT, percent } from "@/lib/impact/config";
-
-/* ═══════════════════════════════════════════════════════════════════════
-   What every other AI browser does
-   ═══════════════════════════════════════════════════════════════════════ */
-
-const Layers = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
-    <path d="M12 4l8 4.5-8 4.5-8-4.5z" />
-    <path d="M4 13l8 4.5 8-4.5" />
-    <path d="M4 17.5l8 4.5 8-4.5" />
-  </svg>
-);
-
-const EyeOff = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 3l18 18" />
-    <path d="M10.6 6.3c.5-.1.9-.1 1.4-.1 4.5 0 8 3.4 9.5 5.8-.6.9-1.5 2.1-2.7 3.2M6.4 7.7C4.6 9 3.3 10.8 2.5 12c1.5 2.4 5 5.8 9.5 5.8 1.4 0 2.7-.3 3.9-.9" />
-    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
-  </svg>
-);
-
-const Meter = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-    <path d="M4 16a8 8 0 1 1 16 0" />
-    <path d="M12 16l4.5-5" />
-    <circle cx="12" cy="16" r="1.6" />
-  </svg>
-);
-
-const BellOff = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6.3 8.6A6 6 0 0 1 17 6.5M18 9v4l2 3H9M6 9v4l-2 3h4" />
-    <path d="M10 20a2 2 0 0 0 4 0M3 3l18 18" />
-  </svg>
-);
-
-const STATS = [
-  {
-    n: "0",
-    unit: null,
-    line: "keys of ours in the download. The interface is yours; the bill stays on the server, and there is nothing to paste.",
-    tag: "browser/lib/app-schema.js",
-  },
-  {
-    n: "1",
-    unit: "min",
-    line: "is how long a permission lasts. Every action that touches your tabs asks again, and never on a password or payment field.",
-    tag: "browser/lib/toestemming.js",
-  },
-  {
-    n: "0",
-    unit: null,
-    line: "of the assistant's own tools are switched on. No shell, no files, and none of the servers you have connected elsewhere.",
-    tag: "browser/lib/agent.js",
-  },
-];
-
-const PAINS = [
-  { icon: <Meter />, label: "A credit meter" },
-  { icon: <EyeOff />, label: "Your text on someone's server" },
-  { icon: <Layers />, label: "An assistant that takes your screen" },
-  { icon: <BellOff />, label: "A second subscription" },
-];
-
-export function Argument() {
-  return (
-    /* The one dark band on the page, and it is this section because this is
-       the confrontational one: the claim a reader arrives least willing to
-       believe, answered with three figures that each name the file making
-       them true. A page of six pale sections reads flat however good each one
-       is; this is where it stops being paper. */
-    <section className="section section--dark" id="browser">
-      <div className="wrap">
-        <div className="section__head">
-          <h2 className="h2">Every other AI browser sells you the model twice.</h2>
-          <p className="lede">
-            They buy the calls and resell them, which is why they all arrive with a credit meter. We
-            never make the call — so there is nothing to meter, nothing to mark up, and nothing of
-            yours on a server of ours.
-          </p>
-        </div>
-        <div className="problem__grid">
-          <div>
-            {STATS.map((s) => (
-              <div className="stat" key={s.tag + s.n}>
-                <div className="num">
-                  {s.n}
-                  {s.unit ? <small>{s.unit}</small> : null}
-                </div>
-                <p>{s.line}</p>
-                <span className="tag">{s.tag}</span>
-              </div>
-            ))}
-          </div>
-          <div className="gauge" aria-hidden="true">
-            <div className="gauge__glow" />
-            <Gauge />
-          </div>
-          <div className="pain">
-            {PAINS.map((p) => (
-              <div className="pain__card" key={p.label}>
-                <span className="ic" aria-hidden="true">
-                  {p.icon}
-                </span>
-                {p.label}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
 
 /* ═══════════════════════════════════════════════════════════════════════
    The five things
@@ -141,15 +28,15 @@ export function Features() {
     <section className="section" id="workspace">
       <div className="wrap">
         <div className="section__head">
-          <h2 className="h2">Five things it does that a browser does not.</h2>
-          <p className="lede">
+          <h2 className="h2" data-flow>Five things it does that a browser does not.</h2>
+          <p className="lede" data-flow style={{ ["--fi" as string]: 1 }}>
             Each one is a claim the code makes good on, with the file that does it named underneath,
             so you can check a sentence instead of trusting it.
           </p>
         </div>
 
         <div className="bento">
-          <div className="card w-teal c-4 grain">
+          <div className="card w-teal c-4 grain" data-flow="lift" style={{ ["--fi" as string]: 0 }}>
             <h3>An assistant that works in its own tab.</h3>
             <div style={{ paddingBottom: 64 }}>
               <div className="num">
@@ -160,7 +47,7 @@ export function Features() {
             <Arc cx={200} cy={-150} r={230} from={236} to={304} dots={18} viewBox="0 0 400 120" />
           </div>
 
-          <div className="card w-orchid c-4 grain">
+          <div className="card w-orchid c-4 grain" data-flow="lift" style={{ ["--fi" as string]: 1 }}>
             <h3>It thinks on your own subscription.</h3>
             <MiniGauge />
             <div>
@@ -173,7 +60,7 @@ export function Features() {
             </div>
           </div>
 
-          <div className="card w-lilac c-4 grain">
+          <div className="card w-lilac c-4 grain" data-flow="lift" style={{ ["--fi" as string]: 2 }}>
             <h3>Two pages side by side, in one window.</h3>
             <div>
               <div className="split" aria-hidden="true">
@@ -196,7 +83,7 @@ export function Features() {
             </div>
           </div>
 
-          <div className="card w-citrus c-5 grain">
+          <div className="card w-citrus c-5 grain" data-flow="lift" style={{ ["--fi" as string]: 0 }}>
             <h3>Workspaces that are really separate.</h3>
             <div>
               <div className="spaces" aria-hidden="true">
@@ -220,7 +107,7 @@ export function Features() {
             </div>
           </div>
 
-          <div className="card card--paper c-7">
+          <div className="card card--paper c-7" data-flow="lift" style={{ ["--fi" as string]: 1 }}>
             <h3>Permission for every single action.</h3>
             <div>
               <div className="palette" aria-hidden="true">
@@ -263,14 +150,14 @@ export function Statement() {
     <section className="section">
       <div className="wrap">
         <div className="section__head">
-          <h2 className="h2">Made for the person, not for the tab bar.</h2>
-          <p className="lede">
+          <h2 className="h2" data-flow>Made for the person, not for the tab bar.</h2>
+          <p className="lede" data-flow style={{ ["--fi" as string]: 1 }}>
             Quiet while you read, out of the way while you work, and the whole Tougather workspace
             one keystroke away when you need it.
           </p>
         </div>
 
-        <div className="statement grain">
+        <div className="statement grain" data-flow="lift">
           <div className="statement__art" aria-hidden="true" />
           <p className="statement__line">
             Nothing here is metered by
@@ -282,7 +169,7 @@ export function Statement() {
         </div>
 
         <div className="tiles">
-          <figure className="tile t-warm grain">
+          <figure className="tile t-warm grain" data-flow="lift" style={{ ["--fi" as string]: 0 }}>
             <div className="tile__art" />
             <div className="prop prop--reader" aria-hidden="true">
               <i data-t />
@@ -300,7 +187,7 @@ export function Statement() {
             </figcaption>
           </figure>
 
-          <figure className="tile t-cool grain">
+          <figure className="tile t-cool grain" data-flow="lift" style={{ ["--fi" as string]: 1 }}>
             <div className="tile__art" />
             <div className="prop prop--reader" aria-hidden="true" style={{ bottom: "34%" }}>
               <i data-t style={{ width: "58%" }} />
@@ -313,7 +200,7 @@ export function Statement() {
             </figcaption>
           </figure>
 
-          <figure className="tile t-green grain">
+          <figure className="tile t-green grain" data-flow="lift" style={{ ["--fi" as string]: 2 }}>
             <div className="tile__art" />
             <div className="ring" aria-hidden="true">
               <DottedRing />
@@ -342,13 +229,13 @@ export function Engine() {
       <div className="wrap">
         <div className="engine__grid">
           <div>
-            <h2 className="h2">An early build, and we will say which parts.</h2>
-            <p className="lede">
+            <h2 className="h2" data-flow>An early build, and we will say which parts.</h2>
+            <p className="lede" data-flow style={{ ["--fi" as string]: 1 }}>
               Every tab is its own view with its own session, the assistant runs as a child process
               with its own tools switched off, and the parts that are not finished are on the
               download page rather than discovered by you.
             </p>
-            <div className="spec">
+            <div className="spec" data-flow style={{ ["--fi" as string]: 2 }}>
               <div className="num">
                 5<small>builds</small>
               </div>

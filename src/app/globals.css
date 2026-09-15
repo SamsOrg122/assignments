@@ -1898,6 +1898,61 @@
 
 /* ── The argument ─────────────────────────────────────────────────────── */
 
+/* ── Arriving ─────────────────────────────────────────────────────────────
+
+   The scroll behaviour of the whole storefront, in eleven declarations.
+
+   `data-flow` is the author's mark and does nothing on its own — the page is
+   complete and visible without a line of this applying. `data-flow-armed` is
+   written by `Flow.tsx`, only onto elements it has measured to be off screen,
+   and that is the attribute that hides anything. The reasoning is in that
+   file: a stylesheet that hides content unconditionally turns a script that
+   failed to load into a blank page.
+
+   The transition lives on the *revealed* state rather than on the element, so
+   arming is instantaneous and only the arrival is animated. Without that
+   split, an element would visibly slide away as it was armed.
+   ──────────────────────────────────────────────────────────────────────── */
+
+[data-flow-armed] {
+  opacity: 0;
+  transform: translateY(26px);
+}
+[data-flow="left"][data-flow-armed] {
+  transform: translateX(-30px);
+}
+[data-flow="right"][data-flow-armed] {
+  transform: translateX(30px);
+}
+/* For the big drawn objects: they grow into place rather than rising, which
+   reads as a thing settling rather than a block of text scrolling. */
+[data-flow="lift"][data-flow-armed] {
+  transform: scale(0.965) translateY(24px);
+}
+
+[data-flow-armed][data-seen] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  /* The stagger. `--fi` is the element's place in its group, set inline where
+     a group exists; one number, so a row of five cards deals itself out
+     instead of landing as a slab. */
+  transition-delay: calc(var(--fi, 0) * 80ms);
+}
+
+/* Belt as well as braces. `Flow.tsx` returns before arming anything when this
+   is set, so nothing should ever be hidden — but if a stale `data-flow-armed`
+   survives a client-side navigation, this is what stops it mattering. */
+@media (prefers-reduced-motion: reduce) {
+  [data-flow-armed] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
 /* ── A section that is not paper ──────────────────────────────────────────
 
    Six sections of near-white with the colour living inside the objects is a
@@ -1918,16 +1973,28 @@
    against a translucent colour is a question about what is behind it. */
 
 .section--dark {
-  /* The flat colour the middle stop of the gradient below is. It exists so
-     `scripts/contrast-floors.mjs` has a single ground to measure the three
-     inks against — a stack of gradients has none — and it is the worst case:
-     the two radial washes over it only ever lighten. Change the gradient,
-     change this. */
-  --band: #10272a;
+  /*
+   * The *lightest* reading of the band, as a flat colour.
+   *
+   * This started as `--band`, set to the middle stop, with a comment saying
+   * the washes over it "only ever lighten" — which is exactly why it was the
+   * wrong number. Light ink on a dark ground fails at the light end, so a
+   * check measuring the darkest stop was measuring the best case and passing
+   * the band no matter what was done to the top of it. With the row tints
+   * that arrived later, the supporting grey was really sitting at 3.7:1
+   * against a floor of 5.2 and nothing said so.
+   *
+   * It is the top stop now, and everything else on this band is built to stay
+   * under it: the gradient only darkens downward, the vignette only darkens,
+   * and the panels are dark tints rather than light ones. That last part is
+   * also the right instinct — on a dark ground a panel should recede, not
+   * float. Change the top stop, change this.
+   */
+  --band-lit: #16323a;
 
   --ink: #ffffff;
-  --graphite: #97adaf;
-  --mist: #859b9d;
+  --graphite: #a2babc;
+  --mist: #8fa7a9;
   --hair: rgba(255, 255, 255, 0.16);
   --glass: rgba(255, 255, 255, 0.08);
   --glass-edge: rgba(255, 255, 255, 0.18);
@@ -1942,9 +2009,12 @@
   padding: 116px 0 124px;
   color: var(--ink);
   background:
-    radial-gradient(90% 120% at 82% 0%, rgba(242, 88, 43, 0.22), transparent 58%),
-    radial-gradient(70% 100% at 8% 100%, rgba(169, 140, 255, 0.2), transparent 60%),
-    linear-gradient(168deg, #143134 0%, var(--band) 52%, #0c1f22 100%);
+    /* Depth by darkening only. The two coloured washes that used to be here
+       lightened the top of the band by nine points of luminance, which is
+       what took the supporting grey under its floor. A vignette does the same
+       job for the eye and cannot cost contrast. */
+    radial-gradient(120% 90% at 50% 120%, rgba(0, 0, 0, 0.45), transparent 62%),
+    linear-gradient(168deg, var(--band-lit) 0%, #112730 46%, #0d1c28 100%);
 }
 
 /* The section's own top padding is the band's padding now. */
@@ -1952,9 +2022,12 @@
   padding-top: 116px;
 }
 
+/* Dark, not light. A pill tinted with white sat above `--band-lit` and put
+   its own label outside the floor; tinted with black it recedes and the
+   hairline is what draws it. */
 .section--dark .tag {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
   color: var(--graphite);
 }
 
@@ -1972,14 +2045,6 @@
  * on this band they should read as holes in it, not as the brightest objects
  * on the page. The coral discs are untouched and are what carries them.
  */
-.section--dark .pain__card {
-  background: rgba(255, 255, 255, 0.055);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.11),
-    0 22px 44px -32px rgba(0, 0, 0, 0.6);
-  color: var(--ink);
-}
-
 /*
  * The head of this band uses the width it was given.
  *
@@ -2068,34 +2133,8 @@
     0 10px 24px -18px rgba(0, 0, 0, 0.35);
 }
 
-.gauge {
-  position: relative;
-  height: 580px;
-}
 
-.gauge__glow {
-  position: absolute;
-  left: 76%;
-  top: 50%;
-  width: 500px;
-  height: 500px;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  filter: blur(34px);
-  background: radial-gradient(
-    circle,
-    rgba(242, 88, 43, 0.92),
-    rgba(242, 88, 43, 0.4) 42%,
-    rgba(242, 88, 43, 0) 68%
-  );
-}
 
-.gauge svg {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
 
 .pain {
   display: flex;
@@ -2771,6 +2810,293 @@
   font-family: var(--font-mono);
   font-size: 11px;
   fill: var(--ink);
+}
+
+/* ── What it is ───────────────────────────────────────────────────────── */
+
+.what {
+  border-top: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair);
+  padding: 56px 0 60px;
+}
+
+/* The whole product in one sentence, set at the size of a claim rather than
+   of a caption. The three nouns are the only emphasis on this page that is
+   not weight or colour — they are what the reader is meant to leave with. */
+.what__line {
+  font-size: clamp(22px, 2.5vw, 34px);
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  max-width: 34ch;
+  color: var(--ink);
+}
+.what__line em {
+  font-style: normal;
+  font-weight: 500;
+  background-image: linear-gradient(transparent 68%, var(--citrus) 68%);
+  background-repeat: no-repeat;
+}
+
+.what__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  margin-top: 52px;
+}
+.what__cell h3 {
+  margin: 14px 0 8px;
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.what__cell p {
+  color: var(--graphite);
+  font-size: 15.5px;
+  line-height: 1.55;
+  max-width: 34ch;
+}
+.what__dot {
+  display: block;
+  width: 34px;
+  height: 10px;
+  border-radius: var(--pill);
+  background: var(--hue);
+}
+
+@media (max-width: 860px) {
+  .what__grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+}
+
+/* ── Why this one ─────────────────────────────────────────────────────── */
+
+/*
+ * Five rows of three columns: the question, what the category does, what this
+ * does. The middle column is deliberately the quiet one — it is there to be
+ * recognised, not read twice — and the right one carries the weight, the
+ * light ground and the file name.
+ */
+.vs {
+  display: grid;
+  gap: 14px;
+}
+
+.vs__row,
+.vs__legend {
+  display: grid;
+  grid-template-columns: 0.72fr 1.1fr 1.32fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.vs__legend {
+  padding: 0 28px 4px;
+  font-size: 13.5px;
+  color: var(--mist);
+}
+.vs__legend .vs__us {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.vs__row {
+  padding: 26px 28px 28px;
+  border-radius: var(--r-card);
+  /* Darker than the band, never lighter — see `--band-lit`. */
+  background: rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.vs__ask {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  max-width: 18ch;
+}
+
+.vs__them,
+.vs__us p {
+  position: relative;
+  padding-left: 30px;
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+.vs__them {
+  color: var(--mist);
+}
+.vs__us p {
+  color: var(--ink);
+}
+
+.vs__mark {
+  position: absolute;
+  left: 0;
+  top: 1px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+.vs__mark svg {
+  width: 13px;
+  height: 13px;
+}
+.vs__mark--them {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--mist);
+}
+/* The one green on this band. A cross and a tick are the same shape to
+   somebody who cannot tell them apart by colour, which is why they are also
+   different glyphs in different positions with different words after them. */
+.vs__mark--us {
+  background: rgba(126, 231, 179, 0.16);
+  color: #7ee7b3;
+}
+
+.vs__us .tag {
+  margin-top: 14px;
+  margin-left: 30px;
+}
+
+.vs__foot {
+  margin-top: 34px;
+  max-width: 78ch;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--mist);
+}
+.vs__foot a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 1000px) {
+  .vs__legend {
+    display: none;
+  }
+  .vs__row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .vs__ask {
+    max-width: none;
+  }
+}
+
+/* ── For a better world ───────────────────────────────────────────────── */
+
+.better {
+  display: grid;
+  grid-template-columns: 1fr 0.92fr;
+  gap: 72px;
+  align-items: center;
+}
+.better__say .h2 {
+  margin-top: 22px;
+  max-width: 17ch;
+}
+.better__say .lede {
+  margin-top: 20px;
+}
+.better__note {
+  margin-top: 22px;
+  padding-left: 16px;
+  border-left: 2px solid var(--color-leaf);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--graphite);
+  max-width: 52ch;
+}
+.better__note b {
+  font-weight: 500;
+  color: var(--ink);
+}
+.better__say .btn {
+  margin-top: 30px;
+}
+
+.better__art {
+  position: relative;
+  padding: 44px 40px 40px;
+  border-radius: var(--r-media);
+  background: linear-gradient(165deg, #ffffff, var(--paper));
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 60px 120px -60px rgba(20, 20, 50, 0.35);
+}
+
+.better__fig {
+  font-size: clamp(72px, 9vw, 132px);
+  font-weight: 200;
+  line-height: 0.86;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.split-bar {
+  display: flex;
+  height: 16px;
+  margin-top: 28px;
+  border-radius: var(--pill);
+  overflow: hidden;
+  background: var(--hair);
+}
+.split-bar span {
+  height: 100%;
+}
+/* The one slice this section is about, told apart by more than its colour. */
+.split-bar span[data-impact] {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55);
+}
+
+.split-key {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+.split-key li {
+  display: grid;
+  grid-template-columns: 12px 4ch 1fr;
+  align-items: center;
+  gap: 12px;
+  font-size: 14.5px;
+  color: var(--graphite);
+}
+.split-key li[data-impact] {
+  color: var(--ink);
+  font-weight: 500;
+}
+.split-key i {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+.split-key b {
+  font-weight: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.better__rough {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hair);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--mist);
+}
+
+@media (max-width: 1000px) {
+  .better {
+    grid-template-columns: 1fr;
+    gap: 44px;
+  }
 }
 
 /* ── The close ────────────────────────────────────────────────────────── */

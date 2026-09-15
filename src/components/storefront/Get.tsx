@@ -82,7 +82,7 @@ export function Close() {
       <div className="wrap">
         <div className="get">
           {/* ── Your machine ─────────────────────────────────────────── */}
-          <div className="get__paper">
+          <div className="get__paper" data-flow="lift">
             <Ribbons />
 
             <div className="get__say">
@@ -114,7 +114,7 @@ export function Close() {
           </div>
 
           {/* ── Every other machine ──────────────────────────────────── */}
-          <div className="get__fan">
+          <div className="get__fan" data-flow="lift" style={{ ["--fi" as string]: 1 }}>
             {/* The pivot the words swing from. Paper-coloured, half of it
                 outside the panel, so it reads as a hinge in the gap between
                 the two panels rather than as a dot drawn on one of them. */}

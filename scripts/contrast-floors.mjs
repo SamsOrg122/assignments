@@ -296,11 +296,18 @@ console.log(storefrontLines.join("\n"));
  * four surfaces is not a floor — this is the same mistake the storefront
  * itself shipped before the block above existed, arriving one level deeper.
  *
- * Its ground is a stack of gradients, which has no single colour to measure
- * against. `--band` is the flat colour the middle stop of that stack is, and
- * it is the darkest reading the band has nowhere near its corners; the two
- * radial washes over it only lighten, so a ratio taken here is the worst case
- * and not an average.
+ * Its ground is a gradient, which has no single colour to measure against.
+ * `--band-lit` is the *lightest* reading of it, and that is the load-bearing
+ * word: light ink on a dark ground fails at the light end, so the first
+ * version of this — which measured the darkest stop and said so proudly —
+ * was measuring the best case and would have passed the band whatever was
+ * done to the top of it. It did: the supporting grey in the comparison rows
+ * was sitting at 3.7:1 against a floor of 5.2 and this script called it 5.33.
+ *
+ * Everything on the band is now built to stay under that number — the
+ * gradient darkens downward, the vignette only darkens, and every panel is a
+ * black tint rather than a white one — so this is the worst case again, and
+ * this time in the direction that can actually fail.
  */
 const DARK = declarations(".section--dark");
 
@@ -312,14 +319,14 @@ const DARK_FLOORS = [
 
 const darkLines = [];
 for (const floor of DARK_FLOORS) {
-  const found = measure(DARK, floor.ink, "--band");
+  const found = measure(DARK, floor.ink, "--band-lit");
   const under = found < floor.min;
   const name = `${floor.ink.replace("--", "")} on the band`;
   if (under) failures.push({ name, theme: "dark band", found, min: floor.min, why: floor.why });
   darkLines.push(`  ${under ? "·" : " "} ${name.padEnd(28)}${show(found)}   floor ${show(floor.min)}`);
 }
 
-console.log("\nThe dark band, measured on the darkest stop of its gradient.\n");
+console.log("\nThe dark band, measured on the lightest stop of its gradient.\n");
 console.log(darkLines.join("\n"));
 
 /*

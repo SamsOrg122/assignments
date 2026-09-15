@@ -322,6 +322,44 @@ for (const floor of DARK_FLOORS) {
 console.log("\nThe dark band, measured on the darkest stop of its gradient.\n");
 console.log(darkLines.join("\n"));
 
+/*
+ * And the fan at the foot of the homepage, which is the mirror of the band.
+ *
+ * Five download links set in white on a violet gradient. The band above is
+ * light ink on a dark ground and is measured on the *darkest* stop of it;
+ * this is the same problem upside down, so it is measured on the *lightest*.
+ *
+ * It is here because the first version of that panel got this wrong in a way
+ * no build would have caught: the gradient ran from violet down to near-white
+ * and the words in the bottom third of it were sitting at about 1.3:1. The
+ * fix was not to darken the type — it was to darken the panel until the white
+ * the design asked for could actually be read. `--fan-lit` is what that
+ * decision rests on, and a stop lightened by a pixel of taste is exactly the
+ * change that would undo it quietly.
+ *
+ * Read off `.get`, the wrapper, rather than `.get__fan` — that selector
+ * appears twice in the stylesheet and this script matches the first one it
+ * sees. The property is declared there and inherits down; globals.css says so
+ * at the declaration.
+ */
+const FAN = declarations(".get");
+const FAN_FLOOR = 5.2;
+const fanFound = measure({ ...FAN, "--white": "#ffffff" }, "--white", "--fan-lit");
+if (fanFound < FAN_FLOOR) {
+  failures.push({
+    name: "white on the download fan",
+    theme: "storefront",
+    found: fanFound,
+    min: FAN_FLOOR,
+    why: "the five download links, and the 12.5px line naming each file's size",
+  });
+}
+console.log("\nThe download fan, measured on the lightest stop of its gradient.\n");
+console.log(
+  `  ${fanFound < FAN_FLOOR ? "·" : " "} ${"white on the fan".padEnd(28)}${show(fanFound)}` +
+    `   floor ${show(FAN_FLOOR)}`,
+);
+
 const RAMP = [
   "--color-surface",
   "--color-surface-2",

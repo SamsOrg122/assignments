@@ -26,13 +26,20 @@
  * neither, and a five-star row under a 0.1.0 with no users is the exact kind
  * of invention the rest of this page is careful not to make.
  *
- * ── AND WHY EVERY WORD ON THE FAN IS INK ────────────────────────────────
- * The reference this is built from sets its words in white over a gradient
- * that ends pale, so the last third of them are barely there. These are
- * links to files, so they are ink — 8:1 at the deepest point of the gradient
- * and better everywhere below it — and hierarchy comes from size alone. One
- * colour is also what makes the fan read as a single object rather than as a
- * list that has been decorated.
+ * ── AND WHY EVERY WORD ON THE FAN IS WHITE ──────────────────────────────
+ * The reference sets its words in white over a gradient that ends pale, and
+ * the last third of them are barely there. This was built in ink first to
+ * dodge that, which fixed the reading and lost the design: the panel is the
+ * one moment of saturated colour at the end of the page, and black type on it
+ * reads as a light card that happened to be tinted.
+ *
+ * The gradient is what was wrong, not the type. It runs violet to indigo now
+ * and never lightens — the white wash that used to sit in its corner took
+ * white to 4.2:1 and is gone — so white measures 5.7:1 at the lightest point
+ * of the panel and better everywhere else. `contrast-floors.mjs` holds it
+ * there, on the same 5.2 floor every other small ink in this product answers
+ * to. One colour, and hierarchy from size alone, which is also what makes the
+ * fan read as a single object rather than a list that has been decorated.
  */
 
 import Link from "next/link";

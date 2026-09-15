@@ -2785,6 +2785,23 @@
  */
 
 .get {
+  /*
+   * The lightest point of the fan's gradient, as a flat colour.
+   *
+   * The words on that panel are white, so this is the one number that decides
+   * whether they can be read: `scripts/contrast-floors.mjs` measures white
+   * against it and fails the build under 5.2:1. It is the top stop, and the
+   * stack has no overlay that lightens past it — the white wash that used to
+   * sit in the corner took white down to 4.2:1 and is gone. Change the
+   * gradient, change this.
+   *
+   * Declared on the wrapper rather than on `.get__fan`, where it is used,
+   * because that script names the blocks it reads by hand and `.get__fan`
+   * appears twice — once alone and once sharing a rule with `.get__paper`.
+   * `.get` appears exactly once, and the property inherits down.
+   */
+  --fan-lit: #6d4ade;
+
   display: grid;
   grid-template-columns: 1.04fr 0.96fr;
   gap: 20px;
@@ -2955,13 +2972,16 @@
      every ray. */
   --r: clamp(160px, 20vw, 300px);
   background:
-    radial-gradient(130% 80% at 4% 8%, rgba(255, 255, 255, 0.5), transparent 58%),
+    /* Deepening, never lightening: a violet glow low on the left and a
+       darkening at the foot, both of them under `--fan-lit`. */
+    radial-gradient(80% 70% at 6% 88%, rgba(124, 77, 255, 0.55), transparent 62%),
+    radial-gradient(90% 60% at 92% 4%, rgba(255, 123, 211, 0.22), transparent 60%),
     linear-gradient(
       177deg,
-      #a78bff 0%,
-      var(--lilac) 36%,
-      #d4e7ff 74%,
-      #eef5ff 100%
+      var(--fan-lit) 0%,
+      #5c3cd0 34%,
+      #4835bd 66%,
+      #2f4aa8 100%
     );
 }
 
@@ -3009,11 +3029,22 @@
   flex-direction: column;
   gap: 2px;
   padding: 6px 0 6px var(--r);
-  /* Ink, all of it. The gradient above ends pale and these are links to
-     files: black is 8:1 at the darkest point of it and better everywhere
-     below, so nothing here depends on which third of the panel it landed in.
-     Size is the only hierarchy. */
-  color: var(--ink);
+  /*
+   * White, all of it — the size line included.
+   *
+   * This was ink for a while, on the reasoning that the gradient it was drawn
+   * against ended pale and white would have died in the bottom third. True of
+   * that gradient, and the wrong thing to fix: the panel is the one moment of
+   * saturated colour at the end of the page and black type on it reads as a
+   * light card that happened to be tinted. The gradient went dark instead, so
+   * white is 5.7:1 at its lightest point and better everywhere else.
+   *
+   * One colour, and hierarchy from size alone. A second, dimmer white for the
+   * sub-line would have to clear the same floor at 12.5px, and the version
+   * that does clear it is so close to white that it only makes the fan look
+   * like two lists.
+   */
+  color: #ffffff;
   text-decoration: none;
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -3033,7 +3064,6 @@
 .get__sub {
   font-size: 12.5px;
   letter-spacing: 0.02em;
-  opacity: 0.6;
 }
 
 .get__ray a:hover .get__plat {

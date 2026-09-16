@@ -84,6 +84,26 @@ export function Footer() {
           </span>
         </div>
       </div>
+
+      {/*
+        * The signature, and it is the last thing in the document on purpose.
+        *
+        * The page ends on a violet panel full of download links and then, as
+        * it stood, on four columns of small grey text — a site that stops
+        * rather than one that finishes. This is the wordmark at the size a
+        * name gets on the last page, clipped to the same palette the conic
+        * mark is made of, bleeding off both sides and cut off by the bottom
+        * of the document. Cropped is the whole difference between a signature
+        * and a second banner, which is why it sits outside `.wrap` and after
+        * the legal line rather than above it.
+        *
+        * Decoration, and marked as such: the name is already in the brand link
+        * and in the copyright line, so a screen reader hearing it a third time
+        * would only be hearing the wallpaper.
+        */}
+      <p className="footer__sign" aria-hidden="true">
+        Tougather
+      </p>
     </footer>
   );
 }

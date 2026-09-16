@@ -1533,50 +1533,6 @@
   color: var(--mist);
 }
 
-.window__frame {
-  position: relative;
-  border-radius: var(--r-media);
-  overflow: hidden;
-  height: 660px;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  grid-template-columns: minmax(0, 1fr);
-  background: rgba(255, 255, 255, 0.6);
-  -webkit-backdrop-filter: blur(30px) saturate(170%);
-  backdrop-filter: blur(30px) saturate(170%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow:
-    inset 0 1px 0 #ffffff,
-    0 70px 140px -60px rgba(20, 20, 50, 0.5);
-}
-
-.chrome {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--hair);
-  min-width: 0;
-}
-
-.lights {
-  display: flex;
-  gap: 7px;
-}
-
-.lights i {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.13);
-}
-
-.tabs {
-  display: flex;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-}
 
 .tab {
   display: flex;
@@ -1611,23 +1567,6 @@
   box-shadow: 0 0 0 3px rgba(242, 88, 43, 0.22);
 }
 
-.address {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 14px 0 12px;
-  border-radius: var(--pill);
-  background: rgba(0, 0, 0, 0.05);
-  font-size: 14px;
-  color: var(--graphite);
-  min-width: 260px;
-}
-
-.address svg {
-  width: 14px;
-  height: 14px;
-}
 
 .window__body {
   display: grid;
@@ -1686,352 +1625,7 @@
 }
 
 /* The start page inside the window. */
-/* ── The demo that plays ──────────────────────────────────────────────────
 
-   Eight beats and one clock, driven from `Window.tsx`. Everything below is a
-   state the frame can be in, written as an attribute, so the component holds
-   the sequence and the stylesheet holds the appearance and neither has to
-   know much about the other.
-
-   Every transition here is transform and opacity. Both are composited, which
-   is what lets a loop like this run behind a hero without ever touching
-   layout — and what lets `prefers-reduced-motion` switch the whole thing off
-   by simply never starting the clock.
-   ──────────────────────────────────────────────────────────────────────── */
-
-/* The assistant's tab arrives rather than being always there: that is the
-   point of it, so it is the one tab that animates in. `grid-template-columns`
-   over `width`, because the label changes length between beats and a width
-   transition on text that changes is a stutter. */
-.tab--agent {
-  display: grid;
-  grid-template-columns: 0fr;
-  opacity: 0;
-  padding: 0;
-  border-color: transparent;
-  background: transparent;
-  transition:
-    grid-template-columns 0.55s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.4s ease,
-    padding 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.tab--agent > * {
-  min-width: 0;
-  overflow: hidden;
-}
-.tab--agent[data-in] {
-  grid-template-columns: 1fr;
-  opacity: 1;
-  padding: 0 14px;
-  border-color: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.38);
-}
-/* The agent tab is two children — the dot and the label — so it needs its own
-   inner rhythm rather than the flex gap the other tabs use. */
-.tab--agent {
-  grid-auto-flow: column;
-  align-items: center;
-  gap: 8px;
-  grid-template-columns: 0fr 0fr;
-}
-.tab--agent[data-in] {
-  grid-template-columns: auto 1fr;
-}
-
-/* The workspace the assistant owns lights up while it has one. */
-.space[data-lit] {
-  color: var(--ink);
-}
-
-/* What you typed. */
-.ask {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 16px;
-  border-radius: var(--pill);
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 16px 30px -22px rgba(30, 20, 60, 0.5);
-  font-size: 14.5px;
-  color: var(--ink);
-  opacity: 0;
-  transform: translateY(-10px);
-  transition:
-    opacity 0.45s ease,
-    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.ask[data-in] {
-  opacity: 1;
-  transform: none;
-}
-.ask kbd {
-  flex: none;
-  padding: 3px 7px;
-  border-radius: 7px;
-  background: rgba(0, 0, 0, 0.06);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--graphite);
-}
-.ask span {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-}
-/* The caret, and it only blinks while something is being typed into it. */
-.ask i {
-  display: inline-block;
-  width: 1.5px;
-  height: 1em;
-  margin-left: 2px;
-  vertical-align: -0.16em;
-  background: var(--coral);
-  opacity: 0;
-}
-.ask i[data-caret] {
-  opacity: 1;
-  animation: caret 1s steps(1) infinite;
-}
-@keyframes caret {
-  50% {
-    opacity: 0;
-  }
-}
-
-/* The sheet is the beat this whole thing is about, so it is the one that
-   arrives with weight: up from below, and away downward when it is answered. */
-.panel {
-  opacity: 0;
-  transform: translateY(18px) scale(0.985);
-  transition:
-    opacity 0.45s ease,
-    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.panel[data-up] {
-  opacity: 1;
-  transform: none;
-}
-
-.answer {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.answer__btn {
-  display: inline-flex;
-  align-items: center;
-  height: 34px;
-  padding: 0 16px;
-  border-radius: var(--pill);
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #2a1a3a;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 10px 20px -14px rgba(40, 20, 60, 0.6);
-  transition: transform 0.18s ease;
-}
-.answer__btn--quiet {
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.14);
-  box-shadow: none;
-}
-/* Pressed, for the one frame the pointer is on it. */
-.answer__btn[data-hit] {
-  transform: scale(0.94);
-}
-
-/* What came back, in the space the sheet leaves. */
-.found {
-  position: absolute;
-  z-index: 2;
-  left: 28px;
-  right: 28px;
-  top: 84px;
-  padding: 22px 26px;
-  border-radius: var(--r-widget);
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 30px 50px -30px rgba(40, 20, 60, 0.35);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  opacity: 0;
-  transform: translateY(14px);
-  transition:
-    opacity 0.45s ease,
-    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: none;
-}
-.found[data-up] {
-  opacity: 1;
-  transform: none;
-}
-.found h5 {
-  margin: 0 0 14px;
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--mist);
-}
-.found__rows {
-  display: grid;
-  gap: 8px;
-}
-.found__rows span {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 15px;
-  color: var(--ink);
-  opacity: 0.25;
-  transition: opacity 0.4s ease;
-  transition-delay: calc(var(--n) * 0.16s);
-}
-.found__rows span[data-in] {
-  opacity: 1;
-}
-.found__rows i {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  background: var(--mint);
-}
-.found p {
-  margin-top: 16px;
-  font-size: 13px;
-  color: var(--graphite);
-}
-
-/* ── The pointer ─────────────────────────────────────────────────────────
-
-   Yours. The assistant in this product never takes your screen and never
-   drives your mouse — the page says so two sections down, with the file — so
-   this one does the only thing a person does in the flow: it answers the
-   question. The label trailing it is the recreation narrating itself.
-   ──────────────────────────────────────────────────────────────────────── */
-
-.cursor {
-  position: absolute;
-  z-index: 5;
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  pointer-events: none;
-  /* Slow, and eased hard at the end: a hand arrives at a button, it does not
-     glide to a stop like a slider. */
-  transition:
-    left 0.95s cubic-bezier(0.22, 1, 0.3, 1),
-    top 0.95s cubic-bezier(0.22, 1, 0.3, 1);
-  filter: drop-shadow(0 4px 10px rgba(20, 20, 50, 0.35));
-}
-.cursor svg {
-  width: 22px;
-  height: 22px;
-  flex: none;
-  transition: transform 0.16s ease;
-}
-.cursor[data-click] svg {
-  transform: scale(0.82);
-}
-.cursor__say {
-  margin-top: 12px;
-  padding: 5px 11px;
-  border-radius: var(--pill);
-  background: var(--ink);
-  color: #ffffff;
-  font-size: 12.5px;
-  white-space: nowrap;
-  animation: sayIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-@keyframes sayIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px) scale(0.94);
-  }
-}
-
-/* The widgets stand down while the sheet is up: three figures competing with
-   the one question on screen is three figures nobody reads and a question
-   nobody answers. They are still there, and they come back. */
-.row {
-  /* At the foot of the stage. With the sheet out of the flow there was
-     nothing holding the bottom of the frame, so three cards floated at the
-     top of a screen of empty gradient. A start page has its furniture at the
-     bottom. */
-  margin-top: auto;
-  padding-bottom: 28px;
-  transition:
-    opacity 0.5s ease,
-    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.row[data-away] {
-  opacity: 0.25;
-  transform: translateY(10px) scale(0.985);
-}
-
-/* The sparkle in the dock, lit while a job is being given. */
-.dock__pill span[data-lit] {
-  color: var(--citrus);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tab--agent,
-  .ask,
-  .panel,
-  .found,
-  .found__rows span,
-  .row,
-  .cursor,
-  .cursor svg,
-  .answer__btn {
-    transition: none;
-  }
-  .ask i[data-caret],
-  .cursor__say {
-    animation: none;
-  }
-}
-
-.stage {
-  position: relative;
-  overflow: hidden;
-  background:
-    radial-gradient(
-      60% 50% at 78% 12%,
-      rgba(255, 123, 211, 0.55),
-      transparent 70%
-    ),
-    radial-gradient(
-      50% 45% at 15% 30%,
-      rgba(201, 182, 255, 0.7),
-      transparent 70%
-    ),
-    radial-gradient(
-      55% 45% at 60% 95%,
-      rgba(255, 107, 61, 0.45),
-      transparent 70%
-    ),
-    radial-gradient(
-      45% 40% at 5% 100%,
-      rgba(142, 208, 255, 0.6),
-      transparent 70%
-    ),
-    #f8f7fb;
-}
-
-.stage__in {
-  position: absolute;
-  inset: 0;
-  padding: 20px 28px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
 
 /*
  * The sheet, and it is a sheet.
@@ -2047,95 +1641,7 @@
  * come after it in the document — so without one they paint straight over the
  * sheet and the answer buttons end up underneath a gauge.
  */
-.panel {
-  position: absolute;
-  z-index: 2;
-  left: 28px;
-  right: 28px;
-  top: 76px;
-  border-radius: var(--r-widget);
-  padding: 20px 26px 18px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto auto;
-  row-gap: 14px;
-  color: #ffffff;
-  overflow: hidden;
-  background:
-    radial-gradient(
-      70% 90% at 20% 0%,
-      rgba(255, 255, 255, 0.35),
-      transparent 60%
-    ),
-    radial-gradient(
-      60% 70% at 90% 90%,
-      rgba(255, 180, 120, 0.55),
-      transparent 60%
-    ),
-    /* Opaque. It used to sit in the column with the widgets and could afford
-       to be glass; over them it cannot — three bright cards read straight
-       through a 0.9 alpha and the sheet looked like a rendering fault. The
-       two washes above it are still translucent, so it keeps its light. */
-    linear-gradient(
-      160deg,
-      rgb(214, 196, 255),
-      rgb(232, 180, 215) 60%,
-      rgb(244, 205, 190)
-    );
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 30px 50px -30px rgba(40, 20, 60, 0.35);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-}
 
-.panel::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 22px;
-  bottom: 22px;
-  border-left: 1px dashed rgba(255, 255, 255, 0.55);
-}
-
-.panel .dot {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
-}
-
-.panel .kpi {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-}
-
-.panel .kpi[data-top] {
-  justify-content: flex-start;
-}
-
-.panel .kpi[data-right] {
-  align-items: flex-start;
-  padding-left: 30px;
-}
-
-.panel .kpi h5 {
-  font-size: 15px;
-  opacity: 0.92;
-  margin-bottom: 4px;
-}
-
-.panel .kpi .num {
-  font-size: 52px;
-}
-
-.panel .kpi .num small {
-  font-size: 14px;
-}
 
 .slider {
   position: relative;
@@ -2166,72 +1672,6 @@
   height: 218px;
 }
 
-.widget {
-  position: relative;
-  border-radius: var(--r-widget);
-  padding: 22px 24px;
-  overflow: hidden;
-  color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    0 30px 50px -30px rgba(20, 20, 40, 0.4);
-}
-
-.widget::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.2),
-    rgba(255, 255, 255, 0) 45%,
-    rgba(255, 255, 255, 0.08)
-  );
-}
-
-.widget > * {
-  position: relative;
-}
-
-.widget h5 {
-  font-size: 15px;
-  opacity: 0.92;
-}
-
-.widget .num {
-  font-size: 60px;
-}
-
-.widget .num small {
-  font-size: 14px;
-}
-
-.w-round {
-  width: 218px;
-  height: 218px;
-  border-radius: 50%;
-  padding: 34px 30px 30px;
-  align-items: center;
-  text-align: center;
-  flex: none;
-}
-
-.w-round .arc {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 10px;
-  height: 70px;
-}
-
-.w-flex {
-  flex: 1;
-}
 
 .w-teal {
   background: radial-gradient(
@@ -2304,59 +1744,7 @@
 
 /* The floating control, hung over the frame's edge so the window reads as an
    object with something in front of it rather than a flat picture. */
-.dock {
-  position: absolute;
-  left: 44%;
-  bottom: -30px;
-  display: flex;
-  align-items: center;
-  z-index: 3;
-}
 
-.dock__pill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 66px;
-  padding: 0 12px;
-  border-radius: var(--pill);
-}
-
-.dock__pill span {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: #ffffff;
-}
-
-.dock__pill svg {
-  width: 22px;
-  height: 22px;
-}
-
-.dock__round {
-  width: 78px;
-  height: 78px;
-  border-radius: 50%;
-  margin-left: -22px;
-  display: grid;
-  place-items: center;
-  color: var(--ink);
-  background: rgba(255, 190, 235, 0.55);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow:
-    inset 0 1px 0 #ffffff,
-    0 24px 40px -22px rgba(255, 100, 180, 0.6);
-}
-
-.dock__round svg {
-  width: 26px;
-  height: 26px;
-}
 
 /* ── Section rhythm ───────────────────────────────────────────────────── */
 
@@ -2614,8 +2002,6 @@
     0 1px 0 rgba(0, 0, 0, 0.03),
     0 10px 24px -18px rgba(0, 0, 0, 0.35);
 }
-
-
 
 
 .pain {
@@ -4003,6 +3389,707 @@
   color: var(--mist);
 }
 
+/* ── The browser, drawn as the browser ───────────────────────────────────
+
+   Every measurement here is out of `browser/renderer/tokens.css`: 272px of
+   sidebar, a 10px gutter on all four sides of the page, a 34px bar over the
+   page and not over the sidebar, 18px on the page's corners, 11px on a tab.
+   Guessing them would have been quicker and would have produced a browser
+   nobody recognises.
+
+   The sidebar is glass over a moving mesh — white ink on the glass, dark ink
+   on the page — which is the design in `docs/ontwerp/glass-browser.html` and
+   the reason the whole thing does not look like every other Electron app.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.bw {
+  --side: 272px;
+  --gap: 10px;
+  --bar: 34px;
+
+  position: relative;
+  height: 660px;
+  display: grid;
+  grid-template-columns: var(--side) minmax(0, 1fr);
+  overflow: hidden;
+  border-radius: var(--r-media);
+  background: #efe9fb;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 70px 140px -60px rgba(20, 20, 50, 0.5);
+  font-size: 13px;
+  color: #ffffff;
+}
+
+/* The mesh the sidebar is glass over. Four blurred discs and a slow drift —
+   the real one is a set of `@property` colour stops that ease when you change
+   workspace, which is a great deal of machinery for something a hero only
+   needs the impression of. */
+.bw__mesh {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.bw__mesh span {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 1;
+  animation: drift 26s ease-in-out infinite alternate;
+}
+.bw__mesh span:nth-child(2) {
+  animation-delay: -8s;
+}
+.bw__mesh span:nth-child(3) {
+  animation-delay: -15s;
+}
+.bw__mesh span:nth-child(4) {
+  animation-delay: -21s;
+}
+
+/* ── The sidebar ─────────────────────────────────────────────────────── */
+
+.bw__side {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 8px;
+  /* Deeper at the top so the window buttons have some quiet, almost nothing
+     below it — the mesh is supposed to come through, that is the design. */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.26),
+    rgba(255, 255, 255, 0.1) 22%,
+    rgba(255, 255, 255, 0.06)
+  );
+}
+
+.bw__rek {
+  flex: 1;
+}
+
+.bw__tl,
+.bw__controls,
+.bw__ws {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.bw__tl i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex: none;
+}
+.bw__tl i[data-c="close"] {
+  background: #ff5f57;
+}
+.bw__tl i[data-c="min"] {
+  background: #febc2e;
+}
+.bw__tl i[data-c="max"] {
+  background: #28c840;
+}
+
+.bw__ib {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.14);
+}
+.bw__ib svg {
+  width: 15px;
+  height: 15px;
+}
+
+.bw__app,
+.bw__url,
+.bw__new {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.96);
+}
+.bw__app {
+  background: rgba(255, 255, 255, 0.28);
+}
+.bw__appic,
+.bw__fi {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.bw__appic svg,
+.bw__fi svg,
+.bw__url svg {
+  width: 15px;
+  height: 15px;
+}
+.bw__urlt {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.72);
+}
+.bw kbd {
+  flex: none;
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.16);
+  font-family: var(--font-storefront), system-ui, sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* The section rule, with the count on the end of it. */
+.bw__sec {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  margin-top: 6px;
+  padding: 0 4px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.72);
+}
+.bw__sec i {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.bw__tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bw__tab {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 11px;
+  color: rgba(255, 255, 255, 0.88);
+}
+.bw__tab[data-active] {
+  background: rgba(255, 255, 255, 0.66);
+  color: #221f2a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.bw__fav {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.bw__tt {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The assistant's tab arrives when there is a job. Height rather than width,
+   because the label changes length between beats and a width transition on
+   text that changes is a stutter. */
+.bw__tab--agent {
+  height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    height 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.4s ease;
+}
+.bw__tab--agent[data-in] {
+  height: 34px;
+  opacity: 1;
+}
+
+/* The glyph: a soft disc in the state's colour, which is what the real one
+   animates. Its colour is the whole message — you can tell where the
+   assistant is from the corner of your eye. */
+.bw__glyph {
+  position: relative;
+  width: 15px;
+  height: 15px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--g);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--g) 35%, transparent);
+  transition:
+    background 0.5s ease,
+    box-shadow 0.5s ease;
+}
+
+.bw__ws {
+  margin-top: 4px;
+}
+.bw__wschip {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.14);
+}
+.bw__wschip[data-on] {
+  background: rgba(255, 255, 255, 0.66);
+  color: #221f2a;
+}
+.bw__wschip[data-private] svg {
+  width: 14px;
+  height: 14px;
+}
+.bw__wschip--agent {
+  background: color-mix(in oklab, var(--g) 55%, transparent);
+  color: #ffffff;
+}
+
+/* ── The page area ───────────────────────────────────────────────────── */
+
+.bw__main {
+  position: relative;
+  z-index: 1;
+  padding: var(--gap) var(--gap) var(--gap) 0;
+}
+
+.bw__bar {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: var(--gap);
+  top: var(--gap);
+  height: var(--bar);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.95);
+}
+.bw__barglyph {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--g);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--g) 35%, transparent);
+  transition: background 0.5s ease;
+}
+.bw__says {
+  transition: opacity 0.3s ease;
+}
+.bw__apps {
+  display: flex;
+  gap: 6px;
+}
+.bw__apps i {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* The page is a native layer in the real thing, which is why it is inset on
+   all four sides and has its own shadow: it rests on the mesh rather than
+   cutting a straight line out of it. */
+.bw__page {
+  position: relative;
+  height: 100%;
+  margin-top: var(--bar);
+  height: calc(100% - var(--bar));
+  border-radius: 18px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 18px 40px -20px rgba(30, 20, 60, 0.45);
+}
+
+.bw__doc {
+  /* Clear of the composer, which floats over the top of the page. The
+     document's own head is the first thing under it, so it cannot be tucked
+     behind the thing the reader just watched being typed. */
+  padding: 80px 40px 40px;
+  color: #221f2a;
+}
+.bw__h4 {
+  margin-top: 26px;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+/* A pulled paragraph, so the page has one thing in it that is not a run of
+   even grey lines. */
+.bw__quote {
+  display: grid;
+  gap: 9px;
+  margin: 18px 0 18px 4px;
+  padding-left: 16px;
+  border-left: 2px solid rgba(180, 140, 240, 0.55);
+}
+.bw__quote i {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(34, 31, 42, 0.13);
+}
+.bw__eyebrow {
+  font-size: 11.5px;
+  color: rgba(34, 31, 42, 0.5);
+}
+.bw__doc h3 {
+  margin-top: 10px;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.bw__lines {
+  display: grid;
+  gap: 9px;
+  margin-top: 18px;
+}
+.bw__lines i {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(34, 31, 42, 0.1);
+}
+
+.bw__tables {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 22px 0 24px;
+}
+.bw__tbl {
+  position: relative;
+  padding: 14px 16px 12px;
+  border-radius: 14px;
+  background: rgba(34, 31, 42, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(34, 31, 42, 0.07);
+  transition:
+    background 0.5s ease,
+    box-shadow 0.5s ease,
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--n) * 0.14s);
+}
+/* Taken. The three things the job named, lit in the order they were read —
+   so the sentence the reader watched being typed has somewhere to land. */
+.bw__tbl[data-taken] {
+  background: rgba(127, 227, 180, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(63, 158, 120, 0.45);
+  transform: translateY(-3px);
+}
+.bw__tblname {
+  display: block;
+  font-size: 12px;
+  color: rgba(34, 31, 42, 0.62);
+}
+.bw__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 34px;
+  margin-top: 10px;
+}
+.bw__bars i {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+  background: rgba(34, 31, 42, 0.16);
+  transition: background 0.5s ease;
+}
+.bw__tbl[data-taken] .bw__bars i {
+  background: rgba(63, 158, 120, 0.55);
+}
+
+/* What you typed, in the composer the assistant button opens. */
+.bw__ask {
+  position: absolute;
+  z-index: 4;
+  left: 22px;
+  right: 22px;
+  top: calc(var(--gap) + var(--bar) + 14px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    inset 0 0 0 1px rgba(34, 31, 42, 0.08),
+    0 18px 34px -20px rgba(30, 20, 60, 0.5);
+  color: #221f2a;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition:
+    opacity 0.4s ease,
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bw__ask[data-in] {
+  opacity: 1;
+  transform: none;
+}
+.bw__asktext {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.bw__ask kbd {
+  background: rgba(34, 31, 42, 0.07);
+  color: rgba(34, 31, 42, 0.6);
+}
+.bw__ask i {
+  display: inline-block;
+  width: 1.5px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.16em;
+  background: #b48cf0;
+  opacity: 0;
+}
+.bw__ask i[data-caret] {
+  opacity: 1;
+  animation: caret 1s steps(1) infinite;
+}
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ── The question ────────────────────────────────────────────────────── */
+
+/* The main process takes the page away while this is open — the question
+   belongs in the chrome, where no website and no client can reach it. Here
+   that is a veil over the document. */
+.bw__veil {
+  position: absolute;
+  z-index: 5;
+  inset: calc(var(--gap) + var(--bar)) var(--gap) var(--gap) 0;
+  border-radius: 18px;
+  background: rgba(20, 14, 32, 0.42);
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  pointer-events: none;
+}
+.bw__veil[data-up] {
+  opacity: 1;
+}
+
+.bw__vraag {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  top: 52%;
+  width: min(420px, calc(100% - 64px));
+  padding: 22px 24px 18px;
+  border-radius: 20px;
+  background: #ffffff;
+  color: #221f2a;
+  box-shadow: 0 40px 80px -30px rgba(20, 14, 32, 0.7);
+  opacity: 0;
+  transform: translate(-50%, -44%) scale(0.97);
+  transition:
+    opacity 0.4s ease,
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.bw__vraag[data-up] {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+.bw__vraag h4 {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+.bw__vraag ul {
+  display: grid;
+  gap: 5px;
+  margin-top: 14px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.bw__vraag li {
+  display: flex;
+  gap: 10px;
+}
+.bw__vraag li b {
+  width: 76px;
+  flex: none;
+  font-weight: 400;
+  color: rgba(34, 31, 42, 0.5);
+}
+/* The sentence that talks you out of pressing allow. It is the product's own
+   wording and it is the most convincing thing in this frame, so it gets the
+   room and the rule rather than being folded into the small print. */
+.bw__warn {
+  margin-top: 14px;
+  padding-left: 12px;
+  border-left: 2px solid #e5484d;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: rgba(34, 31, 42, 0.72);
+}
+.bw__btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+.bw__btn {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  background: rgba(34, 31, 42, 0.06);
+  transition: transform 0.18s ease;
+}
+/* Refusing is the plain one and allowing is the one you have to mean, which
+   is the way round the real dialog has it: the refuse button takes focus. */
+.bw__btn--go {
+  font-weight: 500;
+  color: #ffffff;
+  background: #221f2a;
+}
+.bw__btn--go[data-hit] {
+  transform: scale(0.94);
+}
+.bw__clock {
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: rgba(34, 31, 42, 0.5);
+}
+
+/* ── The pointer ─────────────────────────────────────────────────────── */
+
+.cursor {
+  position: absolute;
+  z-index: 8;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none;
+  /* Eased hard at the end: a hand arrives at a button, it does not glide to a
+     stop like a slider. */
+  transition:
+    left 0.95s cubic-bezier(0.22, 1, 0.3, 1),
+    top 0.95s cubic-bezier(0.22, 1, 0.3, 1);
+  filter: drop-shadow(0 4px 10px rgba(20, 20, 50, 0.45));
+}
+.cursor svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  transition: transform 0.16s ease;
+}
+.cursor[data-click] svg {
+  transform: scale(0.82);
+}
+.cursor__say {
+  margin-top: 12px;
+  padding: 5px 11px;
+  border-radius: var(--pill);
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 12.5px;
+  white-space: nowrap;
+  animation: sayIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes sayIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.94);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bw__mesh span,
+  .bw__ask i[data-caret],
+  .cursor__say {
+    animation: none;
+  }
+  .bw__tab--agent,
+  .bw__ask,
+  .bw__veil,
+  .bw__vraag,
+  .bw__tbl,
+  .bw__bars i,
+  .bw__glyph,
+  .bw__barglyph,
+  .cursor,
+  .cursor svg,
+  .bw__btn {
+    transition: none;
+  }
+}
+
+/* On a narrow screen the sidebar is what goes: 272px of chrome beside a
+   300px page is a picture of neither. The page keeps the bar, the card and
+   the document, which is the part of this that carries the argument. */
+@media (max-width: 860px) {
+  .bw {
+    grid-template-columns: minmax(0, 1fr);
+    height: 520px;
+  }
+  .bw__side {
+    display: none;
+  }
+  .bw__main {
+    padding-left: var(--gap);
+  }
+  .bw__bar {
+    left: var(--gap);
+  }
+  .bw__veil {
+    left: var(--gap);
+  }
+  .bw__doc {
+    padding: 24px 22px;
+  }
+  .bw__tables {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .bw__bars {
+    height: 22px;
+  }
+}
+
 /* ── The footer ───────────────────────────────────────────────────────── */
 
 .footer {
@@ -4324,14 +4411,6 @@
   .sidebar {
     display: none;
   }
-  .address {
-    min-width: 0;
-    flex: 1;
-  }
-  .dock {
-    left: 50%;
-    transform: translateX(-50%);
-  }
 }
 
 @media (max-width: 900px) {
@@ -4351,80 +4430,12 @@
   .hero {
     padding-top: 130px;
   }
-  .window__frame {
-    height: auto;
-  }
-  .chrome {
-    padding: 12px 14px;
-    gap: 10px;
-  }
-  .address {
-    display: none;
-  }
-  .tabs .tab:nth-child(n + 3) {
-    display: none;
-  }
-  .stage {
-    height: 405px;
-  }
-  .stage__in {
-    padding: 16px 16px 0;
-    gap: 12px;
-  }
-  .panel {
-    height: auto;
-    padding: 16px 18px 18px;
-  }
-  .panel::before {
-    top: 16px;
-    bottom: 16px;
-  }
-  .panel .kpi h5 {
-    font-size: 12.5px;
-  }
-  .panel .kpi .num {
-    font-size: 36px;
-  }
-  .panel .kpi .num[data-said] {
-    font-size: 19px;
-  }
-  .panel .kpi .num[data-said="small"] {
-    font-size: 15px;
-  }
-  .panel .kpi .num small {
-    font-size: 11px;
-  }
-  .panel .kpi[data-right] {
-    padding-left: 16px;
-  }
-  .panel .dot {
-    display: none;
-  }
   .slider {
     width: 100%;
     margin-top: 10px;
   }
   .row {
     height: auto;
-  }
-  .w-round {
-    width: 150px;
-    height: 150px;
-    padding: 20px 16px 16px;
-  }
-  .w-round .num {
-    font-size: 34px;
-  }
-  .w-round .arc {
-    bottom: 6px;
-    height: 44px;
-  }
-  .w-flex {
-    min-height: 150px;
-    padding: 16px 18px;
-  }
-  .w-flex .num {
-    font-size: 36px;
   }
   .w-citrus {
     display: none;
@@ -4433,22 +4444,6 @@
     width: 96px;
     height: 50px;
     top: 44%;
-  }
-  .dock {
-    bottom: -26px;
-  }
-  .dock__pill {
-    height: 56px;
-    padding: 0 8px;
-  }
-  .dock__pill span {
-    width: 42px;
-    height: 42px;
-  }
-  .dock__round {
-    width: 66px;
-    height: 66px;
-    margin-left: -18px;
   }
   .c-4,
   .c-5,

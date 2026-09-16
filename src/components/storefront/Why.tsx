@@ -52,7 +52,11 @@ export function What() {
         <div className="what">
           <p className="what__line" data-flow>
             Tougather is one window with{" "}
-            <em>a browser</em>, <em>a workspace</em> and <em>an assistant</em> in it — and the
+            {/* Each noun carries the hue of the cell that explains it, so the
+                sentence and the grid under it are visibly one thought. */}
+            <em style={{ ["--hue" as string]: PILLARS[0].hue }}>a browser</em>,{" "}
+            <em style={{ ["--hue" as string]: PILLARS[1].hue }}>a workspace</em> and{" "}
+            <em style={{ ["--hue" as string]: PILLARS[2].hue }}>an assistant</em> in it — and the
             assistant is the only one of the three that usually costs extra. Here it does not.
           </p>
 

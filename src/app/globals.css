@@ -887,7 +887,21 @@
   font-weight: 400;
 }
 
-.storefront ul {
+/*
+ * `:where`, so the reset has no specificity at all.
+ *
+ * As `.storefront ul` this was 0,1,1 — which beats any single class — and it
+ * spent the project quietly winning arguments it had no business being in.
+ * `.get__rays` lost its padding to it and had to be rewritten as
+ * `.get__fan .get__rays`; `.what__grid` and `.split-key` lost their top
+ * margins to it and collapsed onto the paragraph above, which is a layout bug
+ * you cannot find by reading either rule.
+ *
+ * A reset should be the thing everything else beats. `:where()` makes this
+ * weigh zero, so one class is enough to override it and nobody has to
+ * discover the rule to write the next list.
+ */
+.storefront :where(ul) {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1147,8 +1161,8 @@
 
 .nav__bar {
   pointer-events: auto;
-  width: min(1080px, 100%);
-  height: 60px;
+  width: min(1160px, 100%);
+  height: 64px;
   padding: 0 10px 0 20px;
   border-radius: var(--pill);
   display: grid;
@@ -1156,12 +1170,19 @@
   align-items: center;
   gap: 20px;
   transition:
-    background 0.3s ease,
-    box-shadow 0.3s ease;
+    background 0.35s ease,
+    box-shadow 0.35s ease,
+    width 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Frosts in once there is something behind it worth separating from. */
+/* Contracts as you leave the top: wide and open over the hero, tight once
+   there is a page behind it. The frost arrives at the same moment, so it
+   reads as one gesture rather than as two things noticing the scroll. */
 .nav__bar[data-scrolled] {
+  width: min(980px, 100%);
+  height: 56px;
   background: rgba(255, 255, 255, 0.78);
   box-shadow:
     inset 0 1px 0 #ffffff,
@@ -1171,25 +1192,128 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-size: 19px;
   font-weight: 500;
   letter-spacing: -0.01em;
 }
 
-.nav__links {
+/*
+ * The mark, wearing how far down the page you are.
+ *
+ * A conic gradient from twelve o'clock, cut to a two-pixel annulus by a
+ * radial mask, so it is a ring around the logo rather than a pie behind it.
+ * `--p` is written on the bar by the scroll handler and is the only thing
+ * that moves; there is no element per step and nothing to animate.
+ *
+ * It is decoration and knows it: the page has a scrollbar, and this repeats
+ * what that already says in a way that happens to be the product's own mark.
+ */
+.brand__mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.brand__ring {
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from -90deg,
+    var(--coral) calc(var(--p, 0) * 360deg),
+    rgba(0, 0, 0, 0.09) 0
+  );
+  -webkit-mask: radial-gradient(closest-side, transparent 71%, #000 73%);
+  mask: radial-gradient(closest-side, transparent 71%, #000 73%);
+}
+
+/*
+ * Tabs, and one pill that slides between them.
+ *
+ * The pill follows the pointer while you are choosing and settles back on the
+ * page you are actually on when you stop — which is why it is one element
+ * moved by two custom properties rather than a background on each tab. Its
+ * position is measured from the tabs themselves in `Chrome.tsx`: the labels
+ * are words, and words are not the same width in two languages.
+ *
+ * Every state it expresses is also on the tab as `aria-current`, so this is
+ * reinforcement. With the script dead these are four links in a row.
+ */
+.nav__tabs {
+  position: relative;
   display: flex;
-  gap: 30px;
+  gap: 2px;
   font-size: 15px;
   color: var(--graphite);
 }
-
-.nav__links a {
-  transition: color 0.15s;
+.nav__tabs::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: var(--tw, 0);
+  border-radius: var(--pill);
+  background: rgba(0, 0, 0, 0.055);
+  opacity: 0;
+  transform: translateX(var(--tx, 0));
+  transition:
+    transform 0.42s cubic-bezier(0.16, 1, 0.3, 1),
+    width 0.42s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.25s ease;
+}
+.nav__tabs[data-lit]::after {
+  opacity: 1;
 }
 
-.nav__links a:hover {
+.nav__tabs a {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 38px;
+  padding: 0 15px;
+  border-radius: var(--pill);
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+.nav__tabs a:hover,
+.nav__tabs a[aria-current] {
   color: var(--ink);
+}
+
+/* The dot a workspace row wears in the product, at nav size. It is identity
+   — which tab this is — and never state, so it does not change with the
+   pill; what changes with the pill is ink. */
+.nav__tabs i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hue);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav__bar,
+  .nav__tabs::after {
+    transition: none;
+  }
+}
+
+/* Below this the tabs do not fit beside a wordmark and a button, and a nav
+   that wraps to two lines is worse than one that carries the two controls
+   that matter. Every destination is in the footer. */
+@media (max-width: 900px) {
+  .nav__tabs {
+    display: none;
+  }
+  .nav__bar,
+  .nav__bar[data-scrolled] {
+    width: 100%;
+    grid-template-columns: 1fr auto;
+  }
 }
 
 .nav__cta {
@@ -2867,11 +2991,24 @@
   max-width: 34ch;
   color: var(--ink);
 }
+/*
+ * The three nouns, underlined in the colour of the cell that explains them.
+ *
+ * This was a citrus highlighter behind all three — one yellow block, three
+ * times, which is the mark a reader makes on a textbook rather than one a
+ * designer makes on a page. A rule under each word in its own hue does the
+ * same emphasis and does a second job: the eye has already met sky, lilac and
+ * mint by the time it reaches the three cells below, so the sentence and the
+ * grid are visibly one thought.
+ */
 .what__line em {
   font-style: normal;
   font-weight: 500;
-  background-image: linear-gradient(transparent 68%, var(--citrus) 68%);
+  background-image: linear-gradient(var(--hue), var(--hue));
+  background-size: 100% 0.13em;
+  background-position: 0 92%;
   background-repeat: no-repeat;
+  padding-bottom: 0.06em;
 }
 
 .what__grid {
@@ -3360,13 +3497,7 @@
 }
 
 /* A zero-sized box at the pivot: every ray is positioned against this one
-   point, so the fan stays a fan at any panel size.
-
-   Scoped to the panel, and that is not decoration: `.storefront ul` zeroes
-   the margin and padding of every list on these pages, and at 0,1,1 it beats
-   a bare `.get__rays`. The phone rule below gives this list a real padding
-   back, so it has to out-specify the reset or the words start flush against
-   the panel's rounded corner. */
+   point, so the fan stays a fan at any panel size. */
 .get__fan .get__rays {
   position: absolute;
   left: 0;

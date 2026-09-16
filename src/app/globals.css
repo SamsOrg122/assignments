@@ -882,7 +882,20 @@
   color-scheme: light;
 }
 
-.storefront :is(h1, h2, h3, h4, h5, h6, p) {
+/*
+ * `:where`, for the same reason the list reset below has it.
+ *
+ * As `:is(...)` this weighed 0,1,1 — `.storefront` plus the tag — so it beat
+ * every single class in the stylesheet, and every `margin-top` written on a
+ * paragraph or a heading since has been silently discarded. `.window__cap`
+ * and `.cta__note` are the two that were caught; there is no way to know from
+ * either rule that it was not applying.
+ *
+ * `:where()` weighs zero. The browser's own paragraph margins are still gone,
+ * because nothing else sets them, and one class is now enough to put one
+ * back.
+ */
+.storefront :where(h1, h2, h3, h4, h5, h6, p) {
   margin: 0;
   font-weight: 400;
 }
@@ -1508,7 +1521,20 @@
   margin-top: 70px;
 }
 
+/* A demo that plays itself is the easiest thing on a landing page to mistake
+   for a screen recording, so it says what it is. */
+/* To the right, not under. The dock hangs over the middle of the frame's
+   bottom edge, so a centred caption either sits behind it or needs ninety
+   pixels of clearance it does not deserve. */
+.window__cap {
+  margin-top: 18px;
+  text-align: right;
+  font-size: 13px;
+  color: var(--mist);
+}
+
 .window__frame {
+  position: relative;
   border-radius: var(--r-media);
   overflow: hidden;
   height: 660px;
@@ -1660,6 +1686,317 @@
 }
 
 /* The start page inside the window. */
+/* ── The demo that plays ──────────────────────────────────────────────────
+
+   Eight beats and one clock, driven from `Window.tsx`. Everything below is a
+   state the frame can be in, written as an attribute, so the component holds
+   the sequence and the stylesheet holds the appearance and neither has to
+   know much about the other.
+
+   Every transition here is transform and opacity. Both are composited, which
+   is what lets a loop like this run behind a hero without ever touching
+   layout — and what lets `prefers-reduced-motion` switch the whole thing off
+   by simply never starting the clock.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* The assistant's tab arrives rather than being always there: that is the
+   point of it, so it is the one tab that animates in. `grid-template-columns`
+   over `width`, because the label changes length between beats and a width
+   transition on text that changes is a stutter. */
+.tab--agent {
+  display: grid;
+  grid-template-columns: 0fr;
+  opacity: 0;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  transition:
+    grid-template-columns 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.4s ease,
+    padding 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tab--agent > * {
+  min-width: 0;
+  overflow: hidden;
+}
+.tab--agent[data-in] {
+  grid-template-columns: 1fr;
+  opacity: 1;
+  padding: 0 14px;
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.38);
+}
+/* The agent tab is two children — the dot and the label — so it needs its own
+   inner rhythm rather than the flex gap the other tabs use. */
+.tab--agent {
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 8px;
+  grid-template-columns: 0fr 0fr;
+}
+.tab--agent[data-in] {
+  grid-template-columns: auto 1fr;
+}
+
+/* The workspace the assistant owns lights up while it has one. */
+.space[data-lit] {
+  color: var(--ink);
+}
+
+/* What you typed. */
+.ask {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 30px -22px rgba(30, 20, 60, 0.5);
+  font-size: 14.5px;
+  color: var(--ink);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition:
+    opacity 0.45s ease,
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ask[data-in] {
+  opacity: 1;
+  transform: none;
+}
+.ask kbd {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.06);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--graphite);
+}
+.ask span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+/* The caret, and it only blinks while something is being typed into it. */
+.ask i {
+  display: inline-block;
+  width: 1.5px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.16em;
+  background: var(--coral);
+  opacity: 0;
+}
+.ask i[data-caret] {
+  opacity: 1;
+  animation: caret 1s steps(1) infinite;
+}
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* The sheet is the beat this whole thing is about, so it is the one that
+   arrives with weight: up from below, and away downward when it is answered. */
+.panel {
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  transition:
+    opacity 0.45s ease,
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.panel[data-up] {
+  opacity: 1;
+  transform: none;
+}
+
+.answer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.answer__btn {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: var(--pill);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #2a1a3a;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 20px -14px rgba(40, 20, 60, 0.6);
+  transition: transform 0.18s ease;
+}
+.answer__btn--quiet {
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
+}
+/* Pressed, for the one frame the pointer is on it. */
+.answer__btn[data-hit] {
+  transform: scale(0.94);
+}
+
+/* What came back, in the space the sheet leaves. */
+.found {
+  position: absolute;
+  z-index: 2;
+  left: 28px;
+  right: 28px;
+  top: 84px;
+  padding: 22px 26px;
+  border-radius: var(--r-widget);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 30px 50px -30px rgba(40, 20, 60, 0.35);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.45s ease,
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.found[data-up] {
+  opacity: 1;
+  transform: none;
+}
+.found h5 {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mist);
+}
+.found__rows {
+  display: grid;
+  gap: 8px;
+}
+.found__rows span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--ink);
+  opacity: 0.25;
+  transition: opacity 0.4s ease;
+  transition-delay: calc(var(--n) * 0.16s);
+}
+.found__rows span[data-in] {
+  opacity: 1;
+}
+.found__rows i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--mint);
+}
+.found p {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--graphite);
+}
+
+/* ── The pointer ─────────────────────────────────────────────────────────
+
+   Yours. The assistant in this product never takes your screen and never
+   drives your mouse — the page says so two sections down, with the file — so
+   this one does the only thing a person does in the flow: it answers the
+   question. The label trailing it is the recreation narrating itself.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.cursor {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none;
+  /* Slow, and eased hard at the end: a hand arrives at a button, it does not
+     glide to a stop like a slider. */
+  transition:
+    left 0.95s cubic-bezier(0.22, 1, 0.3, 1),
+    top 0.95s cubic-bezier(0.22, 1, 0.3, 1);
+  filter: drop-shadow(0 4px 10px rgba(20, 20, 50, 0.35));
+}
+.cursor svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  transition: transform 0.16s ease;
+}
+.cursor[data-click] svg {
+  transform: scale(0.82);
+}
+.cursor__say {
+  margin-top: 12px;
+  padding: 5px 11px;
+  border-radius: var(--pill);
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 12.5px;
+  white-space: nowrap;
+  animation: sayIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes sayIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.94);
+  }
+}
+
+/* The widgets stand down while the sheet is up: three figures competing with
+   the one question on screen is three figures nobody reads and a question
+   nobody answers. They are still there, and they come back. */
+.row {
+  /* At the foot of the stage. With the sheet out of the flow there was
+     nothing holding the bottom of the frame, so three cards floated at the
+     top of a screen of empty gradient. A start page has its furniture at the
+     bottom. */
+  margin-top: auto;
+  padding-bottom: 28px;
+  transition:
+    opacity 0.5s ease,
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.row[data-away] {
+  opacity: 0.25;
+  transform: translateY(10px) scale(0.985);
+}
+
+/* The sparkle in the dock, lit while a job is being given. */
+.dock__pill span[data-lit] {
+  color: var(--citrus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab--agent,
+  .ask,
+  .panel,
+  .found,
+  .found__rows span,
+  .row,
+  .cursor,
+  .cursor svg,
+  .answer__btn {
+    transition: none;
+  }
+  .ask i[data-caret],
+  .cursor__say {
+    animation: none;
+  }
+}
+
 .stage {
   position: relative;
   overflow: hidden;
@@ -1690,21 +2027,38 @@
 .stage__in {
   position: absolute;
   inset: 0;
-  padding: 26px 28px 0;
+  padding: 20px 28px 0;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
+/*
+ * The sheet, and it is a sheet.
+ *
+ * It was in the column with the widgets, so its height pushed them out of the
+ * frame — and growing it to fit the answer row made that worse. A permission
+ * sheet in the real browser slides over what you were looking at rather than
+ * reflowing it, so this one does too: absolutely placed under the ask strip,
+ * over the widgets, which then never move and never have to be measured
+ * against it.
+ *
+ * `z-index`, because the widgets it covers contain positioned children and
+ * come after it in the document — so without one they paint straight over the
+ * sheet and the answer buttons end up underneath a gauge.
+ */
 .panel {
-  position: relative;
+  position: absolute;
+  z-index: 2;
+  left: 28px;
+  right: 28px;
+  top: 76px;
   border-radius: var(--r-widget);
-  padding: 22px 26px;
-  flex: none;
-  height: 262px;
+  padding: 20px 26px 18px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  row-gap: 14px;
   color: #ffffff;
   overflow: hidden;
   background:
@@ -1718,11 +2072,15 @@
       rgba(255, 180, 120, 0.55),
       transparent 60%
     ),
+    /* Opaque. It used to sit in the column with the widgets and could afford
+       to be glass; over them it cannot — three bright cards read straight
+       through a 0.9 alpha and the sheet looked like a rendering fault. The
+       two washes above it are still translucent, so it keeps its light. */
     linear-gradient(
       160deg,
-      rgba(214, 196, 255, 0.9),
-      rgba(232, 180, 215, 0.9) 60%,
-      rgba(244, 205, 190, 0.9)
+      rgb(214, 196, 255),
+      rgb(232, 180, 215) 60%,
+      rgb(244, 205, 190)
     );
   border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow:

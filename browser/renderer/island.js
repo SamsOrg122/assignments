@@ -46,13 +46,28 @@ function toonRegel(tekst, bezig) {
   laatsteRegel = tekst;
 }
 
-function naarInvoer() {
+/*
+ * Het veld heeft twee vragen.
+ *
+ * "Geef een opdracht" is werk dat hij zelf gaat doen, in zijn eigen tabblad.
+ * "Vraag iets over deze pagina" gaat over de pagina waar jij naar kijkt, en
+ * dan wijst hij het antwoord aan in plaats van iets te doen. Het is hetzelfde
+ * veld met een andere belofte, dus de placeholder verandert mee en het
+ * antwoord gaat naar een ander kanaal.
+ */
+let invoerModus = 'opdracht';
+
+function naarInvoer(wat = 'opdracht') {
+  invoerModus = wat === 'gids' ? 'gids' : 'opdracht';
   zetModus('invoer');
   tekstEl.hidden = true;
   stopKnop.hidden = true;
   gaKnop.hidden = true;
   invoer.hidden = false;
   invoer.value = '';
+  invoer.placeholder = invoerModus === 'gids'
+    ? 'Vraag iets over deze pagina'
+    : 'Geef een opdracht';
   invoer.focus();
   meet();
 }
@@ -92,7 +107,7 @@ eiland.onStand((stand) => {
   meet();
 });
 
-eiland.onFocus(() => naarInvoer());
+eiland.onFocus((wat) => naarInvoer(wat));
 
 kaart.addEventListener('mousedown', (e) => {
   if (e.target === stopKnop || e.target === gaKnop || e.target === invoer) return;
@@ -102,7 +117,10 @@ kaart.addEventListener('mousedown', (e) => {
 invoer.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     const tekst = invoer.value.trim();
-    if (tekst) eiland.geefOpdracht(tekst);
+    if (tekst) {
+      if (invoerModus === 'gids') eiland.vraagOverPagina(tekst);
+      else eiland.geefOpdracht(tekst);
+    }
   } else if (e.key === 'Escape') {
     naarRust();
   }

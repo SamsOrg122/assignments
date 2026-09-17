@@ -172,6 +172,38 @@ const HOUDING = [
   'Antwoord kort, en in de taal waarin de opdracht gesteld is.',
 ].join(' ');
 
+/*
+ * De gids is een andere houding, niet een andere assistent.
+ *
+ * Een opdracht is "doe dit voor mij" en mag daarvoor pagina's openen. Een
+ * vraag over deze pagina is "waar staat dat" en mag dat juist niet: de
+ * gebruiker kijkt naar zijn eigen scherm en verwacht dat het blijft staan.
+ * Daarom staat hier expliciet wat hij niet doet — en daarom krijgt een
+ * gidsronde ook een kortere lijst gereedschap mee, want een houding is een
+ * instructie en geen grendel.
+ *
+ * Het laatste zinnetje is het hele punt van de gids: antwoorden in woorden is
+ * de helft, de andere helft is laten zien waar.
+ */
+const GIDS_HOUDING = [
+  'Je bent de gids in Tougather Browser. De gebruiker kijkt naar een pagina en',
+  'stelt er een vraag over. Jij legt uit en wijst aan; je klikt niet, je typt',
+  'niet en je navigeert nergens heen.',
+  'Werk zo: bekijk_jouw_pagina geeft je de indeling met refs erin. Kies de ref',
+  'die het antwoord is en roep wijs_aan aan met een uitleg van hoogstens twee',
+  'zinnen. Die tekst komt naast de aanwijzer op het scherm van de gebruiker te',
+  'staan, dus schrijf hem alsof je naast iemand zit.',
+  'Wijs precies één ding aan. Weet je het niet, zeg dat dan en wijs niets aan.',
+  'Antwoord kort, en in de taal waarin de vraag gesteld is.',
+].join(' ');
+
+/**
+ * Welk gereedschap een gidsronde krijgt. Kijken en wijzen, verder niets:
+ * geen pagina openen, geen klik, geen toetsaanslag, en ook niet de tekst van
+ * de pagina — de indeling is genoeg om iets aan te kunnen wijzen.
+ */
+const GIDS_GEREEDSCHAP = ['jouw_paginas', 'bekijk_jouw_pagina', 'wijs_aan', 'wijs_niet_meer'];
+
 /**
  * De aanroep, helemaal uitgeschreven.
  *
@@ -310,7 +342,7 @@ function vraagAanmelding(agent, { maak = spawn, wachtMs = 8000 } = {}) {
  * doet hij niet: wat er op het scherm gebeurt is aan de beller.
  */
 class Opdracht {
-  constructor({ agent, elektron, brug, gereedschap, opMelding, werkmap, brugNaam = 'tougather', maak = spawn }) {
+  constructor({ agent, elektron, brug, gereedschap, opMelding, werkmap, brugNaam = 'tougather', houding = HOUDING, maak = spawn }) {
     this.agent = agent;
     this.elektron = elektron;
     this.brug = brug;
@@ -318,6 +350,7 @@ class Opdracht {
     this.opMelding = opMelding;
     this.werkmap = werkmap;
     this.brugNaam = brugNaam;
+    this.houding = houding;
     this.maak = maak;
     this.kind = null;
     this.rest = '';
@@ -330,6 +363,7 @@ class Opdracht {
       brugConfig: bouwBrugConfig({ elektron: this.elektron, brug: this.brug, naam: this.brugNaam }),
       gereedschap: this.gereedschap,
       brugNaam: this.brugNaam,
+      houding: this.houding,
     });
 
     this.kind = this.maak(this.agent.pad, [...(this.agent.voor ?? []), ...argumenten], {
@@ -410,5 +444,5 @@ class Opdracht {
 
 module.exports = {
   zoekAgent, vraagAanmelding, bouwArgumenten, bouwBrugConfig, leesRegel, Opdracht,
-  KANDIDATEN, HOUDING, NIET_AANGEMELD,
+  KANDIDATEN, HOUDING, GIDS_HOUDING, GIDS_GEREEDSCHAP, NIET_AANGEMELD,
 };

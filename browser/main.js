@@ -11,7 +11,7 @@ const voorkeuren = require('./lib/voorkeuren.js');
 const { volgDeBrowser } = require('./lib/app-stijl.js');
 const { meldSchemaAan, bedienApp, appURL } = require('./lib/app-schema.js');
 const { McpDeur, NOOIT_TYPEN, NOOIT_VELDSOORT, NOOIT_AANVULLING, beschrijf } = require('./lib/mcp.js');
-const { zoekAgent, vraagAanmelding, Opdracht, NIET_AANGEMELD } = require('./lib/agent.js');
+const { zoekAgent, vraagAanmelding, Opdracht, GIDS_HOUDING, GIDS_GEREEDSCHAP, NIET_AANGEMELD } = require('./lib/agent.js');
 const { Toestemming } = require('./lib/toestemming.js');
 const { downloads } = require('./lib/downloads.js');
 const { geschiedenis } = require('./lib/geschiedenis.js');
@@ -185,6 +185,15 @@ function bindSneltoetsen(wc, ctrl) {
     const mod = input.control || input.meta;
     const toets = input.key.toLowerCase();
 
+    // Escape haalt weg wat de gids aanwijst. Alleen als er iets staat: anders
+    // zou deze browser elke Escape van elke pagina inpikken, en daar hangen op
+    // sites dialogen en menu's aan.
+    if (input.key === 'Escape' && !mod && !input.shift && ctrl && ctrl.gewezenTab !== null) {
+      e.preventDefault();
+      ctrl.wijsNietMeer();
+      return;
+    }
+
     // Zonder menubalk is dit de enige weg naar de DevTools.
     if (input.key === 'F12' || (mod && input.shift && toets === 'i')) {
       e.preventDefault();
@@ -206,6 +215,11 @@ function bindSneltoetsen(wc, ctrl) {
         // er iets binnenkomt.
         e.preventDefault();
         ctrl.vraagZijbalk('downloads');
+      } else if (toets === 'g') {
+        // De gids: een vraag over de pagina waar je nu naar kijkt. Dezelfde
+        // balk als een opdracht, met een andere vraag erin.
+        e.preventDefault();
+        ctrl.focusIsland('gids');
       }
       return;
     }
@@ -273,6 +287,8 @@ class BrowserWindowController {
     this.herstelGeprobeerd = false;
     // Waar je op deze pagina naar zoekt. Leeg betekent: er loopt niets.
     this.zoekTerm = '';
+    // Op welk tabblad de gids iets aanwijst, of null. Er is er hoogstens één.
+    this.gewezenTab = null;
     // Eén aanmelding tegelijk, en alleen uit het tabblad dat wij ervoor openden.
     // Of wij de MCP-deur zelf openden voor deze opdracht, en hem dus ook
     // weer dicht horen te doen.
@@ -770,9 +786,9 @@ class BrowserWindowController {
     this.send('balk:assistent', stand);
   }
 
-  focusIsland() {
+  focusIsland(modus = 'opdracht') {
     this.island.webContents.focus();
-    this.island.webContents.send('island:focus');
+    this.island.webContents.send('island:focus', modus);
   }
 
   // --- tabs ------------------------------------------------------------
@@ -826,6 +842,9 @@ class BrowserWindowController {
       })),
       activeWorkspaceId: this.activeWorkspaceId,
       paneel: this.paneel,
+      // Waar de gids iets aanwijst, of null. De zijbalk gebruikt het om te
+      // kunnen zeggen dat Escape het weghaalt.
+      gewezenTab: this.gewezenTab,
       balkApps: BALK_APPS,
       buurId: this.buurId,
       paletten: PALETTEN,
@@ -947,7 +966,12 @@ class BrowserWindowController {
     // filter dat je kunt vergeten: een privéworkspace en een tabblad van een
     // assistent komen er niet in. Zie lib/geschiedenis.js.
     const vanMij = { prive: Boolean(ws.prive), vanAssistent: Boolean(owner) };
-    wc.on('did-navigate', (_e, doel) => geschiedenis.bezoek(doel, wc.getTitle(), vanMij));
+    wc.on('did-navigate', (_e, doel) => {
+      geschiedenis.bezoek(doel, wc.getTitle(), vanMij);
+      // De overlay zat in de oude pagina en is dus al weg; alleen wij wisten
+      // dat nog niet.
+      if (this.gewezenTab === id) { this.gewezenTab = null; this.pushState(); }
+    });
     wc.on('did-navigate-in-page', (_e, doel, hoofdframe) => {
       if (hoofdframe) geschiedenis.bezoek(doel, wc.getTitle(), vanMij);
     });
@@ -1787,13 +1811,44 @@ class BrowserWindowController {
       // een ring te zien die er niet is.
       throw new Error(`Kon daar niet naar wijzen: ${uit.status}`);
     }
+    // Onthouden waar de aanwijzing staat, zodat Escape hem kan weghalen. Er
+    // is er hoogstens één tegelijk: wijzen op een tweede pagina haalt de
+    // eerste weg, want twee ringen tegelijk wijst niets aan.
+    if (this.gewezenTab !== null && this.gewezenTab !== Number(id)) {
+      this.wijsNietMeer(this.gewezenTab);
+    }
+    this.gewezenTab = Number(id);
+    this.pushState();
     return { id: Number(id), ref: String(ref), gewezen: true, rect: uit.rect };
   }
 
   async mcpWijsNietMeer(id) {
     const { brug } = this.gidsBrugVoor(id);
     await brug.verberg();
+    if (this.gewezenTab === Number(id)) {
+      this.gewezenTab = null;
+      this.pushState();
+    }
     return { id: Number(id), gewezen: false };
+  }
+
+  /**
+   * Hetzelfde, maar van onze kant: Escape, of een pagina die wegnavigeert.
+   * Stil, want dit is geen verzoek van een client dat een antwoord verdient.
+   */
+  wijsNietMeer(id = this.gewezenTab) {
+    if (id === null) return false;
+    try {
+      const { brug } = this.gidsBrugVoor(id);
+      brug.verberg().catch(() => {});
+    } catch {
+      // Het tabblad is al weg. Dan is de aanwijzing dat ook.
+    }
+    if (this.gewezenTab === Number(id)) {
+      this.gewezenTab = null;
+      this.pushState();
+    }
+    return true;
   }
 
   async mcpKlik(id, tekst) {
@@ -2164,6 +2219,86 @@ class BrowserWindowController {
     this.pushState();
   }
 
+  /* ── De gids ────────────────────────────────────────────────────────
+   *
+   * Een vraag over de pagina waar je nu naar kijkt. Dezelfde agent als een
+   * opdracht, maar een andere houding en een kortere lijst gereedschap: hij
+   * kijkt en wijst, hij opent niets en klikt niet. Zie GIDS_HOUDING in
+   * lib/agent.js voor wat hij te horen krijgt.
+   *
+   * Het tabblad gaat als getal mee in de opdracht en wordt niet door de agent
+   * gekozen. Anders zou "wijs eens aan waar ik dit uitzet" kunnen landen op
+   * een ander tabblad dan het tabblad waar de gebruiker naar keek toen hij het
+   * vroeg.
+   */
+  async startGids(vraag) {
+    const tekst = String(vraag ?? '').trim();
+    if (!tekst) return;
+
+    const id = this.activeId;
+    const gevonden = id === null ? null : this.zoekJouwTab(id);
+    if (!gevonden) {
+      this.sendIsland({ modus: 'actie', vraag: false, regel: 'Er staat geen pagina open om iets over te vragen.', bezig: false });
+      return;
+    }
+
+    // Een privétabblad bestaat niet voor een client, en de gids is er een.
+    const bezwaar = this.priveBezwaar(id);
+    if (bezwaar) {
+      this.sendIsland({ modus: 'actie', vraag: false, regel: bezwaar, bezig: false });
+      return;
+    }
+
+    // Onze eigen pagina's zijn geen website: er valt niets aan te wijzen dat
+    // de gebruiker niet al ziet.
+    const url = gevonden.view.webContents.getURL();
+    if (beoordeelURL(url, EIGEN_BASIS) !== 'web') {
+      this.sendIsland({ modus: 'actie', vraag: false, regel: 'De gids werkt op een website, niet op een pagina van de browser zelf.', bezig: false });
+      return;
+    }
+
+    this.stopAgent(false);
+
+    if (this.agentAangemeld === false) {
+      this.sendIsland({ modus: 'actie', vraag: false, regel: 'Claude Code is nog niet aangemeld. Voer eenmalig "claude auth login" uit.', bezig: false });
+      this.vraagAanmelding();
+      return;
+    }
+    const wie = zoekAgent();
+    if (!wie) {
+      this.sendIsland({ modus: 'actie', vraag: false, regel: 'Geen agent op deze computer. Zie Instellingen, bij Assistent.', bezig: false });
+      return;
+    }
+
+    this.deurWasOpen = this.mcp.aan;
+    if (!this.deurWasOpen) await this.zetMcp(true);
+    // De grendel, niet de instructie. Alleen als wij de deur zelf opendeden:
+    // een eigen client van de gebruiker die al aan stond hoort niet stil te
+    // vallen omdat wij iets aanwijzen. Zie beperkTot() in lib/mcp.js.
+    if (!this.deurWasOpen) this.mcp.beperkTot(GIDS_GEREEDSCHAP);
+
+    const opdracht = [
+      `De gebruiker kijkt naar pagina ${id}: ${gevonden.titel || gevonden.host} (${url}).`,
+      `Zijn vraag is: ${tekst}`,
+      `Bekijk die pagina en wijs het antwoord aan. Gebruik pagina ${id}, geen andere.`,
+    ].join(' ');
+
+    this.agent = { naam: wie.naam, wsId: this.activeWorkspaceId, opdracht: tekst, loop: null, gids: id };
+    this.sendIsland({ modus: 'debuggen', regel: `${wie.naam} kijkt naar deze pagina`, bezig: true });
+
+    this.agent.loop = new Opdracht({
+      agent: wie,
+      elektron: process.execPath,
+      brug: BRUG,
+      gereedschap: GIDS_GEREEDSCHAP,
+      houding: GIDS_HOUDING,
+      werkmap: this.agentWerkmap(),
+      opMelding: (melding) => this.agentMelding(melding),
+    }).start(opdracht);
+
+    this.pushState();
+  }
+
   /** Opnieuw kijken of er inmiddels een agent staat, en of hij is aangemeld. */
   zoekAgentOpnieuw() {
     this.agentGevonden = zoekAgent();
@@ -2238,11 +2373,17 @@ class BrowserWindowController {
       return;
     }
     if (melding.soort === 'klaar' || melding.soort === 'fout') {
-      const waar = this.workspaces.get(this.agent.wsId) ? ', kijk mee in AI-client' : '';
+      // Een gidsronde werkte op jouw eigen tabblad; daar valt niets mee te
+      // kijken in de workspace van de client, want die is niet gebruikt.
+      const waar = !this.agent.gids && this.workspaces.get(this.agent.wsId)
+        ? ', kijk mee in AI-client' : '';
+      // En als er iets is aangewezen hoor je te weten hoe het weer weggaat,
+      // precies op het moment dat het er staat.
+      const esc = this.agent.gids && this.gewezenTab !== null ? ' · Esc haalt de aanwijzing weg' : '';
       this.sendIsland({
         modus: melding.soort === 'klaar' ? 'klaar' : 'actie',
         vraag: false,
-        regel: kortRegel(melding.tekst || (melding.soort === 'klaar' ? `Klaar${waar}` : 'Het ging mis')),
+        regel: kortRegel(`${melding.tekst || (melding.soort === 'klaar' ? `Klaar${waar}` : 'Het ging mis')}${esc}`),
         bezig: false,
       });
       return;
@@ -2264,6 +2405,9 @@ class BrowserWindowController {
   /** Het kindproces is weg: deur dicht als wij hem openden, werk laten staan. */
   agentAfgelopen() {
     this.agent = null;
+    // Wat de gids op het scherm zette blijft staan — daar was het om begonnen.
+    // Alleen de grendel gaat eraf.
+    this.mcp.beperkTot(null);
     if (!this.deurWasOpen && this.mcp.aan) {
       // De workspace blijft. Wat jij hebt laten opzoeken wil je nog lezen, en
       // die sessie staat toch niet op schijf.
@@ -2562,6 +2706,11 @@ ipcMain.handle('win:close', (e) => controllerFor(e)?.win.close());
 
 ipcMain.handle('island:size', (e, w, h) => controllerFor(e)?.setIslandSize(w, h));
 ipcMain.handle('island:assign', (e, tekst) => controllerFor(e)?.startAgent(tekst));
+// Een vraag over de pagina waar je naar kijkt. Een ander kanaal en niet een
+// vlag op het vorige: het is een andere handeling met andere grenzen, en een
+// kanaal dat twee dingen doet is er een die je moet lezen om te weten wat hij
+// doet.
+ipcMain.handle('island:vraag', (e, tekst) => controllerFor(e)?.startGids(tekst));
 ipcMain.handle('island:stop', (e) => controllerFor(e)?.stopAgent(false));
 ipcMain.handle('island:resume', (e) => controllerFor(e)?.resumeAgent());
 ipcMain.handle('island:focus', (e) => controllerFor(e)?.focusIsland());

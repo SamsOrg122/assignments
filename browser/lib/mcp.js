@@ -202,6 +202,8 @@ class McpDeur {
     this.sleutel = null;
     this.werkruimteId = null;
     this.laatsteAanraking = null;
+    // Zie beperkTot(): null is "alles mag wat er is".
+    this.beperking = null;
   }
 
   get aan() {
@@ -215,6 +217,7 @@ class McpDeur {
       sleutel: this.sleutel,
       werkruimteId: this.werkruimteId,
       gereedschap: GEREEDSCHAP.map((g) => g.naam),
+      beperking: this.beperking ? [...this.beperking] : null,
       laatste: this.laatsteAanraking,
     };
   }
@@ -331,11 +334,39 @@ class McpDeur {
     });
   }
 
+  /**
+   * De deur tijdelijk smaller maken.
+   *
+   * Een gidsronde mag kijken en wijzen, verder niets. Dat staat ook in de
+   * houding die de agent meekrijgt, maar een houding is een instructie en geen
+   * grendel: dit is de grendel. `null` haalt hem er weer af.
+   *
+   * Het geldt voor de hele deur en niet per client, want de deur kan niet zien
+   * wie er belt. De browser zet hem daarom alleen als hij de deur zelf voor
+   * deze ronde heeft opengedaan; stond hij al open voor een eigen client van
+   * de gebruiker, dan blijft die client werken en is de lijst gereedschap van
+   * de agent de enige beperking. Zie startGids in main.js.
+   */
+  beperkTot(namen) {
+    this.beperking = Array.isArray(namen) && namen.length ? new Set(namen) : null;
+    return this.stand();
+  }
+
   async roep(naam, arg) {
-    const ctrl = this.geefController();
-    if (!ctrl) throw new Error('Er is geen venster open');
     const stuk = GEREEDSCHAP.find((g) => g.naam === naam);
     if (!stuk) throw new Error(`Onbekend gereedschap: ${naam}`);
+
+    // De grendel gaat vóór alles. Wat niet mag hoeft niet eerst uitgezocht te
+    // worden, en een weigering die van de stand van het venster afhangt is
+    // geen weigering waar je op kunt bouwen.
+    if (this.beperking && !this.beperking.has(naam)) {
+      const bezwaar = `${naam} kan nu niet: de browser wijst iets aan en doet zolang alleen dat`;
+      this.meld({ soort: 'geweigerd', naam, tekst: `Geweigerd: ${bezwaar}` });
+      throw new Error(bezwaar);
+    }
+
+    const ctrl = this.geefController();
+    if (!ctrl) throw new Error('Er is geen venster open');
 
     this.laatsteAanraking = { naam, op: Date.now() };
     this.meld({ soort: 'roep', naam, tekst: beschrijf(naam, arg) });

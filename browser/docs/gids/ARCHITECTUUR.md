@@ -14,7 +14,7 @@ wordt per fase bijgewerkt.
 | 0 | Verkenning en zeven metingen | af |
 | 2 | TabBridge: snapshot, refs, oplossen, scrollen, wachten op een klik | af |
 | 1 | De overlay in de pagina: ring, uitleg, punt — en de deur ernaartoe | af |
-| 3 | De hersens: sneltoets, model, gereedschap | nog niet |
+| 3 | De hersens: sneltoets, model, gereedschap | af |
 | 4 | Terugval op beeld | nog niet |
 | 5 | Meerdere stappen | nog niet |
 
@@ -68,6 +68,49 @@ Die vragen zijn met opzet drie verschillende vragen:
 
 `wijs_niet_meer` vraagt niets: er gaat alleen iets áf het scherm, en een vraag
 waar "nee" het verkeerde antwoord op is, is geen vraag.
+
+## Wat fase 3 werd
+
+Ctrl+Shift+G, dezelfde balk bovenin waar je al een opdracht typt, met een
+andere vraag erin: *Vraag iets over deze pagina*. Wat je typt gaat als
+`island:vraag` naar `startGids` en die start dezelfde agent als een opdracht —
+op het abonnement van de gebruiker, geen proxy, geen sleutel van ons.
+
+Het verschil met een opdracht zit in drie dingen, en het derde is het enige
+dat een echte garantie is:
+
+1. **Een andere houding.** `GIDS_HOUDING` in `lib/agent.js`: hij legt uit en
+   wijst aan, hij klikt niet, typt niet en navigeert nergens heen. Hij wijst
+   precies één ding aan, en weet hij het niet, dan zegt hij dat en wijst hij
+   niets aan.
+2. **Een kortere lijst gereedschap.** `GIDS_GEREEDSCHAP` is vier namen:
+   `jouw_paginas`, `bekijk_jouw_pagina`, `wijs_aan`, `wijs_niet_meer`. Die
+   lijst gaat als `--allowedTools` mee. Let op wat er niet in staat:
+   `lees_jouw_pagina` ook niet — de indeling is genoeg om iets aan te kunnen
+   wijzen, en de lopende tekst van jouw pagina hoeft daar niet voor naar een
+   model.
+3. **Een grendel op de deur.** `mcp.beperkTot(GIDS_GEREEDSCHAP)`. Een houding
+   is een instructie en een `--allowedTools` is een lijst die de client zelf
+   bijhoudt; dit is het slot aan onze kant, vóór alles, nog voordat er een
+   venster wordt opgezocht. Hij geldt voor de hele deur en niet per client,
+   want de deur kan niet zien wie er belt — dus zet de browser hem alleen als
+   hij de deur zélf voor deze ronde heeft opengedaan. Stond hij al open voor
+   een eigen client van de gebruiker, dan blijft die werken en is punt 2 de
+   enige beperking. Dat is eerlijker dan een grendel die stilletjes iemand
+   anders afknijpt.
+
+Het tabblad gaat als getal in de opdracht mee en wordt niet door de agent
+gekozen: anders landt "waar zet ik dit uit" op een ander tabblad dan het
+tabblad waar je naar keek toen je het vroeg. Een privétabblad wordt geweigerd
+voordat er iets start, en een pagina van de browser zelf ook — daar valt niets
+aan te wijzen dat je niet al ziet.
+
+En de weg terug: Escape haalt de aanwijzing weg. Alleen als er iets staat,
+anders zou deze browser elke Escape van elke pagina inpikken. Wegnavigeren
+doet hetzelfde, want dan zat de overlay in de oude pagina.
+
+`test/hersens.js` legt het vast, en draait zonder Electron: het gaat over de
+vorm van een aanroep en over een grendel.
 
 ## De zeven metingen
 
@@ -256,28 +299,47 @@ staan voordat fase 3 begint, en met de indicator uit de spec §2.2 erbij.
 ## Testen
 
 ```bash
-npm run test:gids
+npm run test:gids      # Electron, echte pagina's
+npm run test:hersens   # gewoon node
 ```
 
-Draait Electron met echte fixtures achter een echte server met echte
-CSP-koppen. 37 asserties: shadow roots, frames van dezelfde en van een andere
-herkomst, onder de vouw, bedekt, een ref die verouderd is, wachten op een klik,
-navigeren met iets dat openstaat, onzichtbaarheid voor de pagina, de tijd op
-tweeduizend knopen, en alle redactieregels hierboven.
+`test:gids` draait Electron met echte fixtures achter een echte server met
+echte CSP-koppen. 45 asserties: shadow roots, frames van dezelfde en van een
+andere herkomst, onder de vouw, bedekt, een ref die verouderd is, wachten op
+een klik, navigeren met iets dat openstaat, onzichtbaarheid voor de pagina, de
+tijd op tweeduizend knopen, de overlay zelf, en alle redactieregels hierboven.
 
 Er staat geen nagebouwde DOM in. Shadow roots, frames, rects en
 `elementFromPoint` zijn precies de vier dingen waarover een nabootsing het eens
 is met zichzelf en oneens met Chromium.
 
+`test:hersens` heeft geen Electron nodig: 25 asserties over de vorm van de
+aanroep die een gidsronde start, over wat er niet in zijn lijst gereedschap
+staat, en over de grendel op de deur.
+
+Op een machine die als root draait heeft Electron `--no-sandbox` nodig, en een
+venster dat niet vooraan staat tekent geen frames:
+
+```bash
+xvfb-run -a npx electron --no-sandbox --disable-backgrounding-occluded-windows test/gids.js
+```
+
 ## Wat hierna moet, in volgorde
 
-1. **Fase 1, de overlay.** Chrome-laag op eigen maat voor de buddy; in de
-   pagina voor de highlight, en dan alleen met `adoptedStyleSheets`.
-2. **Fase 3, de hersens.** Vier gereedschappen op de bestaande MCP-brug —
-   `wijs_aan`, `scroll_naar`, `vraag_schermafdruk`, `niet_gevonden` — en géén
-   proxy. De assistent blijft op het abonnement van de gebruiker.
-3. **Fase 4** begint met meting 3, niet met code.
+1. **Fase 4** begint met meting 3, niet met code: geeft Claude Code beeld uit
+   een MCP-resultaat door aan het model? Zolang dat niet gemeten is, is een
+   terugval op een schermafdruk een plan en geen oplossing.
+2. **Fase 5, meerdere stappen.** Nu wijst hij één ding aan. "Laat zien hoe ik
+   dit instel" is een reeks van drie, met een volgende-knop ertussen, en dat
+   vraagt iets dat de stand vasthoudt tussen twee aanroepen door.
 
-En drie dingen die eerst ergens anders moeten landen: de sneltoets hoort in
-`lib/sneltoetsen.js` (ROUTEKAART §1.3), de chrome-laag hoort in de
-stapelvolgorde van `lib/layout.js` (§1.9), en geen van beide bestaat nog.
+En twee dingen die eerst ergens anders moeten landen: de sneltoets hoort in
+`lib/sneltoetsen.js` (ROUTEKAART §1.3) en de chrome-laag in de stapelvolgorde
+van `lib/layout.js` (§1.9); geen van beide bestaat nog. De gids gebruikt
+zolang `bindSneltoetsen` en de balk bovenin, en dat is een tijdelijke plek en
+geen ontwerp.
+
+Wat fase 3 níét werd, en met opzet: er is geen eigen invoerveld naast de
+aanwijzer en geen buddy in een chrome-laag op eigen maat. De balk bovenin is
+al de plek waar je tegen de assistent praat; een tweede veld op dezelfde vraag
+is een tweede plek om te leren kennen.

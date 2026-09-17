@@ -8,10 +8,12 @@ contextBridge.exposeInMainWorld('eiland', {
   meldGrootte: (breedte, hoogte) => ipcRenderer.invoke('island:size', breedte, hoogte),
 
   geefOpdracht: (tekst) => ipcRenderer.invoke('island:assign', tekst),
+  // De gids: een vraag over de pagina waar je nu naar kijkt.
+  vraagOverPagina: (tekst) => ipcRenderer.invoke('island:vraag', tekst),
   stop: () => ipcRenderer.invoke('island:stop'),
   // Alleen voor de stand 'actie': daar wacht hij op jouw akkoord.
   ga: () => ipcRenderer.invoke('island:resume'),
 
   onStand: (fn) => ipcRenderer.on('island:state', (_e, stand) => fn(stand)),
-  onFocus: (fn) => ipcRenderer.on('island:focus', () => fn()),
+  onFocus: (fn) => ipcRenderer.on('island:focus', (_e, modus) => fn(modus ?? 'opdracht')),
 });

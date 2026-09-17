@@ -106,6 +106,58 @@ const GEREEDSCHAP = [
       required: ['id', 'tekst'],
     },
   },
+  /*
+   * Wijzen is niet klikken, en dat verschil is het hele gereedschap.
+   *
+   * De assistent in dit product neemt je scherm niet over. Wat hij wél kan is
+   * naast je aanwijzer gaan staan en zeggen: dáár. Dan doe jij het, op jouw
+   * pagina, met jouw hand — en wat er gebeurt is wat jij deed.
+   *
+   * Het vraagt toestemming zoals alles wat jouw tabbladen raakt, en de vraag
+   * is een andere dan bij lezen, want dit is ook een andere: er gaat niets
+   * naar de client toe, er komt iets op jouw scherm bij.
+   */
+  {
+    naam: 'bekijk_jouw_pagina',
+    vraagt: true,
+    zegt: 'Geeft de indeling van een pagina van jou terug: wat er staat, welke '
+      + 'rol het heeft, en een ref per ding zodat er naar gewezen kan worden. '
+      + 'Geen veldwaarden, nooit. Vraagt elke keer toestemming.',
+    invoer: {
+      type: 'object',
+      properties: { id: { type: 'number', description: 'Het id uit jouw_paginas.' } },
+      required: ['id'],
+    },
+  },
+  {
+    naam: 'wijs_aan',
+    vraagt: true,
+    zegt: 'Zet een ring om iets op een pagina van jou en schrijft er één zin '
+      + 'bij. Klikt niet, typt niet en navigeert niet — het wijst alleen aan. '
+      + 'De ref komt uit bekijk_jouw_pagina. Vraagt elke keer toestemming.',
+    invoer: {
+      type: 'object',
+      properties: {
+        id: { type: 'number', description: 'Het id uit jouw_paginas.' },
+        ref: { type: 'string', description: 'De ref uit de snapshot, bijvoorbeeld e12.' },
+        tekst: {
+          type: 'string',
+          description: 'Eén korte zin bij de ring. Hoogstens 160 tekens.',
+        },
+      },
+      required: ['id', 'ref'],
+    },
+  },
+  {
+    naam: 'wijs_niet_meer',
+    zegt: 'Haalt de ring en de zin weer weg. Vraagt niets, want er gaat alleen '
+      + 'iets af het scherm.',
+    invoer: {
+      type: 'object',
+      properties: { id: { type: 'number' } },
+      required: ['id'],
+    },
+  },
   {
     naam: 'typ',
     vraagt: true,
@@ -302,10 +354,15 @@ class McpDeur {
     // titel is geen inhoud.
     if (naam === 'jouw_paginas') return ctrl.mcpJouwPaginas();
 
+    // Ophouden met wijzen vraagt niets. Er gaat alleen iets áf het scherm, en
+    // een toestemmingsvraag om iets weg te halen is een vraag waar nee het
+    // verkeerde antwoord op is.
+    if (naam === 'wijs_niet_meer') return ctrl.mcpWijsNietMeer(arg.id);
+
     // Hier begint jouw kant. Alles hieronder vraagt het eerst — behalve wat we
     // hoe dan ook weigeren. Een vraagscherm over een privétabblad zou de titel
     // ervan tonen, en dat is precies de inhoud die daar niet uit hoort.
-    if (naam === 'lees_jouw_pagina') {
+    if (naam === 'lees_jouw_pagina' || naam === 'bekijk_jouw_pagina' || naam === 'wijs_aan') {
       const bezwaar = ctrl.priveBezwaar(arg.id);
       if (bezwaar) {
         this.meld({ soort: 'geweigerd', naam, tekst: `Geweigerd: ${bezwaar}` });
@@ -331,6 +388,8 @@ class McpDeur {
     if (naam === 'lees_jouw_pagina') return ctrl.mcpLeesJouwPagina(arg.id, MAX_TEKENS);
     if (naam === 'klik') return ctrl.mcpKlik(arg.id, arg.tekst);
     if (naam === 'typ') return ctrl.mcpTyp(arg.id, arg.veld, arg.tekst);
+    if (naam === 'bekijk_jouw_pagina') return ctrl.mcpBekijkJouwPagina(arg.id);
+    if (naam === 'wijs_aan') return ctrl.mcpWijsAan(arg.id, arg.ref, arg.tekst);
     throw new Error(`Onbekend gereedschap: ${naam}`);
   }
 }
@@ -344,6 +403,9 @@ function beschrijf(naam, arg) {
   if (naam === 'lijst_paginas') return 'Vraagt welke pagina\'s open staan';
   if (naam === 'jouw_paginas') return 'Vraagt de titels van jouw tabbladen';
   if (naam === 'lees_jouw_pagina') return `Wil jouw pagina ${arg.id} lezen`;
+  if (naam === 'bekijk_jouw_pagina') return `Wil de indeling van jouw pagina ${arg.id} zien`;
+  if (naam === 'wijs_aan') return `Wil iets aanwijzen op jouw pagina ${arg.id}`;
+  if (naam === 'wijs_niet_meer') return `Haalt de aanwijzing van pagina ${arg.id}`;
   if (naam === 'klik') return `Wil klikken op "${arg.tekst}" in pagina ${arg.id}`;
   if (naam === 'typ') {
     // Wat op een geheim lijkt komt niet in het logboek, ook niet als het wordt

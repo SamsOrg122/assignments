@@ -1554,6 +1554,55 @@ class BrowserWindowController {
       });
     }
 
+    /*
+     * Kijken is niet lezen, en dat verschil staat in de vraag.
+     *
+     * `lees_jouw_pagina` stuurt de tekst van de pagina naar de client — alles,
+     * inclusief wat achter een login staat. Dit stuurt de indeling: welke
+     * knoppen er zijn, hoe ze heten, waar ze staan. Geen veldwaarde, nooit.
+     * Dat is minder, en de vraag hoort dat te zeggen in plaats van dezelfde
+     * schrik op te roepen als de zware.
+     */
+    if (naam === 'bekijk_jouw_pagina') {
+      const gevonden = this.zoekJouwTab(arg.id);
+      if (!gevonden) return Promise.resolve({ goed: false, reden: 'die pagina bestaat niet' });
+      return this.toestemming.vraag({
+        wat: naam,
+        kop: 'De AI-client wil zien hoe jouw pagina in elkaar zit',
+        regels: [
+          `Pagina: ${gevonden.titel}`,
+          `Adres: ${gevonden.host || 'onbekend'}`,
+          `Workspace: ${gevonden.wsNaam}`,
+        ],
+        waarschuwing: 'De client krijgt de koppen, de knoppen en hun namen — niet '
+          + 'de lopende tekst en nooit wat er in een veld staat.',
+      });
+    }
+
+    /*
+     * En wijzen is niet doen.
+     *
+     * Er gaat hier niets naar de client toe; er komt iets op jouw scherm bij.
+     * De waarschuwing zegt daarom niet wat je kwijtraakt maar wat er straks
+     * staat — en dat wat er straks staat een zin van een model is.
+     */
+    if (naam === 'wijs_aan') {
+      const gevonden = this.zoekJouwTab(arg.id);
+      if (!gevonden) return Promise.resolve({ goed: false, reden: 'die pagina bestaat niet' });
+      return this.toestemming.vraag({
+        wat: naam,
+        kop: 'De AI-client wil iets aanwijzen op jouw pagina',
+        regels: [
+          `Pagina: ${gevonden.titel}`,
+          `Zegt erbij: "${String(arg.tekst ?? '').slice(0, 80)}"`,
+          `Workspace: ${gevonden.wsNaam}`,
+        ],
+        waarschuwing: 'Er wordt een ring om iets heen gezet met die zin erbij. Er '
+          + 'wordt niet geklikt, niets getypt en nergens heen genavigeerd — en er '
+          + 'gaat niets van de pagina naar de client.',
+      });
+    }
+
     if (naam === 'typ') {
       const view = this.mcpWerkruimte().tabs.get(Number(arg.id));
       return this.toestemming.vraag({
@@ -1650,6 +1699,59 @@ class BrowserWindowController {
       afgekapt: heel.length > maximum,
       tekst: heel.slice(0, maximum),
     };
+  }
+
+  /*
+   * ── De gids, aangesloten ────────────────────────────────────────────
+   *
+   * `lib/gids/` was af en getest en er liep geen enkele draad naartoe: een
+   * snapshot die niemand kon opvragen en een ring die niemand kon laten
+   * zetten. Dit zijn de drie regels die dat verhelpen. De brug doet het werk
+   * — deze kant kiest alleen het tabblad en geeft de foutmelding die een mens
+   * kan lezen.
+   */
+
+  /** De brug van een tabblad van jou, of een fout waar iets in staat. */
+  gidsBrugVoor(id) {
+    const gevonden = this.zoekJouwTab(id);
+    if (!gevonden) throw new Error(`Die pagina bestaat niet: ${id}`);
+    const brug = brugVoor(gevonden.view.webContents);
+    if (!brug) throw new Error(`Die pagina is net weggegaan: ${id}`);
+    return { brug, gevonden };
+  }
+
+  async mcpBekijkJouwPagina(id) {
+    const { brug, gevonden } = this.gidsBrugVoor(id);
+    const uit = await brug.snapshot();
+    if (uit.status && uit.status !== 'ok') {
+      throw new Error(`Kon die pagina niet bekijken: ${uit.status}`);
+    }
+    return {
+      id: Number(id),
+      titel: gevonden.titel,
+      host: gevonden.host,
+      knopen: uit.knopen,
+      weggelaten: uit.weggelaten,
+      indeling: uit.tekst,
+    };
+  }
+
+  async mcpWijsAan(id, ref, tekst) {
+    const { brug } = this.gidsBrugVoor(id);
+    const uit = await brug.wijs(String(ref ?? ''), String(tekst ?? ''));
+    if (uit.status !== 'ok') {
+      // "weg" is de eerlijke uitkomst als de pagina zichzelf opnieuw getekend
+      // heeft sinds de snapshot, en de client hoort dat te horen in plaats van
+      // een ring te zien die er niet is.
+      throw new Error(`Kon daar niet naar wijzen: ${uit.status}`);
+    }
+    return { id: Number(id), ref: String(ref), gewezen: true, rect: uit.rect };
+  }
+
+  async mcpWijsNietMeer(id) {
+    const { brug } = this.gidsBrugVoor(id);
+    await brug.verberg();
+    return { id: Number(id), gewezen: false };
   }
 
   async mcpKlik(id, tekst) {

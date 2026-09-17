@@ -581,6 +581,212 @@
     });
   }
 
+  /* ═══════════════════════════════════════════════════════════════════
+     DE OVERLAY — fase 1
+
+     Waarom hij hier staat en niet in een eigen laag boven de pagina: een
+     `WebContentsView` is niet klik-doorlatend te krijgen (meting 1), dus een
+     schermvullende laag zou élke klik op élke website opslokken. En een laag
+     in het chroom zou elke coördinaat met de zoomfactor moeten
+     vermenigvuldigen (meting 5). Hierbinnen hoeft geen van beide: de ring
+     staat in dezelfde coördinaten als het ding waar hij omheen ligt, en
+     `pointer-events: none` maakt hem doorlatend zonder dat er iets voor
+     hoeft te wijken.
+
+     Waarom een shadow root met `adoptedStyleSheets` en niet een `<style>`:
+     de CSP van de bezochte pagina geldt ook voor ons (meting 2). Een
+     `<style>` wordt geweigerd, ook binnen een shadow root; alleen CSSOM komt
+     erlangs. De shadow root zelf is er voor het andere gevaar — de opmaak
+     van de pagina mag hier niet bij.
+
+     Wat hij niet doet: klikken, typen, navigeren. Hij wijst aan en legt uit.
+     Dat is niet een beperking die we later opheffen maar wat de gids ís; de
+     assistent in dit product neemt je scherm niet over.
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /** Hoe lang een uitleg bij de ring mag zijn. Langer hoort in het gesprek. */
+  const MAX_UITLEG = 160;
+
+  const OPMAAK = `
+    :host { all: initial }
+    .laag {
+      position: fixed; inset: 0; z-index: 2147483647;
+      pointer-events: none;
+      font: 400 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: #fff;
+    }
+    .ring {
+      position: absolute;
+      border-radius: 10px;
+      box-shadow: 0 0 0 2px #b48cf0, 0 0 0 6px rgba(180,140,240,.28),
+                  0 10px 30px -10px rgba(20,10,40,.55);
+      transition: top .28s cubic-bezier(.16,1,.3,1), left .28s cubic-bezier(.16,1,.3,1),
+                  width .28s cubic-bezier(.16,1,.3,1), height .28s cubic-bezier(.16,1,.3,1);
+    }
+    .uitleg {
+      position: absolute; max-width: 280px;
+      padding: 8px 12px; border-radius: 12px;
+      background: #221f2a; color: #fff;
+      box-shadow: 0 16px 34px -14px rgba(10,6,20,.7);
+      white-space: pre-wrap; overflow-wrap: anywhere;
+    }
+    .punt { position: absolute; width: 22px; height: 22px;
+            filter: drop-shadow(0 3px 8px rgba(10,6,20,.5)) }
+    @media (prefers-reduced-motion: reduce) { .ring { transition: none } }
+  `;
+
+  /** Alles wat de overlay op dit moment is. Null als er niets staat. */
+  let laag = null;
+
+  function bouwLaag() {
+    if (laag) return laag;
+
+    const gastheer = document.createElement('div');
+    // Belangrijk-markeringen omdat de pagina alles mag hebben gestyled wat
+    // een `div` heet. Dit zijn de vier die niet mogen verschuiven.
+    gastheer.style.setProperty('all', 'initial', 'important');
+    gastheer.style.setProperty('position', 'fixed', 'important');
+    gastheer.style.setProperty('inset', '0', 'important');
+    gastheer.style.setProperty('pointer-events', 'none', 'important');
+    gastheer.style.setProperty('z-index', '2147483647', 'important');
+
+    const schaduw = gastheer.attachShadow({ mode: 'closed' });
+    const vel = new CSSStyleSheet();
+    vel.replaceSync(OPMAAK);
+    schaduw.adoptedStyleSheets = [vel];
+
+    const wortel = document.createElement('div');
+    wortel.className = 'laag';
+    const ring = document.createElement('div');
+    ring.className = 'ring';
+    const uitleg = document.createElement('div');
+    uitleg.className = 'uitleg';
+    const punt = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    punt.setAttribute('viewBox', '0 0 24 24');
+    punt.setAttribute('class', 'punt');
+    const pad = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    pad.setAttribute('d', 'M5 2.5l13.2 8.1-5.8 1.2-2.6 5.4z');
+    pad.setAttribute('fill', '#fff');
+    pad.setAttribute('stroke', 'rgba(0,0,0,.55)');
+    pad.setAttribute('stroke-width', '1.1');
+    pad.setAttribute('stroke-linejoin', 'round');
+    punt.append(pad);
+
+    wortel.append(ring, uitleg, punt);
+    schaduw.append(wortel);
+    // Op `documentElement` en niet op `body`: een pagina mag zijn body
+    // vervangen, en dan is de overlay weg zonder dat iemand het merkt.
+    document.documentElement.append(gastheer);
+
+    laag = { gastheer, ring, uitleg, punt, ref: null, aan: null };
+    return laag;
+  }
+
+  /**
+   * De ring, de uitleg en de punt op hun plek zetten.
+   *
+   * Alles in `style.setProperty`, want `setAttribute('style', …)` wordt door
+   * de CSP van de pagina geweigerd (meting 2). Allemaal viewport-coördinaten,
+   * want de laag staat `fixed` — dus wat `getBoundingClientRect()` zegt is
+   * precies waar het hoort.
+   */
+  function plaats(l, r) {
+    const marge = 6;
+    const zet = (el, naam, waarde) => el.style.setProperty(naam, waarde);
+
+    zet(l.ring, 'left', (r.left - marge) + 'px');
+    zet(l.ring, 'top', (r.top - marge) + 'px');
+    zet(l.ring, 'width', (r.width + marge * 2) + 'px');
+    zet(l.ring, 'height', (r.height + marge * 2) + 'px');
+
+    // De uitleg onder het doel, tenzij daar geen ruimte meer is; dan erboven.
+    const hoogte = l.uitleg.offsetHeight || 36;
+    const onder = r.bottom + 14;
+    const past = onder + hoogte < window.innerHeight - 8;
+    zet(l.uitleg, 'top', (past ? onder : Math.max(8, r.top - 14 - hoogte)) + 'px');
+    // Links uitlijnen op het doel, maar nooit voorbij de rand.
+    const breedte = l.uitleg.offsetWidth || 220;
+    zet(l.uitleg, 'left', Math.max(8, Math.min(r.left, window.innerWidth - breedte - 8)) + 'px');
+
+    // De punt in de hoek van het doel, waar een hand hem zou neerzetten.
+    zet(l.punt, 'left', (r.left + r.width * 0.5) + 'px');
+    zet(l.punt, 'top', (r.top + r.height * 0.62) + 'px');
+  }
+
+  /**
+   * Wijs iets aan.
+   *
+   * Geeft `rect` terug zodat de kant die het vroeg weet waar het terechtkwam
+   * — en `verouderd` zodat duidelijk is of er sinds de snapshot iets aan de
+   * pagina veranderd is.
+   */
+  function wijs(ref, tekst) {
+    const p = pak(ref);
+    if (p.status !== 'ok') return { status: p.status, verouderd };
+
+    const l = bouwLaag();
+    l.ref = ref;
+    // `textContent`, nooit `innerHTML`: deze zin komt van een model en een
+    // model is een bron als elke andere.
+    l.uitleg.textContent = String(tekst || '').slice(0, MAX_UITLEG);
+    l.uitleg.style.setProperty('display', l.uitleg.textContent ? 'block' : 'none');
+
+    const rustig = window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const eerste = !l.aan;
+    const r = p.el.getBoundingClientRect();
+    plaats(l, r);
+
+    if (eerste && !rustig) {
+      // Aankomen. De ring groeit op zijn plek, de punt vliegt van rechtsonder
+      // aan — via `el.animate`, want CSS-animaties in een `<style>` komen de
+      // CSP van de pagina niet door.
+      l.ring.animate(
+        [{ opacity: 0, transform: 'scale(1.12)' }, { opacity: 1, transform: 'none' }],
+        { duration: 320, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'both' },
+      );
+      l.punt.animate(
+        [{ opacity: 0, transform: 'translate(48px, 60px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 520, easing: 'cubic-bezier(.22,1,.3,1)', fill: 'both' },
+      );
+      l.uitleg.animate(
+        [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 300, delay: 120, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'both' },
+      );
+    }
+
+    if (!l.aan) {
+      // Meebewegen. Niet met een frameluspaneel maar met de twee gebeurtenissen
+      // die iets kunnen verschuiven — scrollen en van maat veranderen — want
+      // een `requestAnimationFrame`-lus die altijd loopt is een lus die ook
+      // loopt als er niets gebeurt.
+      const volg = () => {
+        if (!laag || !laag.ref) return;
+        const q = pak(laag.ref);
+        if (q.status !== 'ok') return verberg();
+        plaats(laag, q.el.getBoundingClientRect());
+      };
+      window.addEventListener('scroll', volg, { capture: true, passive: true });
+      window.addEventListener('resize', volg, { passive: true });
+      l.aan = () => {
+        window.removeEventListener('scroll', volg, { capture: true });
+        window.removeEventListener('resize', volg);
+      };
+    }
+
+    return { status: 'ok', verouderd, rect: [r.left, r.top, r.width, r.height].map(Math.round) };
+  }
+
+  /** Weghalen, en niets achterlaten. */
+  function verberg() {
+    if (!laag) return { status: 'ok' };
+    if (laag.aan) laag.aan();
+    laag.gastheer.remove();
+    laag = null;
+    return { status: 'ok' };
+  }
+
   globalThis.__gids = {
     versie: VERSIE,
     maakSnapshot,
@@ -588,7 +794,14 @@
     hermatch,
     scrollNaar,
     wachtOpKlik,
-    stand: () => ({ snapshotId, verouderd, knopen: register.size }),
+    wijs,
+    verberg,
+    stand: () => ({
+      snapshotId,
+      verouderd,
+      knopen: register.size,
+      wijst: Boolean(laag && laag.ref),
+    }),
   };
 
   return 'geladen';

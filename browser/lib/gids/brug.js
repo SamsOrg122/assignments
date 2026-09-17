@@ -190,6 +190,59 @@ class Paginabrug {
     return this.roep('scrollNaar', [ref]);
   }
 
+  /**
+   * Wijs iets aan, met een zin erbij.
+   *
+   * Eerst in beeld brengen en dán wijzen: een ring om iets dat honderd pixels
+   * onder de vouw ligt is een ring die niemand ziet, en `zoek` geeft in dat
+   * geval keurig "ok" terug — met `plaats` op iets anders dan `viewport`.
+   * Ook als het doel bedekt is, want dan wijst de ring naar iets dat onder
+   * een cookiebalk ligt. De scroll is `smooth`, dus er zit een wachtje
+   * tussen: kort genoeg dat het één beweging blijft, lang genoeg dat de ring
+   * op de goede plek aankomt.
+   *
+   * De ring blijft daarna zelf meebewegen; dit is het enige moment waarop
+   * deze kant iets over positie hoeft te weten.
+   */
+  async wijs(ref, tekst) {
+    const plek = await this.zoek(ref);
+    if (plek.status !== 'ok') return plek;
+
+    if (plek.plaats !== 'viewport' || plek.bedekt) {
+      await this.roep('scrollNaar', [ref]);
+      await this.wachtTotInBeeld(ref);
+    }
+    return this.roep('wijs', [ref, String(tekst || '')]);
+  }
+
+  /**
+   * Wachten tot het doel er echt is, in plaats van tot een getal.
+   *
+   * De eerste versie hiervan sliep 420 ms en wees daarna. Dat is een gok, en
+   * de gok was mis: `scrollIntoView` is `smooth`, en op een lange pagina duurt
+   * dat langer. De testreeks ving het — hij wachtte zelf 700 ms — maar een
+   * product dat op een timer staat werkt op een korte pagina en niet op een
+   * lange, en dat is precies het soort fout dat pas bij een gebruiker opvalt.
+   *
+   * Dus: kijken tot het zo is. Met een dak erop, want een doel in een
+   * container die niet scrollt komt nooit in beeld en dan is wijzen naar waar
+   * het staat beter dan helemaal niet wijzen.
+   */
+  async wachtTotInBeeld(ref, msMax = 1600) {
+    const tot = Date.now() + msMax;
+    for (;;) {
+      const nu = await this.roep('zoek', [ref]);
+      if (nu.status !== 'ok') return nu;
+      if (nu.plaats === 'viewport') return nu;
+      if (Date.now() >= tot) return nu;
+      await new Promise((k) => setTimeout(k, 80));
+    }
+  }
+
+  verberg() {
+    return this.roep('verberg');
+  }
+
   wachtOpKlik(ref, msMax) {
     return this.wacht('wachtOpKlik', [ref, msMax]);
   }

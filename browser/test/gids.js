@@ -217,6 +217,68 @@ app.whenReady().then(async () => {
   zegt('en staat op een regel die begint met een rol',
     s7.tekst.split('\n').filter((r) => r.trim()).slice(1).every((r) => /^\s*(-|\[\+)/.test(r)));
 
+  // ── 13. De overlay ───────────────────────────────────────────────────
+  //
+  // Op `gewoon.html`, want dat is de pagina met de strengste CSP die op het
+  // web voorkomt — en de opmaak van de gids is precies wat zo'n CSP normaal
+  // tegenhoudt. Als de ring het hier doet, doet hij het overal.
+  console.log('\nWijzen, op een pagina met een strenge CSP');
+  await ga('gewoon.html');
+  const s8 = await brug.snapshot();
+  const refWijs = refVan(s8.tekst, 'Opstellen');
+
+  const gewezen = await brug.wijs(refWijs, 'Hier begin je een bericht.');
+  zegtIs('wijzen lukt', gewezen.status, 'ok');
+
+  const laagDaar = await wc.executeJavaScriptInIsolatedWorld(1000, [{
+    code: '(document.documentElement.lastElementChild.shadowRoot === null)',
+  }]);
+  zegt('de laag hangt aan documentElement en heeft een gesloten shadow root', laagDaar === true);
+
+  // De ring ligt om de knop heen, niet ergens anders. Zes pixels marge aan
+  // elke kant, dus de ring is twaalf breder dan het doel.
+  const maten = await wc.executeJavaScriptInIsolatedWorld(1000, [{
+    code: '(() => { const r = document.getElementById("opstellen").getBoundingClientRect();'
+      + ' return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; })()',
+  }]);
+  zegtIs('de ring kent de plek van de knop', gewezen.rect, maten);
+
+  // Het hele punt van een overlay ín de pagina in plaats van een laag erboven:
+  // de pagina blijft bruikbaar. `elementFromPoint` op het midden van de knop
+  // moet de knop opleveren en niet onze ring.
+  const raak = await wc.executeJavaScriptInIsolatedWorld(1000, [{
+    code: '(() => { const r = document.getElementById("opstellen").getBoundingClientRect();'
+      + ' const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);'
+      + ' return el && (el.id === "opstellen" || el.closest("#opstellen") !== null); })()',
+  }]);
+  zegt('de laag vangt geen klikken af', raak === true);
+
+  // En de pagina zelf ziet er niets van — hetzelfde als voor de rest van de
+  // gids, maar nu terwijl er wél iets op het scherm staat.
+  const schaduwDicht = await wc.executeJavaScript(
+    '(document.documentElement.lastElementChild && document.documentElement.lastElementChild.shadowRoot)',
+  );
+  zegt('de pagina komt niet in de shadow root', schaduwDicht === null || schaduwDicht === undefined);
+
+  const stand1 = await brug.stand();
+  zegt('de stand zegt dat er gewezen wordt', stand1.wijst === true);
+
+  await brug.verberg();
+  const opgeruimd = await wc.executeJavaScriptInIsolatedWorld(1000, [{
+    code: '(document.documentElement.querySelectorAll("div").length)',
+  }]);
+  const standLeeg = await brug.stand();
+  zegt('verbergen laat niets achter', standLeeg.wijst === false && typeof opgeruimd === 'number');
+
+  // Wijzen naar iets onder de vouw scrollt er eerst heen, en dan ligt het in
+  // beeld. Dat is de enige plek waar deze kant iets over positie hoeft te
+  // weten, dus het is de enige die getest hoeft.
+  const refDiep2 = refVan(s8.tekst, 'Helemaal onderaan');
+  await brug.wijs(refDiep2, 'Dit stond onder de vouw.');
+  const naWijzen = await brug.zoek(refDiep2);
+  zegtIs('wijzen naar iets onder de vouw brengt het in beeld', naWijzen.plaats, 'viewport');
+  await brug.verberg();
+
   // ── Klaar ────────────────────────────────────────────────────────────
   stop();
   console.log(`\n${goed} goed, ${stuk.length} stuk`);

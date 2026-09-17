@@ -13,10 +13,61 @@ wordt per fase bijgewerkt.
 | --- | --- | --- |
 | 0 | Verkenning en zeven metingen | af |
 | 2 | TabBridge: snapshot, refs, oplossen, scrollen, wachten op een klik | af |
-| 1 | De overlay: buddy, cursor, highlight, bubbel | nog niet |
+| 1 | De overlay in de pagina: ring, uitleg, punt — en de deur ernaartoe | af |
 | 3 | De hersens: sneltoets, model, gereedschap | nog niet |
 | 4 | Terugval op beeld | nog niet |
 | 5 | Meerdere stappen | nog niet |
+
+## Wat fase 1 werd
+
+Het ontwerp uit fase 0 had de buddy, de bubbel en het invoerveld in een
+chrome-laag op eigen maat, en de highlight en de cursor in de pagina. Dat
+eerste deel is er nog niet: er is nog geen invoerveld, want er is nog geen
+hersens om iets aan te vragen (fase 3). Wat er wél is, is het deel dat op de
+pagina hoort, en dat is precies het deel waar de twee lastige metingen over
+gingen.
+
+In de pagina (`lib/gids/in-pagina.js`):
+
+- Een gastheer op `documentElement` — niet op `body`, want een pagina mag zijn
+  body vervangen en dan is de overlay weg zonder dat iemand het merkt.
+- Een **gesloten** shadow root eronder, met `adoptedStyleSheets`. De shadow
+  root houdt de opmaak van de pagina buiten; `adoptedStyleSheets` is de enige
+  manier die langs de CSP van de pagina komt (meting 2). Een `<style>` wordt
+  ook binnen een shadow root geweigerd.
+- `pointer-events: none` op alles. Dít is waarom de overlay in de pagina zit
+  en niet in een laag erboven: een `WebContentsView` is niet klik-doorlatend
+  te krijgen (meting 1), en een laag die elke klik opslokt maakt elke website
+  onbruikbaar. De reeks test het: `elementFromPoint` op het midden van de knop
+  levert de knop op en niet onze ring.
+- Meebewegen op `scroll` en `resize`, niet op een `requestAnimationFrame`-lus.
+  Een lus die altijd loopt is een lus die ook loopt als er niets gebeurt.
+- Alle animatie via `el.animate`, want CSS-animaties uit een `<style>` komen
+  de CSP niet door.
+
+Aan de kant van het hoofdproces (`lib/gids/brug.js`):
+
+- `wijs(ref, tekst)` brengt het doel eerst in beeld en wijst dan. Eerst stond
+  daar `setTimeout(420)`; dat is een gok, en de gok was mis — `scrollIntoView`
+  is `smooth` en op een lange pagina duurt dat langer. De reeks ving het omdat
+  hij zelf 700 ms wachtte. Nu kijkt `wachtTotInBeeld` tot het zo is, met een
+  dak erop voor een doel dat nooit in beeld komt.
+
+En de draad die er nog helemaal niet was. `lib/gids/` was af, getest, en niet
+aangesloten: een snapshot die niemand kon opvragen en een ring die niemand kon
+laten zetten. Er staan nu drie stukken gereedschap in de MCP-deur —
+`bekijk_jouw_pagina`, `wijs_aan`, `wijs_niet_meer` — met elk hun eigen vraag.
+
+Die vragen zijn met opzet drie verschillende vragen:
+
+| | Wat er gebeurt | Wat de vraag zegt |
+| --- | --- | --- |
+| `lees_jouw_pagina` | de tekst gaat naar de client | alles, ook wat achter een login staat |
+| `bekijk_jouw_pagina` | de indeling gaat naar de client | koppen en knoppen, geen lopende tekst, nooit een veldwaarde |
+| `wijs_aan` | er komt iets op jouw scherm bij | er gaat niets naartoe; er wordt niet geklikt of getypt |
+
+`wijs_niet_meer` vraagt niets: er gaat alleen iets áf het scherm, en een vraag
+waar "nee" het verkeerde antwoord op is, is geen vraag.
 
 ## De zeven metingen
 

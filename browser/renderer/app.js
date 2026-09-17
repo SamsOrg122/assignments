@@ -123,7 +123,79 @@ browser.onOpen((wat) => {
     paletteIsOpen() ? sluitPalette() : openPalette(wat === 'adres' ? huidigeUrl() : '');
   } else if (wat === 'instellingen') {
     openInstellingen();
+  } else if (wat === 'zoek') {
+    openZoek();
   }
+});
+
+/* ── Zoeken op deze pagina ───────────────────────────────────────────────
+ *
+ * Het veld staat in de zijbalk omdat de pagina een native laag is die over
+ * elke overlay heen tekent; zie de uitleg bij `#zoekrij` in index.html.
+ *
+ * Twee dingen die makkelijk misgaan en hier dus expliciet staan:
+ *
+ *   · Elke toetsaanslag begint een nieuwe zoektocht, bovenaan de pagina.
+ *     Enter vraagt om de volgende (`volgende: true`) en springt verder.
+ *     Andersom springt het veld tijdens het typen door de pagina heen, wat
+ *     niemand bedoelt.
+ *   · Het veld leegmaken is niet hetzelfde als sluiten. Leeg betekent: haal
+ *     de markeringen weg maar laat het veld openstaan.
+ */
+const zoekrij = document.getElementById('zoekrij');
+const zoekveld = document.getElementById('zoekveld');
+const zoektelling = document.getElementById('zoektelling');
+
+function openZoek() {
+  zoekrij.hidden = false;
+  zoekveld.focus();
+  zoekveld.select();
+  if (zoekveld.value) browser.zoekOpPagina(zoekveld.value, {});
+}
+
+// Wegleggen zonder het hoofdproces erbij: dat is wat er moet gebeuren als het
+// hoofdproces zelf zegt dat de zoektocht voorbij is, bijvoorbeeld omdat je van
+// tabblad wisselt. Anders zou het antwoord daarop weer een opdracht worden.
+function wisZoek() {
+  zoekrij.hidden = true;
+  zoektelling.textContent = '';
+}
+
+function sluitZoek() {
+  wisZoek();
+  browser.stopZoeken();
+}
+
+zoekveld.addEventListener('input', () => {
+  const term = zoekveld.value;
+  if (!term) {
+    zoektelling.textContent = '';
+    browser.stopZoeken();
+    return;
+  }
+  browser.zoekOpPagina(term, {});
+});
+
+zoekveld.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { e.preventDefault(); sluitZoek(); return; }
+  if (e.key !== 'Enter' || !zoekveld.value) return;
+  e.preventDefault();
+  browser.zoekOpPagina(zoekveld.value, { volgende: true, terug: e.shiftKey });
+});
+
+document.getElementById('zoek-volgende').onclick = () =>
+  zoekveld.value && browser.zoekOpPagina(zoekveld.value, { volgende: true });
+document.getElementById('zoek-vorige').onclick = () =>
+  zoekveld.value && browser.zoekOpPagina(zoekveld.value, { volgende: true, terug: true });
+document.getElementById('zoek-dicht').onclick = sluitZoek;
+
+browser.onZoekUitslag(({ treffers, welke, dicht }) => {
+  if (dicht) { zoekveld.value = ''; wisZoek(); return; }
+  // "0" en "niets" zijn twee verschillende dingen: leeg veld is niets, een
+  // term zonder treffer is nul, en dat laatste hoort te blijven staan.
+  if (!zoekveld.value) { zoektelling.textContent = ''; return; }
+  zoektelling.textContent = treffers ? `${welke}/${treffers}` : 'geen';
+  zoektelling.dataset.leeg = treffers ? '' : 'ja';
 });
 
 browser.onFavicon(({ id, favicon }) => {

@@ -129,6 +129,30 @@
         <kbd>Ctrl K</kbd>
       </button>
 
+      <!-- Zoeken op de pagina. In de zijbalk en niet als strook over de
+           pagina: de pagina is een native laag en tekent over elke overlay
+           heen, dus een strook dáár zou een tweede doorzichtige view vragen
+           voor één invoerveld. En deze browser zet zijn adres, zijn tabbladen
+           en zijn workspaces al hier. Dicht tot Ctrl+F. -->
+      <div id="zoekrij" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="7.2" cy="7.2" r="4.4" />
+          <path d="m10.6 10.6 3 3" />
+        </svg>
+        <input id="zoekveld" type="text" spellcheck="false" autocomplete="off"
+               placeholder="Zoeken op deze pagina" aria-label="Zoeken op deze pagina" />
+        <span id="zoektelling" aria-live="polite"></span>
+        <button class="ib" id="zoek-vorige" type="button" title="Vorige (Shift Enter)" aria-label="Vorige treffer">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 10.5 8 5.5l5 5" /></svg>
+        </button>
+        <button class="ib" id="zoek-volgende" type="button" title="Volgende (Enter)" aria-label="Volgende treffer">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5.5 8 10.5l5-5" /></svg>
+        </button>
+        <button class="ib" id="zoek-dicht" type="button" title="Sluiten (Esc)" aria-label="Zoeken sluiten">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+        </button>
+      </div>
+
       <div id="scroll">
         <div id="favs"></div>
 

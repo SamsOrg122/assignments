@@ -949,6 +949,80 @@ body.werkbank-open #tablist {
   background-color: var(--glas-hover);
 }
 
+/* ── Zoeken op de pagina ───────────────────────────────────────────────
+   Dezelfde maat en hetzelfde glas als #url, want het staat er direct onder
+   en het is hetzelfde soort ding: één regel waarin je typt. Het verschil is
+   dat dit er echt één is en #url een knop die de commandobalk opent. */
+#zoekrij {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 36px;
+  padding: 0 4px 0 12px;
+  flex: none;
+  border-radius: var(--radius-field);
+  background-color: var(--glas);
+  box-shadow: var(--glas-rand);
+}
+
+#zoekrij[hidden] {
+  display: none;
+}
+
+#zoekrij > svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  opacity: 0.85;
+}
+
+#zoekveld {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--op-glas);
+}
+
+#zoekveld::placeholder {
+  color: var(--op-glas-zacht);
+}
+
+/* Krapper dan elders: drie knoppen, een teller en een invoerveld moeten
+   samen in 272 pixels zijbalk passen. */
+#zoekrij .ib {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+}
+
+#zoekrij .ib svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* De telling. Vaste breedte zodat de knoppen ernaast niet verspringen bij
+   elke toetsaanslag — van "1/9" naar "10/97" is anders een schokje per
+   letter. */
+#zoektelling {
+  flex: none;
+  min-width: 5ch;
+  text-align: right;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--op-glas-zacht);
+}
+
+/* Geen treffer is geen fout, maar het mag wel opvallen: anders typ je door
+   terwijl er allang niets meer gevonden wordt. */
+#zoektelling[data-leeg="ja"] {
+  color: var(--gevaar);
+}
+
 #url svg {
   width: 14px;
   height: 14px;

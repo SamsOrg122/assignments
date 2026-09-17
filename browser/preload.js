@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('browser', {
   newTab: (url) => ipcRenderer.invoke('tab:new', url),
   closeTab: (id) => ipcRenderer.invoke('tab:close', id),
   heropenTab: () => ipcRenderer.invoke('tab:heropen'),
+  zoekOpPagina: (term, opties) => ipcRenderer.invoke('zoek:doe', term, opties),
+  stopZoeken: () => ipcRenderer.invoke('zoek:stop'),
   gaAanmelden: () => ipcRenderer.invoke('app:aanmelden'),
   zoekAgent: () => ipcRenderer.invoke('agent:zoek'),
   veeg: (maat) => ipcRenderer.send('gebaar:veeg', maat),
@@ -77,6 +79,9 @@ contextBridge.exposeInMainWorld('browser', {
   // Sneltoetsen worden in het hoofdproces afgehandeld zodat ze ook werken als de
   // focus in een pagina ligt; dit is hoe die hier weer binnenkomen.
   onOpen: (fn) => ipcRenderer.on('ui:open', (_e, wat) => fn(wat)),
+  // De telling van `findInPage` komt asynchroon terug, dus als bericht en
+  // niet als antwoord op de aanroep.
+  onZoekUitslag: (fn) => ipcRenderer.on('zoek:uitslag', (_e, u) => fn(u)),
 
   // De gids. Nog geen knop en geen sneltoets: dit is er om vanuit de console
   // te kunnen zien wat een assistent van een pagina zou zien.

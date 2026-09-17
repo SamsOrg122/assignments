@@ -207,6 +207,12 @@ function bindSneltoetsen(wc, ctrl) {
       w: () => ctrl.closeTab(ctrl.activeId),
       l: () => ctrl.vraagZijbalk('adres'),
       k: () => ctrl.vraagZijbalk('palet'),
+      // Ctrl+F opent het zoekveld in de zijbalk. Niet een strook over de
+      // pagina: die pagina is een native laag en tekent over elke overlay
+      // heen, en een tweede doorzichtige view voor één invoerveld is een
+      // hoop machinerie voor iets dat in het chroom thuishoort. Deze browser
+      // zet zijn tabbladen, zijn adres en zijn workspaces al in de zijbalk.
+      f: () => ctrl.vraagZijbalk('zoek'),
       j: () => ctrl.focusIsland(),
       r: () => ctrl.reload(),
       '=': () => ctrl.zoom(0.5),
@@ -253,6 +259,8 @@ class BrowserWindowController {
     this.werkbankOpen = false;
     this.werkbankPad = WERKBANK_PLEKKEN[0].pad;
     this.herstelGeprobeerd = false;
+    // Waar je op deze pagina naar zoekt. Leeg betekent: er loopt niets.
+    this.zoekTerm = '';
     // Eén aanmelding tegelijk, en alleen uit het tabblad dat wij ervoor openden.
     // Of wij de MCP-deur zelf openden voor deze opdracht, en hem dus ook
     // weer dicht horen te doen.
@@ -952,6 +960,10 @@ class BrowserWindowController {
   activateTab(id) {
     const ws = this.workspaceOf(id);
     if (!ws) return;
+    // Een zoektocht hoort bij een pagina. Wie naar een ander tabblad gaat
+    // laat anders een gele pagina achter met een teller in de zijbalk die
+    // over iets anders gaat.
+    if (this.zoekTerm) this.stopZoeken({ dicht: true });
     for (const view of this.allViews()) view.setVisible(false);
     this.activeWorkspaceId = ws.id;
     ws.activeId = id;
@@ -2255,6 +2267,68 @@ class BrowserWindowController {
     this.send('ui:open', wat);
   }
 
+  /* ── Zoeken op de pagina ────────────────────────────────────────────
+   *
+   * `findInPage` telt en markeert; wij geven alleen door en sturen de telling
+   * terug. Drie dingen die niet vanzelf gaan en hier dus staan:
+   *
+   *   · De telling komt asynchroon terug op `found-in-page`, per tabblad. De
+   *     luisteraar hangt daarom aan de webContents van het tabblad en niet
+   *     aan het venster, en hij wordt bij het volgende tabblad niet opnieuw
+   *     aangehangen — vandaar de vlag.
+   *   · `findNext` staat hier altijd aan, en "begin opnieuw" zeggen we met
+   *     een `stopFindInPage` ervoor. Dat is niet hetzelfde als `findNext:
+   *     false`: die vlag vraagt Chromium om een nieuwe telronde binnen een
+   *     lopende sessie, en die ronde komt er in een venster dat niet echt op
+   *     een scherm staat soms niet — geen telling, geen markering, geen
+   *     fout. Een sessie afbreken en een nieuwe beginnen doet hetzelfde en
+   *     doet het altijd. `test/zoeken.js` legt beide vast.
+   *   · Een zoekterm blijft anders in de pagina gemarkeerd staan nadat het
+   *     veld dicht is. `stopFindInPage('clearSelection')` is wat dat opruimt,
+   *     en het moet ook lopen als je van tabblad wisselt.
+   */
+  zoekOpPagina(term, opties = {}) {
+    const view = this.tabs.get(this.activeId);
+    if (!view || view.webContents.isDestroyed()) return;
+    const wc = view.webContents;
+
+    const tekst = String(term ?? '');
+    if (!tekst) return this.stopZoeken();
+
+    if (!wc.__zoekLuistert) {
+      wc.__zoekLuistert = true;
+      wc.on('found-in-page', (_e, uitslag) => {
+        this.send('zoek:uitslag', {
+          treffers: uitslag.matches,
+          welke: uitslag.activeMatchOrdinal,
+        });
+      });
+    }
+
+    // Een andere zoekterm dan de vorige is per definitie een nieuwe sessie:
+    // anders zou de teller doorlopen op een woord dat er niet meer staat.
+    const opnieuw = opties.volgende !== true || tekst !== this.zoekTerm;
+    if (opnieuw) wc.stopFindInPage('clearSelection');
+
+    this.zoekTerm = tekst;
+    wc.findInPage(tekst, {
+      findNext: true,
+      forward: opties.terug !== true,
+      matchCase: false,
+    });
+  }
+
+  stopZoeken(opties = {}) {
+    this.zoekTerm = '';
+    for (const ws of this.workspaces.values()) {
+      for (const view of ws.tabs.values()) {
+        if (view.webContents.isDestroyed()) continue;
+        view.webContents.stopFindInPage('clearSelection');
+      }
+    }
+    this.send('zoek:uitslag', { treffers: 0, welke: 0, dicht: opties.dicht === true });
+  }
+
   heropenTab() {
     const laatste = this.gesloten.pop();
     if (!laatste) return;
@@ -2350,6 +2424,8 @@ ipcMain.handle('tab:new', (e, url) => controllerFor(e)?.createTab(url ? toURL(ur
 ipcMain.handle('tab:close', (e, id) => controllerFor(e)?.closeTab(id));
 ipcMain.handle('tab:activate', (e, id) => controllerFor(e)?.activateTab(id));
 ipcMain.handle('tab:heropen', (e) => controllerFor(e)?.heropenTab());
+ipcMain.handle('zoek:doe', (e, term, opties) => controllerFor(e)?.zoekOpPagina(term, opties));
+ipcMain.handle('zoek:stop', (e) => controllerFor(e)?.stopZoeken());
 ipcMain.handle('app:aanmelden', (e) => controllerFor(e)?.gaAanmelden());
 ipcMain.handle('agent:zoek', (e) => controllerFor(e)?.zoekAgentOpnieuw());
 

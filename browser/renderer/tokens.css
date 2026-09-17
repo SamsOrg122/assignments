@@ -74,6 +74,10 @@
   --ink-3: rgba(34, 31, 42, 0.35);
   --accent: #b48cf0;
   --gevaar: #e5484d;
+  /* Hetzelfde rood, maar bruikbaar op de zijbalk. Die ligt over een mesh die
+     ook lichtgroen of oranje kan zijn, en een verzadigd middenrood valt daar
+     weg. Deze is opgelicht tot hij op elk van die kleuren nog leest. */
+  --gevaar-op-glas: #ffb3b6;
 
   /* Glas in de zijbalk. Alles wit-op-donker, want de zijbalk ligt over de mesh. */
   --glas: rgba(255, 255, 255, 0.2);

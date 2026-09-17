@@ -125,6 +125,13 @@ browser.onOpen((wat) => {
     openInstellingen();
   } else if (wat === 'zoek') {
     openZoek();
+  } else if (wat === 'downloads') {
+    // De lijst heeft geen eigen scherm: hij staat bovenin de zijbalk. De
+    // sneltoets brengt je er dus heen in plaats van iets te openen.
+    if (dlSectie.hidden) return;
+    dlSectie.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    dlLijst.querySelector('.dl')?.classList.add('gewezen');
+    setTimeout(() => dlLijst.querySelector('.gewezen')?.classList.remove('gewezen'), 1200);
   }
 });
 
@@ -197,6 +204,161 @@ browser.onZoekUitslag(({ treffers, welke, dicht }) => {
   zoektelling.textContent = treffers ? `${welke}/${treffers}` : 'geen';
   zoektelling.dataset.leeg = treffers ? '' : 'ja';
 });
+
+/* ── Downloads ───────────────────────────────────────────────────────────
+ *
+ * De lijst komt kant-en-klaar uit het hoofdproces; hier staat alleen hoe hij
+ * eruitziet. Drie dingen die een keuze zijn en geen toeval:
+ *
+ *   · De kop verdwijnt als er niets is. Een lege sectie die elke dag ruimte
+ *     kost voor iets dat er zelden is, is ruimte die de tabbladen beter
+ *     kunnen gebruiken.
+ *   · "Lijst wissen" haalt regels weg, nooit bestanden. Dat staat ook op de
+ *     knop, want een wisknop naast een bestandsnaam leest anders.
+ *   · Niet elk bestand krijgt een klik die het opent. Wat kan draaien —
+ *     programma's, installers, scripts — krijgt alleen "toon in map". Het
+ *     hoofdproces beslist dat (lib/downloads.js) en zegt het met `kanOpenen`;
+ *     hier wordt het alleen getekend.
+ */
+const dlSectie = document.getElementById('downloads');
+const dlLijst = document.getElementById('dl-lijst');
+const dlElementen = new Map();
+
+const MAP_UIT = 'M2.8 12.6V4.2h3.6l1.2 1.6h5.6v6.8zM8 11V7.4M6.4 8.8 8 7.2l1.6 1.6';
+const PAUZE = 'M6 4v8M10 4v8';
+const HERVAT = 'M5.5 3.8 12 8l-6.5 4.2z';
+
+/** "1,2 MB". Eén cijfer achter de komma is genoeg om te zien dat het loopt. */
+function maat(bytes) {
+  const n = Number(bytes) || 0;
+  if (n < 1024) return `${n} B`;
+  const eenheden = ['kB', 'MB', 'GB', 'TB'];
+  let waarde = n / 1024;
+  let i = 0;
+  while (waarde >= 1024 && i < eenheden.length - 1) { waarde /= 1024; i += 1; }
+  return `${waarde.toFixed(waarde < 10 ? 1 : 0).replace('.', ',')} ${eenheden[i]}`;
+}
+
+/** De regel onder de naam: hoever, en waar het vandaan komt. */
+function dlOnderschrift(d) {
+  const waar = d.host ? ` · ${d.host}` : '';
+  if (d.status === 'bezig' || d.status === 'gepauzeerd') {
+    const hoever = d.totaal > 0 ? `${maat(d.ontvangen)} van ${maat(d.totaal)}` : maat(d.ontvangen);
+    return `${d.status === 'gepauzeerd' ? 'Gepauzeerd · ' : ''}${hoever}${waar}`;
+  }
+  if (d.status === 'klaar') return `${maat(d.ontvangen)}${waar}`;
+  if (d.status === 'gestopt') return `Gestopt${waar}`;
+  return `Mislukt${waar}`;
+}
+
+function maakDownload(d) {
+  const li = document.createElement('li');
+  li.className = 'dl';
+  li.dataset.id = d.id;
+
+  const naam = document.createElement('span');
+  naam.className = 'dl-naam';
+
+  const onder = document.createElement('span');
+  onder.className = 'dl-onder';
+
+  const balk = document.createElement('span');
+  balk.className = 'dl-balk';
+  const vulling = document.createElement('i');
+  balk.append(vulling);
+
+  const tekst = document.createElement('span');
+  tekst.className = 'dl-tekst';
+  tekst.append(naam, onder, balk);
+
+  // Twee knoppen: eentje die met de download zelf te maken heeft (pauzeren of
+  // in de map tonen) en eentje die hem uit de lijst haalt.
+  const doe = document.createElement('button');
+  doe.className = 'ib dl-doe';
+  doe.type = 'button';
+
+  const weg = document.createElement('button');
+  weg.className = 'ib dl-weg';
+  weg.type = 'button';
+  weg.title = 'Uit de lijst halen';
+  weg.setAttribute('aria-label', 'Uit de lijst halen');
+  weg.append(icoon(KRUISJE));
+  weg.onclick = (e) => {
+    e.stopPropagation();
+    browser.wisDownload(d.id);
+  };
+
+  li.append(tekst, doe, weg);
+  return { li, naam, onder, vulling, doe, weg };
+}
+
+function werkDownloadBij(el, d) {
+  el.li.dataset.status = d.status;
+  if (el.naam.textContent !== d.naam) el.naam.textContent = d.naam;
+  el.naam.title = d.naam;
+  el.onder.textContent = dlOnderschrift(d);
+
+  const loopt = d.status === 'bezig' || d.status === 'gepauzeerd';
+  const deel = loopt && d.totaal > 0 ? Math.min(1, d.ontvangen / d.totaal) : 0;
+  el.li.classList.toggle('loopt', loopt);
+  // Een download zonder bekende lengte krijgt geen balk die liegt: dan blijft
+  // hij op nul staan en vertelt het onderschrift het verhaal.
+  el.vulling.style.setProperty('width', `${Math.round(deel * 100)}%`);
+
+  el.doe.replaceChildren();
+  if (loopt) {
+    const uit = d.status === 'gepauzeerd';
+    el.doe.append(icoon(uit ? HERVAT : PAUZE));
+    el.doe.title = uit ? 'Verder' : 'Pauzeren';
+    el.doe.onclick = (e) => { e.stopPropagation(); browser.pauzeerDownload(d.id); };
+  } else if (d.status === 'klaar') {
+    el.doe.append(icoon(MAP_UIT));
+    el.doe.title = 'Toon in map';
+    el.doe.onclick = (e) => { e.stopPropagation(); browser.toonDownload(d.id); };
+  }
+  el.doe.hidden = !loopt && d.status !== 'klaar';
+  el.doe.setAttribute('aria-label', el.doe.title || '');
+
+  // Klikken op de regel opent het bestand, maar alleen als het hoofdproces dat
+  // goed vindt. Anders is de regel gewoon tekst en doet de knop het werk.
+  el.li.classList.toggle('opent', Boolean(d.kanOpenen));
+  el.li.onclick = d.kanOpenen ? () => browser.openDownload(d.id) : null;
+  el.li.title = d.kanOpenen
+    ? 'Openen'
+    : d.status === 'klaar'
+      ? 'Dit soort bestand openen we niet voor je; gebruik "toon in map"'
+      : '';
+}
+
+function tekenDownloads(lijst) {
+  const gezien = new Set();
+  let vorige = null;
+  for (const d of lijst) {
+    gezien.add(d.id);
+    let el = dlElementen.get(d.id);
+    if (!el) {
+      el = maakDownload(d);
+      dlElementen.set(d.id, el);
+    }
+    werkDownloadBij(el, d);
+    // Op volgorde zetten zonder de lijst opnieuw op te bouwen: een rij die
+    // al goed staat wordt niet aangeraakt, en verliest dus geen focus.
+    const hoort = vorige ? vorige.nextSibling : dlLijst.firstChild;
+    if (el.li !== hoort) dlLijst.insertBefore(el.li, hoort);
+    vorige = el.li;
+  }
+  for (const [id, el] of dlElementen) {
+    if (gezien.has(id)) continue;
+    el.li.remove();
+    dlElementen.delete(id);
+  }
+  dlSectie.hidden = lijst.length === 0;
+}
+
+document.getElementById('dl-wis').onclick = () => browser.wisDownloads();
+browser.onDownloads(tekenDownloads);
+// Een zijbalk die net herladen is weet nog niet wat er al liep.
+browser.downloads().then(tekenDownloads).catch(() => {});
 
 browser.onFavicon(({ id, favicon }) => {
   favicons.set(id, favicon);

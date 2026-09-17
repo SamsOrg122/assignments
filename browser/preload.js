@@ -7,6 +7,17 @@ contextBridge.exposeInMainWorld('browser', {
   heropenTab: () => ipcRenderer.invoke('tab:heropen'),
   zoekOpPagina: (term, opties) => ipcRenderer.invoke('zoek:doe', term, opties),
   stopZoeken: () => ipcRenderer.invoke('zoek:stop'),
+  // Downloads. Eén lijst voor het hele programma; `onDownloads` krijgt hem
+  // opnieuw bij elke verandering, `downloads()` is er voor de eerste keer.
+  downloads: () => ipcRenderer.invoke('downloads:lijst'),
+  pauzeerDownload: (id) => ipcRenderer.invoke('downloads:pauzeer', id),
+  stopDownload: (id) => ipcRenderer.invoke('downloads:stop', id),
+  openDownload: (id) => ipcRenderer.invoke('downloads:open', id),
+  toonDownload: (id) => ipcRenderer.invoke('downloads:toon', id),
+  wisDownloads: () => ipcRenderer.invoke('downloads:wis'),
+  wisDownload: (id) => ipcRenderer.invoke('downloads:wis-een', id),
+  onDownloads: (fn) => ipcRenderer.on('downloads:staat', (_e, lijst) => fn(lijst)),
+
   gaAanmelden: () => ipcRenderer.invoke('app:aanmelden'),
   zoekAgent: () => ipcRenderer.invoke('agent:zoek'),
   veeg: (maat) => ipcRenderer.send('gebaar:veeg', maat),

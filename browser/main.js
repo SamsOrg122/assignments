@@ -13,6 +13,7 @@ const { meldSchemaAan, bedienApp, appURL } = require('./lib/app-schema.js');
 const { McpDeur, NOOIT_TYPEN, NOOIT_VELDSOORT, NOOIT_AANVULLING, beschrijf } = require('./lib/mcp.js');
 const { zoekAgent, vraagAanmelding, Opdracht, NIET_AANGEMELD } = require('./lib/agent.js');
 const { Toestemming } = require('./lib/toestemming.js');
+const { downloads } = require('./lib/downloads.js');
 const { hangMenu } = require('./lib/menu.js');
 const sessies = require('./lib/sessies.js');
 const herstel = require('./lib/herstel.js');
@@ -198,6 +199,12 @@ function bindSneltoetsen(wc, ctrl) {
       } else if (toets === 'o') {
         e.preventDefault();
         ctrl.wisselWerkbank();
+      } else if (toets === 'j') {
+        // Ctrl+J is hier al de balk bovenin. Downloads krijgen de toets
+        // ernaast, en verder wijst de lijst zichzelf aan: hij klapt open zodra
+        // er iets binnenkomt.
+        e.preventDefault();
+        ctrl.vraagZijbalk('downloads');
       }
       return;
     }
@@ -335,7 +342,10 @@ class BrowserWindowController {
     // Het id vooraf vastleggen: in 'closed' is de webContents al weg.
     const hostId = this.win.webContents.id;
     windows.set(hostId, this);
-    this.win.on('closed', () => windows.delete(hostId));
+    // Downloads zijn er één lijst voor het hele programma; elk venster kijkt
+    // ernaar mee en meldt zich bij het sluiten weer af.
+    const losDownloads = downloads.opVerandering((lijst) => this.send('downloads:staat', lijst));
+    this.win.on('closed', () => { losDownloads(); windows.delete(hostId); });
 
     bindSneltoetsen(this.win.webContents, this);
     this.win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
@@ -431,7 +441,7 @@ class BrowserWindowController {
 
     // Grendelen vóórdat de workspace bestaat, dus zeker vóórdat er een tabblad
     // in kan laden: een sessie zonder permissiehandler keurt alles goed.
-    grendelSessie(partition);
+    downloads.bewaak(grendelSessie(partition));
 
     this.workspaces.set(id, {
       id,
@@ -2426,6 +2436,17 @@ ipcMain.handle('tab:activate', (e, id) => controllerFor(e)?.activateTab(id));
 ipcMain.handle('tab:heropen', (e) => controllerFor(e)?.heropenTab());
 ipcMain.handle('zoek:doe', (e, term, opties) => controllerFor(e)?.zoekOpPagina(term, opties));
 ipcMain.handle('zoek:stop', (e) => controllerFor(e)?.stopZoeken());
+
+// Downloads. De lijst is van het programma en niet van een venster, dus deze
+// hoeven het venster niet te weten — behalve de eerste, die een nieuw
+// geopende zijbalk bijpraat over wat er al liep.
+ipcMain.handle('downloads:lijst', () => downloads.lijst());
+ipcMain.handle('downloads:pauzeer', (_e, id) => downloads.pauzeer(Number(id)));
+ipcMain.handle('downloads:stop', (_e, id) => downloads.stop(Number(id)));
+ipcMain.handle('downloads:open', (_e, id) => downloads.open(Number(id)));
+ipcMain.handle('downloads:toon', (_e, id) => downloads.toon(Number(id)));
+ipcMain.handle('downloads:wis', () => downloads.wis());
+ipcMain.handle('downloads:wis-een', (_e, id) => downloads.wisEen(Number(id)));
 ipcMain.handle('app:aanmelden', (e) => controllerFor(e)?.gaAanmelden());
 ipcMain.handle('agent:zoek', (e) => controllerFor(e)?.zoekAgentOpnieuw());
 
@@ -2528,7 +2549,11 @@ app.whenReady().then(() => {
 
   // Dan grendelen, en pas daarna een venster. De standaardsessie wordt gebruikt
   // door alles wat geen eigen partitie heeft, waaronder de zijbalk en de balk.
-  grendelSessie(null);
+  downloads.bewaak(grendelSessie(null));
+
+  // Waar bestanden landen. De map van het systeem, zoals elke browser: het
+  // "opslaan als"-venster is wat je doet als je niet weet waar iets heen moet.
+  downloads.map = app.getPath('downloads');
 
   // De standaardmenubalk van Electron (File/Edit/View) hoort niet bij deze UI.
   // Op macOS blijft hij staan, anders verdwijnen ook Cmd+Q en Cmd+H.

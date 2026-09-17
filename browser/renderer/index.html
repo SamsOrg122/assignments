@@ -156,6 +156,19 @@
       <div id="scroll">
         <div id="favs"></div>
 
+        <!-- Wat er binnenkwam. Boven de tabbladen omdat het zichzelf moet
+             aanwijzen op het moment dat het gebeurt, en weg zodra de lijst
+             leeg is: een kop die er altijd staat voor iets dat er zelden is
+             kost elke dag ruimte voor een zeldzaam nut. Ctrl+Shift+J. -->
+        <div id="downloads" hidden>
+          <div class="sec">
+            <span>Downloads</span>
+            <span class="line"></span>
+            <button id="dl-wis" class="sec-tekstknop" type="button">Lijst wissen</button>
+          </div>
+          <ol id="dl-lijst"></ol>
+        </div>
+
         <div class="sec">
           <span>Tabbladen</span>
           <span class="line"></span>

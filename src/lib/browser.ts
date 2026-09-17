@@ -189,7 +189,7 @@ export const BROWSER_CAVEATS: Array<{ title: string; detail: string }> = [
   {
     title: "No password manager, no sync, no extensions",
     detail:
-      "Deliberately, for now. Each one is its own project rather than something added on the way past. Bookmarks work; history and find-in-page are not built yet.",
+      "Deliberately, for now. Each one is its own project rather than something added on the way past. Bookmarks, find-in-page and a downloads list work; history does not exist yet.",
   },
 ];
 

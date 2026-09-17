@@ -366,6 +366,44 @@
             </div>
             <p class="uitleg">Zo heet hij in de zijbalk en in de balk bovenin.</p>
             <p class="uitleg" id="uitleg-agent"></p>
+
+            <!-- De tweede rug. De eerste is de agent die al op deze computer
+                 staat; dit is er voor wie er geen heeft. In beide gevallen
+                 gaat er niets langs onze server. -->
+            <div class="regel">
+              <label for="pref-assistentBron">Denkt met</label>
+              <select id="pref-assistentBron" data-pref="assistentBron">
+                <option value="auto">De agent, anders mijn sleutel</option>
+                <option value="agent">Alleen de agent</option>
+                <option value="api">Alleen mijn API-sleutel</option>
+              </select>
+            </div>
+
+            <div class="regel">
+              <label for="sleutel-veld">API-sleutel</label>
+              <input type="password" id="sleutel-veld" spellcheck="false" autocomplete="off"
+                     placeholder="sk-ant-…" aria-describedby="uitleg-sleutel" />
+            </div>
+            <div class="regel knoprij">
+              <button id="sleutel-bewaar" type="button">Bewaren</button>
+              <button id="sleutel-wis" type="button">Weghalen</button>
+            </div>
+            <p class="uitleg" id="uitleg-sleutel"></p>
+            <p class="uitleg">
+              "De agent" is Claude Code op deze computer, op jouw abonnement. Een
+              sleutel is de tweede weg: die aanroep gaat van hier rechtstreeks naar
+              de API. Geen van beide komt langs onze server.
+            </p>
+
+            <div class="regel">
+              <label for="pref-assistentModel">Model</label>
+              <input type="text" id="pref-assistentModel" data-pref="assistentModel"
+                     spellcheck="false" autocomplete="off" placeholder="claude-sonnet-5" />
+            </div>
+            <p class="uitleg">
+              Alleen voor de API-sleutel. Leeg betekent claude-sonnet-5. De agent op
+              deze computer kiest zijn model zelf.
+            </p>
           </section>
 
           <section id="mcp">

@@ -90,6 +90,12 @@ contextBridge.exposeInMainWorld('browser', {
   close: () => ipcRenderer.invoke('win:close'),
   setZijbalkWeg: (weg) => ipcRenderer.invoke('ui:sidebar', weg),
 
+  // De API-sleutel. Alleen naar binnen; wat terugkomt is of er een staat,
+  // niet welke. Zie lib/sleutel.js.
+  zetSleutel: (waarde) => ipcRenderer.invoke('sleutel:zet', waarde),
+  sleutelStand: () => ipcRenderer.invoke('sleutel:stand'),
+  wisSleutel: () => ipcRenderer.invoke('sleutel:wis'),
+
   voorkeuren: () => ipcRenderer.invoke('pref:get'),
   zetVoorkeur: (sleutel, waarde) => ipcRenderer.invoke('pref:set', sleutel, waarde),
   onVoorkeuren: (fn) => ipcRenderer.on('pref:changed', (_e, v) => fn(v)),

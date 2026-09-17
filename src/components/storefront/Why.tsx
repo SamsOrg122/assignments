@@ -99,7 +99,7 @@ const ROWS: Row[] = [
   {
     ask: "Who pays for the thinking",
     them: "They buy the model calls and resell them to you, so every one of them arrives with a credit meter and a second subscription.",
-    us: "The browser starts the agent already signed in on your machine. We never make the call, so there is nothing to meter and no key of ours in the download.",
+    us: "The browser starts the agent already signed in on your machine. If you would rather use your own API key it goes straight from your machine to the API. Either way we never make the call, so there is nothing to meter and no key of ours in the download.",
     tag: "browser/lib/agent.js",
   },
   {

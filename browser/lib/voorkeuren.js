@@ -36,6 +36,11 @@ const STANDAARD = {
   appStijl: false,
   // Het notitieblok in de bovenbalk. Eén veld, dus geen eigen bestand.
   notitie: '',
+  // Welke rug de assistent gebruikt. 'auto' neemt de agent op deze computer
+  // als die er staat, en anders je eigen API-sleutel. De sleutel zelf staat
+  // hier niet: zie lib/sleutel.js voor waarom niet.
+  assistentBron: 'auto', // auto | agent | api
+  assistentModel: '',
 };
 
 let waarden = { ...STANDAARD };

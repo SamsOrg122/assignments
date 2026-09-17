@@ -2329,7 +2329,8 @@ body.geen-sneltoetsen kbd {
 }
 
 #settings-body select,
-#settings-body input[type="text"] {
+#settings-body input[type="text"],
+#settings-body input[type="password"] {
   flex: none;
   width: 196px;
   height: 32px;
@@ -2344,8 +2345,37 @@ body.geen-sneltoetsen kbd {
 }
 
 #settings-body select:hover,
-#settings-body input[type="text"]:hover {
+#settings-body input[type="text"]:hover,
+#settings-body input[type="password"]:hover {
   background: rgba(34, 31, 42, 0.1);
+}
+
+/* Twee knoppen op de plek waar anders een veld staat: rechts uitgelijnd, zodat
+   ze onder het veld erboven hangen en niet ergens in het midden. */
+.regel.knoprij {
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 0;
+}
+
+.regel.knoprij button {
+  font-size: 12px;
+  color: var(--ink-2);
+  border-radius: 8px;
+  padding: 6px 12px;
+  background-color: rgba(34, 31, 42, 0.06);
+  transition: var(--overgang-vlak);
+}
+
+.regel.knoprij button:hover {
+  color: var(--ink);
+  background-color: rgba(34, 31, 42, 0.12);
+}
+
+/* Eén keuzelijst met langere regels erin: 196 px kapte "anders mijn sleutel"
+   af, en een keuze die je niet kunt lezen is geen keuze. */
+#settings-body #pref-assistentBron {
+  width: 240px;
 }
 
 #settings-body input[type="checkbox"] {

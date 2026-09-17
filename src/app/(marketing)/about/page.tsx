@@ -100,6 +100,14 @@ export default function AboutPage() {
         access, and none of the servers you have connected elsewhere — and is
         allowed exactly the tools this browser gives it.
       </P>
+      <P>
+        If you have no agent installed, you can put your own API key in
+        Settings instead. It is stored through your system keychain and the
+        request goes from your machine straight to the API — it never touches a
+        server of ours, and the browser still ships without a key of its own.
+        That path opens no local port at all, because the loop runs inside the
+        browser rather than as a child process that has to knock.
+      </P>
 
       <H2 id="why">Why one window and not four apps</H2>
       <P>

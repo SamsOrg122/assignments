@@ -18,6 +18,7 @@
     "test:downloads": "electron test/downloads.js",
     "test:geschiedenis": "electron test/geschiedenis.js",
     "test:hersens": "node test/hersens.js",
+    "test:api": "electron test/api.js",
     "dist:win": "node scripts/controleer-app.js && electron-builder --win --publish never",
     "dist:mac": "node scripts/controleer-app.js && electron-builder --mac --publish never",
     "dist:linux": "node scripts/controleer-app.js && electron-builder --linux --publish never"

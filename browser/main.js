@@ -10,11 +10,13 @@ const { brugVoor } = require('./lib/gids/brug.js');
 const voorkeuren = require('./lib/voorkeuren.js');
 const { volgDeBrowser } = require('./lib/app-stijl.js');
 const { meldSchemaAan, bedienApp, appURL } = require('./lib/app-schema.js');
-const { McpDeur, NOOIT_TYPEN, NOOIT_VELDSOORT, NOOIT_AANVULLING, beschrijf } = require('./lib/mcp.js');
-const { zoekAgent, vraagAanmelding, Opdracht, GIDS_HOUDING, GIDS_GEREEDSCHAP, NIET_AANGEMELD } = require('./lib/agent.js');
+const { McpDeur, GEREEDSCHAP, NOOIT_TYPEN, NOOIT_VELDSOORT, NOOIT_AANVULLING, beschrijf } = require('./lib/mcp.js');
+const { zoekAgent, vraagAanmelding, Opdracht, HOUDING, GIDS_HOUDING, GIDS_GEREEDSCHAP, NIET_AANGEMELD } = require('./lib/agent.js');
 const { Toestemming } = require('./lib/toestemming.js');
 const { downloads } = require('./lib/downloads.js');
 const { geschiedenis } = require('./lib/geschiedenis.js');
+const { ApiOpdracht, STANDAARD_MODEL } = require('./lib/api.js');
+const sleutel = require('./lib/sleutel.js');
 const { hangMenu } = require('./lib/menu.js');
 const sessies = require('./lib/sessies.js');
 const herstel = require('./lib/herstel.js');
@@ -869,6 +871,10 @@ class BrowserWindowController {
         naam: ASSISTENT(),
         agent: this.agentGevonden?.naam ?? null,
         aangemeld: this.agentAangemeld,
+        // Alleen of er een sleutel staat en welke vier tekens erop eindigen.
+        // De sleutel zelf verlaat het hoofdproces niet; zie lib/sleutel.js.
+        sleutel: sleutel.heeft(),
+        rug: this.kiesRug().soort,
       },
     });
   }
@@ -2160,6 +2166,85 @@ class BrowserWindowController {
 
   // --- assistent -------------------------------------------------------
 
+  /* ── Welke rug ──────────────────────────────────────────────────────
+   *
+   * Twee wegen naar hetzelfde: de agent die al op deze computer staat, of de
+   * API-sleutel van de gebruiker zelf. De eerste is de betere en staat daarom
+   * voorop — die kost niets extra en er komt geen sleutel aan te pas. De
+   * tweede is er voor wie geen agent heeft, en verandert niets aan de
+   * belofte: de sleutel is van jou, de aanroep gaat van deze computer
+   * rechtstreeks naar de API, en er zit nog steeds geen sleutel van ons in de
+   * download.
+   *
+   * 'auto' kiest; 'agent' en 'api' zijn een keuze van de gebruiker en worden
+   * niet stilletjes overruled. Iets anders doen dan er staat is erger dan
+   * niets doen met een reden erbij.
+   */
+  kiesRug() {
+    const voorkeur = voorkeuren.alles().assistentBron ?? 'auto';
+    const agent = voorkeur === 'api' ? null : zoekAgent();
+    const eigenSleutel = voorkeur === 'agent' ? null : sleutel.lees();
+
+    if (agent && this.agentAangemeld !== false) return { soort: 'agent', agent };
+    if (eigenSleutel) {
+      return {
+        soort: 'api',
+        sleutel: eigenSleutel,
+        model: voorkeuren.alles().assistentModel || STANDAARD_MODEL,
+      };
+    }
+    // Niets bruikbaars. De reden hangt af van waar het op strandde, want
+    // "geen agent" en "agent niet aangemeld" vragen om iets anders van je.
+    if (agent && this.agentAangemeld === false) {
+      return { soort: 'geen', reden: 'Claude Code is nog niet aangemeld. Voer eenmalig "claude auth login" uit, of zet een API-sleutel in Instellingen.' };
+    }
+    if (voorkeur === 'agent') {
+      return { soort: 'geen', reden: 'Geen agent op deze computer, en de assistent staat op "alleen de agent". Zie Instellingen.' };
+    }
+    if (voorkeur === 'api') {
+      return { soort: 'geen', reden: 'Er staat geen API-sleutel. Zet er een in Instellingen, bij Assistent.' };
+    }
+    return { soort: 'geen', reden: 'Geen agent op deze computer en geen API-sleutel. Zie Instellingen, bij Assistent.' };
+  }
+
+  /**
+   * Eén ronde starten op de gekozen rug.
+   *
+   * De agent is een kindproces en moet ergens aankloppen, dus daar gaat de
+   * MCP-deur voor open. De API-lus draait hiernaast in dit proces en roept de
+   * deur gewoon aan — zonder poort. Dezelfde toestemmingsvragen, dezelfde
+   * grendel, één stuk aanvalsoppervlak minder.
+   */
+  async startRonde(rug, { opdracht, gereedschap, houding, beperk = false }) {
+    if (rug.soort === 'agent') {
+      this.deurWasOpen = this.mcp.aan;
+      if (!this.deurWasOpen) await this.zetMcp(true);
+      if (beperk && !this.deurWasOpen) this.mcp.beperkTot(gereedschap);
+      return new Opdracht({
+        agent: rug.agent,
+        // Electron draait zichzelf als node; zo hoeft er geen losse node te staan.
+        elektron: process.execPath,
+        brug: BRUG,
+        gereedschap,
+        houding,
+        werkmap: this.agentWerkmap(),
+        opMelding: (melding) => this.agentMelding(melding),
+      }).start(opdracht);
+    }
+
+    // Geen deur nodig, dus ook geen deur die daarna dicht moet.
+    this.deurWasOpen = this.mcp.aan;
+    if (beperk) this.mcp.beperkTot(gereedschap);
+    return new ApiOpdracht({
+      sleutel: rug.sleutel,
+      model: rug.model,
+      deur: this.mcp,
+      stukken: GEREEDSCHAP.filter((g) => gereedschap.includes(g.naam)),
+      houding,
+      opMelding: (melding) => this.agentMelding(melding),
+    }).start(opdracht);
+  }
+
   /**
    * Een opdracht, uitgevoerd door de agent die op deze computer staat.
    *
@@ -2172,49 +2257,25 @@ class BrowserWindowController {
     if (!tekst) return;
     this.stopAgent(false);
 
-    if (this.agentAangemeld === false) {
-      // Niet eens starten: het antwoord staat vast en een mislukte poging
-      // zegt minder dan deze zin.
-      this.sendIsland({ modus: 'actie', vraag: false, regel: 'Claude Code is nog niet aangemeld. Voer eenmalig "claude auth login" uit.', bezig: false });
-      this.vraagAanmelding();
+    const rug = this.kiesRug();
+    if (rug.soort === 'geen') {
+      this.sendIsland({ modus: 'actie', vraag: false, regel: rug.reden, bezig: false });
+      if (rug.reden.includes('auth login')) this.vraagAanmelding();
       return;
     }
-
-    const gevonden = zoekAgent();
-    if (!gevonden) {
-      this.sendIsland({
-        modus: 'actie',
-        vraag: false,
-        regel: 'Geen agent op deze computer. Zie Instellingen, bij Assistent.',
-        bezig: false,
-      });
-      return;
-    }
-
-    // De deur open voor déze opdracht, en daarna weer dicht. Dat is strakker
-    // dan een deur die openstaat omdat je hem ooit hebt opengezet.
-    this.deurWasOpen = this.mcp.aan;
-    if (!this.deurWasOpen) await this.zetMcp(true);
 
     // De workspace waar hij werkt, meteen zichtbaar in de strip. Je hoort te
     // kunnen zien waar het gebeurt terwijl het gebeurt.
     const ws = this.mcpWerkruimte();
-    this.agent = { naam: gevonden.naam, wsId: ws.id, opdracht: tekst, loop: null };
-    this.sendIsland({
-      modus: 'debuggen',
-      regel: `${gevonden.naam} leest je opdracht`,
-      bezig: true,
-    });
+    const naam = rug.soort === 'agent' ? rug.agent.naam : 'De assistent';
+    this.agent = { naam, wsId: ws.id, opdracht: tekst, loop: null, rug: rug.soort };
+    this.sendIsland({ modus: 'debuggen', regel: `${naam} leest je opdracht`, bezig: true });
 
-    this.agent.loop = new Opdracht({
-      agent: gevonden,
-      // Electron draait zichzelf als node; zo hoeft er geen losse node te staan.
-      elektron: process.execPath,
-      brug: BRUG,
+    this.agent.loop = await this.startRonde(rug, {
+      opdracht: tekst,
       gereedschap: this.mcp.stand().gereedschap,
-      werkmap: this.agentWerkmap(),
-      opMelding: (melding) => this.agentMelding(melding),
-    }).start(tekst);
+      houding: HOUDING,
+    });
 
     this.pushState();
   }
@@ -2259,23 +2320,12 @@ class BrowserWindowController {
 
     this.stopAgent(false);
 
-    if (this.agentAangemeld === false) {
-      this.sendIsland({ modus: 'actie', vraag: false, regel: 'Claude Code is nog niet aangemeld. Voer eenmalig "claude auth login" uit.', bezig: false });
-      this.vraagAanmelding();
+    const rug = this.kiesRug();
+    if (rug.soort === 'geen') {
+      this.sendIsland({ modus: 'actie', vraag: false, regel: rug.reden, bezig: false });
+      if (rug.reden.includes('auth login')) this.vraagAanmelding();
       return;
     }
-    const wie = zoekAgent();
-    if (!wie) {
-      this.sendIsland({ modus: 'actie', vraag: false, regel: 'Geen agent op deze computer. Zie Instellingen, bij Assistent.', bezig: false });
-      return;
-    }
-
-    this.deurWasOpen = this.mcp.aan;
-    if (!this.deurWasOpen) await this.zetMcp(true);
-    // De grendel, niet de instructie. Alleen als wij de deur zelf opendeden:
-    // een eigen client van de gebruiker die al aan stond hoort niet stil te
-    // vallen omdat wij iets aanwijzen. Zie beperkTot() in lib/mcp.js.
-    if (!this.deurWasOpen) this.mcp.beperkTot(GIDS_GEREEDSCHAP);
 
     const opdracht = [
       `De gebruiker kijkt naar pagina ${id}: ${gevonden.titel || gevonden.host} (${url}).`,
@@ -2283,18 +2333,17 @@ class BrowserWindowController {
       `Bekijk die pagina en wijs het antwoord aan. Gebruik pagina ${id}, geen andere.`,
     ].join(' ');
 
-    this.agent = { naam: wie.naam, wsId: this.activeWorkspaceId, opdracht: tekst, loop: null, gids: id };
-    this.sendIsland({ modus: 'debuggen', regel: `${wie.naam} kijkt naar deze pagina`, bezig: true });
+    const naam = rug.soort === 'agent' ? rug.agent.naam : 'De gids';
+    this.agent = { naam, wsId: this.activeWorkspaceId, opdracht: tekst, loop: null, gids: id, rug: rug.soort };
+    this.sendIsland({ modus: 'debuggen', regel: `${naam} kijkt naar deze pagina`, bezig: true });
 
-    this.agent.loop = new Opdracht({
-      agent: wie,
-      elektron: process.execPath,
-      brug: BRUG,
+    this.agent.loop = await this.startRonde(rug, {
+      opdracht,
       gereedschap: GIDS_GEREEDSCHAP,
       houding: GIDS_HOUDING,
-      werkmap: this.agentWerkmap(),
-      opMelding: (melding) => this.agentMelding(melding),
-    }).start(opdracht);
+      // De grendel, niet de instructie. Zie beperkTot() in lib/mcp.js.
+      beperk: true,
+    });
 
     this.pushState();
   }
@@ -2617,6 +2666,20 @@ ipcMain.handle('gesch:zoek', (_e, opties) => geschiedenis.zoek(opties?.term ?? '
 ipcMain.handle('gesch:verwijder', (_e, id) => geschiedenis.verwijder(id));
 ipcMain.handle('gesch:verwijder-host', (_e, host) => geschiedenis.verwijderHost(String(host)));
 ipcMain.handle('gesch:wis', () => geschiedenis.wis());
+
+// De API-sleutel van de gebruiker. Alleen naar binnen: naar buiten gaat
+// `heeft()`, en dat is een ja of een nee met vier tekens eraan.
+ipcMain.handle('sleutel:zet', (e, waarde) => {
+  const uit = sleutel.zet(waarde);
+  controllerFor(e)?.pushState();
+  return { ...uit, ...sleutel.heeft() };
+});
+ipcMain.handle('sleutel:stand', () => sleutel.heeft());
+ipcMain.handle('sleutel:wis', (e) => {
+  sleutel.wis();
+  controllerFor(e)?.pushState();
+  return sleutel.heeft();
+});
 ipcMain.handle('app:aanmelden', (e) => controllerFor(e)?.gaAanmelden());
 ipcMain.handle('agent:zoek', (e) => controllerFor(e)?.zoekAgentOpnieuw());
 

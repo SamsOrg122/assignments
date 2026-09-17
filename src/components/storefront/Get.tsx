@@ -89,7 +89,8 @@ export function Close() {
               <h2 className="h2">Take the browser.</h2>
               <p className="lede">
                 Free, and it stays free. The assistant runs on the agent already signed in on
-                your machine, so there is no key to paste and no account of ours in the way.
+                your machine, so there is nothing of ours to pay for and no account of ours in
+                the way.
               </p>
             </div>
 

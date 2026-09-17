@@ -1749,13 +1749,56 @@ function tekenAgent() {
   if (!el) return;
   const a = laatsteStaat.assistent;
   if (!a?.agent) {
-    el.textContent = 'Er staat nog geen agent op deze computer. Installeer Claude Code, dan werkt het meteen; er valt verder niets in te stellen.';
+    el.textContent = 'Er staat nog geen agent op deze computer. Installeer Claude Code, dan werkt het meteen; er valt verder niets in te stellen. Of zet hieronder je eigen API-sleutel.';
   } else if (a.aangemeld === false) {
     el.textContent = `${a.agent} staat er, maar is nog niet aangemeld. Voer eenmalig "claude auth login" uit in een terminal; daarna werkt het.`;
   } else {
     el.textContent = `${a.naam} denkt met ${a.agent}, op jouw abonnement en op deze computer. Er gaat niets langs onze server.`;
   }
+  tekenSleutel();
 }
+
+/*
+ * De sleutel, voor zover er iets over te zeggen valt.
+ *
+ * Het veld toont hem nooit terug. Wat er staat als er een sleutel bewaard is,
+ * is de staart van vier tekens: genoeg om te zien wélke sleutel het is, te
+ * weinig om er iets mee te kunnen. Zie lib/sleutel.js voor de rest.
+ */
+function tekenSleutel() {
+  const el = document.getElementById('uitleg-sleutel');
+  const veld = document.getElementById('sleutel-veld');
+  if (!el || !veld) return;
+  const stand = laatsteStaat.assistent?.sleutel;
+  const rug = laatsteStaat.assistent?.rug;
+
+  if (!stand?.aanwezig) {
+    veld.placeholder = 'sk-ant-…';
+    el.textContent = 'Er staat geen sleutel. Met een sleutel gaat de aanroep van deze computer rechtstreeks naar de API — niet langs onze server, en er zit geen sleutel van ons in de download.';
+    return;
+  }
+  veld.placeholder = `Bewaard, eindigt op ${stand.staart}`;
+  const waar = stand.versleuteld
+    ? 'versleuteld met de sleutelbos van je systeem'
+    : 'in platte tekst, want dit systeem heeft geen sleutelbos die Electron kan gebruiken';
+  const nu = rug === 'api' ? ' Hij wordt nu gebruikt.' : ' De agent op deze computer gaat voor.';
+  el.textContent = `Bewaard, ${waar}.${nu}`;
+}
+
+document.getElementById('sleutel-bewaar').onclick = async () => {
+  const veld = document.getElementById('sleutel-veld');
+  const waarde = veld.value.trim();
+  if (!waarde) return;
+  await browser.zetSleutel(waarde);
+  // Meteen leeg: een sleutel die in een veld blijft staan is een sleutel die
+  // iemand over je schouder kan lezen.
+  veld.value = '';
+};
+
+document.getElementById('sleutel-wis').onclick = async () => {
+  document.getElementById('sleutel-veld').value = '';
+  await browser.wisSleutel();
+};
 
 function tekenAccount() {
   const a = laatsteStaat.account;
@@ -1784,6 +1827,13 @@ for (const veld of velden) {
   // Anders vangt de overlay Escape af terwijl je in een veld typt.
   veld.addEventListener('keydown', (e) => e.stopPropagation());
 }
+
+// Het sleutelveld staat niet in `velden`: wat je daar typt gaat niet naar de
+// voorkeuren maar naar een eigen bestand, en pas als je op Bewaren drukt.
+document.getElementById('sleutel-veld').addEventListener('keydown', (e) => {
+  e.stopPropagation();
+  if (e.key === 'Enter') document.getElementById('sleutel-bewaar').click();
+});
 
 function openInstellingen() {
   // Opnieuw kijken of er een agent staat: dit scherm open je juist nadat je

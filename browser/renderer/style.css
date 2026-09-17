@@ -2153,6 +2153,62 @@ body.geen-sneltoetsen kbd {
   background: rgba(34, 31, 42, 0.07);
 }
 
+/* De geschiedenisstand. Twee regels per resultaat, dus de rij groeit mee: de
+   titel is het antwoord en het adres de bevestiging. */
+#palette[data-modus="geschiedenis"] .result {
+  height: 52px;
+}
+
+#palette[data-modus="geschiedenis"] .result .label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.25;
+}
+
+.result .label .onder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+/* Vergeten is een kleine knop en geen rode balk: het is iets wat je in het
+   voorbijgaan doet, niet een beslissing die een waarschuwing verdient. */
+.result-weg {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+  opacity: 0;
+  transition: var(--overgang-vlak);
+}
+
+.result-weg svg {
+  width: 14px;
+  height: 14px;
+}
+
+.result:hover .result-weg,
+.result[aria-selected="true"] .result-weg,
+.result-weg:focus-visible {
+  opacity: 1;
+}
+
+.result-weg:hover {
+  color: var(--gevaar);
+  background-color: rgba(229, 72, 77, 0.12);
+}
+
+/* De laatste regel: geen bezoek maar een handeling, dus hij staat los. */
+.result.wis {
+  color: var(--ink-2);
+}
+
 /* Instellingen --------------------------------------------------------- */
 
 #settings {

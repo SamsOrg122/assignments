@@ -162,8 +162,9 @@ export default function AboutPage() {
             <strong className="font-medium text-fg">No extensions, no
             sync, no password manager.</strong>{" "}
             Deliberately, for now. Each one is its own project rather than
-            something added on the way past. Bookmarks, find-in-page and a
-            downloads list work; history does not exist yet.
+            something added on the way past. Bookmarks, find-in-page, downloads
+            and history all work — and history skips private workspaces and the
+            assistant&rsquo;s own tabs by design, not by setting.
           </>,
           <>
             <strong className="font-medium text-fg">No DRM video.</strong>{" "}

@@ -121,6 +121,11 @@ document.addEventListener('keydown', (e) => {
 browser.onOpen((wat) => {
   if (wat === 'adres' || wat === 'palet') {
     paletteIsOpen() ? sluitPalette() : openPalette(wat === 'adres' ? huidigeUrl() : '');
+  } else if (wat === 'geschiedenis') {
+    // Geen eigen scherm: dezelfde balk, met de geschiedenis erin. Deze browser
+    // heeft één plek waar je typt en die kan meer dan een adres.
+    if (paletteIsOpen() && paletteModus === 'geschiedenis') sluitPalette();
+    else openPalette('', 'geschiedenis');
   } else if (wat === 'instellingen') {
     openInstellingen();
   } else if (wat === 'zoek') {
@@ -1422,12 +1427,28 @@ let keuze = 0;
 
 const paletteIsOpen = () => !palette.hidden;
 
-function openPalette(begin = '') {
+/*
+ * De balk heeft twee standen. In 'alles' doet hij wat hij altijd deed en zijn
+ * bezochte pagina's er één soort suggestie bij; in 'geschiedenis' gaat hij
+ * alleen dáárover, en krijgt elke regel een knop om hem te vergeten. Eén
+ * component, twee vullingen — een tweede scherm met een eigen zoekveld en een
+ * eigen lijst zou hetzelfde zijn met meer onderdelen.
+ */
+let paletteModus = 'alles';
+
+function openPalette(begin = '', modus = 'alles') {
   if (!settings.hidden) sluitInstellingen();
+  paletteModus = modus;
   palette.hidden = false;
+  palette.dataset.modus = modus;
   paletteInput.value = begin;
+  paletteInput.placeholder = modus === 'geschiedenis'
+    ? 'Zoek in je geschiedenis'
+    : 'Ga naar, zoek, of spring naar een tabblad';
   keuze = 0;
+  wisGeschiedenisWapen();
   tekenResultaten();
+  verversGeschiedenis(begin.trim());
   paletteInput.focus();
   paletteInput.select();
   zetOverlay(true);
@@ -1444,8 +1465,62 @@ palette.addEventListener('mousedown', (e) => {
 
 paletteInput.addEventListener('input', () => {
   keuze = 0;
+  wisGeschiedenisWapen();
   tekenResultaten();
+  verversGeschiedenis(paletteInput.value.trim());
 });
+
+/* ── Wat je al eens bezocht ──────────────────────────────────────────────
+ *
+ * Zoeken gebeurt in het hoofdproces: daar staat de lijst, en die is groter dan
+ * wat de zijbalk wil vasthouden. Hier ligt alleen het laatste antwoord. De
+ * vertraging is er omdat elke aanslag anders een bericht wordt, en het rondje
+ * is korter dan de tijd tussen twee letters.
+ */
+let geschTreffers = [];
+let geschKlok = null;
+let geschVraag = null;
+
+function verversGeschiedenis(term) {
+  clearTimeout(geschKlok);
+  geschKlok = setTimeout(async () => {
+    const vraag = Symbol('vraag');
+    geschVraag = vraag;
+    const limiet = paletteModus === 'geschiedenis' ? 120 : 6;
+    try {
+      const uitslag = await browser.geschiedenis({ term, limiet });
+      // Een antwoord op een vraag die inmiddels achterhaald is hoort niet meer
+      // getekend te worden; anders knippert de lijst terug bij snel typen.
+      if (geschVraag !== vraag) return;
+      geschTreffers = uitslag;
+      tekenResultaten();
+    } catch {
+      geschTreffers = [];
+    }
+  }, 110);
+}
+
+/** "Vandaag", "Gisteren", of de datum. Genoeg om je te oriënteren. */
+function dagVan(tijd) {
+  const toen = new Date(tijd);
+  const nu = new Date();
+  const dag = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const verschil = Math.round((dag(nu) - dag(toen)) / 86400000);
+  if (verschil <= 0) return toen.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  if (verschil === 1) return 'Gisteren';
+  if (verschil < 7) return toen.toLocaleDateString('nl-NL', { weekday: 'long' });
+  return toen.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+}
+
+// De wisknop onderaan de geschiedenis werkt in twee stappen, net als het
+// sluiten van een workspace: één klik bewapent, de tweede doet het.
+let geschGewapend = false;
+let geschOntwapenen = null;
+
+function wisGeschiedenisWapen() {
+  geschGewapend = false;
+  clearTimeout(geschOntwapenen);
+}
 
 paletteInput.addEventListener('keydown', (e) => {
   const items = huidigeResultaten();
@@ -1468,6 +1543,26 @@ function huidigeResultaten() {
   const naam = vraag.toLowerCase();
   const past = (tekst) => !naam || tekst.toLowerCase().includes(naam);
 
+  const bezocht = geschTreffers.map((r) => ({
+    soort: 'gesch',
+    id: r.id,
+    url: r.url,
+    label: r.titel || r.url,
+    onder: r.url,
+    hint: dagVan(r.tijd),
+  }));
+
+  if (paletteModus === 'geschiedenis') {
+    if (!bezocht.length) {
+      return [{ soort: 'leeg', label: vraag ? 'Niets gevonden' : 'Nog niets bezocht', hint: '' }];
+    }
+    return [...bezocht, {
+      soort: 'gesch-wis',
+      label: geschGewapend ? 'Nog een keer: alles weg' : 'Geschiedenis wissen',
+      hint: geschGewapend ? 'Zeker weten' : 'Alles',
+    }];
+  }
+
   const tabbladen = laatsteStaat.tabs
     .filter((tab) => past(tab.title + ' ' + tab.url))
     .map((tab) => ({ soort: 'tab', id: tab.id, label: tab.title, hint: 'Tabblad' }));
@@ -1482,11 +1577,17 @@ function huidigeResultaten() {
     acties.push({ soort: 'favoriet', label: `${host(huidigeUrl())} bij favorieten`, hint: 'Toevoegen' });
   }
 
+  // Een pagina die al openstaat is een beter antwoord dan dezelfde pagina uit
+  // de geschiedenis, dus die komt er onder en niet boven.
+  const nogOpen = new Set(laatsteStaat.tabs.map((tab) => tab.url));
+  const uitGeschiedenis = bezocht.filter((b) => !nogOpen.has(b.url));
+
   if (!vraag) return [...tabbladen, ...werkruimtes, ...acties];
 
   return [
     { soort: 'ga', vraag, label: vraag, hint: isAdres(vraag) ? 'Ga naar' : 'Zoeken' },
     ...tabbladen,
+    ...uitGeschiedenis,
     ...werkruimtes,
     ...acties,
   ];
@@ -1499,7 +1600,7 @@ function tekenResultaten() {
   paletteResults.replaceChildren(
     ...items.map((item, i) => {
       const li = document.createElement('li');
-      li.className = 'result';
+      li.className = `result${item.soort === 'gesch-wis' ? ' wis' : ''}`;
       li.setAttribute('aria-selected', String(i === keuze));
 
       const fi = document.createElement('span');
@@ -1516,12 +1617,37 @@ function tekenResultaten() {
       const label = document.createElement('span');
       label.className = 'label';
       label.textContent = item.label;
+      // In de geschiedenis is de titel het antwoord en het adres de
+      // bevestiging: twee pagina's met dezelfde titel zijn anders niet uit
+      // elkaar te houden.
+      if (item.onder && paletteModus === 'geschiedenis') {
+        const onder = document.createElement('span');
+        onder.className = 'onder';
+        onder.textContent = item.onder;
+        label.append(onder);
+      }
 
       const hint = document.createElement('span');
       hint.className = 'hint';
       hint.textContent = item.hint;
 
       li.append(fi, label, hint);
+
+      if (item.soort === 'gesch' && paletteModus === 'geschiedenis') {
+        const weg = document.createElement('button');
+        weg.className = 'result-weg';
+        weg.type = 'button';
+        weg.title = 'Deze pagina vergeten';
+        weg.setAttribute('aria-label', 'Deze pagina vergeten');
+        weg.append(icoon(KRUISJE));
+        weg.onclick = async (e) => {
+          e.stopPropagation();
+          await browser.vergeetPagina(item.id);
+          geschTreffers = geschTreffers.filter((r) => r.id !== item.id);
+          tekenResultaten();
+        };
+        li.append(weg);
+      }
       li.onmousemove = () => {
         if (keuze === i) return;
         keuze = i;
@@ -1533,10 +1659,30 @@ function tekenResultaten() {
   );
 }
 
-function kiesResultaat(item) {
+async function kiesResultaat(item) {
   if (!item) return;
+  if (item.soort === 'leeg') return;
+
+  // Wissen sluit de balk niet: je wilt zien dat de lijst leeg is geworden.
+  if (item.soort === 'gesch-wis') {
+    if (!geschGewapend) {
+      geschGewapend = true;
+      clearTimeout(geschOntwapenen);
+      geschOntwapenen = setTimeout(() => { geschGewapend = false; tekenResultaten(); }, 4000);
+      tekenResultaten();
+      return;
+    }
+    wisGeschiedenisWapen();
+    await browser.wisGeschiedenis();
+    geschTreffers = [];
+    keuze = 0;
+    tekenResultaten();
+    return;
+  }
+
   sluitPalette();
-  if (item.soort === 'tab') browser.activateTab(item.id);
+  if (item.soort === 'gesch') browser.go(item.url);
+  else if (item.soort === 'tab') browser.activateTab(item.id);
   else if (item.soort === 'ws') browser.activateWorkspace(item.id);
   else if (item.soort === 'instellingen') openInstellingen();
   else if (item.soort === 'favoriet') {

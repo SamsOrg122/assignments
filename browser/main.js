@@ -14,6 +14,7 @@ const { McpDeur, NOOIT_TYPEN, NOOIT_VELDSOORT, NOOIT_AANVULLING, beschrijf } = r
 const { zoekAgent, vraagAanmelding, Opdracht, NIET_AANGEMELD } = require('./lib/agent.js');
 const { Toestemming } = require('./lib/toestemming.js');
 const { downloads } = require('./lib/downloads.js');
+const { geschiedenis } = require('./lib/geschiedenis.js');
 const { hangMenu } = require('./lib/menu.js');
 const sessies = require('./lib/sessies.js');
 const herstel = require('./lib/herstel.js');
@@ -221,6 +222,10 @@ function bindSneltoetsen(wc, ctrl) {
       // zet zijn tabbladen, zijn adres en zijn workspaces al in de zijbalk.
       f: () => ctrl.vraagZijbalk('zoek'),
       j: () => ctrl.focusIsland(),
+      // Ctrl+H opent de commandobalk met de geschiedenis erin. Geen eigen
+      // scherm: deze browser heeft één plek waar je typt, en die kan meer dan
+      // een adres.
+      h: () => ctrl.vraagZijbalk('geschiedenis'),
       r: () => ctrl.reload(),
       '=': () => ctrl.zoom(0.5),
       '+': () => ctrl.zoom(0.5),
@@ -936,6 +941,21 @@ class BrowserWindowController {
 
     wc.on('page-favicon-updated', (_e, favicons) => {
       this.send('tabs:favicon', { id, favicon: favicons[0] ?? null });
+    });
+
+    // Geschiedenis. De twee vlaggen gaan mee bij elke aanroep en zijn geen
+    // filter dat je kunt vergeten: een privéworkspace en een tabblad van een
+    // assistent komen er niet in. Zie lib/geschiedenis.js.
+    const vanMij = { prive: Boolean(ws.prive), vanAssistent: Boolean(owner) };
+    wc.on('did-navigate', (_e, doel) => geschiedenis.bezoek(doel, wc.getTitle(), vanMij));
+    wc.on('did-navigate-in-page', (_e, doel, hoofdframe) => {
+      if (hoofdframe) geschiedenis.bezoek(doel, wc.getTitle(), vanMij);
+    });
+    // De titel komt bijna altijd later dan de navigatie; zonder dit staat de
+    // halve lijst vol kale adressen.
+    wc.on('page-title-updated', (_e, titel) => {
+      if (vanMij.prive || vanMij.vanAssistent) return;
+      geschiedenis.hernoem(wc.getURL(), titel);
     });
 
     bindSneltoetsen(wc, this);
@@ -2447,6 +2467,12 @@ ipcMain.handle('downloads:open', (_e, id) => downloads.open(Number(id)));
 ipcMain.handle('downloads:toon', (_e, id) => downloads.toon(Number(id)));
 ipcMain.handle('downloads:wis', () => downloads.wis());
 ipcMain.handle('downloads:wis-een', (_e, id) => downloads.wisEen(Number(id)));
+
+// Geschiedenis. Ook deze lijst is van het programma en niet van een venster.
+ipcMain.handle('gesch:zoek', (_e, opties) => geschiedenis.zoek(opties?.term ?? '', Number(opties?.limiet) || 60));
+ipcMain.handle('gesch:verwijder', (_e, id) => geschiedenis.verwijder(id));
+ipcMain.handle('gesch:verwijder-host', (_e, host) => geschiedenis.verwijderHost(String(host)));
+ipcMain.handle('gesch:wis', () => geschiedenis.wis());
 ipcMain.handle('app:aanmelden', (e) => controllerFor(e)?.gaAanmelden());
 ipcMain.handle('agent:zoek', (e) => controllerFor(e)?.zoekAgentOpnieuw());
 
@@ -2555,6 +2581,8 @@ app.whenReady().then(() => {
   // "opslaan als"-venster is wat je doet als je niet weet waar iets heen moet.
   downloads.map = app.getPath('downloads');
 
+  geschiedenis.laad();
+
   // De standaardmenubalk van Electron (File/Edit/View) hoort niet bij deze UI.
   // Op macOS blijft hij staan, anders verdwijnen ook Cmd+Q en Cmd+H.
   if (!isMac) Menu.setApplicationMenu(null);
@@ -2570,6 +2598,7 @@ app.on('before-quit', () => {
   for (const ctrl of new Set(windows.values())) ctrl.agent?.loop?.stop();
   voorkeuren.flush();
   herstel.flush();
+  geschiedenis.flush();
 });
 
 app.on('window-all-closed', () => {

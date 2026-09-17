@@ -18,6 +18,13 @@ contextBridge.exposeInMainWorld('browser', {
   wisDownload: (id) => ipcRenderer.invoke('downloads:wis-een', id),
   onDownloads: (fn) => ipcRenderer.on('downloads:staat', (_e, lijst) => fn(lijst)),
 
+  // Geschiedenis. Zoeken gebeurt in het hoofdproces, want daar staat de lijst
+  // en die is groter dan wat de zijbalk wil vasthouden.
+  geschiedenis: (opties) => ipcRenderer.invoke('gesch:zoek', opties ?? {}),
+  vergeetPagina: (id) => ipcRenderer.invoke('gesch:verwijder', id),
+  vergeetSite: (host) => ipcRenderer.invoke('gesch:verwijder-host', host),
+  wisGeschiedenis: () => ipcRenderer.invoke('gesch:wis'),
+
   gaAanmelden: () => ipcRenderer.invoke('app:aanmelden'),
   zoekAgent: () => ipcRenderer.invoke('agent:zoek'),
   veeg: (maat) => ipcRenderer.send('gebaar:veeg', maat),

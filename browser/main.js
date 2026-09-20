@@ -142,6 +142,31 @@ const BEWEGINGEN = ['stil', 'rustig', 'levendig'];
 const isMac = process.platform === 'darwin';
 
 // Alle open vensters, op het id van de webContents die de UI tekent. De
+/*
+ * Workspacenummers lopen over het hele programma, niet per venster.
+ *
+ * Dat is geen netheid maar een voorwaarde voor een tweede venster: de
+ * partitie van een workspace heet `persist:ws-<nummer>`, en dat is de map met
+ * de koekjes en de logins. Liepen de nummers per venster, dan zouden twee
+ * verschillende workspaces in twee vensters allebei `persist:ws-1` zijn — en
+ * dan is "een workspace is een eigen sessie" geen waarheid meer.
+ *
+ * Bij het starten wordt de teller opgehoogd tot boven wat er in het
+ * herstelbestand staat, zodat een nieuwe workspace nooit de map van een
+ * herstelde overneemt.
+ */
+let volgendeWorkspaceNummer = 1;
+
+// Hoeveel vensters er deze draai al zijn gemaakt. Alleen om het volgende
+// venster een stukje op te schuiven: twee vensters precies op elkaar zien er
+// uit als één venster, en dan lijkt Ctrl+N stuk.
+let vensterTeller = 0;
+const TRAPJE = 28;
+const neemWorkspaceNummer = () => volgendeWorkspaceNummer++;
+const houdNummerBoven = (n) => {
+  volgendeWorkspaceNummer = Math.max(volgendeWorkspaceNummer, Number(n) + 1 || 1);
+};
+
 // IPC-handlers zoeken hier het venster op waar een bericht vandaan komt, zodat
 // er geen globale "huidig venster" meer nodig is.
 /** @type {Map<number, BrowserWindowController>} */
@@ -228,6 +253,9 @@ function bindSneltoetsen(wc, ctrl) {
 
     const acties = {
       t: () => ctrl.createTab(),
+      // Een tweede venster. Leeg, met één workspace: Ctrl+N hoort je tabbladen
+      // niet te verdubbelen.
+      n: () => { new BrowserWindowController(); },
       w: () => ctrl.closeTab(ctrl.activeId),
       l: () => ctrl.vraagZijbalk('adres'),
       k: () => ctrl.vraagZijbalk('palet'),
@@ -272,10 +300,17 @@ function bindSneltoetsen(wc, ctrl) {
  * zijn op je werkaccount en in de andere op je eigen, tegelijk.
  */
 class BrowserWindowController {
-  constructor() {
+  /**
+   * @param teHerstellen  de workspaces die dit venster terug moet zetten, of
+   *                      null voor een leeg venster. Alleen het starten leest
+   *                      het herstelbestand; een venster dat je zelf opent
+   *                      begint schoon, want anders zou Ctrl+N je tabbladen
+   *                      verdubbelen.
+   */
+  constructor(teHerstellen = null) {
+    this.herstelLijst = Array.isArray(teHerstellen) ? teHerstellen : null;
     /** @type {Map<number, {id: number, name: string, color: string, partition: string, tabs: Map<number, WebContentsView>, activeId: number|null}>} */
     this.workspaces = new Map();
-    this.nextWorkspaceId = 1;
     // Tabblad-ids lopen per venster, niet per workspace. Zo botsen ze nooit in
     // de faviconcache van de renderer, die maar één sleutelruimte kent.
     this.nextId = 1;
@@ -360,15 +395,32 @@ class BrowserWindowController {
     // tekent de zijbalk ze zelf, dus daar geen native knoppen.
     if (isMac) opties.trafficLightPosition = { x: 18, y: 16 };
 
+    // Elk volgend venster een trapje naar rechtsonder, en na zes weer van
+    // voren af aan zodat er nooit een venster half buiten het scherm begint.
+    const trap = (vensterTeller++ % 6) * TRAPJE;
+    if (trap) { opties.x = 60 + trap; opties.y = 40 + trap; }
+
     this.win = new BrowserWindow(opties);
 
     // Het id vooraf vastleggen: in 'closed' is de webContents al weg.
     const hostId = this.win.webContents.id;
+    // Onder welke sleutel dit venster zijn stand bewaart. Het id van de
+    // zijbalk is uniek binnen deze draai en dat is genoeg: het herstelbestand
+    // bewaart de volgorde, niet de nummers.
+    this.vensterSleutel = hostId;
     windows.set(hostId, this);
     // Downloads zijn er één lijst voor het hele programma; elk venster kijkt
     // ernaar mee en meldt zich bij het sluiten weer af.
     const losDownloads = downloads.opVerandering((lijst) => this.send('downloads:staat', lijst));
-    this.win.on('closed', () => { losDownloads(); windows.delete(hostId); });
+    this.win.on('closed', () => {
+      losDownloads();
+      windows.delete(hostId);
+      // Eén van de twee sluiten is een keuze om er één over te houden, en
+      // morgen hoort er dan ook één te staan. Het láátste venster sluiten is
+      // iets anders: dat is hoe je dit programma afsluit, en dan wil je je
+      // tabbladen juist terug. Zie vergeetVenster in lib/herstel.js.
+      if (new Set(windows.values()).size > 0) herstel.vergeetVenster(hostId);
+    });
 
     bindSneltoetsen(this.win.webContents, this);
     this.win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
@@ -449,8 +501,8 @@ class BrowserWindowController {
   }
 
   addWorkspace(name, opties = {}) {
-    const { prive = false } = opties;
-    const id = this.nextWorkspaceId++;
+    const { prive = false, partitie = null } = opties;
+    const id = neemWorkspaceNummer();
 
     // Een privéworkspace krijgt een partitie zónder 'persist:' ervoor. Dat ene
     // woord is het hele verschil: met is een map op schijf met koekjes,
@@ -460,7 +512,11 @@ class BrowserWindowController {
     // Wat dit níét is: onzichtbaar. Je werkgever, je provider en de site zelf
     // zien alles wat ze anders ook zien. Het scherm zegt dat er ook bij, want
     // een privémodus die meer belooft dan hij waarmaakt is erger dan geen.
-    const partition = prive ? `prive-${id}-${Date.now()}` : `persist:ws-${id}`;
+    // Een herstelde workspace krijgt de partitie terug waarin hij stond; zie
+    // lib/herstel.js voor waarom die meegaat. De naam is daar al nagekeken.
+    const partition = prive
+      ? `prive-${id}-${Date.now()}`
+      : (partitie ?? `persist:ws-${id}`);
 
     // Grendelen vóórdat de workspace bestaat, dus zeker vóórdat er een tabblad
     // in kan laden: een sessie zonder permissiehandler keurt alles goed.
@@ -1104,7 +1160,7 @@ class BrowserWindowController {
     const bestaand = [...this.workspaces.values()].find((ws) => ws.vanMcp);
     if (bestaand) return bestaand;
 
-    const id = this.nextWorkspaceId++;
+    const id = neemWorkspaceNummer();
     // Geen 'persist:' ervoor. Dat is het verschil tussen een sessie die blijft
     // en een die verdampt.
     const partition = `mcp-${id}-${Date.now()}`;
@@ -1401,11 +1457,14 @@ class BrowserWindowController {
         naam: ws.name,
         palet: ws.palet,
         beweging: ws.beweging ?? 'rustig',
+        // De map met de koekjes. Zonder dit komt workspace 2 morgen terug met
+        // de logins van workspace 1; zie lib/herstel.js.
+        partitie: ws.partition,
         actief: Math.max(0, volgorde.indexOf(ws.activeId)),
         tabbladen: adressen,
       });
     }
-    herstel.bewaar(groepen);
+    herstel.bewaar(this.vensterSleutel, groepen);
   }
 
   /**
@@ -1417,15 +1476,27 @@ class BrowserWindowController {
    */
   herstelVorigeSessie() {
     if (voorkeuren.alles().startpagina !== 'vorige') return false;
-    const vorig = herstel.lees();
-    if (!vorig?.workspaces?.length) return false;
+    const lijst = this.herstelLijst;
+    this.herstelLijst = null;
+    if (!lijst?.length) return false;
 
     let eerste = null;
-    for (const groep of vorig.workspaces) {
-      const wsId = eerste === null ? this.activeWorkspaceId : this.addWorkspace(groep.naam);
+    for (const groep of lijst) {
+      const partitie = herstel.geldigePartitie(groep?.partitie) ? groep.partitie : null;
+      const wsId = eerste === null
+        ? this.activeWorkspaceId
+        : this.addWorkspace(groep.naam, { partitie });
       const ws = this.workspaces.get(wsId);
       if (eerste === null) {
         ws.name = groep.naam || ws.name;
+        // De eerste workspace bestond al voordat we wisten wat we herstelden.
+        // Hem alsnog in zijn eigen map zetten mag hier, en alleen hier: er
+        // staat nog geen enkel tabblad in, dus er is niets dat al in de
+        // verkeerde sessie is gaan laden.
+        if (partitie && partitie !== ws.partition && ws.tabs.size === 0) {
+          ws.partition = partitie;
+          downloads.bewaak(grendelSessie(partitie));
+        }
         eerste = wsId;
       }
       if (PALET_IDS.includes(groep.palet)) ws.palet = groep.palet;
@@ -2757,6 +2828,10 @@ ipcMain.handle('pref:set', (_e, sleutel, waarde) => {
 ipcMain.handle('ui:sidebar', (e, weg) => controllerFor(e)?.setZijbalkWeg(weg));
 
 // Het ontwerp tekent de vensterknoppen zelf, dus die moeten hierlangs.
+// Een tweede venster. Ook als IPC en niet alleen als sneltoets: een
+// mogelijkheid waar maar één weg heen loopt is een mogelijkheid die niemand
+// vindt. De commandobalk heeft hem als regel, Ctrl+N doet hetzelfde.
+ipcMain.handle('win:nieuw', () => { new BrowserWindowController(); });
 ipcMain.handle('win:minimize', (e) => controllerFor(e)?.win.minimize());
 ipcMain.handle('win:maximize', (e) => {
   const win = controllerFor(e)?.win;
@@ -2799,7 +2874,20 @@ app.whenReady().then(() => {
   // Op macOS blijft hij staan, anders verdwijnen ook Cmd+Q en Cmd+H.
   if (!isMac) Menu.setApplicationMenu(null);
 
-  new BrowserWindowController();
+  /*
+   * Eén venster per venster dat er stond.
+   *
+   * Het herstelbestand wordt hier één keer gelezen en daarna uitgedeeld; een
+   * venster leest zelf niets, anders zou elk venster dezelfde tabbladen
+   * openen. Eerst de teller ophogen tot boven wat erin staat: een nieuwe
+   * workspace mag nooit de map van een herstelde overnemen.
+   */
+  const vorig = voorkeuren.alles().startpagina === 'vorige' ? herstel.lees() : null;
+  houdNummerBoven(herstel.hoogsteNummer(vorig));
+
+  const vensters = vorig?.vensters?.length ? vorig.vensters : [null];
+  for (const lijst of vensters) new BrowserWindowController(lijst);
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) new BrowserWindowController();
   });

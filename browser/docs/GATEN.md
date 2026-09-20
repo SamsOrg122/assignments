@@ -17,6 +17,18 @@ bijgewerkt omdat aan `CLAUDE.md` niet geraakt wordt in deze sessies.
 | Geschiedenis (Ctrl+H) | `lib/geschiedenis.js` | `test/geschiedenis.js`, 30 |
 | De gids: vraag over deze pagina (Ctrl+Shift+G) | `lib/gids/`, `main.js` | `test/gids.js` 45, `test/hersens.js` 25 |
 | Eigen API-sleutel als tweede rug | `lib/api.js`, `lib/sleutel.js` | `test/api.js`, 34 |
+| Meerdere vensters (Ctrl+N), en herstel per venster | `main.js`, `lib/herstel.js` | `test/vensters.js` 29, `test/vensters-echt.js` 9 |
+
+## Wat meerdere vensters nog niet doen
+
+Ctrl+N opent er een, de commandobalk heeft er een regel voor, en bij het
+starten komt elk venster terug zoals het stond. Wat er niet is:
+
+- Een tabblad van het ene venster naar het andere slepen.
+- Eén MCP-deur voor alle vensters. Elk venster heeft er nu een eigen, met een
+  eigen poort. Voor een client die twee vensters tegelijk wil bedienen is dat
+  te weinig, en voor één client is het te veel.
+- Een venster heropenen dat je net sloot. Ctrl+Shift+T gaat over tabbladen.
 
 ## Wat er echt nog niet is
 
@@ -25,13 +37,6 @@ bijgewerkt omdat aan `CLAUDE.md` niet geraakt wordt in deze sessies.
   Dat is geen avond werk en ook geen week; het is een eigen project. Er staat
   liever niets dan een halve ondersteuning waar je pas achter komt als je
   blocker stilletjes niets doet.
-- **Meerdere vensters.** Architectonisch kan het — alle vensterstand zit in
-  `BrowserWindowController` en de registry kent er meer dan één. Wat er eerst
-  moet gebeuren: workspace-ids zijn nu per venster en een partitie heet
-  `persist:ws-<id>`. Twee vensters zouden dus dezelfde sessie delen voor twee
-  verschillende workspaces, en dat breekt de belofte dat een workspace een
-  eigen sessie is. De teller moet eerst globaal worden, en het herstelbestand
-  moet daar tegen kunnen.
 - **Ondertekenen en bijwerken.** Geen certificaat, geen updater. Voor een
   browser op het open web is dat het eerste werk.
 - **DRM-video.** Widevine zit er niet in; dat is een licentiekwestie.
@@ -55,7 +60,9 @@ npm run test:zoeken
 npm run test:downloads
 npm run test:geschiedenis
 npm run test:api
-npm run test:hersens     # de enige zonder Electron
+npm run test:hersens         # zonder Electron
+npm run test:vensters        # zonder Electron
+npm run test:vensters-echt   # start de hele app en praat via de debugpoort
 ```
 
 Als root heeft Electron `--no-sandbox` nodig, en een venster dat niet vooraan

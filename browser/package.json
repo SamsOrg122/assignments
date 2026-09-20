@@ -19,6 +19,8 @@
     "test:geschiedenis": "electron test/geschiedenis.js",
     "test:hersens": "node test/hersens.js",
     "test:api": "electron test/api.js",
+    "test:vensters": "node test/vensters.js",
+    "test:vensters-echt": "node test/vensters-echt.js",
     "dist:win": "node scripts/controleer-app.js && electron-builder --win --publish never",
     "dist:mac": "node scripts/controleer-app.js && electron-builder --mac --publish never",
     "dist:linux": "node scripts/controleer-app.js && electron-builder --linux --publish never"

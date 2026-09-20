@@ -1573,6 +1573,7 @@ function huidigeResultaten() {
 
   const acties = [];
   if (past('instellingen')) acties.push({ soort: 'instellingen', label: 'Instellingen', hint: 'Openen' });
+  if (past('nieuw venster')) acties.push({ soort: 'venster', label: 'Nieuw venster', hint: 'Ctrl N' });
   if (huidigeUrl() && past('favoriet')) {
     acties.push({ soort: 'favoriet', label: `${host(huidigeUrl())} bij favorieten`, hint: 'Toevoegen' });
   }
@@ -1685,6 +1686,7 @@ async function kiesResultaat(item) {
   else if (item.soort === 'tab') browser.activateTab(item.id);
   else if (item.soort === 'ws') browser.activateWorkspace(item.id);
   else if (item.soort === 'instellingen') openInstellingen();
+  else if (item.soort === 'venster') browser.nieuwVenster();
   else if (item.soort === 'favoriet') {
     const url = huidigeUrl();
     const lijst = [...(prefs.favorieten ?? [])].filter((f) => f.url !== url);

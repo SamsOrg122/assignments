@@ -85,6 +85,7 @@ contextBridge.exposeInMainWorld('browser', {
 
   // Het ontwerp tekent de vensterknoppen zelf; alleen het hoofdproces kan het
   // venster bedienen.
+  nieuwVenster: () => ipcRenderer.invoke('win:nieuw'),
   minimize: () => ipcRenderer.invoke('win:minimize'),
   maximize: () => ipcRenderer.invoke('win:maximize'),
   close: () => ipcRenderer.invoke('win:close'),

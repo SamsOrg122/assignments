@@ -78,6 +78,26 @@ export default function AboutPage() {
         or a payment field, and there is no &ldquo;always allow&rdquo;.
       </P>
 
+      <H3>And a guide, which is the assistant turned around</H3>
+      <P>
+        Press Ctrl+Shift+G on any page and ask a question about the page you
+        are looking at — <em>where do I turn this off?</em> Instead of doing it
+        for you, it draws a ring around the thing, writes one sentence next to
+        it, and stops. If the answer takes four steps it says &ldquo;2 of
+        4&rdquo; and waits for you to press Next; Stop is always beside it, and
+        Escape clears the ring.
+      </P>
+      <P>
+        It is allowed less than the assistant is, not more. For a question
+        about your page it gets the layout — headings, buttons, their names —
+        and never the running text and never what is in a field, because
+        pointing at something does not require reading it. It cannot open a
+        page, cannot click and cannot type: that is not a setting but a lock on
+        the door it comes through, and it is the reason the ring is drawn
+        inside the page rather than on a layer over it, so every click still
+        reaches the website underneath.
+      </P>
+
       <H2 id="thinking">Who pays for the thinking</H2>
       <P>
         This is the part that makes Tougather different from every other AI

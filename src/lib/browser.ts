@@ -193,36 +193,3 @@ export const BROWSER_CAVEATS: Array<{ title: string; detail: string }> = [
   },
 ];
 
-/**
- * The four things the browser does that a normal one does not.
- *
- * Each is a claim the code makes good on, with the file that does it named, so
- * that the next person editing this page can check a sentence rather than
- * trust it. That is the same rule `lib/impact/config.ts` applies to numbers.
- */
-export const BROWSER_PILLARS = [
-  {
-    id: "assistant",
-    title: "An assistant in its own tab",
-    line: "Give it a job with ⌘J. It opens its own tab and gets on with it while you keep working in yours — it never steals your screen.",
-    proof: "browser/lib/agent.js",
-  },
-  {
-    id: "subscription",
-    title: "It thinks on your subscription",
-    line: "The browser starts the agent already on your machine and it reasons on your own plan. Nothing is metered by us, and your text never passes a server of ours.",
-    proof: "browser/lib/agent.js",
-  },
-  {
-    id: "workspaces",
-    title: "Workspaces that are really separate",
-    line: "Each workspace has its own session, so you can be signed in to work in one and to your own account in another, at the same time, without incognito.",
-    proof: "browser/main.js",
-  },
-  {
-    id: "permission",
-    title: "Permission for every single action",
-    line: "The assistant works freely in its own empty workspace. Anything that touches your tabs asks, every time, for a minute at a time — and never on a password or payment field.",
-    proof: "browser/lib/toestemming.js",
-  },
-] as const;

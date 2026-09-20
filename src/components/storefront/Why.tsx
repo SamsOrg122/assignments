@@ -111,7 +111,7 @@ const ROWS: Row[] = [
   {
     ask: "What it is allowed to touch",
     them: "An assistant that drives your screen, or a sidebar with standing access to every tab you have open.",
-    us: "It works in its own empty workspace. Anything that touches a tab of yours asks, every single time, for one minute — and never on a password or a payment field.",
+    us: "It works in its own empty workspace. Anything that touches a tab of yours asks, every single time, for one minute — and never on a password or a payment field. Ask it about the page you are on and it draws a ring around the answer instead of clicking it.",
     tag: "browser/lib/toestemming.js",
   },
   {

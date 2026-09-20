@@ -192,7 +192,9 @@ export default function AboutPage() {
             Deliberately, for now. Each one is its own project rather than
             something added on the way past. Bookmarks, find-in-page, downloads
             and history all work — and history skips private workspaces and the
-            assistant&rsquo;s own tabs by design, not by setting.
+            assistant&rsquo;s own tabs by design, not by setting. The browser
+            itself speaks English and Dutch and asks which on first run; two
+            languages, not twenty.
           </>,
           <>
             <strong className="font-medium text-fg">No DRM video.</strong>{" "}

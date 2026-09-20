@@ -12,7 +12,8 @@ const voorkeuren = require('./lib/voorkeuren.js');
 const { volgDeBrowser } = require('./lib/app-stijl.js');
 const { meldSchemaAan, bedienApp, appURL } = require('./lib/app-schema.js');
 const { McpDeur, GEREEDSCHAP, NOOIT_TYPEN, NOOIT_VELDSOORT, NOOIT_AANVULLING, beschrijf } = require('./lib/mcp.js');
-const { zoekAgent, vraagAanmelding, Opdracht, HOUDING, GIDS_HOUDING, GIDS_GEREEDSCHAP, NIET_AANGEMELD } = require('./lib/agent.js');
+const { zoekAgent, vraagAanmelding, Opdracht, houding, GIDS_HOUDING, GIDS_GEREEDSCHAP, NIET_AANGEMELD } = require('./lib/agent.js');
+const kist = require('./lib/kist.js');
 const { Toestemming } = require('./lib/toestemming.js');
 const { downloads } = require('./lib/downloads.js');
 const { geschiedenis } = require('./lib/geschiedenis.js');
@@ -1047,6 +1048,10 @@ class BrowserWindowController {
         // De sleutel zelf verlaat het hoofdproces niet; zie lib/sleutel.js.
         sleutel: sleutel.heeft(),
         rug: this.kiesRug().soort,
+        // Wat de gebruiker zelf heeft aangesloten. Namen van variabelen, nooit
+        // hun waarde; zie lib/kist.js.
+        kist: kist.veilig(kist.alles()),
+        kistVersleuteld: kist.kanVersleutelen(),
       },
     });
   }
@@ -2589,7 +2594,7 @@ class BrowserWindowController {
    * deur gewoon aan — zonder poort. Dezelfde toestemmingsvragen, dezelfde
    * grendel, één stuk aanvalsoppervlak minder.
    */
-  async startRonde(rug, { opdracht, gereedschap, houding, beperk = false }) {
+  async startRonde(rug, { opdracht, gereedschap, houding: hoe, kist: mee = [], beperk = false }) {
     if (rug.soort === 'agent') {
       this.deurWasOpen = this.mcp.aan;
       if (!this.deurWasOpen) await this.zetMcp(true);
@@ -2600,7 +2605,8 @@ class BrowserWindowController {
         elektron: process.execPath,
         brug: BRUG,
         gereedschap,
-        houding,
+        houding: hoe,
+        kist: mee,
         werkmap: this.agentWerkmap(),
         opMelding: (melding) => this.agentMelding(melding),
       }).start(opdracht);
@@ -2614,7 +2620,7 @@ class BrowserWindowController {
       model: rug.model,
       deur: this.mcp,
       stukken: GEREEDSCHAP.filter((g) => gereedschap.includes(g.naam)),
-      houding,
+      houding: hoe,
       opMelding: (melding) => this.agentMelding(melding),
     }).start(opdracht);
   }
@@ -2645,10 +2651,15 @@ class BrowserWindowController {
     this.agent = { naam, wsId: ws.id, opdracht: tekst, loop: null, rug: rug.soort };
     this.sendIsland({ modus: 'debuggen', regel: t('bar.leestOpdracht', { naam }), bezig: true });
 
+    // Eigen gereedschap is er alleen voor een opdracht, en alleen op de rug die
+    // een kindproces start. De API-lus draait in dit proces en heeft geen tweede
+    // server om aan te hangen; zie lib/kist.js.
+    const mee = rug.soort === 'agent' ? kist.alles() : [];
     this.agent.loop = await this.startRonde(rug, {
       opdracht: tekst,
       gereedschap: this.mcp.stand().gereedschap,
-      houding: HOUDING,
+      houding: houding(mee),
+      kist: mee,
     });
 
     this.pushState();
@@ -3175,6 +3186,30 @@ ipcMain.handle('sleutel:zet', (e, waarde) => {
   return { ...uit, ...sleutel.heeft() };
 });
 ipcMain.handle('sleutel:stand', () => sleutel.heeft());
+
+/*
+ * De gereedschapskist: wat de gebruiker zelf heeft aangesloten.
+ *
+ * Dezelfde afspraak als bij de sleutel — naar binnen mag alles, naar buiten
+ * gaat `veilig()`: de regel en de namen van de omgevingsvariabelen, nooit hun
+ * waarde. Toevoegen zet niets aan; dat is een tweede handeling, want het
+ * aanzetten ís de toestemming. Zie lib/kist.js.
+ */
+ipcMain.handle('kist:voeg', (e, rauw) => {
+  const fout = kist.voeg(rauw);
+  controllerFor(e)?.pushState();
+  return { fout, kist: kist.veilig(kist.alles()) };
+});
+ipcMain.handle('kist:aan', (e, naam, aan) => {
+  kist.zetAan(String(naam ?? ''), aan);
+  controllerFor(e)?.pushState();
+  return { fout: null, kist: kist.veilig(kist.alles()) };
+});
+ipcMain.handle('kist:weg', (e, naam) => {
+  kist.weg(String(naam ?? ''));
+  controllerFor(e)?.pushState();
+  return { fout: null, kist: kist.veilig(kist.alles()) };
+});
 
 // Zelf kijken of er een nieuwere versie is. Dit negeert de rustperiode, want
 // wie erop drukt wil nu een antwoord.

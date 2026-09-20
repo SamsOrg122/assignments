@@ -217,6 +217,47 @@ const WOORDEN = {
     'inst.model': 'Model',
     'inst.modelUitleg': 'Alleen voor de API-sleutel. Leeg betekent claude-sonnet-5. '
       + 'De agent op deze computer kiest zijn model zelf.',
+    // ── Eigen gereedschap ────────────────────────────────────────────
+    'inst.kist': 'Eigen gereedschap',
+    'inst.kistUitleg': 'De assistent heeft standaard alleen het gereedschap van de browser. '
+      + 'Hier zet je er je eigen MCP-servers bij: je agenda, je notities, je repo. Wat je elders '
+      + 'hebt aangesloten komt met opzet niet vanzelf mee — je zet het hier neer, één keer.',
+    'inst.kistLeeg': 'Er staat nog niets in. De assistent kan alleen bij de browser.',
+    'inst.kistNaam': 'Naam',
+    'inst.kistCommando': 'Commando',
+    'inst.kistOmgeving': 'Omgeving',
+    'inst.kistAlleen': 'Alleen deze stukken',
+    'inst.kistToevoegen': 'Toevoegen',
+    'inst.kistAanzetten': 'Aanzetten',
+    'inst.kistAanUit': 'Aan',
+    'inst.kistWeg': 'Weghalen',
+    'inst.kistAlles': 'alles',
+    'inst.kistOmgevingUitleg': 'Eén per regel, als SLEUTEL=waarde. Deze gaan door de sleutelbos '
+      + 'van het systeem en komen nooit meer op dit scherm terug.',
+    'inst.kistOmgevingPlat': 'Deze computer heeft geen sleutelbos, dus staan ze leesbaar op schijf.',
+    'inst.kistAlleenUitleg': 'Leeg betekent: alles wat die server aanbiedt. Noem je er stukken op, '
+      + 'dan mag hij precies die.',
+    'inst.kistGrens': 'Een server die aan staat kan buiten de browser iets veranderen, en de '
+      + 'browser kan niet zien wat. Daarom vraagt hij het niet per keer: het aanzetten is de '
+      + 'toestemming, en elke aanroep staat met de servernaam in de regel onderin. De noodstop '
+      + 'haalt de stekker eruit.',
+    'inst.kistGeldt': 'Geldt voor een opdracht in de balk, en alleen met de agent op deze computer. '
+      + 'De gids gebruikt het nooit — die kijkt en wijst. Een AI-client van buiten komt er niet bij.',
+    'inst.kistApiRug': 'Je API-sleutel is nu de rug, en die start geen tweede server. Kies "de '
+      + 'agent" om dit gereedschap te kunnen gebruiken.',
+    'inst.kistToe': '{aantal} van {totaal} staat aan.',
+    'inst.kistFoutNaam': 'Een naam is kleine letters, cijfers en lage streepjes, en begint met een '
+      + 'letter. Bijvoorbeeld: agenda, mijn_repo.',
+    'inst.kistFoutNaamGereserveerd': 'Die naam is van de browser zelf. Kies een andere.',
+    'inst.kistFoutNaamBezet': 'Die naam staat er al.',
+    'inst.kistFoutVol': 'Er kunnen er niet meer bij. Haal er eerst een weg.',
+    'inst.kistFoutCommando': 'Vul in wat er gestart moet worden, bijvoorbeeld: npx -y @jouw/server.',
+    'inst.kistFoutArgumenten': 'Dat commando heeft te veel argumenten.',
+    'inst.kistFoutOmgeving': 'Elke regel is SLEUTEL=waarde, met een naam van letters, cijfers en '
+      + 'lage streepjes.',
+    'inst.kistFoutOmgevingVol': 'Te veel omgevingsvariabelen.',
+    'inst.kistFoutGereedschap': 'Noem de stukken met een spasie ertussen, en gebruik alleen '
+      + 'letters, cijfers, streepjes en lage streepjes.',
     'inst.bronUitleg': '"De agent" is Claude Code op deze computer, op jouw abonnement. Een sleutel '
       + 'is de tweede weg: die aanroep gaat van hier rechtstreeks naar de API. Geen van beide komt '
       + 'langs onze server.',
@@ -568,6 +609,47 @@ const WOORDEN = {
     'inst.model': 'Model',
     'inst.modelUitleg': 'Only for the API key. Empty means claude-sonnet-5. The agent on this '
       + 'computer picks its own model.',
+    // ── Your own tools ───────────────────────────────────────────────
+    'inst.kist': 'Your own tools',
+    'inst.kistUitleg': 'By default the assistant only has the browser\'s own tools. Here you add '
+      + 'your own MCP servers: your calendar, your notes, your repo. What you have connected '
+      + 'elsewhere deliberately does not come along by itself — you put it here, once.',
+    'inst.kistLeeg': 'Nothing here yet. The assistant can only reach the browser.',
+    'inst.kistNaam': 'Name',
+    'inst.kistCommando': 'Command',
+    'inst.kistOmgeving': 'Environment',
+    'inst.kistAlleen': 'Only these tools',
+    'inst.kistToevoegen': 'Add',
+    'inst.kistAanzetten': 'Turn on',
+    'inst.kistAanUit': 'On',
+    'inst.kistWeg': 'Remove',
+    'inst.kistAlles': 'everything',
+    'inst.kistOmgevingUitleg': 'One per line, as KEY=value. These go through the system keychain '
+      + 'and never come back to this screen.',
+    'inst.kistOmgevingPlat': 'This computer has no keychain, so they sit readable on disk.',
+    'inst.kistAlleenUitleg': 'Empty means everything that server offers. Name some tools and it '
+      + 'gets exactly those.',
+    'inst.kistGrens': 'A server that is on can change something outside the browser, and the '
+      + 'browser cannot see what. That is why it does not ask each time: turning it on is the '
+      + 'permission, and every call appears with its server name in the line at the bottom. The '
+      + 'emergency stop pulls the plug.',
+    'inst.kistGeldt': 'Applies to a task in the bar, and only with the agent on this computer. The '
+      + 'guide never uses it — it looks and points. An AI client from outside cannot reach it.',
+    'inst.kistApiRug': 'Your API key is the back end right now, and that starts no second server. '
+      + 'Pick “the agent” to be able to use these tools.',
+    'inst.kistToe': '{aantal} of {totaal} turned on.',
+    'inst.kistFoutNaam': 'A name is lowercase letters, digits and underscores, starting with a '
+      + 'letter. For example: calendar, my_repo.',
+    'inst.kistFoutNaamGereserveerd': 'That name belongs to the browser itself. Pick another.',
+    'inst.kistFoutNaamBezet': 'That name is already there.',
+    'inst.kistFoutVol': 'No room for another. Remove one first.',
+    'inst.kistFoutCommando': 'Fill in what should be started, for example: npx -y @your/server.',
+    'inst.kistFoutArgumenten': 'That command has too many arguments.',
+    'inst.kistFoutOmgeving': 'Every line is KEY=value, with a name of letters, digits and '
+      + 'underscores.',
+    'inst.kistFoutOmgevingVol': 'Too many environment variables.',
+    'inst.kistFoutGereedschap': 'Name the tools with a space between them, and use only letters, '
+      + 'digits, dashes and underscores.',
     'inst.bronUitleg': '“The agent” is Claude Code on this computer, on your own plan. A key is the '
       + 'second route: that call goes from here straight to the API. Neither passes a server of ours.',
     'inst.agentGeen': 'There is no agent on this computer yet. Install Claude Code and it works '

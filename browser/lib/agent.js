@@ -27,6 +27,11 @@
 // dingen mag hij vrij in zijn eigen lege workspace, en alles wat jouw kant
 // raakt vraagt het elke keer opnieuw.
 //
+// Daarnaast kan de gebruiker er zelf gereedschap bij zetten — zijn agenda, zijn
+// notities — server voor server, met de hand, en per stuk aan te zetten. Dat is
+// de kist; zie lib/kist.js voor waarom dat overnemen uit zijn eigen
+// configuratie juist niet gebeurt.
+//
 // ─────────────────────────────────────────────────────────────────────────
 // OPZETTEN
 //
@@ -39,6 +44,7 @@
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { bouwConfig: bouwKistConfig, bouwToestaan, houdingErbij, toonNaam } = require('./kist.js');
 
 // Waar de agent aan te herkennen is als hij nog niet is aangemeld. Zijn eigen
 // zin verwijst naar /login, en dat is een opdracht binnen zijn eigen scherm —
@@ -162,15 +168,31 @@ function bouwBrugConfig({ elektron, brug, naam = 'tougather' }) {
 
 // Wat de agent moet weten over waar hij is. Kort: een lange uitleg kost bij
 // elke opdracht tokens van de gebruiker en leest het model toch maar half.
+const HOUDING_GRENS = 'Je hebt alleen het gereedschap van tougather. Er is geen shell en geen bestandssysteem.';
+
 const HOUDING = [
   'Je werkt in Tougather Browser, op de computer van de gebruiker.',
-  'Je hebt alleen het gereedschap van tougather. Er is geen shell en geen bestandssysteem.',
+  HOUDING_GRENS,
   'Open en lees pagina\'s in je eigen workspace; dat kost de gebruiker niets.',
   'De tabbladen van de gebruiker zijn iets anders: lees_jouw_pagina, klik en typ',
   'vragen elke keer om toestemming en kunnen geweigerd worden. Vraag daar alleen',
   'om als het echt nodig is en zeg erbij waarom.',
   'Antwoord kort, en in de taal waarin de opdracht gesteld is.',
 ].join(' ');
+
+/**
+ * De houding, met de kist erin verwerkt.
+ *
+ * Staat er niets aan, dan is dit letterlijk HOUDING. Staat er wel iets aan, dan
+ * gaat de grenszin eruit — die zou dan niet meer kloppen, en een systeemzin die
+ * niet klopt is erger dan geen systeemzin — en komt erbij wat er wél is. Zie
+ * houdingErbij in lib/kist.js.
+ */
+function houding(kist = []) {
+  const erbij = houdingErbij(kist);
+  if (!erbij) return HOUDING;
+  return `${HOUDING.replace(`${HOUDING_GRENS} `, '')} ${erbij}`;
+}
 
 /*
  * De gids is een andere houding, niet een andere assistent.
@@ -222,7 +244,7 @@ const GIDS_GEREEDSCHAP = [
  *
  * Elk stuk hier houdt iets buiten de deur; zie de kop van dit bestand.
  */
-function bouwArgumenten({ opdracht, brugConfig, gereedschap, brugNaam = 'tougather', houding = HOUDING }) {
+function bouwArgumenten({ opdracht, brugConfig, gereedschap, brugNaam = 'tougather', houding = HOUDING, toestaan = null }) {
   return [
     '-p', String(opdracht),
     '--output-format', 'stream-json',
@@ -239,7 +261,7 @@ function bouwArgumenten({ opdracht, brugConfig, gereedschap, brugNaam = 'tougath
     // En onze lijst er expliciet in, zodat hij niet bij elke stap blijft staan
     // op een vraag die hij in deze modus niet kan stellen. De echte vraag stelt
     // de browser, aan jou.
-    '--allowedTools', ...gereedschap.map((g) => `mcp__${brugNaam}__${g}`),
+    '--allowedTools', ...(toestaan ?? gereedschap.map((g) => `mcp__${brugNaam}__${g}`)),
     '--disable-slash-commands',
     '--no-session-persistence',
     '--append-system-prompt', houding,
@@ -271,9 +293,12 @@ function leesRegel(regel, brugNaam = 'tougather') {
         uit.push({ soort: 'zegt', tekst: deel.text.trim() });
       }
       if (deel.type === 'tool_use') {
+        // Ons eigen gereedschap heet gewoon zoals het heet; dat van een
+        // aangesloten server krijgt zijn servernaam ervoor. Het verschil tussen
+        // "de browser deed dit" en "jouw agenda deed dit" hoort te zien te zijn.
         uit.push({
           soort: 'doet',
-          naam: String(deel.name ?? '').replace(`mcp__${brugNaam}__`, ''),
+          naam: toonNaam(String(deel.name ?? ''), brugNaam),
           invoer: deel.input ?? {},
         });
       }
@@ -355,7 +380,7 @@ function vraagAanmelding(agent, { maak = spawn, wachtMs = 8000 } = {}) {
  * doet hij niet: wat er op het scherm gebeurt is aan de beller.
  */
 class Opdracht {
-  constructor({ agent, elektron, brug, gereedschap, opMelding, werkmap, brugNaam = 'tougather', houding = HOUDING, maak = spawn }) {
+  constructor({ agent, elektron, brug, gereedschap, opMelding, werkmap, brugNaam = 'tougather', houding = HOUDING, kist = [], maak = spawn }) {
     this.agent = agent;
     this.elektron = elektron;
     this.brug = brug;
@@ -364,6 +389,7 @@ class Opdracht {
     this.werkmap = werkmap;
     this.brugNaam = brugNaam;
     this.houding = houding;
+    this.kist = kist;
     this.maak = maak;
     this.kind = null;
     this.rest = '';
@@ -373,10 +399,15 @@ class Opdracht {
   start(opdracht) {
     const argumenten = bouwArgumenten({
       opdracht,
-      brugConfig: bouwBrugConfig({ elektron: this.elektron, brug: this.brug, naam: this.brugNaam }),
+      brugConfig: bouwKistConfig({
+        elektron: this.elektron, brug: this.brug, brugNaam: this.brugNaam, kist: this.kist,
+      }),
       gereedschap: this.gereedschap,
       brugNaam: this.brugNaam,
       houding: this.houding,
+      toestaan: bouwToestaan({
+        brugNaam: this.brugNaam, gereedschap: this.gereedschap, kist: this.kist,
+      }),
     });
 
     this.kind = this.maak(this.agent.pad, [...(this.agent.voor ?? []), ...argumenten], {
@@ -457,5 +488,5 @@ class Opdracht {
 
 module.exports = {
   zoekAgent, vraagAanmelding, bouwArgumenten, bouwBrugConfig, leesRegel, Opdracht,
-  KANDIDATEN, HOUDING, GIDS_HOUDING, GIDS_GEREEDSCHAP, NIET_AANGEMELD,
+  KANDIDATEN, HOUDING, HOUDING_GRENS, houding, GIDS_HOUDING, GIDS_GEREEDSCHAP, NIET_AANGEMELD,
 };

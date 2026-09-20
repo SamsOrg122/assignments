@@ -3,10 +3,12 @@
 De stand van zaken, bijgewerkt bij elke wijziging die er iets aan verandert.
 
 `CLAUDE.md` heeft ook een lijstje "Bekende gaten". Dat is verouderd — het
-noemt Electron 33 en zegt dat zoeken op de pagina, een downloadscherm en
-geschiedenis niet gebouwd zijn. Die drie zijn er inmiddels, en de Electron in
-`package.json` is 44. Dit bestand is de lijst die klopt; het andere is niet
-bijgewerkt omdat aan `CLAUDE.md` niet geraakt wordt in deze sessies.
+noemt Electron 33, zegt dat zoeken op de pagina, een downloadscherm en
+geschiedenis niet gebouwd zijn, dat er geen tweede venster te openen is, en dat
+de assistent via de browser nergens anders bij kan. Geen van die dingen klopt
+nog, en de Electron in `package.json` is 44. Dit bestand is de lijst die klopt;
+het andere is niet bijgewerkt omdat aan `CLAUDE.md` niet geraakt wordt in deze
+sessies.
 
 ## Wel gebouwd, sinds dat lijstje
 
@@ -26,6 +28,7 @@ bijgewerkt omdat aan `CLAUDE.md` niet geraakt wordt in deze sessies.
 | Alle sneltoetsen op één plek, en in beeld | `lib/sneltoetsen.js` | `test/toetsen.js`, 29 |
 | Nederlands en Engels, en een eerste scherm dat het vraagt | `renderer/taal.js` | `test/taal.js` 26, `test/taal-echt.js` 20 |
 | Zeggen dat er een nieuwere versie is | `lib/bijwerken.js` | `test/bijwerken.js`, 33 |
+| Eigen MCP-servers voor de assistent | `lib/kist.js`, `lib/agent.js` | `test/kist.js` 70, `test/kist-echt.js` 27 |
 
 ## Waarom een los tabblad niet kan verhuizen
 
@@ -71,8 +74,13 @@ UI zelf waarom het een workspace is en geen tabblad.
   aangemelde agent nodig heeft: geeft Claude Code beeld uit een MCP-resultaat
   door aan het model? Zolang dat niet gemeten is, is het een plan en geen
   oplossing. Zie `docs/gids/ARCHITECTUUR.md`.
-- **De browser is alleen MCP-server.** Dat de assistent via de browser bij
-  ánder gereedschap kan, is niet gebouwd.
+- **Een winkel voor dat eigen gereedschap.** Je kunt er nu zelf MCP-servers bij
+  zetten — zes, met de hand, per stuk aan te zetten — maar je typt het commando
+  in. Er is geen lijst om uit te kiezen en niets dat nakijkt of wat je start is
+  wat je denkt dat het is. Dat laatste is geen detail: dit is de enige plek in
+  de browser waar iets buiten de browser om iets kan veranderen. Wat er wél
+  staat is dat het uit staat tot je het aanzet, dat elke aanroep met zijn
+  servernaam in beeld komt, en dat de noodstop de hele boom omhaalt.
 - **Twee talen en niet meer.** Nederlands en Engels. Een derde erbij is nu
   een lijst met zinnen en geen verbouwing, maar hij staat er niet.
 - **Een nieuw tabblad dat al openstond wisselt niet mee.** Die pagina draait
@@ -91,11 +99,13 @@ npm run test:geschiedenis
 npm run test:api
 npm run test:bijwerken       # zonder Electron en zonder netwerk
 npm run test:hersens         # zonder Electron
+npm run test:kist            # zonder Electron
 npm run test:toetsen         # zonder Electron
 npm run test:taal            # zonder Electron
 npm run test:vensters        # zonder Electron
 npm run test:taal-echt       # start de hele app en praat via de debugpoort
 npm run test:vensters-echt   # start de hele app en praat via de debugpoort
+npm run test:kist-echt       # start de hele app en praat via de debugpoort
 ```
 
 Als root heeft Electron `--no-sandbox` nodig, en een venster dat niet vooraan

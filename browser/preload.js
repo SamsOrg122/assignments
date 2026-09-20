@@ -97,6 +97,11 @@ contextBridge.exposeInMainWorld('browser', {
 
   // De API-sleutel. Alleen naar binnen; wat terugkomt is of er een staat,
   // niet welke. Zie lib/sleutel.js.
+  // De kist: eigen gereedschap voor de assistent. Wat terugkomt is de veilige
+  // lijst, zonder de waarden van de omgevingsvariabelen.
+  kistVoeg: (server) => ipcRenderer.invoke('kist:voeg', server),
+  kistAan: (naam, aan) => ipcRenderer.invoke('kist:aan', naam, aan),
+  kistWeg: (naam) => ipcRenderer.invoke('kist:weg', naam),
   zetSleutel: (waarde) => ipcRenderer.invoke('sleutel:zet', waarde),
   sleutelStand: () => ipcRenderer.invoke('sleutel:stand'),
   wisSleutel: () => ipcRenderer.invoke('sleutel:wis'),

@@ -18,6 +18,8 @@
     "test:downloads": "electron test/downloads.js",
     "test:geschiedenis": "electron test/geschiedenis.js",
     "test:hersens": "node test/hersens.js",
+    "test:kist": "node test/kist.js",
+    "test:kist-echt": "node test/kist-echt.js",
     "test:api": "electron test/api.js",
     "test:bijwerken": "node test/bijwerken.js",
     "test:taal": "node test/taal.js",

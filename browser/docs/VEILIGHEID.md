@@ -141,9 +141,33 @@ zijbalk en in de balk bovenin, en tot je antwoordt gebeurt er niets.
 
 **Zijn eigen gereedschap staat uit.** Claude Code kan normaal een shell starten
 en bestanden lezen en schrijven. In deze aanroep is dat uitgezet, en zijn eigen
-MCP-servers ook: wat jij elders hebt aangesloten gaat deze opdracht niets aan.
-Die aanroep is de grens, en hij staat in een opdrachtregel — dus die regel wordt
-uit elkaar geplukt en nagelopen in `shots/test-agent.mjs`.
+MCP-configuratie wordt niet gelezen: wat jij elders hebt aangesloten komt hier
+niet vanzelf binnen. Die aanroep is de grens, en hij staat in een opdrachtregel
+— dus die regel wordt uit elkaar geplukt en nagelopen in `shots/test-agent.mjs`
+en in `test/kist.js`.
+
+**Behalve wat je er zelf bij zet.** In de instellingen kun je eigen MCP-servers
+toevoegen, en dat is de enige plek waar de assistent buiten de browser om iets
+kan doen. Daarom staat het er zo omheen:
+
+- Je typt het commando zelf in. Overnemen uit je bestaande configuratie gebeurt
+  níet — dat zou betekenen dat een pagina die je opent toegang krijgt tot je
+  hele leven zonder dat je dat ooit hebt gezegd.
+- Een server staat uit tot je hem aanzet, ook de server die je net zelf hebt
+  ingetypt. Toevoegen is beschrijven; aanzetten is de toestemming.
+- Een server die uit staat zit niet in de aanroep. Hij bestaat niet voor de
+  agent, in plaats van te bestaan en geweigerd te worden.
+- Er wordt niet per handeling gevraagd, en daar staat een reden bij op het
+  scherm: de browser kan niet beschrijven wat `mcp__notion__update_page` doet,
+  en een vraag die "weet je het zeker?" zegt zonder te zeggen waarover is een
+  vraag waar je op leert klikken. Wat er wél gebeurt: elke aanroep komt met zijn
+  servernaam in beeld, en de noodstop haalt de hele procesboom om.
+- Dit geldt alleen voor een opdracht in de balk. De gids krijgt het nooit — die
+  kijkt en wijst. Een client van buiten evenmin, want dan was de browser een
+  doorgeefluik naar jouw andere gereedschap.
+- Een token dat zo'n server nodig heeft gaat door de sleutelbos van het systeem
+  en verlaat het hoofdproces niet. Naar het scherm gaan alleen de namen van de
+  variabelen. Zie `lib/kist.js`.
 
 **De deur staat alleen open tijdens de opdracht.** De browser zet hem zelf open
 en doet hem daarna weer dicht. Dat is strakker dan een deur die openstaat omdat
@@ -174,6 +198,10 @@ Eerlijk zijn over de gaten is de helft van dit document waard.
   een gewone Chrome met `TougatherBrowser` erachter. Zie `docs/ACCOUNTS.md`.
 - **Een privéworkspace beschermt niet tegen je eigen schijf.** Download je er
   iets, dan staat dat bestand er gewoon.
+- **Een server die je zelf aanzet kan alles wat die server kan.** De browser
+  kijkt niet mee in wat hij doet en kan dat ook niet: het is jouw programma op
+  jouw computer. Er is geen lijst om uit te kiezen en niets dat nakijkt of wat
+  je start is wat je denkt dat het is.
 - **Wij hebben dit niet laten toetsen.** Alles hierboven is door onszelf
   gecontroleerd, met de reeks hieronder. Er is geen onafhankelijk onderzoek.
 

@@ -391,6 +391,7 @@ function tekenAlles() {
   tekenMcp();
   tekenAccount();
   tekenAgent();
+  tekenKist();
   tekenVersie();
   tekenToetsen();
   tekenApprij();
@@ -1917,6 +1918,135 @@ document.getElementById('sleutel-wis').onclick = async () => {
   document.getElementById('sleutel-veld').value = '';
   await browser.wisSleutel();
 };
+
+/*
+ * De gereedschapskist op het scherm.
+ *
+ * Elke rij is één server: zijn naam, wat er gestart wordt, welke stukken mogen,
+ * en de namen van zijn omgevingsvariabelen. De waardes staan er niet, en komen
+ * ook nooit terug — die zitten in het hoofdproces achter de sleutelbos. Zie
+ * lib/kist.js.
+ *
+ * Het schuifje is de toestemming. Daarom is het een schuifje per server en geen
+ * knop die er één keer overheen gaat: de browser kan niet beschrijven wat een
+ * vreemde server doet, dus is "deze staat aan" het enige dat eerlijk te zeggen
+ * valt — en dat hoort dan wel te blijven staan waar je het kunt zien.
+ */
+function tekenKist() {
+  const lijst = document.getElementById('kist-lijst');
+  const leeg = document.getElementById('uitleg-kist-leeg');
+  const omgeving = document.getElementById('uitleg-kist-omgeving');
+  if (!lijst || !leeg) return;
+
+  const a = laatsteStaat.assistent;
+  const rijen = a?.kist ?? [];
+  leeg.hidden = rijen.length > 0;
+
+  if (omgeving) {
+    omgeving.textContent = a?.kistVersleuteld === false
+      ? `${t('inst.kistOmgevingUitleg')} ${t('inst.kistOmgevingPlat')}`
+      : t('inst.kistOmgevingUitleg');
+  }
+
+  lijst.replaceChildren(...rijen.map((s) => {
+    const li = document.createElement('li');
+    li.className = 'kistrij';
+    if (s.aan) li.classList.add('aan');
+
+    const naam = document.createElement('strong');
+    naam.textContent = s.naam;
+
+    const regel = document.createElement('code');
+    regel.textContent = s.regel;
+
+    // Twee vakjes en geen samengestelde zin: welke stukken mogen en welke
+    // variabelen hij meekrijgt zijn twee verschillende dingen, en op elf pixels
+    // lopen ze in één regel aan elkaar vast.
+    const onder = document.createElement('span');
+    onder.className = 'onder';
+    const stukken = document.createElement('span');
+    stukken.textContent = s.gereedschap.length ? s.gereedschap.join(' ') : t('inst.kistAlles');
+    onder.append(stukken);
+    if (s.omgevingNamen.length) {
+      const omg = document.createElement('span');
+      omg.className = 'omgeving';
+      omg.textContent = s.omgevingNamen.join(' ');
+      onder.append(omg);
+    }
+
+    const schuif = document.createElement('label');
+    schuif.className = 'schuif';
+    const vink = document.createElement('input');
+    vink.type = 'checkbox';
+    vink.checked = s.aan;
+    vink.setAttribute('aria-label', `${t('inst.kistAanzetten')}: ${s.naam}`);
+    vink.onchange = () => browser.kistAan(s.naam, vink.checked);
+    const woord = document.createElement('span');
+    woord.textContent = t('inst.kistAanUit');
+    schuif.append(vink, woord);
+
+    // Geen rode knop: rood is hier de noodstop, en een lijstregel weghalen is
+    // niet hetzelfde als een agent midden in zijn werk afbreken.
+    const weg = document.createElement('button');
+    weg.type = 'button';
+    weg.className = 'stil';
+    weg.textContent = t('inst.kistWeg');
+    weg.onclick = () => browser.kistWeg(s.naam);
+
+    li.append(naam, regel, onder, schuif, weg);
+    return li;
+  }));
+
+  const el = document.getElementById('uitleg-kist');
+  if (!el) return;
+  // Wat er nog te zeggen valt: hoeveel er aan staan, en — als er iets aan staat
+  // terwijl de API-sleutel de rug is — dat het deze ronde niet meedoet. Stil
+  // minder doen dan er op het scherm staat is de ergste variant.
+  const delen = [];
+  if (rijen.length) {
+    delen.push(t('inst.kistToe', { aantal: rijen.filter((s) => s.aan).length, totaal: rijen.length }));
+  }
+  if (rijen.some((s) => s.aan) && a?.rug === 'api') delen.push(t('inst.kistApiRug'));
+  el.textContent = delen.join(' ');
+}
+
+document.getElementById('kist-toevoegen').onclick = async () => {
+  const naam = document.getElementById('kist-naam');
+  const regel = document.getElementById('kist-regel');
+  const omgeving = document.getElementById('kist-omgeving');
+  const stukken = document.getElementById('kist-gereedschap');
+  const uitleg = document.getElementById('uitleg-kist');
+
+  const uit = await browser.kistVoeg({
+    naam: naam.value,
+    commando: regel.value,
+    omgeving: omgeving.value,
+    gereedschap: stukken.value,
+  });
+  if (uit?.fout) {
+    // De code komt uit lib/kist.js, de zin hoort hier. Een onbekende code is
+    // geen reden om te zwijgen.
+    const sleutel = `inst.kistFout${uit.fout.charAt(0).toUpperCase()}${uit.fout.slice(1)}`;
+    uitleg.textContent = t(sleutel) === sleutel ? uit.fout : t(sleutel);
+    return;
+  }
+  // Gelukt: de velden leeg, en de omgeving als eerste — daar staat het geheim.
+  omgeving.value = '';
+  naam.value = '';
+  regel.value = '';
+  stukken.value = '';
+};
+
+for (const id of ['kist-naam', 'kist-regel', 'kist-omgeving', 'kist-gereedschap']) {
+  const veld = document.getElementById(id);
+  if (!veld) continue;
+  veld.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter' && id !== 'kist-omgeving') {
+      document.getElementById('kist-toevoegen').click();
+    }
+  });
+}
 
 /**
  * De sneltoetsen in de instellingen.

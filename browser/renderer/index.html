@@ -417,6 +417,46 @@
             <p class="uitleg" data-t="inst.modelUitleg"></p>
           </section>
 
+          <!-- Eigen gereedschap voor de assistent. Server voor server, met de
+               hand: wat je elders hebt aangesloten komt hier met opzet niet
+               vanzelf binnen. Zie lib/kist.js. -->
+          <section id="kist">
+            <h2 data-t="inst.kist">Eigen gereedschap</h2>
+            <p class="uitleg" data-t="inst.kistUitleg"></p>
+
+            <ul id="kist-lijst"></ul>
+            <p class="uitleg" id="uitleg-kist-leeg" data-t="inst.kistLeeg"></p>
+
+            <div class="regel">
+              <label for="kist-naam" data-t="inst.kistNaam">Naam</label>
+              <input type="text" id="kist-naam" maxlength="24" spellcheck="false"
+                     autocomplete="off" placeholder="agenda" />
+            </div>
+            <div class="regel">
+              <label for="kist-regel" data-t="inst.kistCommando">Commando</label>
+              <input type="text" id="kist-regel" spellcheck="false" autocomplete="off"
+                     placeholder="npx -y @jouw/mcp-server" />
+            </div>
+            <div class="regel">
+              <label for="kist-omgeving" data-t="inst.kistOmgeving">Omgeving</label>
+              <textarea id="kist-omgeving" rows="2" spellcheck="false"
+                        autocomplete="off" placeholder="TOKEN=…"></textarea>
+            </div>
+            <p class="uitleg" id="uitleg-kist-omgeving"></p>
+            <div class="regel">
+              <label for="kist-gereedschap" data-t="inst.kistAlleen">Alleen deze stukken</label>
+              <input type="text" id="kist-gereedschap" spellcheck="false"
+                     autocomplete="off" placeholder="" />
+            </div>
+            <p class="uitleg" data-t="inst.kistAlleenUitleg"></p>
+            <div class="regel knoprij">
+              <button id="kist-toevoegen" type="button" data-t="inst.kistToevoegen">Toevoegen</button>
+            </div>
+            <p class="uitleg" id="uitleg-kist"></p>
+            <p class="uitleg" data-t="inst.kistGrens"></p>
+            <p class="uitleg" data-t="inst.kistGeldt"></p>
+          </section>
+
           <!-- Bijwerken. Kijken en zeggen, verder niets: zolang deze
                browser niet ondertekend is, is een programma dat zichzelf
                vervangt precies het gedrag waar een handtekening voor

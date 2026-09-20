@@ -381,6 +381,7 @@ browser.onState((state) => {
   tekenMcp();
   tekenAccount();
   tekenAgent();
+  tekenToetsen();
   tekenApprij();
   tekenPaneel();
   tekenWorkspaces();
@@ -1801,6 +1802,29 @@ document.getElementById('sleutel-wis').onclick = async () => {
   document.getElementById('sleutel-veld').value = '';
   await browser.wisSleutel();
 };
+
+/**
+ * De sneltoetsen in de instellingen.
+ *
+ * De rijen komen uit de stand en dus uit dezelfde lijst die de toetsen
+ * afhandelt. Een browser die zijn sneltoetsen ergens opsomt en ze ergens
+ * anders afhandelt, somt vroeg of laat een toets op die niets meer doet.
+ */
+function tekenToetsen() {
+  const lijst = document.getElementById('toetsenlijst');
+  const rijen = laatsteStaat.sneltoetsen ?? [];
+  if (!lijst || !rijen.length) return;
+  lijst.replaceChildren(...rijen.map((r) => {
+    const li = document.createElement('li');
+    const wat = document.createElement('span');
+    wat.className = 'wat';
+    wat.textContent = r.wat;
+    const kbd = document.createElement('kbd');
+    kbd.textContent = r.toets;
+    li.append(wat, kbd);
+    return li;
+  }));
+}
 
 function tekenAccount() {
   const a = laatsteStaat.account;

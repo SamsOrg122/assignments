@@ -19,6 +19,11 @@ const { geschiedenis } = require('./lib/geschiedenis.js');
 const { ApiOpdracht, STANDAARD_MODEL } = require('./lib/api.js');
 const sleutel = require('./lib/sleutel.js');
 const { hangMenu } = require('./lib/menu.js');
+const { sneltoetsLijst, bindSneltoetsen } = require('./lib/sneltoetsen.js');
+
+// Wat de sneltoetsen van búíten dit bestand nodig hebben. Alleen dit ene
+// ding, en zo hoeft lib/sneltoetsen.js niets van main.js te weten.
+const HULP = { nieuwVenster: () => new BrowserWindowController() };
 const sessies = require('./lib/sessies.js');
 const herstel = require('./lib/herstel.js');
 const { isAanmeldStart, isTerugkomst, isGeweigerd, foutIn, Aanmelding, useragentVoor } = require('./lib/inloggen.js');
@@ -202,99 +207,6 @@ const kortRegel = (tekst, max = 78) => {
   const spatie = knip.lastIndexOf(' ');
   return (spatie > 40 ? knip.slice(0, spatie) : knip) + '…';
 };
-// Sneltoetsen horen te werken waar je ook bent, en een pagina is een eigen
-// webContents met eigen toetsafhandeling. Daarom hangt dit op élke webContents
-// die het venster maakt — daarvoor deden Ctrl+T en Ctrl+W niets zodra je in een
-// pagina had geklikt. preventDefault houdt ze weg bij de renderer, zodat niemand
-// dezelfde toets twee keer afhandelt.
-function bindSneltoetsen(wc, ctrl) {
-  wc.on('before-input-event', (e, input) => {
-    if (input.type !== 'keyDown') return;
-    const mod = input.control || input.meta;
-    const toets = input.key.toLowerCase();
-
-    // Escape haalt weg wat de gids aanwijst. Alleen als er iets staat: anders
-    // zou deze browser elke Escape van elke pagina inpikken, en daar hangen op
-    // sites dialogen en menu's aan.
-    if (input.key === 'Escape' && !mod && !input.shift && ctrl && ctrl.gewezenTab !== null) {
-      e.preventDefault();
-      ctrl.wijsNietMeer();
-      return;
-    }
-
-    // Zonder menubalk is dit de enige weg naar de DevTools.
-    if (input.key === 'F12' || (mod && input.shift && toets === 'i')) {
-      e.preventDefault();
-      wc.toggleDevTools();
-      return;
-    }
-    if (!mod || !ctrl) return;
-
-    if (input.shift) {
-      if (toets === 't') {
-        e.preventDefault();
-        ctrl.heropenTab();
-      } else if (toets === 'o') {
-        e.preventDefault();
-        ctrl.wisselWerkbank();
-      } else if (toets === 'j') {
-        // Ctrl+J is hier al de balk bovenin. Downloads krijgen de toets
-        // ernaast, en verder wijst de lijst zichzelf aan: hij klapt open zodra
-        // er iets binnenkomt.
-        e.preventDefault();
-        ctrl.vraagZijbalk('downloads');
-      } else if (toets === 'g') {
-        // De gids: een vraag over de pagina waar je nu naar kijkt. Dezelfde
-        // balk als een opdracht, met een andere vraag erin.
-        e.preventDefault();
-        ctrl.focusIsland('gids');
-      }
-      return;
-    }
-
-    const acties = {
-      t: () => ctrl.createTab(),
-      // Een tweede venster. Leeg, met één workspace: Ctrl+N hoort je tabbladen
-      // niet te verdubbelen.
-      n: () => { new BrowserWindowController(); },
-      w: () => ctrl.closeTab(ctrl.activeId),
-      l: () => ctrl.vraagZijbalk('adres'),
-      k: () => ctrl.vraagZijbalk('palet'),
-      // Ctrl+F opent het zoekveld in de zijbalk. Niet een strook over de
-      // pagina: die pagina is een native laag en tekent over elke overlay
-      // heen, en een tweede doorzichtige view voor één invoerveld is een
-      // hoop machinerie voor iets dat in het chroom thuishoort. Deze browser
-      // zet zijn tabbladen, zijn adres en zijn workspaces al in de zijbalk.
-      f: () => ctrl.vraagZijbalk('zoek'),
-      j: () => ctrl.focusIsland(),
-      // Ctrl+H opent de commandobalk met de geschiedenis erin. Geen eigen
-      // scherm: deze browser heeft één plek waar je typt, en die kan meer dan
-      // een adres.
-      h: () => ctrl.vraagZijbalk('geschiedenis'),
-      r: () => ctrl.reload(),
-      '=': () => ctrl.zoom(0.5),
-      '+': () => ctrl.zoom(0.5),
-      '-': () => ctrl.zoom(-0.5),
-      0: () => ctrl.zoom(0, true),
-    };
-
-    if (acties[toets]) {
-      e.preventDefault();
-      acties[toets]();
-      return;
-    }
-
-    // Ctrl+1 tot Ctrl+9 springt naar de zoveelste workspace.
-    if (toets >= '1' && toets <= '9') {
-      const ws = [...ctrl.workspaces.values()][Number(toets) - 1];
-      if (ws) {
-        e.preventDefault();
-        ctrl.activateWorkspace(ws.id);
-      }
-    }
-  });
-}
-
 /**
  * Eén venster met zijn eigen workspaces. Een workspace is een groep tabbladen
  * met een eigen sessie, dus eigen cookies en logins: je kunt in de ene ingelogd
@@ -427,7 +339,7 @@ class BrowserWindowController {
       if (new Set(windows.values()).size > 0) herstel.vergeetVenster(hostId);
     });
 
-    bindSneltoetsen(this.win.webContents, this);
+    bindSneltoetsen(this.win.webContents, this, HULP);
     this.win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
     // De balk is een eigen laag met een eigen preload: hij mag minder dan de
@@ -447,7 +359,7 @@ class BrowserWindowController {
     windows.set(islandId, this);
     this.win.on('closed', () => windows.delete(islandId));
 
-    bindSneltoetsen(this.island.webContents, this);
+    bindSneltoetsen(this.island.webContents, this, HULP);
     this.island.webContents.loadFile(path.join(__dirname, 'renderer', 'island.html'));
     this.win.contentView.addChildView(this.island);
     this.layoutIsland();
@@ -909,6 +821,8 @@ class BrowserWindowController {
       // kunnen zeggen dat Escape het weghaalt.
       gewezenTab: this.gewezenTab,
       balkApps: BALK_APPS,
+      // Dezelfde lijst die de toetsen afhandelt; zie SNELTOETSEN.
+      sneltoetsen: sneltoetsLijst(isMac),
       buurId: this.buurId,
       paletten: PALETTEN,
       bewegingen: BEWEGINGEN,
@@ -1050,7 +964,7 @@ class BrowserWindowController {
       geschiedenis.hernoem(wc.getURL(), titel);
     });
 
-    bindSneltoetsen(wc, this);
+    bindSneltoetsen(wc, this, HULP);
     hangMenu(wc, this, {
       zoekURL: (tekst) => naarZoekURL(tekst, zoekmachine()),
       bewaarInNotitie: (tekst) => this.bewaarInNotitie(tekst),
@@ -2225,7 +2139,7 @@ class BrowserWindowController {
     // lib/app-stijl.js voor wat er bewust níét wordt aangeraakt.
     this.appStijl = volgDeBrowser(wc, () => voorkeuren.alles().appStijl !== false);
 
-    bindSneltoetsen(wc, this);
+    bindSneltoetsen(wc, this, HULP);
     hangMenu(wc, this, {
       zoekURL: (tekst) => naarZoekURL(tekst, zoekmachine()),
       bewaarInNotitie: (tekst) => this.bewaarInNotitie(tekst),

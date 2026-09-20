@@ -2385,6 +2385,50 @@ body.geen-sneltoetsen kbd {
   accent-color: var(--accent);
 }
 
+/* Sneltoetsen ----------------------------------------------------------- */
+
+#toetsenlijst {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 18px;
+}
+
+#toetsenlijst li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: 28px;
+  font-size: 13px;
+}
+
+#toetsenlijst .wat {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+
+/* Dezelfde toetsenkaartjes als in de zijbalk, maar op een licht vlak. */
+#toetsenlijst kbd {
+  flex: none;
+  font: inherit;
+  font-size: 11px;
+  color: var(--ink-2);
+  background: rgba(34, 31, 42, 0.07);
+  border-radius: 6px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  #toetsenlijst {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* De verbinding met een AI-client ---------------------------------------- */
 
 #mcp-config {

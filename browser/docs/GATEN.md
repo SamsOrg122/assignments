@@ -19,6 +19,7 @@ bijgewerkt omdat aan `CLAUDE.md` niet geraakt wordt in deze sessies.
 | De gids legt iets uit in stappen | `lib/gids/reeks.js`, `wijs_stap` | idem |
 | Eigen API-sleutel als tweede rug | `lib/api.js`, `lib/sleutel.js` | `test/api.js`, 34 |
 | Meerdere vensters (Ctrl+N), en herstel per venster | `main.js`, `lib/herstel.js` | `test/vensters.js` 29, `test/vensters-echt.js` 9 |
+| Alle sneltoetsen op één plek, en in beeld | `lib/sneltoetsen.js` | `test/toetsen.js`, 28 |
 
 ## Wat meerdere vensters nog niet doen
 
@@ -50,7 +51,9 @@ starten komt elk venster terug zoals het stond. Wat er niet is:
   ánder gereedschap kan, is niet gebouwd.
 - **De zijbalk is Nederlands.** `renderer/` en `main.js` kennen geen i18n,
   terwijl de site Engels is. Wie de browser downloadt komt in een andere taal
-  terecht dan de pagina waar hij op klikte.
+  terecht dan de pagina waar hij op klikte. Dat is geen bug die vanzelf één
+  kant op wijst: Nederlands laten en de site erop aanpassen kan ook. Het is
+  een keuze van de eigenaar en niet van wie hier zit te typen.
 
 ## Hoe je alles draait
 
@@ -62,6 +65,7 @@ npm run test:downloads
 npm run test:geschiedenis
 npm run test:api
 npm run test:hersens         # zonder Electron
+npm run test:toetsen         # zonder Electron
 npm run test:vensters        # zonder Electron
 npm run test:vensters-echt   # start de hele app en praat via de debugpoort
 ```

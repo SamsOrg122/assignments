@@ -28,7 +28,10 @@ const { t, zetTaal, taalNu } = require('./renderer/taal.js');
 
 // Wat de sneltoetsen van búíten dit bestand nodig hebben. Alleen dit ene
 // ding, en zo hoeft lib/sneltoetsen.js niets van main.js te weten.
-const HULP = { nieuwVenster: () => new BrowserWindowController() };
+const HULP = {
+  nieuwVenster: () => new BrowserWindowController(),
+  heropenVenster: () => heropenVenster(),
+};
 const sessies = require('./lib/sessies.js');
 const herstel = require('./lib/herstel.js');
 const { isAanmeldStart, isTerugkomst, isGeweigerd, foutIn, Aanmelding, useragentVoor } = require('./lib/inloggen.js');
@@ -186,6 +189,20 @@ const isMac = process.platform === 'darwin';
  */
 let volgendeWorkspaceNummer = 1;
 
+/*
+ * Tabbladnummers lopen ook over het hele programma.
+ *
+ * Vroeger per venster, met als reden dat ze dan niet botsen in de
+ * faviconcache van de zijbalk — die kent één sleutelruimte. Dat blijft
+ * kloppen met een globale teller, en er is een reden bij gekomen die zwaarder
+ * weegt: er is nog maar één MCP-deur voor alle vensters, en die noemt een
+ * tabblad bij zijn nummer. Liepen die per venster, dan zou "lees pagina 3"
+ * twee verschillende pagina's kunnen betekenen — en de vraag om toestemming
+ * ernaast zou over de verkeerde gaan.
+ */
+let volgendTabNummer = 1;
+const neemTabNummer = () => volgendTabNummer++;
+
 // Hoeveel vensters er deze draai al zijn gemaakt. Alleen om het volgende
 // venster een stukje op te schuiven: twee vensters precies op elkaar zien er
 // uit als één venster, en dan lijkt Ctrl+N stuk.
@@ -195,6 +212,72 @@ const neemWorkspaceNummer = () => volgendeWorkspaceNummer++;
 const houdNummerBoven = (n) => {
   volgendeWorkspaceNummer = Math.max(volgendeWorkspaceNummer, Number(n) + 1 || 1);
 };
+
+/* ── De deur voor een AI-client ───────────────────────────────────────────
+ *
+ * Eén voor het hele programma, en niet één per venster.
+ *
+ * Dat was het eerst wel, en het was op twee manieren verkeerd tegelijk. Voor
+ * één client was het te veel: twee vensters betekende twee poorten, twee
+ * sleutels en twee regels in een configuratiebestand, voor iets dat één
+ * verbinding hoort te zijn. En voor een client die je hele browser wilde
+ * bedienen was het te weinig: hij zag de tabbladen van één venster en van de
+ * rest niets, zonder dat ergens stond waarom.
+ *
+ * Nu is er één poort, één sleutel en één logboek. Welk venster de client zijn
+ * eigen workspace geeft staat hieronder; wat hij van jóúw kant ziet gaat over
+ * alle vensters, want zo ziet jouw browser er ook uit.
+ */
+/*
+ * Vensters die je net sloot, voor Ctrl+Shift+N.
+ *
+ * Hetzelfde als Ctrl+Shift+T maar één maat groter, en om dezelfde reden: een
+ * venster sluiten is één beweging en twintig tabbladen terugzoeken is er
+ * twintig. Wat hier in gaat is precies wat het herstelbestand ook bewaart —
+ * namen, paletten, partities en adressen — dus geen privéworkspaces en geen
+ * inhoud. Drie diep: verder terug dan dat is geen vergissing meer maar een
+ * archief.
+ */
+const geslotenVensters = [];
+const MAX_GESLOTEN_VENSTERS = 3;
+
+/** Het laatst gesloten venster terug, of niets als er geen is. */
+function heropenVenster() {
+  const stand = geslotenVensters.pop();
+  if (!stand) return false;
+  new BrowserWindowController(stand);
+  return true;
+}
+
+const mcpLog = [];
+let mcpDeurVenster = null;
+
+/** Alle vensters, één keer elk. De registry kent de zijbalk én de balk. */
+const alleVensters = () => [...new Set(windows.values())];
+
+/**
+ * Het venster waar de client zijn workspace heeft.
+ *
+ * Dat is het venster waarin de deur is opengezet. Gaat dat dicht, dan neemt
+ * een ander het over: een openstaande deur zonder venster is een deur naar
+ * niets, en stilletjes stoppen met antwoorden is erger dan verhuizen.
+ */
+function deurVenster() {
+  const gekozen = mcpDeurVenster && windows.get(mcpDeurVenster);
+  if (gekozen) return gekozen;
+  return alleVensters()[0] ?? null;
+}
+
+const mcpDeur = new McpDeur({
+  controller: () => deurVenster(),
+  meld: (regel) => {
+    mcpLog.push({ ...regel, op: Date.now() });
+    if (mcpLog.length > 200) mcpLog.shift();
+    // Elk venster toont hetzelfde logboek: het gaat over het programma en
+    // niet over een raam.
+    for (const ctrl of alleVensters()) ctrl.pushState();
+  },
+});
 
 // IPC-handlers zoeken hier het venster op waar een bericht vandaan komt, zodat
 // er geen globale "huidig venster" meer nodig is.
@@ -247,9 +330,6 @@ class BrowserWindowController {
     this.herstelLijst = Array.isArray(teHerstellen) ? teHerstellen : null;
     /** @type {Map<number, {id: number, name: string, color: string, partition: string, tabs: Map<number, WebContentsView>, activeId: number|null}>} */
     this.workspaces = new Map();
-    // Tabblad-ids lopen per venster, niet per workspace. Zo botsen ze nooit in
-    // de faviconcache van de renderer, die maar één sleutelruimte kent.
-    this.nextId = 1;
     // Zolang de commandobalk open staat verbergen we de pagina; zie setPaletteOpen.
     this.paletteOpen = false;
     // De werkbank wordt pas gemaakt als je hem voor het eerst opent; een venster
@@ -294,14 +374,6 @@ class BrowserWindowController {
     // geen website op gerekend heeft.
     this.buurId = null;
 
-    // De verbinding met een AI-client, en wat die heeft gedaan. Het logboek
-    // blijft in het geheugen: het gaat over deze zitting, en het op schijf
-    // zetten maakt van een hulpmiddel een dossier.
-    this.mcpLog = [];
-    this.mcp = new McpDeur({
-      controller: () => this,
-      meld: (regel) => this.mcpMeld(regel),
-    });
 
     // De poort waar elke handeling langs moet die jouw kant raakt.
     this.toestemming = new Toestemming(() => this.toonVraag());
@@ -361,6 +433,12 @@ class BrowserWindowController {
     this.win.on('closed', () => {
       losDownloads();
       windows.delete(hostId);
+      // Wat erin stond, voor het geval je hem terug wilt. Alleen als er iets
+      // in stond: een leeg venster terughalen is niets terughalen.
+      if (this.laatsteStand?.length) {
+        geslotenVensters.push(this.laatsteStand);
+        while (geslotenVensters.length > MAX_GESLOTEN_VENSTERS) geslotenVensters.shift();
+      }
       // Eén van de twee sluiten is een keuze om er één over te houden, en
       // morgen hoort er dan ook één te staan. Het láátste venster sluiten is
       // iets anders: dat is hoe je dit programma afsluit, en dan wil je je
@@ -623,6 +701,83 @@ class BrowserWindowController {
     else this.pushState();
   }
 
+  /* ── Een workspace verhuizen naar een ander venster ──────────────────
+   *
+   * Waarom een wórkspace en niet een tabblad, terwijl je waarschijnlijk aan
+   * een tabblad dacht: een tabblad is een `WebContentsView` en die krijgt
+   * zijn sessie bij het maken, één keer, voor altijd. Hem in een workspace
+   * van een ander venster zetten zou betekenen dat één workspace twee
+   * sessies bevat, en daarmee is "een workspace ís zijn sessie" geen
+   * waarheid meer — dat is de zin waar de helft van deze browser op staat.
+   * Het alternatief, hem opnieuw laten laden in de sessie van de buurman, is
+   * geen verhuizing maar een nieuw tabblad met hetzelfde adres: je bent er
+   * uitgelogd en je formulier is weg.
+   *
+   * Dus verhuist de hele workspace, met zijn sessie eronder. De views gaan
+   * mee zoals ze zijn — niets herlaadt, niets logt uit, en wat je aan het
+   * typen was staat er nog.
+   */
+  verhuisWorkspace(wsId, naarSleutel) {
+    const ws = this.workspaces.get(Number(wsId));
+    if (!ws) return { fout: 'die workspace bestaat niet' };
+    // De laatste kan niet weg: een venster zonder workspace bestaat niet.
+    if (this.workspaces.size <= 1) return { fout: 'dit is de laatste workspace van dit venster' };
+    if (ws.vanMcp) return { fout: 'de workspace van de client verhuist niet mee' };
+
+    const doel = windows.get(Number(naarSleutel));
+    if (!doel || doel === this) return { fout: 'dat venster bestaat niet' };
+
+    // Eerst uit beeld, dan verhuizen. Een view die nog zichtbaar is terwijl
+    // hij van ouder wisselt, tekent even op twee plekken.
+    for (const view of ws.tabs.values()) {
+      view.setVisible(false);
+      this.win.contentView.removeChildView(view);
+      doel.win.contentView.addChildView(view);
+      // De sneltoetsen hingen aan dit venster; ze moeten nu het nieuwe
+      // aanwijzen, anders opent Ctrl+T straks een tabblad in een raam waar je
+      // niet naar kijkt.
+      bindSneltoetsen(view.webContents, doel, HULP);
+    }
+
+    // Wie van welk tabblad was verhuist mee; dat is per tabblad en niet per
+    // venster, en het bepaalt of een rij het gloeiende icoontje krijgt.
+    for (const id of ws.tabs.keys()) {
+      if (this.owners.has(id)) {
+        doel.owners.set(id, this.owners.get(id));
+        this.owners.delete(id);
+      }
+    }
+
+    this.workspaces.delete(Number(wsId));
+    doel.workspaces.set(Number(wsId), ws);
+    // Wat je net sloot verwijst naar een workspace die hier niet meer staat.
+    this.gesloten = this.gesloten.filter((g) => g.wsId !== Number(wsId));
+    if (this.gewezenTab !== null && ws.tabs.has(this.gewezenTab)) {
+      doel.gewezenTab = this.gewezenTab;
+      this.gewezenTab = null;
+    }
+
+    if (this.activeWorkspaceId === Number(wsId)) {
+      this.activeWorkspaceId = [...this.workspaces.keys()][0];
+    }
+    this.layoutActiveTab();
+    this.pushState();
+
+    // En in het andere venster meteen zichtbaar: je verhuisde hem omdat je
+    // hem daar wilde hebben.
+    doel.activateWorkspace(Number(wsId));
+    doel.win.focus();
+    return { verhuisd: Number(wsId), naar: Number(naarSleutel) };
+  }
+
+  /** De andere vensters, om er een te kunnen kiezen. */
+  andereVensters() {
+    const alle = alleVensters();
+    return alle
+      .map((ctrl, i) => ({ sleutel: ctrl.vensterSleutel, nummer: i + 1 }))
+      .filter((v) => v.sleutel !== this.vensterSleutel);
+  }
+
   renameWorkspace(id, name) {
     const ws = this.workspaces.get(id);
     if (!ws) return;
@@ -858,6 +1013,8 @@ class BrowserWindowController {
       // Waar de gids iets aanwijst, of null. De zijbalk gebruikt het om te
       // kunnen zeggen dat Escape het weghaalt.
       gewezenTab: this.gewezenTab,
+      // De andere vensters, zodat een workspace ergens heen kan.
+      andereVensters: this.andereVensters(),
       balkApps: BALK_APPS,
       // Dezelfde lijst die de toetsen afhandelt; zie SNELTOETSEN.
       sneltoetsen: sneltoetsLijst(isMac),
@@ -873,7 +1030,7 @@ class BrowserWindowController {
         // Het pad naar de brug, zodat het scherm de configuratie kan tonen die
         // je in je client plakt.
         brug: BRUG,
-        log: this.mcpLog.slice(-30),
+        log: mcpLog.slice(-30),
       },
       geluid: this.geluidsbronnen(),
       paneelHoogte: this.paneelHoogte,
@@ -896,7 +1053,7 @@ class BrowserWindowController {
 
   createTab(url = nieuwTabURL(), ws = this.workspace, opties = {}) {
     const { owner = null, activeer = true } = opties;
-    const id = this.nextId++;
+    const id = neemTabNummer();
     const view = new WebContentsView({
       webPreferences: {
         partition: ws.partition,
@@ -1104,12 +1261,15 @@ class BrowserWindowController {
 
   // --- de deur naar een AI-client --------------------------------------
 
-  mcpMeld(regel) {
-    this.mcpLog.push({ ...regel, op: Date.now() });
-    // Honderd regels is genoeg om terug te kijken zonder dat dit ongemerkt
-    // groeit tot het geheugen kost.
-    if (this.mcpLog.length > 100) this.mcpLog.splice(0, this.mcpLog.length - 100);
-    this.pushState();
+  /**
+   * De deur, die van het hele programma is.
+   *
+   * Als eigenschap en niet als losse verwijzing, zodat alles wat hieronder
+   * `this.mcp` zegt precies zo blijft lezen als het deed. Zie mcpDeur boven
+   * in dit bestand voor waarom er nog maar één is.
+   */
+  get mcp() {
+    return mcpDeur;
   }
 
   /**
@@ -1230,21 +1390,37 @@ class BrowserWindowController {
   }
 
   async zetMcp(aan) {
-    if (aan) await this.mcp.open();
-    else this.mcp.sluit('door jou gesloten');
+    if (aan) {
+      // De client krijgt zijn workspace in het venster waar je hem opendeed.
+      // Dat is het venster waar je naar keek toen je het vinkje zette, en
+      // daar hoor je hem dan ook te zien werken.
+      mcpDeurVenster = this.vensterSleutel;
+      await this.mcp.open();
+    } else {
+      this.mcp.sluit('door jou gesloten');
+      mcpDeurVenster = null;
+    }
     // Met opzet niet bewaard. Een deur naar buiten die zichzelf opent zodra je
     // de browser start, is een deur die op een dag openstaat zonder dat iemand
     // daarvoor koos. Elke zitting begint dicht.
-    this.pushState();
+    //
+    // Alle vensters bijwerken: het is één deur, dus het vinkje hoort overal
+    // dezelfde stand te tonen.
+    for (const ctrl of alleVensters()) ctrl.pushState();
     return this.mcp.stand();
   }
 
   /** De noodstop: deur dicht, workspace weg, alles wat hij deed afgebroken. */
   mcpNoodstop() {
-    this.stopAgent(false);
-    this.toestemming.breekAf('de noodstop is ingedrukt');
+    // De noodstop is van het programma en niet van dit raam: wat er in een
+    // ander venster nog liep hoort ook te stoppen.
+    for (const ctrl of alleVensters()) {
+      ctrl.stopAgent(false);
+      ctrl.toestemming.breekAf('de noodstop is ingedrukt');
+    }
     this.mcp.sluit('met de noodstop afgebroken');
-    this.pushState();
+    mcpDeurVenster = null;
+    for (const ctrl of alleVensters()) ctrl.pushState();
     return this.mcp.stand();
   }
 
@@ -1427,6 +1603,8 @@ class BrowserWindowController {
       });
     }
     herstel.bewaar(this.vensterSleutel, groepen);
+    // Dezelfde lijst dient twee doelen: morgen terugkomen, en Ctrl+Shift+N.
+    this.laatsteStand = groepen;
   }
 
   /**
@@ -1631,7 +1809,10 @@ class BrowserWindowController {
     if (naam === 'lees_jouw_pagina') {
       const gevonden = this.zoekJouwTab(arg.id);
       if (!gevonden) return Promise.resolve({ goed: false, reden: 'die pagina bestaat niet' });
-      return this.toestemming.vraag({
+      // De vraag stelt het venster waar die pagina staat, en niet het venster
+      // waar de deur toevallig is opengezet. Een vraag over een pagina hoort
+      // te verschijnen waar je die pagina kunt zien.
+      return gevonden.ctrl.toestemming.vraag({
         wat: naam,
         kop: t('tst.leesKop'),
         regels: [
@@ -1669,7 +1850,10 @@ class BrowserWindowController {
     if (naam === 'bekijk_jouw_pagina') {
       const gevonden = this.zoekJouwTab(arg.id);
       if (!gevonden) return Promise.resolve({ goed: false, reden: 'die pagina bestaat niet' });
-      return this.toestemming.vraag({
+      // De vraag stelt het venster waar die pagina staat, en niet het venster
+      // waar de deur toevallig is opengezet. Een vraag over een pagina hoort
+      // te verschijnen waar je die pagina kunt zien.
+      return gevonden.ctrl.toestemming.vraag({
         wat: naam,
         kop: t('tst.bekijkKop'),
         regels: [
@@ -1691,7 +1875,10 @@ class BrowserWindowController {
     if (naam === 'wijs_aan') {
       const gevonden = this.zoekJouwTab(arg.id);
       if (!gevonden) return Promise.resolve({ goed: false, reden: 'die pagina bestaat niet' });
-      return this.toestemming.vraag({
+      // De vraag stelt het venster waar die pagina staat, en niet het venster
+      // waar de deur toevallig is opengezet. Een vraag over een pagina hoort
+      // te verschijnen waar je die pagina kunt zien.
+      return gevonden.ctrl.toestemming.vraag({
         wat: naam,
         kop: t('tst.wijsKop'),
         regels: [
@@ -1714,7 +1901,10 @@ class BrowserWindowController {
     if (naam === 'wijs_stap') {
       const gevonden = this.zoekJouwTab(arg.id);
       if (!gevonden) return Promise.resolve({ goed: false, reden: 'die pagina bestaat niet' });
-      return this.toestemming.vraag({
+      // De vraag stelt het venster waar die pagina staat, en niet het venster
+      // waar de deur toevallig is opengezet. Een vraag over een pagina hoort
+      // te verschijnen waar je die pagina kunt zien.
+      return gevonden.ctrl.toestemming.vraag({
         wat: naam,
         kop: t('tst.stapKop'),
         regels: [
@@ -1758,16 +1948,47 @@ class BrowserWindowController {
    * Zegt waarom een tabblad niet van een client is. Voor privé, want daar gaat
    * het antwoord altijd nee zijn, en dan is vragen alleen maar lekken.
    */
+  /*
+   * ── WAAROM DEZE TWEE OVER ALLE VENSTERS GAAN ──────────────────────────
+   *
+   * De deur is er nog maar één voor het hele programma, dus als een client
+   * naar pagina 7 vraagt, hoort dat pagina 7 te zijn waar hij ook staat. Zou
+   * dit alleen in dit venster kijken, dan bestond de helft van je browser
+   * niet voor een client — zonder dat ergens stond waarom.
+   *
+   * En daarom moet `priveBezwaar` mee verhuizen. Zou dat wél alleen hier
+   * kijken terwijl `zoekJouwTab` overal kijkt, dan was een privétabblad in
+   * een ánder venster ineens leesbaar: de zoekopdracht vindt hem, en de
+   * controle die hem hoort tegen te houden kijkt de andere kant op. Dat is
+   * precies het soort gat dat er niet uitziet als een gat.
+   */
   priveBezwaar(id) {
-    for (const ws of this.workspaces.values()) {
-      if (ws.prive && ws.tabs.has(Number(id))) {
+    for (const ctrl of alleVensters()) {
+      if (ctrl.priveBezwaarHier(id)) {
         return 'Dat tabblad staat in een privéworkspace. Daar kan een client niet bij.';
       }
     }
     return null;
   }
 
+  /** Alleen dit venster. */
+  priveBezwaarHier(id) {
+    for (const ws of this.workspaces.values()) {
+      if (ws.prive && ws.tabs.has(Number(id))) return true;
+    }
+    return false;
+  }
+
   zoekJouwTab(id) {
+    for (const ctrl of alleVensters()) {
+      const gevonden = ctrl.zoekJouwTabHier(id);
+      if (gevonden) return gevonden;
+    }
+    return null;
+  }
+
+  /** Alleen dit venster. Geeft het venster mee terug: wie hem vond moet erop werken. */
+  zoekJouwTabHier(id) {
     for (const ws of this.workspaces.values()) {
       if (ws.vanMcp) continue;
       // Een privéworkspace bestaat niet voor een client van buiten, ook niet
@@ -1778,6 +1999,7 @@ class BrowserWindowController {
       if (!view || view.webContents.isDestroyed()) continue;
       return {
         view,
+        ctrl: this,
         wsNaam: ws.name,
         titel: view.webContents.getTitle() || 'Naamloos tabblad',
         host: hostVan(view.webContents.getURL()),
@@ -1787,20 +2009,31 @@ class BrowserWindowController {
   }
 
   /** Alleen titels, geen inhoud. Zonder dit kan een client niet eens vragen. */
+  /**
+   * De titels van jouw tabbladen, uit al je vensters.
+   *
+   * Privéworkspaces staan er niet in, en die van de client zelf ook niet.
+   * `venster` staat erbij zodra er meer dan één is: een client die twee keer
+   * "Instellingen" ziet moet kunnen weten dat dat twee pagina's zijn.
+   */
   mcpJouwPaginas() {
+    const vensters = alleVensters();
     const rijen = [];
-    for (const ws of this.workspaces.values()) {
-      if (ws.vanMcp || ws.prive) continue;
-      for (const [id, view] of ws.tabs) {
-        if (view.webContents.isDestroyed()) continue;
-        rijen.push({
-          id,
-          titel: view.webContents.getTitle() || 'Naamloos tabblad',
-          host: hostVan(view.webContents.getURL()),
-          workspace: ws.name,
-        });
+    vensters.forEach((ctrl, nummer) => {
+      for (const ws of ctrl.workspaces.values()) {
+        if (ws.vanMcp || ws.prive) continue;
+        for (const [id, view] of ws.tabs) {
+          if (view.webContents.isDestroyed()) continue;
+          rijen.push({
+            id,
+            titel: view.webContents.getTitle() || 'Naamloos tabblad',
+            host: hostVan(view.webContents.getURL()),
+            workspace: ws.name,
+            ...(vensters.length > 1 ? { venster: nummer + 1 } : {}),
+          });
+        }
       }
-    }
+    });
     return rijen;
   }
 
@@ -1840,7 +2073,10 @@ class BrowserWindowController {
     if (!gevonden) throw new Error(`Die pagina bestaat niet: ${id}`);
     const brug = brugVoor(gevonden.view.webContents);
     if (!brug) throw new Error(`Die pagina is net weggegaan: ${id}`);
-    return { brug, gevonden };
+    // `ctrl` is het venster waar die pagina staat. Wat er daarna onthouden
+    // wordt — welk tabblad er wordt aangewezen, welk gesprek er loopt —
+    // hoort daar te staan en niet bij het venster dat toevallig vroeg.
+    return { brug, gevonden, ctrl: gevonden.ctrl };
   }
 
   async mcpBekijkJouwPagina(id) {
@@ -1860,7 +2096,7 @@ class BrowserWindowController {
   }
 
   async mcpWijsAan(id, ref, tekst) {
-    const { brug } = this.gidsBrugVoor(id);
+    const { brug, ctrl } = this.gidsBrugVoor(id);
     const uit = await brug.wijs(String(ref ?? ''), String(tekst ?? ''), { woorden: this.gidsWoorden() });
     if (uit.status !== 'ok') {
       // "weg" is de eerlijke uitkomst als de pagina zichzelf opnieuw getekend
@@ -1869,17 +2105,20 @@ class BrowserWindowController {
       throw new Error(`Kon daar niet naar wijzen: ${uit.status}`);
     }
     // Onthouden waar de aanwijzing staat, zodat Escape hem kan weghalen. Er
-    // is er hoogstens één tegelijk: wijzen op een tweede pagina haalt de
-    // eerste weg, want twee ringen tegelijk wijst niets aan.
-    if (this.gewezenTab !== null && this.gewezenTab !== Number(id)) {
-      this.wijsNietMeer(this.gewezenTab);
+    // is er hoogstens één in het hele programma: wijzen op een tweede pagina
+    // haalt de eerste weg, ook als die in een ander venster stond, want twee
+    // ringen tegelijk wijst niets aan.
+    for (const ander of alleVensters()) {
+      if (ander.gewezenTab !== null && ander.gewezenTab !== Number(id)) {
+        ander.wijsNietMeer(ander.gewezenTab);
+      }
     }
-    this.gewezenTab = Number(id);
+    ctrl.gewezenTab = Number(id);
     // De vraag van de gebruiker is nu gebruikt. De beurt erna vraagt weer.
-    if (this.gidsGesprek && this.gidsGesprek.tabId === Number(id)) {
-      this.gidsGesprek.gevraagd = false;
+    if (ctrl.gidsGesprek && ctrl.gidsGesprek.tabId === Number(id)) {
+      ctrl.gidsGesprek.gevraagd = false;
     }
-    this.pushState();
+    ctrl.pushState();
     return { id: Number(id), ref: String(ref), gewezen: true, rect: uit.rect };
   }
 
@@ -1891,7 +2130,10 @@ class BrowserWindowController {
    * het soort regel dat hij is.
    */
   gidsStapOordeel(id, stap, van) {
-    return reeksOordeel(this.gidsReeks, { tabId: Number(id), stap, van });
+    // Bij het venster waar die pagina staat, want daar wordt de reeks
+    // bijgehouden. Bestaat dat venster niet, dan is er ook geen reeks.
+    const eigenaar = this.zoekJouwTab(id)?.ctrl;
+    return reeksOordeel(eigenaar?.gidsReeks ?? null, { tabId: Number(id), stap, van });
   }
 
   /**
@@ -1912,7 +2154,8 @@ class BrowserWindowController {
 
   /** Mag er gewezen worden zonder opnieuw te vragen? Zie magWijzen. */
   gidsWijsOordeel(id) {
-    return magWijzen(this.gidsGesprek, { tabId: Number(id) });
+    const eigenaar = this.zoekJouwTab(id)?.ctrl;
+    return magWijzen(eigenaar?.gidsGesprek ?? null, { tabId: Number(id) });
   }
 
   /**
@@ -2991,6 +3234,7 @@ ipcMain.handle('sessie:hernoem', (e, id, naam) => controllerFor(e)?.hernoemSessi
 ipcMain.handle('ws:activate', (e, id) => controllerFor(e)?.activateWorkspace(id));
 ipcMain.handle('ws:close', (e, id) => controllerFor(e)?.closeWorkspace(id));
 ipcMain.handle('ws:rename', (e, id, name) => controllerFor(e)?.renameWorkspace(id, name));
+ipcMain.handle('ws:verhuis', (e, id, naar) => controllerFor(e)?.verhuisWorkspace(id, naar));
 
 ipcMain.handle('ui:palette', (e, open) => controllerFor(e)?.setPaletteOpen(open));
 ipcMain.handle('ui:paneel', (e, naam) => controllerFor(e)?.zetPaneel(naam));
@@ -3044,6 +3288,9 @@ ipcMain.handle('ui:sidebar', (e, weg) => controllerFor(e)?.setZijbalkWeg(weg));
 // mogelijkheid waar maar één weg heen loopt is een mogelijkheid die niemand
 // vindt. De commandobalk heeft hem als regel, Ctrl+N doet hetzelfde.
 ipcMain.handle('win:nieuw', () => { new BrowserWindowController(); });
+// En er weer een terug. Ctrl+Shift+N doet hetzelfde; dit is de weg die de
+// commandobalk neemt, zodat het ook te vinden is zonder de toets te kennen.
+ipcMain.handle('win:heropen', () => heropenVenster());
 ipcMain.handle('win:minimize', (e) => controllerFor(e)?.win.minimize());
 ipcMain.handle('win:maximize', (e) => {
   const win = controllerFor(e)?.win;

@@ -1174,8 +1174,40 @@ function tekenWorkspacePop() {
     : kan ? 'Sluit deze workspace en bewaar hem om later terug te halen'
       : 'Er staat niets in om weg te leggen';
 
+  tekenVerhuis();
   tekenUiterlijk();
   tekenSessies();
+}
+
+/**
+ * Waar deze workspace naartoe kan.
+ *
+ * Eén knop per ander venster, en niets als er geen ander venster is. Wat er
+ * verhuist is de hele workspace en niet één tabblad; de uitleg eronder zegt
+ * waarom, want dat is precies wat je verwacht te kunnen en niet kunt.
+ */
+function tekenVerhuis() {
+  const rij = document.getElementById('ws-pop-verhuis');
+  const uitleg = document.getElementById('ws-verhuis-uitleg');
+  if (!rij || !uitleg) return;
+
+  const anderen = laatsteStaat.andereVensters ?? [];
+  const hier = laatsteStaat.workspaces.find((w) => w.id === laatsteStaat.activeWorkspaceId);
+  const kan = anderen.length > 0 && hier && laatsteStaat.workspaces.length > 1;
+  rij.hidden = !kan;
+  uitleg.hidden = !kan;
+  if (!kan) return;
+
+  rij.replaceChildren(...anderen.map((v) => {
+    const knop = document.createElement('button');
+    knop.type = 'button';
+    knop.textContent = t('ws.verhuis', { nummer: v.nummer });
+    knop.onclick = () => {
+      sluitWorkspacePop();
+      browser.verhuisWorkspace(hier.id, v.sleutel);
+    };
+    return knop;
+  }));
 }
 
 // Wat er ligt te wachten. Een sessie is een lijstje adressen met een naam, geen
@@ -1598,6 +1630,9 @@ function huidigeResultaten() {
   if (past('nieuw venster') || past(t('cmd.nieuwVenster'))) {
     acties.push({ soort: 'venster', label: t('cmd.nieuwVenster'), hint: 'Ctrl N' });
   }
+  if (past('venster terug') || past(t('cmd.vensterTerug'))) {
+    acties.push({ soort: 'venster-terug', label: t('cmd.vensterTerug'), hint: 'Ctrl ⇧ N' });
+  }
   if (huidigeUrl() && (past('favoriet') || past(t('cmd.favoriet', { host: host(huidigeUrl()) })))) {
     acties.push({
       soort: 'favoriet',
@@ -1715,6 +1750,7 @@ async function kiesResultaat(item) {
   else if (item.soort === 'ws') browser.activateWorkspace(item.id);
   else if (item.soort === 'instellingen') openInstellingen();
   else if (item.soort === 'venster') browser.nieuwVenster();
+  else if (item.soort === 'venster-terug') browser.heropenVenster();
   else if (item.soort === 'favoriet') {
     const url = huidigeUrl();
     const lijst = [...(prefs.favorieten ?? [])].filter((f) => f.url !== url);

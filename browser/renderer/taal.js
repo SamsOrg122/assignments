@@ -109,6 +109,7 @@ const WOORDEN = {
     'cmd.openen': 'Openen',
     'cmd.instellingen': 'Instellingen',
     'cmd.nieuwVenster': 'Nieuw venster',
+    'cmd.vensterTerug': 'Venster terug',
     'cmd.favoriet': '{host} bij favorieten',
     'cmd.toevoegen': 'Toevoegen',
 
@@ -140,6 +141,10 @@ const WOORDEN = {
     'ws.klikNogEens': 'Klik nog eens om te sluiten',
     'ws.eenTabblad': '1 tabblad',
     'ws.tabbladen': '{aantal} tabbladen',
+    'ws.verhuis': 'Naar venster {nummer}',
+    'ws.verhuisUitleg': 'Een hele workspace verhuist, met zijn sessie eronder. Een los tabblad '
+      + 'kan dat niet: dat zou in de sessie van het andere venster opnieuw moeten laden, en dan '
+      + 'ben je er uitgelogd.',
     'ws.terughalen': 'Terughalen',
     'ws.terughalenTitel': '{naam} terughalen, {tabs}',
     'ws.weggooien': 'Weggooien',
@@ -458,6 +463,7 @@ const WOORDEN = {
     'cmd.openen': 'Open',
     'cmd.instellingen': 'Settings',
     'cmd.nieuwVenster': 'New window',
+    'cmd.vensterTerug': 'Reopen window',
     'cmd.favoriet': 'Bookmark {host}',
     'cmd.toevoegen': 'Add',
 
@@ -488,6 +494,10 @@ const WOORDEN = {
     'ws.klikNogEens': 'Click again to close',
     'ws.eenTabblad': '1 tab',
     'ws.tabbladen': '{aantal} tabs',
+    'ws.verhuis': 'To window {nummer}',
+    'ws.verhuisUitleg': 'A whole workspace moves, with its session underneath. A single tab '
+      + 'cannot: it would have to reload in the other window\u2019s session, and then you are '
+      + 'signed out of it.',
     'ws.terughalen': 'Bring back',
     'ws.terughalenTitel': 'Bring {naam} back, {tabs}',
     'ws.weggooien': 'Throw away',

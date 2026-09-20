@@ -47,6 +47,9 @@ contextBridge.exposeInMainWorld('browser', {
   activateWorkspace: (id) => ipcRenderer.invoke('ws:activate', id),
   closeWorkspace: (id) => ipcRenderer.invoke('ws:close', id),
   renameWorkspace: (id, name) => ipcRenderer.invoke('ws:rename', id, name),
+  // Een hele workspace naar een ander venster. Een los tabblad kan dat niet:
+  // zijn sessie zit eraan vast. Zie verhuisWorkspace in main.js.
+  verhuisWorkspace: (id, naar) => ipcRenderer.invoke('ws:verhuis', id, naar),
 
   // Het uiterlijk van één workspace: welk palet erachter beweegt en hoe hard.
   zetWorkspacePalet: (id, palet) => ipcRenderer.invoke('ws:palet', id, palet),
@@ -86,6 +89,7 @@ contextBridge.exposeInMainWorld('browser', {
   // Het ontwerp tekent de vensterknoppen zelf; alleen het hoofdproces kan het
   // venster bedienen.
   nieuwVenster: () => ipcRenderer.invoke('win:nieuw'),
+  heropenVenster: () => ipcRenderer.invoke('win:heropen'),
   minimize: () => ipcRenderer.invoke('win:minimize'),
   maximize: () => ipcRenderer.invoke('win:maximize'),
   close: () => ipcRenderer.invoke('win:close'),

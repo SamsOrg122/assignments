@@ -100,7 +100,10 @@ zegtIs('alles wat getoond wordt is ook gebonden, op de drie losse na',
 console.log('\nEn wat ze doen');
 const wc = nepWc();
 const ctrl = nepCtrl();
-bindSneltoetsen(wc, ctrl, { nieuwVenster: () => ctrl.gedaan.push('nieuw venster') });
+bindSneltoetsen(wc, ctrl, {
+  nieuwVenster: () => ctrl.gedaan.push('nieuw venster'),
+  heropenVenster: () => ctrl.gedaan.push('venster terug'),
+});
 
 zegt('Ctrl T wordt afgevangen', druk(wc, { key: 't' }) === true);
 zegtIs('en opent een tabblad', ctrl.gedaan.pop(), 'nieuw tabblad');
@@ -110,6 +113,8 @@ zegtIs('Ctrl ⇧ T haalt er een terug en niet een nieuwe', ctrl.gedaan.pop(), 't
 
 druk(wc, { key: 'n' });
 zegtIs('Ctrl N opent een venster', ctrl.gedaan.pop(), 'nieuw venster');
+druk(wc, { key: 'N', shift: true });
+zegtIs('en Ctrl ⇧ N haalt er een terug', ctrl.gedaan.pop(), 'venster terug');
 
 druk(wc, { key: 'f' });
 zegtIs('Ctrl F opent het zoekveld', ctrl.gedaan.pop(), ['zijbalk', 'zoek']);

@@ -28,6 +28,12 @@ const SNELTOETSEN = [
     doe: (ctrl) => ctrl.heropenTab(),
   },
   {
+    // Dezelfde beweging één maat groter. Een venster sluiten is één klik en
+    // twintig tabbladen terugzoeken zijn er twintig.
+    toets: 'n', shift: true, wat: 'Laatst gesloten venster terug',
+    doe: (_ctrl, hulp) => hulp.heropenVenster(),
+  },
+  {
     // Leeg, met één workspace: Ctrl+N hoort je tabbladen niet te verdubbelen.
     toets: 'n', wat: 'Nieuw venster',
     doe: (_ctrl, hulp) => hulp.nieuwVenster(),

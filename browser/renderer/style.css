@@ -2473,6 +2473,34 @@ body.geen-sneltoetsen kbd {
   filter: brightness(1.06);
 }
 
+/* Naar een ander venster. Dezelfde knoppen als de rest van deze pop-up, maar
+   naast elkaar: het zijn keuzes uit één rijtje en geen losse handelingen. */
+#ws-pop-verhuis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+#ws-pop-verhuis[hidden] {
+  display: none;
+}
+
+#ws-pop-verhuis button {
+  flex: 1;
+  min-width: 96px;
+  height: 30px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  color: var(--ink);
+  background: rgba(34, 31, 42, 0.06);
+  transition: var(--overgang-vlak);
+}
+
+#ws-pop-verhuis button:hover {
+  background: rgba(34, 31, 42, 0.12);
+}
+
 /* Sneltoetsen ----------------------------------------------------------- */
 
 #toetsenlijst {

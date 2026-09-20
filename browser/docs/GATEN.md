@@ -19,21 +19,33 @@ bijgewerkt omdat aan `CLAUDE.md` niet geraakt wordt in deze sessies.
 | De gids legt iets uit in stappen | `lib/gids/reeks.js`, `wijs_stap` | idem |
 | De gids praat terug in een wolkje bij je aanwijzer, en je kunt doorvragen | `lib/gids/in-pagina.js` | idem |
 | Eigen API-sleutel als tweede rug | `lib/api.js`, `lib/sleutel.js` | `test/api.js`, 34 |
-| Meerdere vensters (Ctrl+N), en herstel per venster | `main.js`, `lib/herstel.js` | `test/vensters.js` 29, `test/vensters-echt.js` 9 |
-| Alle sneltoetsen op één plek, en in beeld | `lib/sneltoetsen.js` | `test/toetsen.js`, 28 |
+| Meerdere vensters (Ctrl+N), en herstel per venster | `main.js`, `lib/herstel.js` | `test/vensters.js` 29, `test/vensters-echt.js` 25 |
+| Het laatst gesloten venster terug (Ctrl+Shift+N) | `main.js`, `lib/sneltoetsen.js` | idem |
+| Eén MCP-deur voor alle vensters, met doorlopende paginanummers | `main.js`, `lib/mcp.js` | `test/vensters.js`, `test/api.js` |
+| Een workspace naar een ander venster verhuizen | `main.js`, `renderer/app.js` | `test/vensters-echt.js` |
+| Alle sneltoetsen op één plek, en in beeld | `lib/sneltoetsen.js` | `test/toetsen.js`, 29 |
 | Nederlands en Engels, en een eerste scherm dat het vraagt | `renderer/taal.js` | `test/taal.js` 26, `test/taal-echt.js` 20 |
 | Zeggen dat er een nieuwere versie is | `lib/bijwerken.js` | `test/bijwerken.js`, 33 |
 
-## Wat meerdere vensters nog niet doen
+## Waarom een los tabblad niet kan verhuizen
 
-Ctrl+N opent er een, de commandobalk heeft er een regel voor, en bij het
-starten komt elk venster terug zoals het stond. Wat er niet is:
+Slepen tussen vensters is de vorm die je verwacht, en die kan niet. Een
+workspace *is* zijn sessie: elk tabblad is een `WebContentsView` die bij het
+maken aan `session.fromPartition` vastzit, en die keuze is daarna niet te
+veranderen. Een tabblad losmaken en in het buurvenster plakken kan dus maar op
+twee manieren, en beide breken iets:
 
-- Een tabblad van het ene venster naar het andere slepen.
-- Eén MCP-deur voor alle vensters. Elk venster heeft er nu een eigen, met een
-  eigen poort. Voor een client die twee vensters tegelijk wil bedienen is dat
-  te weinig, en voor één client is het te veel.
-- Een venster heropenen dat je net sloot. Ctrl+Shift+T gaat over tabbladen.
+- De laag meeverhuizen naar een workspace met een andere partitie. Dan zit er
+  in één workspace een pagina uit een andere sessie, en de belofte dat een
+  workspace zijn eigen logins heeft is weg.
+- De pagina opnieuw laden in de sessie van de buur. Dan ben je uitgelogd op
+  precies het tabblad dat je aan het verplaatsen was.
+
+Daarom verhuist niet een tabblad maar een hele workspace, met sessie en al:
+in het workspacemenu, onder "Verhuizen naar". De views worden overgezet met
+`removeChildView`/`addChildView`, de sneltoetsen opnieuw gebonden aan het
+nieuwe venster, en wat de gids aanwees gaat mee. `ws.verhuisUitleg` zegt in de
+UI zelf waarom het een workspace is en geen tabblad.
 
 ## Wat er echt nog niet is
 

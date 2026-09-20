@@ -104,7 +104,40 @@ async function stopApp(kind) {
   await new Promise((k) => { kind.on('exit', k); setTimeout(k, 4000); });
 }
 
+/**
+ * Iets laten doen waarvan geen antwoord meer komt.
+ *
+ * Een pagina die zichzelf sluit kan niet meer vertellen dat het gelukt is:
+ * de target is weg voordat het antwoord terug is. Wachten op dat antwoord is
+ * dus acht seconden wachten op niets.
+ */
+async function zonderAntwoord(doel, uitdrukking) {
+  const ws = new WebSocket(doel.webSocketDebuggerUrl);
+  await new Promise((k, m) => { ws.onopen = k; ws.onerror = m; });
+  ws.send(JSON.stringify({
+    id: 1, method: 'Runtime.evaluate', params: { expression: uitdrukking },
+  }));
+  await even(200);
+  try { ws.close(); } catch { /* al weg */ }
+}
+
+/**
+ * Eén stuk gereedschap door de MCP-deur, zoals een client het zou doen.
+ *
+ * Met de echte sleutel over de echte poort, want dat is het enige wat
+ * bewijst dat die deur doet wat het scherm erover zegt.
+ */
+async function roepDeur(poort, sleutel, naam, argumenten = {}) {
+  const antwoord = await fetch(`http://127.0.0.1:${poort}/roep`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${sleutel}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ naam, argumenten }),
+  });
+  return { status: antwoord.status, ...(await antwoord.json().catch(() => ({}))) };
+}
+
 module.exports = {
+  roepDeur, zonderAntwoord,
   even, vrijePoort, pagina, zijbalken, wachtOp, wachtOpZijbalken,
   inPagina, waarde, startApp, stopApp,
 };

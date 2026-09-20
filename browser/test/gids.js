@@ -287,6 +287,17 @@ app.whenReady().then(async () => {
   // en dat een reeks nergens blijft hangen.
   console.log('\nUitleg in stappen');
 
+  /** Wachten tot het wolkje is uitgetypt, in plaats van op een tijd te gokken. */
+  const totKlaarMetTypen = async (msMax = 6000) => {
+    const tot = Date.now() + msMax;
+    for (;;) {
+      const st = await brug.stand();
+      if (!st.typt) return st;
+      if (Date.now() > tot) return st;
+      await new Promise((k) => setTimeout(k, 60));
+    }
+  };
+
   /** Wachten tot de overlay er echt staat; wijzen scrollt eerst. */
   const totErGewezenWordt = async (msMax = 4000) => {
     const tot = Date.now() + msMax;
@@ -350,6 +361,127 @@ app.whenReady().then(async () => {
   const alleen = await brug.stand();
   zegt('één van één krijgt geen knop', alleen.wijst === true && alleen.knop === null);
   await brug.verberg();
+
+  // ── 15. Het wolkje ───────────────────────────────────────────────────
+  //
+  // De gids kan ook gewoon antwoorden. Dan komt er geen ring maar een wolkje
+  // bij je aanwijzer, dat het antwoord uittypt en daarna blijft staan — want
+  // er staat een veld in waar je in moet kunnen klikken, en een wolkje dat je
+  // aanwijzer blijft volgen kun je nooit raken.
+  console.log('\nHet wolkje');
+
+  await brug.verberg();
+  // De aanwijzer moet ergens staan, anders weet de laag niet waar je kijkt.
+  wc.sendInputEvent({ type: 'mouseMove', x: 300, y: 220 });
+  await new Promise((k) => setTimeout(k, 120));
+
+  const ANTWOORD = 'Dat staat onderaan, bij de knop die je wijzigingen bewaart.';
+  const gezegd = await brug.zeg(ANTWOORD);
+  zegtIs('zeggen lukt', gezegd.status, 'ok');
+  zegt('en het wolkje volgt je aanwijzer', gezegd.volgt === true);
+
+  const tijdens = await brug.stand();
+  zegt('er staat een wolkje', tijdens.zegt === true);
+  zegt('het is aan het typen', tijdens.typt === true);
+  zegt('en dus staat er nog niet alles', tijdens.gezegd.length < ANTWOORD.length);
+  zegt('er is geen ring bij', tijdens.wijst === false);
+
+  // Meebewegen: de aanwijzer verzetten verzet het wolkje.
+  const voor = (await brug.stand()).veld;
+  wc.sendInputEvent({ type: 'mouseMove', x: 640, y: 400 });
+  await new Promise((k) => setTimeout(k, 150));
+  const na = (await brug.stand()).veld;
+  zegt('het wolkje schuift mee met de aanwijzer',
+    Array.isArray(voor) && Array.isArray(na) && (voor[0] !== na[0] || voor[1] !== na[1]));
+
+  const klaarStand = await totKlaarMetTypen();
+  zegtIs('uiteindelijk staat de hele zin er', klaarStand.gezegd, ANTWOORD);
+  zegt('en dan volgt het niet meer', klaarStand.volgt === false);
+
+  const blijft = (await brug.stand()).veld;
+  wc.sendInputEvent({ type: 'mouseMove', x: 120, y: 480 });
+  await new Promise((k) => setTimeout(k, 150));
+  zegtIs('dus blijft het staan waar het staat', (await brug.stand()).veld, blijft);
+
+  // De pagina eronder blijft gewoon van de pagina: alleen het veld en de
+  // knop vangen een klik op, de rest van het wolkje niet eens.
+  const raaktNaast = await wc.executeJavaScriptInIsolatedWorld(1000, [{
+    code: '(() => { const r = document.getElementById("opstellen").getBoundingClientRect();'
+      + ' const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);'
+      + ' return el && (el.id === "opstellen" || el.closest("#opstellen") !== null); })()',
+  }]);
+  zegt('en de pagina blijft klikbaar naast het wolkje', raaktNaast === true);
+
+  console.log('\nTerugvragen');
+  const vraagBezig = brug.wachtOpVraag();
+  const veld = (await brug.stand()).veld;
+  zegt('er staat een veld om in te typen', Array.isArray(veld));
+  if (Array.isArray(veld)) {
+    const [vx, vy, vb, vh] = veld;
+    const mx = Math.round(vx + vb / 2);
+    const my = Math.round(vy + vh / 2);
+    wc.sendInputEvent({ type: 'mouseDown', x: mx, y: my, button: 'left', clickCount: 1 });
+    wc.sendInputEvent({ type: 'mouseUp', x: mx, y: my, button: 'left', clickCount: 1 });
+    await new Promise((k) => setTimeout(k, 150));
+    for (const teken of 'en daarna?') wc.sendInputEvent({ type: 'char', keyCode: teken });
+    await new Promise((k) => setTimeout(k, 150));
+    wc.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+    wc.sendInputEvent({ type: 'char', keyCode: '\r' });
+    wc.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+  }
+  const gevraagd = await Promise.race([
+    vraagBezig,
+    new Promise((k) => setTimeout(() => k({ status: 'te laat in de reeks' }), 5000)),
+  ]);
+  zegtIs('wat je typt komt eruit', gevraagd, { status: 'gevraagd', tekst: 'en daarna?' });
+
+  console.log('\nWijzen zet het wolkje bij het doel');
+  const refWolk = refVan(s8.tekst, 'Opstellen');
+  await brug.wijs(refWolk, 'Hier is het.');
+  await totKlaarMetTypen();
+  const bijDoel = await brug.stand();
+  zegt('er wordt nu wél gewezen', bijDoel.wijst === true);
+  zegt('en het wolkje loopt niet mee met je aanwijzer', bijDoel.volgt === false);
+  const doelRect = await wc.executeJavaScriptInIsolatedWorld(1000, [{
+    code: '(() => { const r = document.getElementById("opstellen").getBoundingClientRect();'
+      + ' return [Math.round(r.left), Math.round(r.bottom)]; })()',
+  }]);
+  zegt('het staat bij het ding waar het over gaat',
+    Math.abs(bijDoel.veld[1] - doelRect[1]) < 200 && Math.abs(bijDoel.veld[0] - doelRect[0]) < 260);
+
+  console.log('\nIn de taal van de gebruiker');
+  // De overlay draait in een vreemde pagina en kan onze woordenlijst niet
+  // inladen, dus de vier zinnen die erin staan gaan bij elke aanroep mee.
+  // Komen ze niet mee, dan blijft de terugval staan — beter Nederlands dan
+  // een lege knop.
+  await brug.verberg();
+  await brug.wijs(refWolk, 'Step one.', {
+    stap: 1, van: 2,
+    woorden: { vraagPlek: 'Ask something else…', stoppen: 'Stop', volgende: 'Next', klaar: 'Done', vanTotaal: '{stap} of {van}' },
+  });
+  await totKlaarMetTypen();
+  const engelse = await wc.executeJavaScriptInIsolatedWorld(1000, [{
+    code: '(() => globalThis.__gids.stand().knop !== null)()',
+  }]);
+  zegt('een reeks met Engelse woorden krijgt gewoon zijn knop', engelse === true);
+  const knopTekst = await wc.executeJavaScriptInIsolatedWorld(1000, [{
+    code: '(() => { const g = document.documentElement.lastElementChild;'
+      + ' return g ? g.getBoundingClientRect().width > 0 : false; })()',
+  }]);
+  zegt('en staat gewoon op het scherm', knopTekst === true);
+
+  console.log('\nOpruimen');
+  await brug.verberg();
+  await brug.zeg('Nog één ding.');
+  await totKlaarMetTypen();
+  const nogEenVraag = brug.wachtOpVraag();
+  await brug.verberg();
+  const weg = await Promise.race([
+    nogEenVraag,
+    new Promise((k) => setTimeout(() => k({ status: 'bleef hangen' }), 3000)),
+  ]);
+  zegtIs('een wolkje dat weggaat laat niemand wachten', weg.status, 'gestopt');
+  zegtIs('en er staat niets meer', (await brug.stand()).zegt, false);
 
   // ── Klaar ────────────────────────────────────────────────────────────
   stop();

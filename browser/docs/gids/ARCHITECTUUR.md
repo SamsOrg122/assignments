@@ -147,6 +147,51 @@ enige plek van deze laag die een klik opvangt, dus het is ook de enige plek
 waarvan de buitenkant mag weten waar hij ligt — om ernaar te kunnen wijzen,
 en om hem te kunnen testen met een echte muisgebeurtenis.
 
+## Het wolkje, en waarom het een gesprek werd
+
+De uitleg hing eerst als een ballon onder het ding waar hij bij hoorde en dat
+was het. Eén ronde, één zin, klaar. Nu is het een wolkje dat bij je aanwijzer
+verschijnt, het antwoord letter voor letter uittypt, en een veld heeft waarin
+je kunt doorvragen.
+
+**Waar het staat, en waarom dat wisselt.** Wordt er iets aangewezen, dan staat
+het wolkje bij dát ding — daar gaat het over, en een wolkje dat ergens anders
+hangt laat je zoeken. Wordt er alleen gepraat, dan komt het naar je aanwijzer:
+dat is waar je kijkt. Daarvoor meet `in-pagina.js` de muispositie vanaf het
+moment dat hij is ingeladen en niet pas als er een laag is — als het antwoord
+binnen is, is het te laat om nog te gaan kijken waar je muis was. Eén passieve
+luisteraar die twee getallen bijwerkt, en dat bestand komt er pas als iemand
+de gids iets vraagt.
+
+**Het volgt, en dan stopt het.** Zolang er getypt wordt rijdt het wolkje mee;
+zodra de zin er staat blijft het staan. Dat is geen versiering: er staat een
+invoerveld in, en een wolkje dat je aanwijzer blíjft volgen kun je nooit
+raken.
+
+**Uittypen is een keuze.** Een blok tekst dat ineens verschijnt leest als een
+mededeling; letter voor letter leest als iemand die antwoordt. De snelheid
+schaalt mee met de lengte, zodat een lang antwoord niet langer duurt dan een
+kort. Met `prefers-reduced-motion` staat het er meteen.
+
+**Doorvragen, en wat dat met toestemming doet.** Het veld in het wolkje is de
+tweede plek in deze overlay die een klik opvangt — de eerste is de voet van een
+reeks. Wie erin typt doet een handeling op zijn eigen scherm, in de pagina waar
+het over gaat. Dat is dezelfde gedachte als bij Volgende: die vraag is de
+toestemming om het antwoord erop ook aan te wijzen. `magWijzen` in
+`lib/gids/reeks.js` bewaakt het, en het geldt voor één beurt en één tabblad —
+`gevraagd` gaat weer uit zodra er gewezen is.
+
+**Het geheugen.** Claude Code start elke beurt zonder geheugen
+(`--no-session-persistence`), dus wat er eerder gezegd is gaat als tekst mee in
+de volgende opdracht. De laatste twee beurten, niet meer: dit kost de gebruiker
+tokens en verder terug voegt niets toe.
+
+**De woorden.** "Vraag nog iets…", "Stoppen", "Volgende", "Klaar" en "2 van 4"
+staan in een vreemde pagina die onze woordenlijst niet kan inladen. Ze gaan
+daarom bij elke aanroep mee vanuit het hoofdproces. `in-pagina.js` houdt een
+Nederlandse terugval aan voor het geval er niets meekomt — beter een knop in de
+verkeerde taal dan een knop zonder tekst.
+
 ## De zeven metingen
 
 Alles hieronder is gemeten op Electron 33.4.11, niet gelezen of aangenomen. De
@@ -339,17 +384,19 @@ npm run test:hersens   # gewoon node
 ```
 
 `test:gids` draait Electron met echte fixtures achter een echte server met
-echte CSP-koppen. 55 asserties: shadow roots, frames van dezelfde en van een
+echte CSP-koppen. 75 asserties: shadow roots, frames van dezelfde en van een
 andere herkomst, onder de vouw, bedekt, een ref die verouderd is, wachten op
 een klik, navigeren met iets dat openstaat, onzichtbaarheid voor de pagina, de
 tijd op tweeduizend knopen, de overlay zelf, een uitleg in stappen met een
-echte muisklik op de knop Volgende, en alle redactieregels hierboven.
+echte muisklik op de knop Volgende, het wolkje dat meeloopt en dan blijft
+staan, een vraag die er met echte toetsaanslagen in getypt wordt, en alle
+redactieregels hierboven.
 
 Er staat geen nagebouwde DOM in. Shadow roots, frames, rects en
 `elementFromPoint` zijn precies de vier dingen waarover een nabootsing het eens
 is met zichzelf en oneens met Chromium.
 
-`test:hersens` heeft geen Electron nodig: 38 asserties over de vorm van de
+`test:hersens` heeft geen Electron nodig: 45 asserties over de vorm van de
 aanroep die een gidsronde start, over wat er niet in zijn lijst gereedschap
 staat, over de regel die bepaalt wanneer een volgende stap zonder vraag mag,
 en over de grendel op de deur.

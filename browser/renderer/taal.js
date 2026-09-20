@@ -331,6 +331,16 @@ const WOORDEN = {
     'bar.aanmeldenVreemd': 'Een aanmelding die je niet zelf begon is tegengehouden',
     'bar.googleWantrouwt': 'Google vertrouwt deze browser nog niet — aanmelden met een e-mailadres werkt wel',
 
+    /* ── Het wolkje van de gids ───────────────────────────────────────
+     * Deze woorden staan in de bezochte pagina, in een overlay die niets van
+     * deze lijst kan weten. Ze gaan bij elke aanroep mee vanuit het
+     * hoofdproces; zie `woorden` in main.js. */
+    'wolk.vraagPlek': 'Vraag nog iets…',
+    'wolk.stoppen': 'Stoppen',
+    'wolk.volgende': 'Volgende',
+    'wolk.klaar': 'Klaar',
+    'wolk.vanTotaal': '{stap} van {van}',
+
     /* ── Welke rug de assistent gebruikt ──────────────────────────────── */
     'rug.deAssistent': 'De assistent',
     'rug.deGids': 'De gids',
@@ -639,6 +649,12 @@ const WOORDEN = {
     'bar.aanmeldenTab': 'Signing in happens in an ordinary tab, so you are signed in here too afterwards',
     'bar.aanmeldenVreemd': 'A sign-in you did not start yourself was stopped',
     'bar.googleWantrouwt': 'Google does not trust this browser yet — signing in with an email address does work',
+
+    'wolk.vraagPlek': 'Ask something else…',
+    'wolk.stoppen': 'Stop',
+    'wolk.volgende': 'Next',
+    'wolk.klaar': 'Done',
+    'wolk.vanTotaal': '{stap} of {van}',
 
     'rug.deAssistent': 'The assistant',
     'rug.deGids': 'The guide',

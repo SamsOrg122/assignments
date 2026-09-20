@@ -56,4 +56,29 @@ function oordeel(reeks, vraag) {
   return { vragen: false };
 }
 
-module.exports = { oordeel };
+/**
+ * Mag er gewezen worden zonder opnieuw te vragen?
+ *
+ * Dezelfde gedachte als bij een reeks, één stap verder. De gebruiker heeft
+ * in het wolkje — dat op zijn eigen scherm staat, in zijn eigen pagina — een
+ * vraag getypt over díé pagina. Dat is geen vinkje in een instelling maar een
+ * handeling, per keer, op het ding waar het over gaat. Dus mag het antwoord
+ * op díé vraag daar ook aangewezen worden, zonder er een tweede keer
+ * overheen te vragen.
+ *
+ * Wat het niet is: een deur die openblijft. `gevraagd` wordt gezet als de
+ * gebruiker typt en weer weggehaald zodra er gewezen is; de beurt erna vraagt
+ * dus weer. En het geldt alleen op het tabblad waar getypt werd.
+ *
+ * @param gesprek  { tabId, gevraagd } of null
+ * @param vraag    { tabId }
+ */
+function magWijzen(gesprek, vraag) {
+  const tabId = Number(vraag.tabId);
+  if (!Number.isFinite(tabId)) return { vragen: true };
+  if (!gesprek || !gesprek.gevraagd) return { vragen: true };
+  if (gesprek.tabId !== tabId) return { vragen: true };
+  return { vragen: false };
+}
+
+module.exports = { oordeel, magWijzen };

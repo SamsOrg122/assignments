@@ -223,8 +223,8 @@ class Paginabrug {
    * kwartier open blijven staan en in die tijd kan er van alles gebeuren met
    * het tabblad.
    */
-  async wijsStap(ref, tekst, stap, van) {
-    const uit = await this.wijs(ref, tekst, { stap, van });
+  async wijsStap(ref, tekst, stap, van, woorden) {
+    const uit = await this.wijs(ref, tekst, { stap, van, woorden });
     if (uit.status !== 'ok') return uit;
     // De laatste stap heeft geen 'volgende' nodig: wie 'Klaar' leest, drukt
     // erop om de aanwijzing weg te halen, en dat mag ook Escape zijn.
@@ -261,6 +261,27 @@ class Paginabrug {
       if (Date.now() >= tot) return nu;
       await new Promise((k) => setTimeout(k, 80));
     }
+  }
+
+  /**
+   * Iets zeggen zonder per se iets aan te wijzen.
+   *
+   * Dit is de weg waarlangs het antwoord van de assistent in het wolkje bij
+   * de aanwijzer terechtkomt. Geen scrollen eerst: er is geen doel, er is
+   * alleen een zin.
+   */
+  zeg(tekst, opties) {
+    return this.roep('zeg', [String(tekst || ''), opties ?? null]);
+  }
+
+  /**
+   * Wachten tot de gebruiker in het wolkje iets terugvraagt.
+   *
+   * Zonder onze eigen korte klok: hier zit iemand te lezen en na te denken.
+   * `in-pagina.js` heeft zijn eigen klok, en een navigatie sluit hem af.
+   */
+  wachtOpVraag() {
+    return this.wacht('wachtOpVraag');
   }
 
   verberg() {

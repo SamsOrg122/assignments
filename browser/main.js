@@ -7,7 +7,7 @@ const { pathToFileURL } = require('node:url');
 const { naarZoekURL, STANDAARD_ZOEKMACHINE } = require('./renderer/search.js');
 const { beoordeelURL, grendelSessie, grendelNavigatie } = require('./lib/grendel.js');
 const { brugVoor } = require('./lib/gids/brug.js');
-const { oordeel: reeksOordeel } = require('./lib/gids/reeks.js');
+const { oordeel: reeksOordeel, magWijzen } = require('./lib/gids/reeks.js');
 const voorkeuren = require('./lib/voorkeuren.js');
 const { volgDeBrowser } = require('./lib/app-stijl.js');
 const { meldSchemaAan, bedienApp, appURL } = require('./lib/app-schema.js');
@@ -257,6 +257,10 @@ class BrowserWindowController {
     // gebruiker op Volgende heeft gedrukt en de volgende stap dus al
     // toestemming heeft. Zie gidsStapOordeel.
     this.gidsReeks = null;
+    // Het gesprek in het wolkje: { tabId, beurten: [{vraag, antwoord}],
+    // gevraagd }. `gevraagd` betekent dat de gebruiker zojuist zelf iets
+    // typte op dat tabblad. Zie gidsWijsOordeel.
+    this.gidsGesprek = null;
     // Eén aanmelding tegelijk, en alleen uit het tabblad dat wij ervoor openden.
     // Of wij de MCP-deur zelf openden voor deze opdracht, en hem dus ook
     // weer dicht horen te doen.
@@ -975,6 +979,8 @@ class BrowserWindowController {
       // De overlay zat in de oude pagina en is dus al weg; alleen wij wisten
       // dat nog niet.
       if (this.gidsReeks && this.gidsReeks.tabId === id) this.gidsReeks = null;
+      // Het gesprek ging over de pagina die er stond; die is er niet meer.
+      if (this.gidsGesprek && this.gidsGesprek.tabId === id) this.gidsGesprek = null;
       if (this.gewezenTab === id) { this.gewezenTab = null; this.pushState(); }
     });
     wc.on('did-navigate-in-page', (_e, doel, hoofdframe) => {
@@ -1842,7 +1848,7 @@ class BrowserWindowController {
 
   async mcpWijsAan(id, ref, tekst) {
     const { brug } = this.gidsBrugVoor(id);
-    const uit = await brug.wijs(String(ref ?? ''), String(tekst ?? ''));
+    const uit = await brug.wijs(String(ref ?? ''), String(tekst ?? ''), { woorden: this.gidsWoorden() });
     if (uit.status !== 'ok') {
       // "weg" is de eerlijke uitkomst als de pagina zichzelf opnieuw getekend
       // heeft sinds de snapshot, en de client hoort dat te horen in plaats van
@@ -1856,6 +1862,10 @@ class BrowserWindowController {
       this.wijsNietMeer(this.gewezenTab);
     }
     this.gewezenTab = Number(id);
+    // De vraag van de gebruiker is nu gebruikt. De beurt erna vraagt weer.
+    if (this.gidsGesprek && this.gidsGesprek.tabId === Number(id)) {
+      this.gidsGesprek.gevraagd = false;
+    }
     this.pushState();
     return { id: Number(id), ref: String(ref), gewezen: true, rect: uit.rect };
   }
@@ -1872,6 +1882,27 @@ class BrowserWindowController {
   }
 
   /**
+   * De woorden die het wolkje nodig heeft, in de taal van de gebruiker.
+   *
+   * De overlay draait in een vreemde pagina en kan onze woordenlijst niet
+   * inladen, dus gaan de vier zinnen die erin staan bij elke aanroep mee.
+   */
+  gidsWoorden() {
+    return {
+      vraagPlek: t('wolk.vraagPlek'),
+      stoppen: t('wolk.stoppen'),
+      volgende: t('wolk.volgende'),
+      klaar: t('wolk.klaar'),
+      vanTotaal: t('wolk.vanTotaal'),
+    };
+  }
+
+  /** Mag er gewezen worden zonder opnieuw te vragen? Zie magWijzen. */
+  gidsWijsOordeel(id) {
+    return magWijzen(this.gidsGesprek, { tabId: Number(id) });
+  }
+
+  /**
    * Eén stap van een uitleg in meerdere stappen.
    *
    * Hij geeft pas antwoord als er op de voet is gedrukt. Dat is met opzet: zo
@@ -1885,7 +1916,7 @@ class BrowserWindowController {
     const totaal = Math.floor(Number(van));
 
     this.gidsReeks = { tabId: Number(id), van: totaal, stap: n, open: false };
-    const uit = await brug.wijsStap(String(ref ?? ''), String(tekst ?? ''), n, totaal);
+    const uit = await brug.wijsStap(String(ref ?? ''), String(tekst ?? ''), n, totaal, this.gidsWoorden());
     if (uit.status !== 'ok') {
       this.gidsReeks = null;
       throw new Error(`Kon daar niet naar wijzen: ${uit.status}`);
@@ -1931,8 +1962,10 @@ class BrowserWindowController {
    */
   wijsNietMeer(id = this.gewezenTab) {
     if (id === null) return false;
-    // Een reeks die niet meer op het scherm staat, loopt niet meer.
+    // Een reeks die niet meer op het scherm staat, loopt niet meer, en een
+    // gesprek dat je wegklikt is afgelopen.
     if (this.gidsReeks && this.gidsReeks.tabId === Number(id)) this.gidsReeks = null;
+    if (this.gidsGesprek && this.gidsGesprek.tabId === Number(id)) this.gidsGesprek = null;
     try {
       const { brug } = this.gidsBrugVoor(id);
       brug.verberg().catch(() => {});
@@ -2377,11 +2410,13 @@ class BrowserWindowController {
    * een ander tabblad dan het tabblad waar de gebruiker naar keek toen hij het
    * vroeg.
    */
-  async startGids(vraag) {
+  async startGids(vraag, opties = {}) {
     const tekst = String(vraag ?? '').trim();
     if (!tekst) return;
 
-    const id = this.activeId;
+    // Een vervolgvraag hoort bij het tabblad waar hij getypt werd, ook als je
+    // ondertussen ergens anders naar kijkt.
+    const id = opties.tabId ?? this.activeId;
     const gevonden = id === null ? null : this.zoekJouwTab(id);
     if (!gevonden) {
       this.sendIsland({ modus: 'actie', vraag: false, regel: t('bar.geenPagina'), bezig: false });
@@ -2412,11 +2447,25 @@ class BrowserWindowController {
       return;
     }
 
+    // Het gesprek tot nu toe, als er een loopt op dit tabblad. Claude Code
+    // start elke beurt zonder geheugen — `--no-session-persistence` — dus wat
+    // er eerder gezegd is moet mee in de opdracht. Kort gehouden: dit kost de
+    // gebruiker tokens, en de laatste twee beurten zijn wat ertoe doet.
+    const loopt = this.gidsGesprek && this.gidsGesprek.tabId === id ? this.gidsGesprek : null;
+    const eerder = (loopt?.beurten ?? []).slice(-2)
+      .map((b) => `Eerder vroeg de gebruiker: "${b.vraag}" en jij antwoordde: "${b.antwoord}"`)
+      .join(' ');
+
     const opdracht = [
       `De gebruiker kijkt naar pagina ${id}: ${gevonden.titel || gevonden.host} (${url}).`,
+      eerder,
       `Zijn vraag is: ${tekst}`,
       `Bekijk die pagina en wijs het antwoord aan. Gebruik pagina ${id}, geen andere.`,
-    ].join(' ');
+    ].filter(Boolean).join(' ');
+
+    // Het gesprek bijhouden, zodat de volgende beurt weet wat er is gezegd.
+    this.gidsGesprek = loopt ?? { tabId: id, beurten: [], gevraagd: false };
+    this.gidsGesprek.lopend = { vraag: tekst, antwoord: '' };
 
     const naam = rug.soort === 'agent' ? rug.agent.naam : t('rug.deGids');
     this.agent = { naam, wsId: this.activeWorkspaceId, opdracht: tekst, loop: null, gids: id, rug: rug.soort };
@@ -2488,6 +2537,10 @@ class BrowserWindowController {
     }
     if (melding.soort === 'zegt') {
       this.sendIsland({ modus: 'analyseren', regel: kortRegel(melding.tekst), bezig: true });
+      // Tijdens een gidsronde hoort het antwoord niet in een balk van één
+      // regel maar bij de gebruiker op de pagina, in het wolkje. De balk
+      // blijft het ook zeggen: die is waar je kijkt als de pagina vol staat.
+      this.gidsZegt(melding.tekst);
       return;
     }
     if (melding.soort === 'doet') {
@@ -2515,6 +2568,9 @@ class BrowserWindowController {
       // precies op het moment dat het er staat.
       const esc = this.agent.gids && this.gewezenTab !== null ? ` · ${t('bar.escWeg')}` : '';
       const kern = melding.tekst || (melding.soort === 'klaar' ? klaar : t('bar.gingMis'));
+      // Het slotbericht is soms het hele antwoord; dan hoort het in het
+      // wolkje en niet alleen in de balk.
+      if (melding.soort === 'klaar' && melding.tekst) this.gidsZegt(melding.tekst);
       this.sendIsland({
         modus: melding.soort === 'klaar' ? 'klaar' : 'actie',
         vraag: false,
@@ -2537,12 +2593,77 @@ class BrowserWindowController {
     if (vraag) this.toestemming.antwoord(vraag.id, true);
   }
 
+  /**
+   * Wat de gids zegt, in het wolkje op de pagina.
+   *
+   * Stil mislukken is hier het goede gedrag: het tabblad kan net weg zijn, de
+   * pagina kan net genavigeerd hebben, en dan is er niets om iets in te
+   * zetten. Dat is geen fout die de gebruiker hoeft te zien — hij zag net een
+   * pagina verdwijnen.
+   */
+  gidsZegt(tekst) {
+    const id = this.agent?.gids;
+    const zin = String(tekst ?? '').trim();
+    if (id === undefined || id === null || !zin) return;
+    // Tweemaal hetzelfde is niet nog een keer: het slotbericht herhaalt vaak
+    // de laatste zin, en dan zou het wolkje hem opnieuw gaan uittypen.
+    if (this.gidsGesprek?.lopend?.antwoord === zin) return;
+    if (this.gidsGesprek?.lopend) this.gidsGesprek.lopend.antwoord = zin;
+    // Er staat nu iets op het scherm van de gebruiker, dus Escape hoort het
+    // weg te kunnen halen — ook als er niets is aangewezen.
+    if (this.gewezenTab === null) { this.gewezenTab = Number(id); this.pushState(); }
+    try {
+      this.gidsBrugVoor(id).brug.zeg(zin, { woorden: this.gidsWoorden() }).catch(() => {});
+    } catch {
+      // Dat tabblad is er niet meer.
+    }
+  }
+
+  /**
+   * Na een gidsbeurt: wachten tot de gebruiker iets terugvraagt.
+   *
+   * Dit is wat er van een antwoord een gesprek maakt. Er loopt op dat moment
+   * geen agent en er staat geen proces te wachten — alleen een Promise in de
+   * pagina, met een eigen klok, die een navigatie afsluit.
+   *
+   * En het is ook de toestemming voor de beurt erna: wie in het wolkje typt
+   * doet dat op zijn eigen scherm, in de pagina waar het over gaat. Zie
+   * magWijzen in lib/gids/reeks.js.
+   */
+  async gidsWachtOpVervolg(id) {
+    let uit;
+    try {
+      uit = await this.gidsBrugVoor(id).brug.wachtOpVraag();
+    } catch {
+      return;
+    }
+    if (uit.status !== 'gevraagd' || !uit.tekst) return;
+    // Er kan ondertussen een gewone opdracht gestart zijn; die gaat voor.
+    if (this.agent) return;
+    if (!this.gidsGesprek || this.gidsGesprek.tabId !== Number(id)) return;
+    this.gidsGesprek.gevraagd = true;
+    this.startGids(uit.tekst, { tabId: Number(id) });
+  }
+
   /** Het kindproces is weg: deur dicht als wij hem openden, werk laten staan. */
   agentAfgelopen() {
+    // Het tabblad vasthouden voordat de ronde wordt losgelaten: daarna weet
+    // niemand meer waar dit over ging.
+    const gidsTab = this.agent?.gids ?? null;
+    if (this.gidsGesprek?.lopend) {
+      const beurt = this.gidsGesprek.lopend;
+      this.gidsGesprek.lopend = null;
+      if (beurt.antwoord) this.gidsGesprek.beurten.push(beurt);
+      // Lang genoeg om een gesprek te zijn, kort genoeg om geen archief te
+      // worden dat elke beurt duurder maakt.
+      if (this.gidsGesprek.beurten.length > 6) this.gidsGesprek.beurten.shift();
+    }
     this.agent = null;
     // Wat de gids op het scherm zette blijft staan — daar was het om begonnen.
     // Alleen de grendel gaat eraf.
     this.mcp.beperkTot(null);
+    // En dan luisteren we of er nog iets gevraagd wordt.
+    if (gidsTab !== null) void this.gidsWachtOpVervolg(gidsTab);
     if (!this.deurWasOpen && this.mcp.aan) {
       // De workspace blijft. Wat jij hebt laten opzoeken wil je nog lezen, en
       // die sessie staat toch niet op schijf.

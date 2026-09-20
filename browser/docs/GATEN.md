@@ -17,6 +17,7 @@ bijgewerkt omdat aan `CLAUDE.md` niet geraakt wordt in deze sessies.
 | Geschiedenis (Ctrl+H) | `lib/geschiedenis.js` | `test/geschiedenis.js`, 30 |
 | De gids: vraag over deze pagina (Ctrl+Shift+G) | `lib/gids/`, `main.js` | `test/gids.js` 55, `test/hersens.js` 38 |
 | De gids legt iets uit in stappen | `lib/gids/reeks.js`, `wijs_stap` | idem |
+| De gids praat terug in een wolkje bij je aanwijzer, en je kunt doorvragen | `lib/gids/in-pagina.js` | idem |
 | Eigen API-sleutel als tweede rug | `lib/api.js`, `lib/sleutel.js` | `test/api.js`, 34 |
 | Meerdere vensters (Ctrl+N), en herstel per venster | `main.js`, `lib/herstel.js` | `test/vensters.js` 29, `test/vensters-echt.js` 9 |
 | Alle sneltoetsen op één plek, en in beeld | `lib/sneltoetsen.js` | `test/toetsen.js`, 28 |

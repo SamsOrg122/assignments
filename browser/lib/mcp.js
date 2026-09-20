@@ -445,6 +445,11 @@ class McpDeur {
      * De boekhouding staat in main.js, bij gidsStapOordeel.
      */
     let vragen = true;
+    // Aanwijzen na een vraag die de gebruiker zelf in het wolkje typte vraagt
+    // niet opnieuw: die vraag ging over deze pagina en is er zelf al een
+    // handeling op. Zie magWijzen in lib/gids/reeks.js; het geldt voor één
+    // beurt, op één tabblad.
+    if (naam === 'wijs_aan') vragen = ctrl.gidsWijsOordeel(arg.id).vragen;
     if (naam === 'wijs_stap') {
       const oordeel = ctrl.gidsStapOordeel(arg.id, arg.stap, arg.van);
       if (oordeel.bezwaar) {

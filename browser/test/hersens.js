@@ -85,6 +85,10 @@ zegt('dat hij nergens heen navigeert', h.includes('navigeert'));
 zegt('en dat hij één ding aanwijst', h.includes('precies één ding'));
 zegt('en wanneer hij stappen gebruikt', h.includes('wijs_stap'));
 zegt('en dat gestopt ook echt stoppen betekent', h.includes('dring niet aan'));
+// De gids hoeft niet te wijzen om te antwoorden. Stond dat er niet, dan gaat
+// hij naar iets zoeken om een ring omheen te zetten bij elke vraag.
+zegt('dat hij ook alleen in woorden mag antwoorden', h.includes('alleen in woorden'));
+zegt('en dat zijn tekst in een wolkje terechtkomt', h.includes('wolkje'));
 
 console.log('\nWanneer een volgende stap zonder vraag mag');
 // De regel waar de belofte "geen altijd toestaan" op staat of valt. Een reeks
@@ -113,6 +117,22 @@ zegt('stap 0 bestaat niet', Boolean(bezwaar(loopt, { tabId: 7, stap: 0, van: 3 }
 zegt('stap 4 van 3 ook niet', Boolean(bezwaar(loopt, { tabId: 7, stap: 4, van: 3 })));
 zegt('en een pagina die geen getal is ook niet',
   Boolean(bezwaar(loopt, { tabId: 'zeven', stap: 1, van: 3 })));
+
+console.log('\nWijzen na een vraag die de gebruiker zelf typte');
+// Het wolkje staat op het scherm van de gebruiker, in zijn eigen pagina. Wie
+// daarin typt doet een handeling op het ding waar het over gaat, en dat is de
+// toestemming om het antwoord daar ook aan te wijzen — één beurt, één tabblad.
+const { magWijzen } = require('../lib/gids/reeks.js');
+zegtIs('zonder gesprek vraagt hij gewoon',
+  magWijzen(null, { tabId: 3 }), { vragen: true });
+zegtIs('een gesprek waarin niemand net iets vroeg ook',
+  magWijzen({ tabId: 3, gevraagd: false }, { tabId: 3 }), { vragen: true });
+zegtIs('maar na een vraag in het wolkje niet',
+  magWijzen({ tabId: 3, gevraagd: true }, { tabId: 3 }), { vragen: false });
+zegtIs('en op een ánder tabblad weer wel',
+  magWijzen({ tabId: 3, gevraagd: true }, { tabId: 4 }), { vragen: true });
+zegtIs('een pagina die geen getal is vraagt ook gewoon',
+  magWijzen({ tabId: 3, gevraagd: true }, { tabId: 'drie' }), { vragen: true });
 
 console.log('\nDe grendel op de deur');
 // Een houding is een instructie; dit is het slot. Zonder Electron: de deur

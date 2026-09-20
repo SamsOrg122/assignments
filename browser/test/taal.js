@@ -109,6 +109,12 @@ pasTaalToe(nepDoc);
 zegtIs('en na een wissel staat er iets anders', knop.textContent, 'New tab');
 zegtIs('ook in de titel', titel.title, 'Back');
 
+console.log('\nSleutels zelf');
+zegtIs('geen enkele sleutel heeft een spatie erin',
+  Object.keys(WOORDEN.nl).filter((k) => /\s/.test(k)), []);
+zegt('en ze hebben allemaal een punt, dus een groep',
+  Object.keys(WOORDEN.nl).every((k) => k.includes('.')));
+
 console.log('\nWat niet vertaald hoort te worden');
 // Eigennamen en toetsen blijven staan. Een sleutel die "Tougather" of "Ctrl"
 // in de ene taal anders spelt dan in de andere is bijna zeker een vergissing.

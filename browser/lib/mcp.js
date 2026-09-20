@@ -25,6 +25,7 @@
 
 const http = require('node:http');
 const crypto = require('node:crypto');
+const { t } = require('../renderer/taal.js');
 const fs = require('node:fs');
 const path = require('node:path');
 const { app } = require('electron');
@@ -384,7 +385,7 @@ class McpDeur {
     // geen weigering waar je op kunt bouwen.
     if (this.beperking && !this.beperking.has(naam)) {
       const bezwaar = `${naam} kan nu niet: de browser wijst iets aan en doet zolang alleen dat`;
-      this.meld({ soort: 'geweigerd', naam, tekst: `Geweigerd: ${bezwaar}` });
+      this.meld({ soort: 'geweigerd', naam, tekst: t('log.geweigerd', { wat: bezwaar }) });
       throw new Error(bezwaar);
     }
 
@@ -420,7 +421,7 @@ class McpDeur {
         || naam === 'wijs_aan' || naam === 'wijs_stap') {
       const bezwaar = ctrl.priveBezwaar(arg.id);
       if (bezwaar) {
-        this.meld({ soort: 'geweigerd', naam, tekst: `Geweigerd: ${bezwaar}` });
+        this.meld({ soort: 'geweigerd', naam, tekst: t('log.geweigerd', { wat: bezwaar }) });
         throw new Error(bezwaar);
       }
     }
@@ -428,7 +429,7 @@ class McpDeur {
     if (naam === 'typ') {
       const bezwaar = ctrl.typBezwaar(arg.veld, arg.tekst);
       if (bezwaar) {
-        this.meld({ soort: 'geweigerd', naam, tekst: `Geweigerd: ${bezwaar}` });
+        this.meld({ soort: 'geweigerd', naam, tekst: t('log.geweigerd', { wat: bezwaar }) });
         throw new Error(bezwaar);
       }
     }
@@ -447,7 +448,7 @@ class McpDeur {
     if (naam === 'wijs_stap') {
       const oordeel = ctrl.gidsStapOordeel(arg.id, arg.stap, arg.van);
       if (oordeel.bezwaar) {
-        this.meld({ soort: 'geweigerd', naam, tekst: `Geweigerd: ${oordeel.bezwaar}` });
+        this.meld({ soort: 'geweigerd', naam, tekst: t('log.geweigerd', { wat: oordeel.bezwaar }) });
         throw new Error(oordeel.bezwaar);
       }
       vragen = oordeel.vragen;
@@ -456,11 +457,11 @@ class McpDeur {
     if (vragen) {
       const vraag = await ctrl.mcpVraagToestemming(naam, arg);
       if (!vraag.goed) {
-        this.meld({ soort: 'geweigerd', naam, tekst: `Niet gedaan: ${vraag.reden}` });
+        this.meld({ soort: 'geweigerd', naam, tekst: t('log.nietGedaan', { wat: vraag.reden }) });
         throw new Error(`Niet toegestaan: ${vraag.reden}`);
       }
     }
-    this.meld({ soort: 'toegestaan', naam, tekst: `Toegestaan: ${beschrijf(naam, arg)}` });
+    this.meld({ soort: 'toegestaan', naam, tekst: t('log.toegestaan', { wat: beschrijf(naam, arg) }) });
 
     if (naam === 'lees_jouw_pagina') return ctrl.mcpLeesJouwPagina(arg.id, MAX_TEKENS);
     if (naam === 'klik') return ctrl.mcpKlik(arg.id, arg.tekst);
@@ -474,27 +475,32 @@ class McpDeur {
 
 // Wat er in het logboek komt te staan, in gewone taal. Niet "open_pagina({url})"
 // maar wat er werkelijk gebeurt, want dat is wat je wilt kunnen nalezen.
+const SLEUTELS = {
+  open_pagina: 'doet.open',
+  lees_pagina: 'doet.lees',
+  sluit_pagina: 'doet.sluit',
+  lijst_paginas: 'doet.lijst',
+  jouw_paginas: 'doet.jouwLijst',
+  lees_jouw_pagina: 'doet.leesJouw',
+  bekijk_jouw_pagina: 'doet.bekijkJouw',
+  wijs_aan: 'doet.wijs',
+  wijs_stap: 'doet.wijsStap',
+  wijs_niet_meer: 'doet.wijsNiet',
+  klik: 'doet.klik',
+};
+
 function beschrijf(naam, arg) {
-  if (naam === 'open_pagina') return `Opent ${arg.url}`;
-  if (naam === 'lees_pagina') return `Leest pagina ${arg.id}`;
-  if (naam === 'sluit_pagina') return `Sluit pagina ${arg.id}`;
-  if (naam === 'lijst_paginas') return 'Vraagt welke pagina\'s open staan';
-  if (naam === 'jouw_paginas') return 'Vraagt de titels van jouw tabbladen';
-  if (naam === 'lees_jouw_pagina') return `Wil jouw pagina ${arg.id} lezen`;
-  if (naam === 'bekijk_jouw_pagina') return `Wil de indeling van jouw pagina ${arg.id} zien`;
-  if (naam === 'wijs_aan') return `Wil iets aanwijzen op jouw pagina ${arg.id}`;
-  if (naam === 'wijs_stap') return `Wil je pagina ${arg.id} uitleggen in ${arg.van} stappen`;
-  if (naam === 'wijs_niet_meer') return `Haalt de aanwijzing van pagina ${arg.id}`;
-  if (naam === 'klik') return `Wil klikken op "${arg.tekst}" in pagina ${arg.id}`;
   if (naam === 'typ') {
     // Wat op een geheim lijkt komt niet in het logboek, ook niet als het wordt
     // geweigerd. Het logboek staat op je scherm, en een geweigerd wachtwoord dat
     // daar leesbaar blijft staan is het wachtwoord alsnog kwijt.
     const geheim = NOOIT_TYPEN.test(String(arg.veld ?? '')) || NOOIT_TYPEN.test(String(arg.tekst ?? ''));
-    const wat = geheim ? 'iets dat op een geheim lijkt' : `"${kort(arg.tekst)}"`;
-    return `Wil ${wat} typen in "${arg.veld}"`;
+    const wat = geheim ? t('doet.geheim') : `"${kort(arg.tekst)}"`;
+    return t('doet.typ', { wat, veld: arg.veld });
   }
-  return naam;
+  const sleutel = SLEUTELS[naam];
+  if (!sleutel) return naam;
+  return t(sleutel, { url: arg.url, id: arg.id, van: arg.van, tekst: arg.tekst });
 }
 
 // Lange tekst in een logregel maakt hem onleesbaar, en juist die regel moet je

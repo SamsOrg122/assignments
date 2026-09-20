@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self' data:" />
-    <title>Nieuw tabblad</title>
+    <title data-t="nieuw.kop">Nieuw tabblad</title>
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="newtab.css" />
   </head>
@@ -18,10 +18,11 @@
           <path d="m10.6 10.6 3 3" />
         </svg>
         <input id="zoek" type="text" spellcheck="false" autocomplete="off"
-               placeholder="Zoek of voer een adres in" aria-label="Zoeken" />
+               data-t-plek="zij.adres" data-t-aria="nieuw.zoek" />
       </div>
     </main>
 
+    <script src="taal.js"></script>
     <script src="search.js"></script>
     <script src="newtab.js"></script>
   </body>

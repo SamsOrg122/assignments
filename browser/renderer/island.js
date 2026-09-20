@@ -65,9 +65,7 @@ function naarInvoer(wat = 'opdracht') {
   gaKnop.hidden = true;
   invoer.hidden = false;
   invoer.value = '';
-  invoer.placeholder = invoerModus === 'gids'
-    ? 'Vraag iets over deze pagina'
-    : 'Geef een opdracht';
+  invoer.placeholder = t(invoerModus === 'gids' ? 'balk.vraag' : 'balk.opdracht');
   invoer.focus();
   meet();
 }
@@ -80,6 +78,7 @@ function naarRust() {
   vorigeEl.textContent = '';
   vorigeEl.classList.remove('zichtbaar');
   huidigEl.classList.remove('bezig');
+  // Geen sleutel: dit is een toets en die heet overal hetzelfde.
   huidigEl.textContent = 'Ctrl J';
   laatsteRegel = '';
   zetModus('rust');
@@ -103,11 +102,19 @@ eiland.onStand((stand) => {
   const wacht = stand.vraag ?? (stand.modus === 'actie');
   gaKnop.hidden = !wacht;
   stopKnop.hidden = !(stand.bezig || wacht);
-  stopKnop.textContent = wacht ? 'Niet nu' : 'Stop';
+  stopKnop.textContent = t(wacht ? 'balk.nietNu' : 'balk.stop');
   meet();
 });
 
 eiland.onFocus((wat) => naarInvoer(wat));
+
+// De taal komt van het hoofdproces; de balk heeft geen voorkeuren van zichzelf.
+eiland.onTaal((code) => {
+  if (!zetTaal(code)) return;
+  // Wat er nu staat is al getekend, dus dat moet er opnieuw in.
+  if (!invoer.hidden) naarInvoer(invoerModus);
+  else if (modus === 'rust') naarRust();
+});
 
 kaart.addEventListener('mousedown', (e) => {
   if (e.target === stopKnop || e.target === gaKnop || e.target === invoer) return;

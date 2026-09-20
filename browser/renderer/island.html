@@ -18,13 +18,14 @@
         </div>
 
         <input id="invoer" type="text" spellcheck="false" autocomplete="off"
-               placeholder="Geef een opdracht" aria-label="Opdracht" hidden />
+               data-t-plek="balk.opdracht" data-t-aria="balk.opdracht" hidden />
 
-        <button id="ga" type="button" hidden>Ga door</button>
-        <button id="stop" type="button" hidden>Stop</button>
+        <button id="ga" type="button" data-t="balk.door" hidden>Ga door</button>
+        <button id="stop" type="button" data-t="balk.stop" hidden>Stop</button>
       </div>
     </div>
 
+    <script src="taal.js"></script>
     <script src="glyph.js"></script>
     <script src="island.js"></script>
   </body>

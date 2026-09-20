@@ -255,7 +255,100 @@ const WOORDEN = {
     'inst.mcpNoodstop': 'Noodstop',
     'inst.mcpLeeg': 'Nog niets gedaan.',
 
+
+    /* ── Wat de assistent en een client doen ──────────────────────────
+     * Deze komen uit het hoofdproces en niet uit de zijbalk, maar ze komen
+     * wél op het scherm van de gebruiker terecht: in de balk bovenin, in het
+     * logboek, en in de vraag om toestemming. Daarom staan ze hier en niet
+     * los in main.js. */
+    'doet.open': 'Opent {url}',
+    'doet.lees': 'Leest pagina {id}',
+    'doet.sluit': 'Sluit pagina {id}',
+    'doet.lijst': 'Vraagt welke pagina\u2019s open staan',
+    'doet.jouwLijst': 'Vraagt de titels van jouw tabbladen',
+    'doet.leesJouw': 'Wil jouw pagina {id} lezen',
+    'doet.bekijkJouw': 'Wil de indeling van jouw pagina {id} zien',
+    'doet.wijs': 'Wil iets aanwijzen op jouw pagina {id}',
+    'doet.wijsStap': 'Wil je pagina {id} uitleggen in {van} stappen',
+    'doet.wijsNiet': 'Haalt de aanwijzing van pagina {id}',
+    'doet.klik': 'Wil klikken op "{tekst}" in pagina {id}',
+    'doet.typ': 'Wil {wat} typen in "{veld}"',
+    'doet.geheim': 'iets dat op een geheim lijkt',
+
+    'log.toegestaan': 'Toegestaan: {wat}',
+    'log.geweigerd': 'Geweigerd: {wat}',
+    'log.nietGedaan': 'Niet gedaan: {wat}',
+
+    /* ── De vraag om toestemming ─────────────────────────────────────── */
+    'tst.leesKop': 'De AI-client wil een pagina van jou lezen',
+    'tst.leesWaar': 'Alles wat op die pagina staat gaat naar de client. Ben je daar ingelogd, '
+      + 'dan hoort daar ook alles bij wat achter die login zit.',
+    'tst.klikKop': 'De AI-client wil ergens op klikken',
+    'tst.klikOp': 'Klikt op: "{tekst}"',
+    'tst.klikWaar': 'Wat een knop doet staat niet altijd op de knop. Kijk waar de pagina staat '
+      + 'voordat je dit toestaat.',
+    'tst.bekijkKop': 'De AI-client wil zien hoe jouw pagina in elkaar zit',
+    'tst.bekijkWaar': 'De client krijgt de koppen, de knoppen en hun namen — niet de lopende '
+      + 'tekst en nooit wat er in een veld staat.',
+    'tst.wijsKop': 'De AI-client wil iets aanwijzen op jouw pagina',
+    'tst.wijsZegt': 'Zegt erbij: "{tekst}"',
+    'tst.wijsWaar': 'Er wordt een ring om iets heen gezet met die zin erbij. Er wordt niet '
+      + 'geklikt, niets getypt en nergens heen genavigeerd — en er gaat niets van de pagina '
+      + 'naar de client.',
+    'tst.stapKop': 'De AI-client wil je iets stap voor stap laten zien',
+    'tst.stapAantal': 'In {van} stappen',
+    'tst.stapBegint': 'Begint met: "{tekst}"',
+    'tst.stapWaar': 'Elke stap zet een ring om iets heen met een zin erbij, en wacht tot jij op '
+      + 'Volgende drukt. Stoppen kan bij elke stap. Er wordt niet geklikt, niets getypt, en er '
+      + 'gaat niets van de pagina naar de client.',
+    'tst.typKop': 'De AI-client wil iets typen',
+    'tst.typVeld': 'In het veld: "{veld}"',
+    'tst.typTekst': 'Tekst: "{tekst}"',
+    'tst.typWaar': 'Deze tekst komt op een pagina te staan die niet van jou is.',
+    'tst.pagina': 'Pagina: {titel}',
+    'tst.adres': 'Adres: {host}',
+    'tst.werkruimte': 'Workspace: {naam}',
+    'tst.onbekend': 'onbekend',
+
+    /* ── De regels in de balk bovenin ────────────────────────────────── */
+    'bar.linkGeblokkeerd': 'Link naar een ander programma geblokkeerd',
+    'bar.navGeblokkeerd': 'Navigatie naar een ander programma geblokkeerd',
+    'bar.leestOpdracht': '{naam} leest je opdracht',
+    'bar.kijktPagina': '{naam} kijkt naar deze pagina',
+    'bar.denktNa': '{naam} denkt na',
+    'bar.gaatVerder': '{naam} gaat verder',
+    'bar.klaar': 'Klaar',
+    'bar.klaarKijkMee': 'Klaar, kijk mee in AI-client',
+    'bar.gingMis': 'Het ging mis',
+    'bar.lukteNiet': 'Dat lukte niet: {tekst}',
+    'bar.escWeg': 'Esc haalt de aanwijzing weg',
+    'bar.geenPagina': 'Er staat geen pagina open om iets over te vragen.',
+    'bar.geenWebsite': 'De gids werkt op een website, niet op een pagina van de browser zelf.',
+    'bar.nietAangemeld': 'Claude Code is nog niet aangemeld. Voer eenmalig "claude auth login" uit.',
+    'bar.aangemeld': 'Aangemeld',
+    'bar.aanmeldenNiet': 'Aanmelden ging niet door: {fout}',
+    'bar.aanmeldenTab': 'Aanmelden in een gewoon tabblad, zodat je daarna ook hier ingelogd bent',
+    'bar.aanmeldenVreemd': 'Een aanmelding die je niet zelf begon is tegengehouden',
+    'bar.googleWantrouwt': 'Google vertrouwt deze browser nog niet — aanmelden met een e-mailadres werkt wel',
+
+    /* ── Welke rug de assistent gebruikt ──────────────────────────────── */
+    'rug.deAssistent': 'De assistent',
+    'rug.deGids': 'De gids',
+    'rug.nietAangemeld': 'Claude Code is nog niet aangemeld. Voer eenmalig "claude auth login" uit, '
+      + 'of zet een API-sleutel in Instellingen.',
+    'rug.alleenAgent': 'Geen agent op deze computer, en de assistent staat op "alleen de agent". '
+      + 'Zie Instellingen.',
+    'rug.geenSleutel': 'Er staat geen API-sleutel. Zet er een in Instellingen, bij Assistent.',
+    'rug.niets': 'Geen agent op deze computer en geen API-sleutel. Zie Instellingen, bij Assistent.',
+
     /* ── Het eerste begin ─────────────────────────────────────────── */
+    'nieuw.kop': 'Nieuw tabblad',
+    'nieuw.zoek': 'Zoeken',
+    'nieuw.nacht': 'Nog wakker?',
+    'nieuw.ochtend': 'Goedemorgen',
+    'nieuw.middag': 'Goedemiddag',
+    'nieuw.avond': 'Goedenavond',
+
     'welkom.kop': 'Welkom bij Tougather',
     'welkom.regel': 'Kies eerst de taal van de browser. Later te wijzigen bij Instellingen.',
     'welkom.ga': 'Aan de slag',
@@ -477,6 +570,91 @@ const WOORDEN = {
     'inst.mcpWatDoet': 'What the client is doing',
     'inst.mcpNoodstop': 'Emergency stop',
     'inst.mcpLeeg': 'Nothing done yet.',
+
+
+    'doet.open': 'Opens {url}',
+    'doet.lees': 'Reads page {id}',
+    'doet.sluit': 'Closes page {id}',
+    'doet.lijst': 'Asks which pages are open',
+    'doet.jouwLijst': 'Asks for the titles of your tabs',
+    'doet.leesJouw': 'Wants to read your page {id}',
+    'doet.bekijkJouw': 'Wants to see how your page {id} is laid out',
+    'doet.wijs': 'Wants to point at something on your page {id}',
+    'doet.wijsStap': 'Wants to explain your page {id} in {van} steps',
+    'doet.wijsNiet': 'Removes the pointer from page {id}',
+    'doet.klik': 'Wants to click "{tekst}" on page {id}',
+    'doet.typ': 'Wants to type {wat} into "{veld}"',
+    'doet.geheim': 'something that looks like a secret',
+
+    'log.toegestaan': 'Allowed: {wat}',
+    'log.geweigerd': 'Refused: {wat}',
+    'log.nietGedaan': 'Not done: {wat}',
+
+    'tst.leesKop': 'The AI client wants to read a page of yours',
+    'tst.leesWaar': 'Everything on that page goes to the client. If you are signed in there, '
+      + 'that includes everything behind the login.',
+    'tst.klikKop': 'The AI client wants to click something',
+    'tst.klikOp': 'Clicks: "{tekst}"',
+    'tst.klikWaar': 'What a button does is not always written on the button. Look at where the '
+      + 'page is before you allow this.',
+    'tst.bekijkKop': 'The AI client wants to see how your page is laid out',
+    'tst.bekijkWaar': 'The client gets the headings, the buttons and their names — not the '
+      + 'running text and never what is in a field.',
+    'tst.wijsKop': 'The AI client wants to point at something on your page',
+    'tst.wijsZegt': 'Says with it: "{tekst}"',
+    'tst.wijsWaar': 'A ring is drawn around something with that sentence beside it. Nothing is '
+      + 'clicked, nothing is typed and nothing is navigated to — and nothing from the page goes '
+      + 'to the client.',
+    'tst.stapKop': 'The AI client wants to walk you through something',
+    'tst.stapAantal': 'In {van} steps',
+    'tst.stapBegint': 'Starts with: "{tekst}"',
+    'tst.stapWaar': 'Each step draws a ring around something with a sentence beside it and waits '
+      + 'for you to press Next. You can stop at any step. Nothing is clicked, nothing is typed, '
+      + 'and nothing from the page goes to the client.',
+    'tst.typKop': 'The AI client wants to type something',
+    'tst.typVeld': 'In the field: "{veld}"',
+    'tst.typTekst': 'Text: "{tekst}"',
+    'tst.typWaar': 'This text will end up on a page that is not yours.',
+    'tst.pagina': 'Page: {titel}',
+    'tst.adres': 'Address: {host}',
+    'tst.werkruimte': 'Workspace: {naam}',
+    'tst.onbekend': 'unknown',
+
+    'bar.linkGeblokkeerd': 'Link to another program blocked',
+    'bar.navGeblokkeerd': 'Navigation to another program blocked',
+    'bar.leestOpdracht': '{naam} is reading your request',
+    'bar.kijktPagina': '{naam} is looking at this page',
+    'bar.denktNa': '{naam} is thinking',
+    'bar.gaatVerder': '{naam} is carrying on',
+    'bar.klaar': 'Done',
+    'bar.klaarKijkMee': 'Done, look in AI client',
+    'bar.gingMis': 'Something went wrong',
+    'bar.lukteNiet': 'That did not work: {tekst}',
+    'bar.escWeg': 'Esc removes the pointer',
+    'bar.geenPagina': 'There is no page open to ask about.',
+    'bar.geenWebsite': 'The guide works on a website, not on a page of the browser itself.',
+    'bar.nietAangemeld': 'Claude Code is not signed in yet. Run "claude auth login" once.',
+    'bar.aangemeld': 'Signed in',
+    'bar.aanmeldenNiet': 'Signing in did not go through: {fout}',
+    'bar.aanmeldenTab': 'Signing in happens in an ordinary tab, so you are signed in here too afterwards',
+    'bar.aanmeldenVreemd': 'A sign-in you did not start yourself was stopped',
+    'bar.googleWantrouwt': 'Google does not trust this browser yet — signing in with an email address does work',
+
+    'rug.deAssistent': 'The assistant',
+    'rug.deGids': 'The guide',
+    'rug.nietAangemeld': 'Claude Code is not signed in yet. Run "claude auth login" once, or put '
+      + 'an API key in Settings.',
+    'rug.alleenAgent': 'No agent on this computer, and the assistant is set to "only the agent". '
+      + 'See Settings.',
+    'rug.geenSleutel': 'There is no API key. Put one in Settings, under Assistants.',
+    'rug.niets': 'No agent on this computer and no API key. See Settings, under Assistants.',
+
+    'nieuw.kop': 'New tab',
+    'nieuw.zoek': 'Search',
+    'nieuw.nacht': 'Still up?',
+    'nieuw.ochtend': 'Good morning',
+    'nieuw.middag': 'Good afternoon',
+    'nieuw.avond': 'Good evening',
 
     'welkom.kop': 'Welcome to Tougather',
     'welkom.regel': 'First, pick the browser’s language. You can change it later in Settings.',

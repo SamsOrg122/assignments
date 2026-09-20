@@ -20,6 +20,7 @@ bijgewerkt omdat aan `CLAUDE.md` niet geraakt wordt in deze sessies.
 | Eigen API-sleutel als tweede rug | `lib/api.js`, `lib/sleutel.js` | `test/api.js`, 34 |
 | Meerdere vensters (Ctrl+N), en herstel per venster | `main.js`, `lib/herstel.js` | `test/vensters.js` 29, `test/vensters-echt.js` 9 |
 | Alle sneltoetsen op één plek, en in beeld | `lib/sneltoetsen.js` | `test/toetsen.js`, 28 |
+| Nederlands en Engels, en een eerste scherm dat het vraagt | `renderer/taal.js` | `test/taal.js` 26, `test/taal-echt.js` 20 |
 
 ## Wat meerdere vensters nog niet doen
 
@@ -49,11 +50,12 @@ starten komt elk venster terug zoals het stond. Wat er niet is:
   oplossing. Zie `docs/gids/ARCHITECTUUR.md`.
 - **De browser is alleen MCP-server.** Dat de assistent via de browser bij
   ánder gereedschap kan, is niet gebouwd.
-- **De zijbalk is Nederlands.** `renderer/` en `main.js` kennen geen i18n,
-  terwijl de site Engels is. Wie de browser downloadt komt in een andere taal
-  terecht dan de pagina waar hij op klikte. Dat is geen bug die vanzelf één
-  kant op wijst: Nederlands laten en de site erop aanpassen kan ook. Het is
-  een keuze van de eigenaar en niet van wie hier zit te typen.
+- **Twee talen en niet meer.** Nederlands en Engels. Een derde erbij is nu
+  een lijst met zinnen en geen verbouwing, maar hij staat er niet.
+- **Een nieuw tabblad dat al openstond wisselt niet mee.** Die pagina draait
+  zonder preload — geen enkele deur naar de browser — dus zijn taal komt in
+  het adres mee. Verversen helpt; automatisch verversen zou betekenen dat de
+  browser onder je handen pagina's herlaadt.
 
 ## Hoe je alles draait
 
@@ -66,7 +68,9 @@ npm run test:geschiedenis
 npm run test:api
 npm run test:hersens         # zonder Electron
 npm run test:toetsen         # zonder Electron
+npm run test:taal            # zonder Electron
 npm run test:vensters        # zonder Electron
+npm run test:taal-echt       # start de hele app en praat via de debugpoort
 npm run test:vensters-echt   # start de hele app en praat via de debugpoort
 ```
 

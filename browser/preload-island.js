@@ -16,4 +16,6 @@ contextBridge.exposeInMainWorld('eiland', {
 
   onStand: (fn) => ipcRenderer.on('island:state', (_e, stand) => fn(stand)),
   onFocus: (fn) => ipcRenderer.on('island:focus', (_e, modus) => fn(modus ?? 'opdracht')),
+  // De balk heeft geen voorkeuren; het hoofdproces zegt welke taal het is.
+  onTaal: (fn) => ipcRenderer.on('island:taal', (_e, code) => fn(code)),
 });

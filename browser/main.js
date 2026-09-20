@@ -20,6 +20,10 @@ const { ApiOpdracht, STANDAARD_MODEL } = require('./lib/api.js');
 const sleutel = require('./lib/sleutel.js');
 const { hangMenu } = require('./lib/menu.js');
 const { sneltoetsLijst, bindSneltoetsen } = require('./lib/sneltoetsen.js');
+// Dezelfde woordenlijst als de zijbalk. Het hoofdproces schrijft ook op het
+// scherm — de balk bovenin, het logboek, de vraag om toestemming — en twee
+// lijsten met zinnen zouden een keer uit elkaar lopen.
+const { t, zetTaal, taalNu } = require('./renderer/taal.js');
 
 // Wat de sneltoetsen van búíten dit bestand nodig hebben. Alleen dit ene
 // ding, en zo hoeft lib/sneltoetsen.js niets van main.js te weten.
@@ -56,6 +60,16 @@ const PANEEL_HOOGTES = Object.fromEntries(BALK_APPS.map((a) => [a.id, a.hoogte])
 
 // Een nieuw tabblad begint op een eigen pagina, niet bij een zoekmachine.
 const NEWTAB = pathToFileURL(path.join(__dirname, 'renderer', 'newtab.html')).href;
+
+/**
+ * Het nieuwe tabblad, met de taal erin.
+ *
+ * Die pagina draait zonder preload — geen enkele deur naar de browser — dus
+ * de taal gaat mee in het adres. Een tabblad dat al openstond blijft daardoor
+ * in de oude taal tot je het ververst; dat is de prijs van die dichte deur,
+ * en die prijs is hier lager dan een deur.
+ */
+const nieuwTabURL = () => `${NEWTAB}#taal=${taalNu()}`;
 
 // De brug wordt gestart door een programma buiten ons: de agent, of Claude
 // Desktop. In een geïnstalleerde versie staat alles in app.asar, en daar kan een
@@ -361,6 +375,9 @@ class BrowserWindowController {
 
     bindSneltoetsen(this.island.webContents, this, HULP);
     this.island.webContents.loadFile(path.join(__dirname, 'renderer', 'island.html'));
+    // De balk heeft geen voorkeuren van zichzelf, dus de taal komt hiervandaan.
+    // Niet 'once': ook na een herstart van die renderer moet hij het weer horen.
+    this.island.webContents.on('did-finish-load', () => this.zegTaal());
     this.win.contentView.addChildView(this.island);
     this.layoutIsland();
     // 'resize' vuurt niet bij het herstellen uit de taakbalk, en zolang het
@@ -382,10 +399,10 @@ class BrowserWindowController {
       // gevuld raken. Herstellen mag daarom maar één keer.
       if (this.tabs.size === 0 && !this.herstelGeprobeerd) {
         this.herstelGeprobeerd = true;
-        if (!this.herstelVorigeSessie()) this.createTab(NEWTAB);
+        if (!this.herstelVorigeSessie()) this.createTab(nieuwTabURL());
         return;
       }
-      if (this.tabs.size === 0) this.createTab(NEWTAB);
+      if (this.tabs.size === 0) this.createTab(nieuwTabURL());
       else this.pushState();
     });
   }
@@ -480,7 +497,7 @@ class BrowserWindowController {
     this.activeWorkspaceId = id;
     if (ws.tabs.size === 0) {
       for (const view of this.allViews()) view.setVisible(false);
-      this.createTab(NEWTAB);
+      this.createTab(nieuwTabURL());
       return Promise.resolve();
     }
 
@@ -761,6 +778,12 @@ class BrowserWindowController {
     this.send('balk:assistent', stand);
   }
 
+  /** De balk bovenin vertellen in welke taal hij staat. */
+  zegTaal() {
+    if (this.island.webContents.isDestroyed()) return;
+    this.island.webContents.send('island:taal', taalNu());
+  }
+
   focusIsland(modus = 'opdracht') {
     this.island.webContents.focus();
     this.island.webContents.send('island:focus', modus);
@@ -854,7 +877,7 @@ class BrowserWindowController {
     });
   }
 
-  createTab(url = NEWTAB, ws = this.workspace, opties = {}) {
+  createTab(url = nieuwTabURL(), ws = this.workspace, opties = {}) {
     const { owner = null, activeer = true } = opties;
     const id = this.nextId++;
     const view = new WebContentsView({
@@ -884,7 +907,7 @@ class BrowserWindowController {
         // shell.openExternal gaat naar de schema-afhandeling van het systeem, en
         // ms-msdt: is daar een bekende weg naar code-uitvoering. Tot er een
         // scherm is om dit te vragen: nooit. Zie ROUTEKAART.md stap 1.
-        this.sendIsland({ modus: 'actie', regel: 'Link naar een ander programma geblokkeerd', bezig: false });
+        this.sendIsland({ modus: 'actie', regel: t('bar.linkGeblokkeerd'), bezig: false });
       }
       return { action: 'deny' };
     });
@@ -901,7 +924,7 @@ class BrowserWindowController {
     }
 
     grendelNavigatie(wc, EIGEN_BASIS, () => {
-      this.sendIsland({ modus: 'actie', regel: 'Navigatie naar een ander programma geblokkeerd', bezig: false });
+      this.sendIsland({ modus: 'actie', regel: t('bar.navGeblokkeerd'), bezig: false });
     });
 
     // Alleen onze eigen nieuw-tabbladpagina is van glas: die is ervoor ontworpen
@@ -909,7 +932,7 @@ class BrowserWindowController {
     // een site die zelf geen achtergrond zet zou anders zijn tekst boven op de
     // bewegende kleuren leggen, en dat is niet te lezen.
     const zetAchtergrond = () => {
-      view.setBackgroundColor(wc.getURL() === NEWTAB ? '#00000000' : '#ffffffff');
+      view.setBackgroundColor(wc.getURL().startsWith(NEWTAB) ? '#00000000' : '#ffffffff');
     };
     zetAchtergrond();
 
@@ -1051,7 +1074,7 @@ class BrowserWindowController {
 
     const next = order[index + 1] ?? order[index - 1];
     if (next === undefined) {
-      this.createTab(NEWTAB, ws);
+      this.createTab(nieuwTabURL(), ws);
     } else if (ws.id === this.activeWorkspaceId) {
       this.activateTab(next);
     } else {
@@ -1262,7 +1285,7 @@ class BrowserWindowController {
         wc.off('did-navigate', kijk);
         this.sendIsland({
           modus: 'actie',
-          regel: 'Google vertrouwt deze browser nog niet — aanmelden met een e-mailadres werkt wel',
+          regel: t('bar.googleWantrouwt'),
           bezig: false,
         });
       };
@@ -1271,7 +1294,7 @@ class BrowserWindowController {
     }
     this.sendIsland({
       modus: 'actie',
-      regel: 'Aanmelden in een gewoon tabblad, zodat je daarna ook hier ingelogd bent',
+      regel: t('bar.aanmeldenTab'),
       bezig: true,
     });
     return tabId;
@@ -1285,7 +1308,7 @@ class BrowserWindowController {
     if (!this.aanmelding.hoortBij(tabId)) {
       this.sendIsland({
         modus: 'actie',
-        regel: 'Een aanmelding die je niet zelf begon is tegengehouden',
+        regel: t('bar.aanmeldenVreemd'),
         bezig: false,
       });
       return;
@@ -1294,7 +1317,7 @@ class BrowserWindowController {
 
     const fout = foutIn(url);
     if (fout) {
-      this.sendIsland({ modus: 'actie', regel: `Aanmelden ging niet door: ${fout}`, bezig: false });
+      this.sendIsland({ modus: 'actie', regel: t('bar.aanmeldenNiet', { fout }), bezig: false });
       return;
     }
 
@@ -1304,7 +1327,7 @@ class BrowserWindowController {
     this.werkbank.webContents.loadURL(url);
     this.zetWerkbank(true);
     this.closeTab(tabId);
-    this.sendIsland({ modus: 'actie', regel: 'Aangemeld', bezig: false });
+    this.sendIsland({ modus: 'actie', regel: t('bar.aangemeld'), bezig: false });
   }
 
   /**
@@ -1575,7 +1598,7 @@ class BrowserWindowController {
     if (this.agent) {
       this.sendIsland(vraag
         ? { modus: 'actie', vraag: true, regel: kortRegel(vraag.kop), bezig: false }
-        : { modus: 'analyseren', regel: `${this.agent.naam} gaat verder`, bezig: true });
+        : { modus: 'analyseren', regel: t('bar.gaatVerder', { naam: this.agent.naam }), bezig: true });
     }
     const view = this.tabs.get(this.activeId);
     if (view) view.setVisible(!vraag && !this.paletteOpen && !this.werkbankOpen);
@@ -1591,14 +1614,13 @@ class BrowserWindowController {
       if (!gevonden) return Promise.resolve({ goed: false, reden: 'die pagina bestaat niet' });
       return this.toestemming.vraag({
         wat: naam,
-        kop: 'De AI-client wil een pagina van jou lezen',
+        kop: t('tst.leesKop'),
         regels: [
-          `Pagina: ${gevonden.titel}`,
-          `Adres: ${gevonden.host || 'onbekend'}`,
-          `Workspace: ${gevonden.wsNaam}`,
+          t('tst.pagina', { titel: gevonden.titel }),
+          t('tst.adres', { host: gevonden.host || t('tst.onbekend') }),
+          t('tst.werkruimte', { naam: gevonden.wsNaam }),
         ],
-        waarschuwing: 'Alles wat op die pagina staat gaat naar de client. Ben je '
-          + 'daar ingelogd, dan hoort daar ook alles bij wat achter die login zit.',
+        waarschuwing: t('tst.leesWaar'),
       });
     }
 
@@ -1606,14 +1628,13 @@ class BrowserWindowController {
       const view = this.mcpWerkruimte().tabs.get(Number(arg.id));
       return this.toestemming.vraag({
         wat: naam,
-        kop: 'De AI-client wil ergens op klikken',
+        kop: t('tst.klikKop'),
         regels: [
-          `Klikt op: "${arg.tekst}"`,
-          `Pagina: ${view?.webContents.getTitle() ?? 'onbekend'}`,
-          `Adres: ${view ? hostVan(view.webContents.getURL()) : 'onbekend'}`,
+          t('tst.klikOp', { tekst: arg.tekst }),
+          t('tst.pagina', { titel: view?.webContents.getTitle() ?? t('tst.onbekend') }),
+          t('tst.adres', { host: view ? hostVan(view.webContents.getURL()) : t('tst.onbekend') }),
         ],
-        waarschuwing: 'Wat een knop doet staat niet altijd op de knop. Kijk waar '
-          + 'de pagina staat voordat je dit toestaat.',
+        waarschuwing: t('tst.klikWaar'),
       });
     }
 
@@ -1631,14 +1652,13 @@ class BrowserWindowController {
       if (!gevonden) return Promise.resolve({ goed: false, reden: 'die pagina bestaat niet' });
       return this.toestemming.vraag({
         wat: naam,
-        kop: 'De AI-client wil zien hoe jouw pagina in elkaar zit',
+        kop: t('tst.bekijkKop'),
         regels: [
-          `Pagina: ${gevonden.titel}`,
-          `Adres: ${gevonden.host || 'onbekend'}`,
-          `Workspace: ${gevonden.wsNaam}`,
+          t('tst.pagina', { titel: gevonden.titel }),
+          t('tst.adres', { host: gevonden.host || t('tst.onbekend') }),
+          t('tst.werkruimte', { naam: gevonden.wsNaam }),
         ],
-        waarschuwing: 'De client krijgt de koppen, de knoppen en hun namen — niet '
-          + 'de lopende tekst en nooit wat er in een veld staat.',
+        waarschuwing: t('tst.bekijkWaar'),
       });
     }
 
@@ -1654,15 +1674,13 @@ class BrowserWindowController {
       if (!gevonden) return Promise.resolve({ goed: false, reden: 'die pagina bestaat niet' });
       return this.toestemming.vraag({
         wat: naam,
-        kop: 'De AI-client wil iets aanwijzen op jouw pagina',
+        kop: t('tst.wijsKop'),
         regels: [
-          `Pagina: ${gevonden.titel}`,
-          `Zegt erbij: "${String(arg.tekst ?? '').slice(0, 80)}"`,
-          `Workspace: ${gevonden.wsNaam}`,
+          t('tst.pagina', { titel: gevonden.titel }),
+          t('tst.wijsZegt', { tekst: String(arg.tekst ?? '').slice(0, 80) }),
+          t('tst.werkruimte', { naam: gevonden.wsNaam }),
         ],
-        waarschuwing: 'Er wordt een ring om iets heen gezet met die zin erbij. Er '
-          + 'wordt niet geklikt, niets getypt en nergens heen genavigeerd — en er '
-          + 'gaat niets van de pagina naar de client.',
+        waarschuwing: t('tst.wijsWaar'),
       });
     }
 
@@ -1679,15 +1697,13 @@ class BrowserWindowController {
       if (!gevonden) return Promise.resolve({ goed: false, reden: 'die pagina bestaat niet' });
       return this.toestemming.vraag({
         wat: naam,
-        kop: 'De AI-client wil je iets stap voor stap laten zien',
+        kop: t('tst.stapKop'),
         regels: [
-          `Pagina: ${gevonden.titel}`,
-          `In ${Math.floor(Number(arg.van)) || 1} stappen`,
-          `Begint met: "${String(arg.tekst ?? '').slice(0, 80)}"`,
+          t('tst.pagina', { titel: gevonden.titel }),
+          t('tst.stapAantal', { van: Math.floor(Number(arg.van)) || 1 }),
+          t('tst.stapBegint', { tekst: String(arg.tekst ?? '').slice(0, 80) }),
         ],
-        waarschuwing: 'Elke stap zet een ring om iets heen met een zin erbij, en '
-          + 'wacht tot jij op Volgende drukt. Stoppen kan bij elke stap. Er wordt '
-          + 'niet geklikt, niets getypt, en er gaat niets van de pagina naar de client.',
+        waarschuwing: t('tst.stapWaar'),
       });
     }
 
@@ -1695,13 +1711,13 @@ class BrowserWindowController {
       const view = this.mcpWerkruimte().tabs.get(Number(arg.id));
       return this.toestemming.vraag({
         wat: naam,
-        kop: 'De AI-client wil iets typen',
+        kop: t('tst.typKop'),
         regels: [
-          `In het veld: "${arg.veld}"`,
-          `Tekst: "${String(arg.tekst).slice(0, 120)}"`,
-          `Adres: ${view ? hostVan(view.webContents.getURL()) : 'onbekend'}`,
+          t('tst.typVeld', { veld: arg.veld }),
+          t('tst.typTekst', { tekst: String(arg.tekst).slice(0, 120) }),
+          t('tst.adres', { host: view ? hostVan(view.webContents.getURL()) : t('tst.onbekend') }),
         ],
-        waarschuwing: 'Deze tekst komt op een pagina te staan die niet van jou is.',
+        waarschuwing: t('tst.typWaar'),
       });
     }
 
@@ -2108,7 +2124,7 @@ class BrowserWindowController {
     });
 
     grendelNavigatie(wc, EIGEN_BASIS, () => {
-      this.sendIsland({ modus: 'actie', regel: 'Navigatie naar een ander programma geblokkeerd', bezig: false });
+      this.sendIsland({ modus: 'actie', regel: t('bar.navGeblokkeerd'), bezig: false });
     });
 
     // Een link uit de app die naar buiten wijst hoort een gewoon tabblad te
@@ -2269,15 +2285,11 @@ class BrowserWindowController {
     // Niets bruikbaars. De reden hangt af van waar het op strandde, want
     // "geen agent" en "agent niet aangemeld" vragen om iets anders van je.
     if (agent && this.agentAangemeld === false) {
-      return { soort: 'geen', reden: 'Claude Code is nog niet aangemeld. Voer eenmalig "claude auth login" uit, of zet een API-sleutel in Instellingen.' };
+      return { soort: 'geen', reden: t('rug.nietAangemeld'), aanmelden: true };
     }
-    if (voorkeur === 'agent') {
-      return { soort: 'geen', reden: 'Geen agent op deze computer, en de assistent staat op "alleen de agent". Zie Instellingen.' };
-    }
-    if (voorkeur === 'api') {
-      return { soort: 'geen', reden: 'Er staat geen API-sleutel. Zet er een in Instellingen, bij Assistent.' };
-    }
-    return { soort: 'geen', reden: 'Geen agent op deze computer en geen API-sleutel. Zie Instellingen, bij Assistent.' };
+    if (voorkeur === 'agent') return { soort: 'geen', reden: t('rug.alleenAgent') };
+    if (voorkeur === 'api') return { soort: 'geen', reden: t('rug.geenSleutel') };
+    return { soort: 'geen', reden: t('rug.niets') };
   }
 
   /**
@@ -2333,16 +2345,16 @@ class BrowserWindowController {
     const rug = this.kiesRug();
     if (rug.soort === 'geen') {
       this.sendIsland({ modus: 'actie', vraag: false, regel: rug.reden, bezig: false });
-      if (rug.reden.includes('auth login')) this.vraagAanmelding();
+      if (rug.soort === 'geen' && rug.aanmelden) this.vraagAanmelding();
       return;
     }
 
     // De workspace waar hij werkt, meteen zichtbaar in de strip. Je hoort te
     // kunnen zien waar het gebeurt terwijl het gebeurt.
     const ws = this.mcpWerkruimte();
-    const naam = rug.soort === 'agent' ? rug.agent.naam : 'De assistent';
+    const naam = rug.soort === 'agent' ? rug.agent.naam : t('rug.deAssistent');
     this.agent = { naam, wsId: ws.id, opdracht: tekst, loop: null, rug: rug.soort };
-    this.sendIsland({ modus: 'debuggen', regel: `${naam} leest je opdracht`, bezig: true });
+    this.sendIsland({ modus: 'debuggen', regel: t('bar.leestOpdracht', { naam }), bezig: true });
 
     this.agent.loop = await this.startRonde(rug, {
       opdracht: tekst,
@@ -2372,7 +2384,7 @@ class BrowserWindowController {
     const id = this.activeId;
     const gevonden = id === null ? null : this.zoekJouwTab(id);
     if (!gevonden) {
-      this.sendIsland({ modus: 'actie', vraag: false, regel: 'Er staat geen pagina open om iets over te vragen.', bezig: false });
+      this.sendIsland({ modus: 'actie', vraag: false, regel: t('bar.geenPagina'), bezig: false });
       return;
     }
 
@@ -2387,7 +2399,7 @@ class BrowserWindowController {
     // de gebruiker niet al ziet.
     const url = gevonden.view.webContents.getURL();
     if (beoordeelURL(url, EIGEN_BASIS) !== 'web') {
-      this.sendIsland({ modus: 'actie', vraag: false, regel: 'De gids werkt op een website, niet op een pagina van de browser zelf.', bezig: false });
+      this.sendIsland({ modus: 'actie', vraag: false, regel: t('bar.geenWebsite'), bezig: false });
       return;
     }
 
@@ -2396,7 +2408,7 @@ class BrowserWindowController {
     const rug = this.kiesRug();
     if (rug.soort === 'geen') {
       this.sendIsland({ modus: 'actie', vraag: false, regel: rug.reden, bezig: false });
-      if (rug.reden.includes('auth login')) this.vraagAanmelding();
+      if (rug.soort === 'geen' && rug.aanmelden) this.vraagAanmelding();
       return;
     }
 
@@ -2406,9 +2418,9 @@ class BrowserWindowController {
       `Bekijk die pagina en wijs het antwoord aan. Gebruik pagina ${id}, geen andere.`,
     ].join(' ');
 
-    const naam = rug.soort === 'agent' ? rug.agent.naam : 'De gids';
+    const naam = rug.soort === 'agent' ? rug.agent.naam : t('rug.deGids');
     this.agent = { naam, wsId: this.activeWorkspaceId, opdracht: tekst, loop: null, gids: id, rug: rug.soort };
-    this.sendIsland({ modus: 'debuggen', regel: `${naam} kijkt naar deze pagina`, bezig: true });
+    this.sendIsland({ modus: 'debuggen', regel: t('bar.kijktPagina', { naam }), bezig: true });
 
     this.agent.loop = await this.startRonde(rug, {
       opdracht,
@@ -2464,14 +2476,14 @@ class BrowserWindowController {
     const naam = this.agent.naam;
 
     if (melding.soort === 'begin') {
-      this.sendIsland({ modus: 'debuggen', regel: `${naam} denkt na`, bezig: true });
+      this.sendIsland({ modus: 'debuggen', regel: t('bar.denktNa', { naam }), bezig: true });
       return;
     }
     // Zijn eigen zin over aanmelden verwijst naar een scherm dat hier niet
     // bestaat. Vertalen naar de stap die hier wél helpt.
     if (NIET_AANGEMELD.test(melding.tekst ?? '')) {
       this.agentAangemeld = false;
-      this.sendIsland({ modus: 'actie', vraag: false, regel: 'Claude Code is nog niet aangemeld. Voer eenmalig "claude auth login" uit.', bezig: false });
+      this.sendIsland({ modus: 'actie', vraag: false, regel: t('bar.nietAangemeld'), bezig: false });
       return;
     }
     if (melding.soort === 'zegt') {
@@ -2490,22 +2502,23 @@ class BrowserWindowController {
     }
     if (melding.soort === 'mislukt') {
       this.sendIsland({
-        modus: 'actie', vraag: false, regel: kortRegel(`Dat lukte niet: ${melding.tekst}`), bezig: true,
+        modus: 'actie', vraag: false, regel: kortRegel(t('bar.lukteNiet', { tekst: melding.tekst })), bezig: true,
       });
       return;
     }
     if (melding.soort === 'klaar' || melding.soort === 'fout') {
       // Een gidsronde werkte op jouw eigen tabblad; daar valt niets mee te
       // kijken in de workspace van de client, want die is niet gebruikt.
-      const waar = !this.agent.gids && this.workspaces.get(this.agent.wsId)
-        ? ', kijk mee in AI-client' : '';
+      const klaar = !this.agent.gids && this.workspaces.get(this.agent.wsId)
+        ? t('bar.klaarKijkMee') : t('bar.klaar');
       // En als er iets is aangewezen hoor je te weten hoe het weer weggaat,
       // precies op het moment dat het er staat.
-      const esc = this.agent.gids && this.gewezenTab !== null ? ' · Esc haalt de aanwijzing weg' : '';
+      const esc = this.agent.gids && this.gewezenTab !== null ? ` · ${t('bar.escWeg')}` : '';
+      const kern = melding.tekst || (melding.soort === 'klaar' ? klaar : t('bar.gingMis'));
       this.sendIsland({
         modus: melding.soort === 'klaar' ? 'klaar' : 'actie',
         vraag: false,
-        regel: kortRegel(`${melding.tekst || (melding.soort === 'klaar' ? `Klaar${waar}` : 'Het ging mis')}${esc}`),
+        regel: kortRegel(`${kern}${esc}`),
         bezig: false,
       });
       return;
@@ -2629,7 +2642,7 @@ class BrowserWindowController {
     const laatste = this.gesloten.pop();
     if (!laatste) return;
     const ws = this.workspaces.get(laatste.wsId) ?? this.workspace;
-    this.createTab(laatste.url || NEWTAB, ws, { owner: laatste.owner });
+    this.createTab(laatste.url || nieuwTabURL(), ws, { owner: laatste.owner });
   }
 
   // Zoomniveaus zijn logaritmisch: elke stap van 0,5 is ongeveer 20% erbij.
@@ -2684,7 +2697,7 @@ function hostVan(url) {
 
 function toURL(input) {
   // Lege invoer betekent hier: geef me een leeg tabblad.
-  return naarZoekURL(input, zoekmachine()) ?? NEWTAB;
+  return naarZoekURL(input, zoekmachine()) ?? nieuwTabURL();
 }
 
 // --- IPC ---------------------------------------------------------------
@@ -2716,7 +2729,7 @@ function controllerVanLaag(event) {
   return null;
 }
 
-ipcMain.handle('tab:new', (e, url) => controllerFor(e)?.createTab(url ? toURL(url) : NEWTAB));
+ipcMain.handle('tab:new', (e, url) => controllerFor(e)?.createTab(url ? toURL(url) : nieuwTabURL()));
 ipcMain.handle('tab:close', (e, id) => controllerFor(e)?.closeTab(id));
 ipcMain.handle('tab:activate', (e, id) => controllerFor(e)?.activateTab(id));
 ipcMain.handle('tab:heropen', (e) => controllerFor(e)?.heropenTab());
@@ -2819,8 +2832,30 @@ ipcMain.handle('ui:werkbank', (e, open) => {
 });
 
 ipcMain.handle('pref:get', () => voorkeuren.alles());
+/**
+ * De taal van het hoofdproces gelijk zetten aan die van de schermen.
+ *
+ * Het hoofdproces schrijft ook op het scherm: de balk bovenin, het logboek en
+ * de vraag om toestemming komen hiervandaan. 'systeem' wordt hier opgelost
+ * met de taal van de app; de renderer doet hetzelfde met `navigator`, en die
+ * twee komen uit dezelfde bron.
+ */
+function volgTaal() {
+  const keuze = voorkeuren.alles().taal ?? 'systeem';
+  zetTaal(keuze === 'systeem' ? app.getLocale() : keuze);
+}
+
 ipcMain.handle('pref:set', (_e, sleutel, waarde) => {
   const nieuw = voorkeuren.zet(sleutel, waarde);
+  if (sleutel === 'taal') {
+    volgTaal();
+    // De balk bovenin herhaalt zichzelf niet uit zichzelf, dus de regel die
+    // er nu staat zou in de oude taal blijven hangen tot er iets gebeurt.
+    for (const ctrl of new Set(windows.values())) {
+      ctrl.zegTaal();
+      if (!ctrl.agent) ctrl.sendIsland({ modus: 'rust', regel: '', bezig: false });
+    }
+  }
   // Alle vensters bijwerken, niet alleen het venster dat het vroeg: een
   // instelling is van de app, en er kunnen er meer open staan.
   for (const ctrl of new Set(windows.values())) ctrl.send('pref:changed', nieuw);
@@ -2861,6 +2896,7 @@ app.whenReady().then(() => {
   // Voorkeuren eerst: die zetten het thema, en dat moet staan vóórdat er een
   // venster tekent — anders zie je hem omklappen.
   voorkeuren.laad();
+  volgTaal();
 
   // Dan grendelen, en pas daarna een venster. De standaardsessie wordt gebruikt
   // door alles wat geen eigen partitie heeft, waaronder de zijbalk en de balk.

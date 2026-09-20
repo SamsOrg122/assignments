@@ -16,105 +16,25 @@
  * neemt — `browser.nieuwVenster()`, dezelfde die de commandobalk gebruikt.
  */
 
-const { spawn } = require('node:child_process');
-const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
-const net = require('node:net');
 const path = require('node:path');
+
+const {
+  even, vrijePoort, wachtOpZijbalken, inPagina, startApp, stopApp,
+} = require('./cdp.js');
 
 let goed = 0;
 const stuk = [];
 const zegt = (wat, waar) => {
-  if (waar) { goed += 1; console.log(`  ✓ ${wat}`); }
-  else { stuk.push(wat); console.log(`  ✗ ${wat}`); }
+  if (waar) { goed += 1; console.log(`  \u2713 ${wat}`); }
+  else { stuk.push(wat); console.log(`  \u2717 ${wat}`); }
 };
 const zegtIs = (wat, gekregen, verwacht) => {
   const ok = JSON.stringify(gekregen) === JSON.stringify(verwacht);
   if (!ok) console.log(`      gekregen: ${JSON.stringify(gekregen)}\n      verwacht: ${JSON.stringify(verwacht)}`);
   zegt(wat, ok);
 };
-
-const even = (ms) => new Promise((k) => setTimeout(k, ms));
-
-/** Een poort die nu vrij is. Niet waterdicht, wel genoeg voor een reeks. */
-function vrijePoort() {
-  return new Promise((k) => {
-    const s = net.createServer();
-    s.listen(0, '127.0.0.1', () => {
-      const { port } = s.address();
-      s.close(() => k(port));
-    });
-  });
-}
-
-function haalJson(url) {
-  return new Promise((klaar, mis) => {
-    http.get(url, (a) => {
-      let tekst = '';
-      a.on('data', (b) => { tekst += b; });
-      a.on('end', () => {
-        try { klaar(JSON.parse(tekst)); } catch (e) { mis(e); }
-      });
-    }).on('error', mis);
-  });
-}
-
-/** De zijbalken die nu openstaan: één per venster. */
-async function zijbalken(poort) {
-  try {
-    const lijst = await haalJson(`http://127.0.0.1:${poort}/json/list`);
-    return lijst.filter((t) => t.type === 'page' && t.url.endsWith('renderer/index.html'));
-  } catch {
-    return [];
-  }
-}
-
-/** Wachten tot er er zoveel zijn, of opgeven. */
-async function wachtOpZijbalken(poort, hoeveel, msMax = 20000) {
-  const eind = Date.now() + msMax;
-  for (;;) {
-    const gevonden = await zijbalken(poort);
-    if (gevonden.length >= hoeveel) return gevonden;
-    if (Date.now() > eind) return gevonden;
-    await even(250);
-  }
-}
-
-/** Eén stukje JavaScript in een tabblad van de browser zelf. */
-async function inPagina(doel, uitdrukking) {
-  const ws = new WebSocket(doel.webSocketDebuggerUrl);
-  await new Promise((k, m) => { ws.onopen = k; ws.onerror = m; });
-  const antwoord = await new Promise((klaar, mis) => {
-    const klok = setTimeout(() => mis(new Error('te laat')), 8000);
-    ws.onmessage = (e) => {
-      const b = JSON.parse(e.data);
-      if (b.id !== 1) return;
-      clearTimeout(klok);
-      klaar(b.result);
-    };
-    ws.send(JSON.stringify({
-      id: 1,
-      method: 'Runtime.evaluate',
-      params: { expression: uitdrukking, awaitPromise: true, returnByValue: true },
-    }));
-  });
-  ws.close();
-  return antwoord;
-}
-
-function startApp(userData, poort) {
-  return spawn(process.execPath.includes('node') ? 'npx' : process.execPath,
-    ['electron', '.', '--no-sandbox', '--disable-backgrounding-occluded-windows',
-      `--remote-debugging-port=${poort}`, `--user-data-dir=${userData}`],
-    { cwd: path.join(__dirname, '..'), stdio: ['ignore', 'ignore', 'ignore'] });
-}
-
-async function stopApp(kind) {
-  if (!kind || kind.exitCode !== null) return;
-  kind.kill('SIGTERM');
-  await new Promise((k) => { kind.on('exit', k); setTimeout(k, 4000); });
-}
 
 (async () => {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'tougather-echt-'));

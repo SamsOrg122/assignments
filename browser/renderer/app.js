@@ -206,7 +206,7 @@ browser.onZoekUitslag(({ treffers, welke, dicht }) => {
   // "0" en "niets" zijn twee verschillende dingen: leeg veld is niets, een
   // term zonder treffer is nul, en dat laatste hoort te blijven staan.
   if (!zoekveld.value) { zoektelling.textContent = ''; return; }
-  zoektelling.textContent = treffers ? `${welke}/${treffers}` : 'geen';
+  zoektelling.textContent = treffers ? `${welke}/${treffers}` : t('zoek.geen');
   zoektelling.dataset.leeg = treffers ? '' : 'ja';
 });
 
@@ -248,12 +248,13 @@ function maat(bytes) {
 function dlOnderschrift(d) {
   const waar = d.host ? ` · ${d.host}` : '';
   if (d.status === 'bezig' || d.status === 'gepauzeerd') {
-    const hoever = d.totaal > 0 ? `${maat(d.ontvangen)} van ${maat(d.totaal)}` : maat(d.ontvangen);
-    return `${d.status === 'gepauzeerd' ? 'Gepauzeerd · ' : ''}${hoever}${waar}`;
+    const hoever = d.totaal > 0
+      ? t('dl.vanTotaal', { gedaan: maat(d.ontvangen), totaal: maat(d.totaal) })
+      : maat(d.ontvangen);
+    return `${d.status === 'gepauzeerd' ? `${t('dl.gepauzeerd')} · ` : ''}${hoever}${waar}`;
   }
   if (d.status === 'klaar') return `${maat(d.ontvangen)}${waar}`;
-  if (d.status === 'gestopt') return `Gestopt${waar}`;
-  return `Mislukt${waar}`;
+  return `${t(d.status === 'gestopt' ? 'dl.gestopt' : 'dl.mislukt')}${waar}`;
 }
 
 function maakDownload(d) {
@@ -285,8 +286,8 @@ function maakDownload(d) {
   const weg = document.createElement('button');
   weg.className = 'ib dl-weg';
   weg.type = 'button';
-  weg.title = 'Uit de lijst halen';
-  weg.setAttribute('aria-label', 'Uit de lijst halen');
+  weg.title = t('dl.uitLijst');
+  weg.setAttribute('aria-label', weg.title);
   weg.append(icoon(KRUISJE));
   weg.onclick = (e) => {
     e.stopPropagation();
@@ -314,11 +315,11 @@ function werkDownloadBij(el, d) {
   if (loopt) {
     const uit = d.status === 'gepauzeerd';
     el.doe.append(icoon(uit ? HERVAT : PAUZE));
-    el.doe.title = uit ? 'Verder' : 'Pauzeren';
+    el.doe.title = t(uit ? 'dl.verder' : 'dl.pauzeren');
     el.doe.onclick = (e) => { e.stopPropagation(); browser.pauzeerDownload(d.id); };
   } else if (d.status === 'klaar') {
     el.doe.append(icoon(MAP_UIT));
-    el.doe.title = 'Toon in map';
+    el.doe.title = t('dl.inMap');
     el.doe.onclick = (e) => { e.stopPropagation(); browser.toonDownload(d.id); };
   }
   el.doe.hidden = !loopt && d.status !== 'klaar';
@@ -329,10 +330,8 @@ function werkDownloadBij(el, d) {
   el.li.classList.toggle('opent', Boolean(d.kanOpenen));
   el.li.onclick = d.kanOpenen ? () => browser.openDownload(d.id) : null;
   el.li.title = d.kanOpenen
-    ? 'Openen'
-    : d.status === 'klaar'
-      ? 'Dit soort bestand openen we niet voor je; gebruik "toon in map"'
-      : '';
+    ? t('dl.openen')
+    : d.status === 'klaar' ? t('dl.nietOpenen') : '';
 }
 
 function tekenDownloads(lijst) {
@@ -373,9 +372,10 @@ browser.onFavicon(({ id, favicon }) => {
 
 const huidigeUrl = () => laatsteStaat.tabs.find((t) => t.id === laatsteStaat.activeId)?.url ?? '';
 
-browser.onState((state) => {
-  laatsteStaat = state;
-  tekenTabbladen(state.tabs, state.activeId);
+/** Alles wat uit de stand getekend wordt, in één greep. */
+function tekenAlles() {
+  const state = laatsteStaat;
+  tekenTabbladen(state.tabs ?? [], state.activeId);
   tekenWerkbank();
   tekenVraag();
   tekenMcp();
@@ -392,15 +392,20 @@ browser.onState((state) => {
   const actief = state.tabs.find((tab) => tab.id === state.activeId);
   const leeg = !plek && (!actief || !actief.url);
   urlTekst.textContent = plek ? `Tougather · ${plek.naam}`
-    : leeg ? 'Zoek of voer een adres in' : host(actief.url);
+    : leeg ? t('zij.adres') : host(actief.url);
   urlTekst.classList.toggle('leeg', leeg);
-  urlKnop.title = leeg ? 'Zoek of voer een adres in' : actief.url;
+  urlKnop.title = leeg ? t('zij.adres') : actief.url;
 
   tabcount.textContent = state.tabs.length || '';
   if (actief) {
     backBtn.disabled = !actief.canGoBack;
     forwardBtn.disabled = !actief.canGoForward;
   }
+}
+
+browser.onState((state) => {
+  laatsteStaat = state;
+  tekenAlles();
 });
 
 // --- tabbladen ---------------------------------------------------------
@@ -459,7 +464,7 @@ function maakTab(tab) {
   const sluit = document.createElement('button');
   sluit.className = 'x';
   sluit.type = 'button';
-  sluit.title = 'Tabblad sluiten';
+  sluit.title = t('zij.tabbladSluiten');
   sluit.append(icoon(KRUISJE));
   sluit.onclick = (e) => {
     e.stopPropagation();
@@ -481,7 +486,7 @@ function zetBuurStand(el, tab) {
   const sp = el.li.querySelector('.sp');
   if (!sp) return;
   sp.hidden = actief;
-  sp.title = buur ? 'Niet meer naast elkaar' : 'Naast het huidige tabblad zetten';
+  sp.title = t(buur ? 'zij.nietNaastElkaar' : 'zij.naastElkaar');
   sp.setAttribute('aria-label', sp.title);
   sp.setAttribute('aria-pressed', String(buur));
 }
@@ -493,7 +498,7 @@ function werkTabBij(e, tab, isActief) {
 
   if (tab.owner) {
     e.li.dataset.modus = tab.modus ?? 'rust';
-    e.li.title = `${tab.owner} werkt in dit tabblad`;
+    e.li.title = t('zij.werktIn', { naam: tab.owner });
     if (e.eigenaar && e.eigenaar.textContent !== tab.owner) e.eigenaar.textContent = tab.owner;
     if (e.glyph) e.glyph.zet(tab.modus ?? 'rust');
   }
@@ -649,8 +654,9 @@ document.getElementById('mcp-noodstop').onclick = () => {
 
 document.getElementById('mcp-kopieer').onclick = async (e) => {
   await navigator.clipboard.writeText(configTekst());
-  e.currentTarget.textContent = 'Gekopieerd';
-  setTimeout(() => { e.currentTarget.textContent = 'Kopieer'; }, 1600);
+  const knopje = e.currentTarget;
+  knopje.textContent = t('inst.mcpGekopieerd');
+  setTimeout(() => { knopje.textContent = t('inst.mcpKopieer'); }, 1600);
 };
 
 const klok = (op) => new Date(op).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -658,7 +664,7 @@ const klok = (op) => new Date(op).toLocaleTimeString('nl-NL', { hour: '2-digit',
 function tekenMcp() {
   const m = laatsteStaat.mcp ?? { aan: false, log: [] };
   mcpAan.checked = Boolean(m.aan);
-  mcpStand.textContent = m.aan ? `Open op poort ${m.poort}` : 'Dicht';
+  mcpStand.textContent = m.aan ? t('inst.mcpOpen', { poort: m.poort }) : t('inst.mcpDicht');
   mcpOpen.hidden = !m.aan;
   if (!m.aan) return;
 
@@ -669,7 +675,7 @@ function tekenMcp() {
   if (!regels.length) {
     const leeg = document.createElement('li');
     leeg.className = 'leeg';
-    leeg.textContent = 'Nog niets gedaan.';
+    leeg.textContent = t('inst.mcpLeeg');
     mcpLog.replaceChildren(leeg);
     return;
   }
@@ -748,12 +754,16 @@ function tekenApprij() {
       stip.className = 'bb-stip';
       knop.append(stip);
       melding = klinkt
-        ? `, ${klinkt} ${klinkt === 1 ? 'tabblad speelt' : 'tabbladen spelen'}`
-        : ', gedempt';
+        ? t(klinkt === 1 ? 'paneel.eenSpeelt' : 'paneel.spelen', { aantal: klinkt })
+        : t('paneel.gedempt');
     }
 
-    knop.title = app.naam + melding;
-    knop.setAttribute('aria-label', app.naam + melding);
+    // De naam komt uit het hoofdproces en is daar Nederlands; hier hoort hij
+    // in de taal van dit scherm. Valt er geen vertaling te vinden, dan staat
+    // die naam er alsnog — beter iets in de verkeerde taal dan niets.
+    const naam = WOORDEN[taalNu()]?.[`paneel.${app.id}`] ?? app.naam;
+    knop.title = naam + melding;
+    knop.setAttribute('aria-label', naam + melding);
     return knop;
   }));
 }
@@ -795,13 +805,13 @@ const STIL = 'M4.4 6.2h2.2l3-2.4v8.4l-3-2.4H4.4zM11 6.4l2.6 3.2M13.6 6.4 11 9.6'
 function tekenGeluid() {
   const bronnen = laatsteStaat.geluid ?? [];
   geluidStand.textContent = bronnen.length
-    ? `${bronnen.length} ${bronnen.length === 1 ? 'bron' : 'bronnen'}`
+    ? t(bronnen.length === 1 ? 'paneel.bron' : 'paneel.bronnen', { aantal: bronnen.length })
     : '';
 
   if (!bronnen.length) {
     const leeg = document.createElement('li');
     leeg.className = 'gl-leeg';
-    leeg.textContent = 'Er speelt niets.';
+    leeg.textContent = t('paneel.stil');
     geluidLijst.replaceChildren(leeg);
     return;
   }
@@ -815,7 +825,7 @@ function tekenGeluid() {
     const tekst = document.createElement('button');
     tekst.className = 'gl-tekst';
     tekst.type = 'button';
-    tekst.title = `Naar dit tabblad in ${bron.wsNaam}`;
+    tekst.title = t('paneel.naarTab', { ws: bron.wsNaam });
     const titel = document.createElement('span');
     titel.className = 'gl-titel';
     titel.textContent = bron.titel;
@@ -832,7 +842,7 @@ function tekenGeluid() {
     const demp = document.createElement('button');
     demp.className = 'gl-demp';
     demp.type = 'button';
-    demp.title = bron.gedempt ? 'Geluid weer aanzetten' : 'Dit tabblad dempen';
+    demp.title = t(bron.gedempt ? 'paneel.hoorbaar' : 'paneel.demp');
     demp.setAttribute('aria-label', demp.title);
     demp.append(icoon(bron.gedempt ? STIL : LUID));
     demp.onclick = () => browser.dempTab(bron.id, !bron.gedempt);
@@ -849,11 +859,11 @@ function tekenGeluid() {
 let notitieTimer = null;
 
 notitieVeld.addEventListener('input', () => {
-  notitieStand.textContent = 'bezig met bewaren…';
+  notitieStand.textContent = t('paneel.notitieBezig');
   clearTimeout(notitieTimer);
   notitieTimer = setTimeout(() => {
     browser.zetVoorkeur('notitie', notitieVeld.value);
-    notitieStand.textContent = 'bewaard';
+    notitieStand.textContent = t('paneel.notitieBewaard');
   }, 400);
 });
 
@@ -948,7 +958,7 @@ let gewapend = null;
 let ontwapenen = null;
 
 const letter = (naam) => (String(naam).trim()[0] || '?').toUpperCase();
-const tabbladen = (n) => `${n} ${n === 1 ? 'tabblad' : 'tabbladen'}`;
+const tabbladen = (n) => t(n === 1 ? 'ws.eenTabblad' : 'ws.tabbladen', { aantal: n });
 
 // De naam van de plek waar je in de app bent, of null als je er niet bent.
 function huidigePlek() {
@@ -1012,14 +1022,14 @@ function tekenWerkbank() {
   if (account?.account) {
     // Het adres onderscheidt je als je twee accounts hebt; de naam is wat
     // anderen zien. Het adres wint, want daar meld je je mee aan.
-    naam.textContent = account.email || account.naam || 'Aangemeld';
+    naam.textContent = account.email || account.naam || t('inst.aangemeld');
     knop.title = account.wacht
-      ? 'Je account bestaat, maar het adres is nog niet bevestigd'
-      : `Aangemeld als ${account.email || account.naam}`;
+      ? t('inst.nietBevestigd')
+      : t('inst.aangemeldAls', { wie: account.email || account.naam });
     knop.dataset.stand = account.wacht ? 'wacht' : 'aan';
   } else {
-    naam.textContent = 'Aanmelden';
-    knop.title = 'Aanmelden of een account maken';
+    naam.textContent = t('inst.aanmelden');
+    knop.title = t('inst.aanmeldenTitel');
     knop.dataset.stand = 'uit';
   }
   knop.onclick = () => browser.gaAanmelden();
@@ -1234,7 +1244,7 @@ function tekenSessies() {
     const tekst = document.createElement('button');
     tekst.className = 'se-tekst';
     tekst.type = 'button';
-    tekst.title = `${s.naam} terughalen, ${s.aantal} ${s.aantal === 1 ? 'tabblad' : 'tabbladen'}`;
+    tekst.title = t('ws.terughalenTitel', { naam: s.naam, tabs: tabbladen(s.aantal) });
     const naam = document.createElement('span');
     naam.className = 'se-naam';
     naam.textContent = s.naam;
@@ -1243,8 +1253,8 @@ function tekenSessies() {
     // Waar het over ging is nuttiger dan wanneer je het wegzette. De hosts
     // zeggen in één blik of dit de sessie is die je zoekt.
     onder.textContent = s.hosts.length
-      ? `${s.aantal} · ${s.hosts.join(', ')}`
-      : `${s.aantal} ${s.aantal === 1 ? 'tabblad' : 'tabbladen'}`;
+      ? t('ws.sessieOnder', { aantal: s.aantal, hosts: s.hosts.join(', ') })
+      : tabbladen(s.aantal);
     tekst.append(naam, onder);
     tekst.onclick = () => {
       sluitWorkspacePop();
@@ -1256,7 +1266,7 @@ function tekenSessies() {
     weg.type = 'button';
     const opScherp = sessieGewapend === s.id;
     if (opScherp) weg.dataset.armed = 'true';
-    weg.title = opScherp ? 'Nog een keer klikken: dan is hij weg' : 'Deze sessie weggooien';
+    weg.title = t(opScherp ? 'ws.weggooienNogEens' : 'ws.sessieWeg');
     weg.setAttribute('aria-label', weg.title);
     weg.append(icoon(KRUISJE));
     weg.onclick = (e) => {
@@ -1299,7 +1309,7 @@ function popRij(ws, isActive, totaal) {
   if (ws.id === gewapend) {
     const waarschuwing = document.createElement('span');
     waarschuwing.className = 'waarschuwing';
-    waarschuwing.textContent = `Nog een keer: ${tabbladen(ws.tabCount)} dicht`;
+    waarschuwing.textContent = t('ws.nogEens', { aantal: tabbladen(ws.tabCount) });
     li.append(waarschuwing);
   } else {
     const naam = document.createElement('span');
@@ -1310,7 +1320,7 @@ function popRij(ws, isActive, totaal) {
     const telling = document.createElement('span');
     telling.className = 'telling';
     telling.textContent = ws.tabCount;
-    li.append(telling, knop(POTLOOD, 'Naam wijzigen', (e) => {
+    li.append(telling, knop(POTLOOD, t('ws.naamWijzigen'), (e) => {
       e.stopPropagation();
       hernoem(naam, ws);
     }));
@@ -1318,7 +1328,7 @@ function popRij(ws, isActive, totaal) {
 
   // De laatste workspace kan niet dicht: een venster zonder workspace bestaat
   // niet, en het hoofdproces weigert dat toch al.
-  const sluit = knop(KRUISJE, ws.id === gewapend ? 'Klik nog eens om te sluiten' : 'Workspace sluiten', (e) => {
+  const sluit = knop(KRUISJE, t(ws.id === gewapend ? 'ws.klikNogEens' : 'ws.sluiten'), (e) => {
     e.stopPropagation();
     sluitWorkspace(ws);
   });
@@ -1443,9 +1453,7 @@ function openPalette(begin = '', modus = 'alles') {
   palette.hidden = false;
   palette.dataset.modus = modus;
   paletteInput.value = begin;
-  paletteInput.placeholder = modus === 'geschiedenis'
-    ? 'Zoek in je geschiedenis'
-    : 'Ga naar, zoek, of spring naar een tabblad';
+  paletteInput.placeholder = t(modus === 'geschiedenis' ? 'gesch.plek' : 'cmd.plek');
   keuze = 0;
   wisGeschiedenisWapen();
   tekenResultaten();
@@ -1508,7 +1516,7 @@ function dagVan(tijd) {
   const dag = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const verschil = Math.round((dag(nu) - dag(toen)) / 86400000);
   if (verschil <= 0) return toen.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-  if (verschil === 1) return 'Gisteren';
+  if (verschil === 1) return t('gesch.gisteren');
   if (verschil < 7) return toen.toLocaleDateString('nl-NL', { weekday: 'long' });
   return toen.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
 }
@@ -1555,28 +1563,36 @@ function huidigeResultaten() {
 
   if (paletteModus === 'geschiedenis') {
     if (!bezocht.length) {
-      return [{ soort: 'leeg', label: vraag ? 'Niets gevonden' : 'Nog niets bezocht', hint: '' }];
+      return [{ soort: 'leeg', label: t(vraag ? 'gesch.nietsGevonden' : 'gesch.niets'), hint: '' }];
     }
     return [...bezocht, {
       soort: 'gesch-wis',
-      label: geschGewapend ? 'Nog een keer: alles weg' : 'Geschiedenis wissen',
-      hint: geschGewapend ? 'Zeker weten' : 'Alles',
+      label: t(geschGewapend ? 'gesch.nogEens' : 'gesch.wissen'),
+      hint: t(geschGewapend ? 'gesch.zekerWeten' : 'gesch.alles'),
     }];
   }
 
   const tabbladen = laatsteStaat.tabs
     .filter((tab) => past(tab.title + ' ' + tab.url))
-    .map((tab) => ({ soort: 'tab', id: tab.id, label: tab.title, hint: 'Tabblad' }));
+    .map((tab) => ({ soort: 'tab', id: tab.id, label: tab.title, hint: t('cmd.tabblad') }));
 
   const werkruimtes = laatsteStaat.workspaces
     .filter((ws) => ws.id !== laatsteStaat.activeWorkspaceId && past(ws.name))
-    .map((ws) => ({ soort: 'ws', id: ws.id, label: ws.name, hint: 'Workspace' }));
+    .map((ws) => ({ soort: 'ws', id: ws.id, label: ws.name, hint: t('cmd.workspace') }));
 
   const acties = [];
-  if (past('instellingen')) acties.push({ soort: 'instellingen', label: 'Instellingen', hint: 'Openen' });
-  if (past('nieuw venster')) acties.push({ soort: 'venster', label: 'Nieuw venster', hint: 'Ctrl N' });
-  if (huidigeUrl() && past('favoriet')) {
-    acties.push({ soort: 'favoriet', label: `${host(huidigeUrl())} bij favorieten`, hint: 'Toevoegen' });
+  if (past('instellingen') || past(t('cmd.instellingen'))) {
+    acties.push({ soort: 'instellingen', label: t('cmd.instellingen'), hint: t('cmd.openen') });
+  }
+  if (past('nieuw venster') || past(t('cmd.nieuwVenster'))) {
+    acties.push({ soort: 'venster', label: t('cmd.nieuwVenster'), hint: 'Ctrl N' });
+  }
+  if (huidigeUrl() && (past('favoriet') || past(t('cmd.favoriet', { host: host(huidigeUrl()) })))) {
+    acties.push({
+      soort: 'favoriet',
+      label: t('cmd.favoriet', { host: host(huidigeUrl()) }),
+      hint: t('cmd.toevoegen'),
+    });
   }
 
   // Een pagina die al openstaat is een beter antwoord dan dezelfde pagina uit
@@ -1587,7 +1603,7 @@ function huidigeResultaten() {
   if (!vraag) return [...tabbladen, ...werkruimtes, ...acties];
 
   return [
-    { soort: 'ga', vraag, label: vraag, hint: isAdres(vraag) ? 'Ga naar' : 'Zoeken' },
+    { soort: 'ga', vraag, label: vraag, hint: t(isAdres(vraag) ? 'cmd.gaNaar' : 'cmd.zoeken') },
     ...tabbladen,
     ...uitGeschiedenis,
     ...werkruimtes,
@@ -1639,8 +1655,8 @@ function tekenResultaten() {
         const weg = document.createElement('button');
         weg.className = 'result-weg';
         weg.type = 'button';
-        weg.title = 'Deze pagina vergeten';
-        weg.setAttribute('aria-label', 'Deze pagina vergeten');
+        weg.title = t('gesch.vergeet');
+        weg.setAttribute('aria-label', weg.title);
         weg.append(icoon(KRUISJE));
         weg.onclick = async (e) => {
           e.stopPropagation();
@@ -1696,6 +1712,43 @@ async function kiesResultaat(item) {
   } else browser.go(item.vraag);
 }
 
+/* ── Het eerste begin ────────────────────────────────────────────────────
+ *
+ * Eén vraag, en die gaat over de taal van dit scherm zelf. Hij staat er dus
+ * meteen in beide talen, en je ziet het antwoord terwijl je kiest: de kop
+ * eronder verandert mee. Verder vraagt deze browser bij het starten niets —
+ * alles wat hierna komt kan ook later, bij Instellingen.
+ */
+const welkom = document.getElementById('welkom');
+
+function toonWelkom(aan) {
+  if (welkom.hidden !== !aan) welkom.hidden = !aan;
+  if (!aan) return;
+  const talen = document.getElementById('welkom-talen');
+  if (talen.children.length) return;
+
+  // De namen staan hier in hun eigen taal en niet vertaald: "Nederlands" is
+  // hoe je het herkent als je geen Engels leest, en andersom.
+  talen.replaceChildren(...[['nl', 'Nederlands'], ['en', 'English']].map(([code, naam]) => {
+    const knop = document.createElement('button');
+    knop.className = 'welkom-taal';
+    knop.type = 'button';
+    knop.setAttribute('role', 'radio');
+    knop.textContent = naam;
+    knop.onclick = () => {
+      browser.zetVoorkeur('taal', code);
+      for (const b of talen.children) b.setAttribute('aria-checked', String(b === knop));
+    };
+    knop.setAttribute('aria-checked', String(prefs.taal === code));
+    return knop;
+  }));
+}
+
+document.getElementById('welkom-ga').onclick = () => {
+  browser.zetVoorkeur('welkomGedaan', true);
+  toonWelkom(false);
+};
+
 // --- instellingen ------------------------------------------------------
 
 const velden = [...document.querySelectorAll('[data-pref]')];
@@ -1712,13 +1765,31 @@ function vulZoekmachines() {
   );
 }
 
+/*
+ * De taal van dit scherm.
+ *
+ * 'systeem' wordt hier opgelost en niet in het hoofdproces, want `navigator`
+ * kent de taal van de app al en dat scheelt een bericht heen en terug. Een
+ * wissel vraagt twee dingen: de vaste tekst opnieuw invullen (dat doet
+ * zetTaal) en alles wat uit de stand komt opnieuw tekenen (dat doet
+ * tekenAlles) — anders staat de halve zijbalk nog in de oude taal tot er
+ * toevallig iets verandert.
+ */
+function volgTaal(keuze) {
+  const gewisseld = zetTaal(keuze === 'systeem' || !keuze ? navigator.language : keuze);
+  if (gewisseld && laatsteStaat.tabs) tekenAlles();
+  return gewisseld;
+}
+
 function toonVoorkeuren(nieuw) {
   prefs = nieuw;
+  volgTaal(nieuw.taal);
+  toonWelkom(!nieuw.welkomGedaan);
 
   if (document.activeElement !== notitieVeld && typeof nieuw.notitie === 'string'
       && notitieVeld.value !== nieuw.notitie) {
     notitieVeld.value = nieuw.notitie;
-    notitieStand.textContent = nieuw.notitie ? 'bewaard' : '';
+    notitieStand.textContent = nieuw.notitie ? t('paneel.notitieBewaard') : '';
   }
   for (const veld of velden) {
     const waarde = prefs[veld.dataset.pref];
@@ -1728,9 +1799,7 @@ function toonVoorkeuren(nieuw) {
   document.body.classList.toggle('rustig', !prefs.mesh);
   document.body.classList.toggle('geen-sneltoetsen', !prefs.toonSneltoetsen);
   document.getElementById('uitleg-start').textContent =
-    prefs.startpagina === 'vorige'
-      ? 'Je workspaces en tabbladen komen terug. Privéworkspaces niet: die laten met opzet niets achter.'
-      : '';
+    prefs.startpagina === 'vorige' ? t('inst.startUitleg') : '';
   tekenAccount();
   tekenFavorieten();
 }
@@ -1752,11 +1821,11 @@ function tekenAgent() {
   if (!el) return;
   const a = laatsteStaat.assistent;
   if (!a?.agent) {
-    el.textContent = 'Er staat nog geen agent op deze computer. Installeer Claude Code, dan werkt het meteen; er valt verder niets in te stellen. Of zet hieronder je eigen API-sleutel.';
+    el.textContent = t('inst.agentGeen');
   } else if (a.aangemeld === false) {
-    el.textContent = `${a.agent} staat er, maar is nog niet aangemeld. Voer eenmalig "claude auth login" uit in een terminal; daarna werkt het.`;
+    el.textContent = t('inst.agentNietAan', { agent: a.agent });
   } else {
-    el.textContent = `${a.naam} denkt met ${a.agent}, op jouw abonnement en op deze computer. Er gaat niets langs onze server.`;
+    el.textContent = t('inst.agentGoed', { naam: a.naam, agent: a.agent });
   }
   tekenSleutel();
 }
@@ -1777,15 +1846,13 @@ function tekenSleutel() {
 
   if (!stand?.aanwezig) {
     veld.placeholder = 'sk-ant-…';
-    el.textContent = 'Er staat geen sleutel. Met een sleutel gaat de aanroep van deze computer rechtstreeks naar de API — niet langs onze server, en er zit geen sleutel van ons in de download.';
+    el.textContent = t('inst.sleutelGeen');
     return;
   }
-  veld.placeholder = `Bewaard, eindigt op ${stand.staart}`;
-  const waar = stand.versleuteld
-    ? 'versleuteld met de sleutelbos van je systeem'
-    : 'in platte tekst, want dit systeem heeft geen sleutelbos die Electron kan gebruiken';
-  const nu = rug === 'api' ? ' Hij wordt nu gebruikt.' : ' De agent op deze computer gaat voor.';
-  el.textContent = `Bewaard, ${waar}.${nu}`;
+  veld.placeholder = t('inst.sleutelStaat', { staart: stand.staart });
+  const waar = t(stand.versleuteld ? 'inst.sleutelVeilig' : 'inst.sleutelPlat');
+  const nu = t(rug === 'api' ? 'inst.sleutelInGebruik' : 'inst.sleutelAgentVoor');
+  el.textContent = `${t('inst.sleutelBewaard', { waar })} ${nu}`;
 }
 
 document.getElementById('sleutel-bewaar').onclick = async () => {
@@ -1833,14 +1900,14 @@ function tekenAccount() {
   if (!uitleg || !knop) return;
 
   if (a?.account && a.wacht) {
-    uitleg.textContent = `Je account (${a.email ?? a.naam}) bestaat, maar het adres is nog niet bevestigd. Je werk loopt al mee.`;
-    knop.textContent = 'Account openen';
+    uitleg.textContent = t('inst.accountWacht', { wie: a.email ?? a.naam });
+    knop.textContent = t('inst.accountOpenen');
   } else if (a?.account) {
-    uitleg.textContent = `Aangemeld als ${a.email ?? a.naam}. Je werk staat in je Tougather-account en is ook op een andere machine te openen.`;
-    knop.textContent = 'Account openen';
+    uitleg.textContent = t('inst.accountAan', { wie: a.email ?? a.naam });
+    knop.textContent = t('inst.accountOpenen');
   } else {
-    uitleg.textContent = 'Je werkt op dit apparaat. Dat blijft werken; een account voegt toe dat je erbij kunt vanaf een andere machine.';
-    knop.textContent = 'Aanmelden';
+    uitleg.textContent = t('inst.accountGeen');
+    knop.textContent = t('inst.aanmelden');
   }
 }
 

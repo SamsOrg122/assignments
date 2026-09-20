@@ -19,6 +19,7 @@
     "test:geschiedenis": "electron test/geschiedenis.js",
     "test:hersens": "node test/hersens.js",
     "test:api": "electron test/api.js",
+    "test:taal": "node test/taal.js",
     "test:toetsen": "node test/toetsen.js",
     "test:vensters": "node test/vensters.js",
     "test:vensters-echt": "node test/vensters-echt.js",

@@ -16,16 +16,16 @@
          daar staan de vensterknoppen al. Links wat er gebeurt, rechts wat je
          kunt openen. Zelf versleepbaar; de knoppen erin niet. -->
     <header id="bovenbalk">
-      <button id="bb-assistent" type="button" title="Assistent">
+      <button id="bb-assistent" type="button" data-t-titel="balk.assistent">
         <canvas class="glyph" width="34" height="34" aria-hidden="true"></canvas>
-        <span class="bb-regel">Klaar wanneer jij bent</span>
+        <span class="bb-regel" data-t="balk.rust">Klaar wanneer jij bent</span>
       </button>
 
       <div class="rek"></div>
 
       <!-- De apps van de balk. app.js tekent deze rij uit de stand, zodat er
            maar één lijst bestaat en het hoofdproces dezelfde kent. -->
-      <div id="bb-knoppen" role="toolbar" aria-label="Apps"></div>
+      <div id="bb-knoppen" role="toolbar" data-t-aria="balk.apps"></div>
     </header>
 
     <!-- Wat er onder de balk uitklapt. Het paneel duwt de pagina omlaag; het
@@ -34,28 +34,26 @@
     <div id="paneel" hidden>
       <section id="paneel-geluid" hidden>
         <div class="pn-kop">
-          <h2>Geluid</h2>
+          <h2 data-t="paneel.geluid">Geluid</h2>
           <span class="pn-stand" id="geluid-stand"></span>
         </div>
         <ul id="geluid-lijst"></ul>
-        <p class="pn-uitleg">
-          Alles wat in je tabbladen klinkt, ook in een workspace waar je nu niet bent.
-        </p>
+        <p class="pn-uitleg" data-t="paneel.geluidUitleg"></p>
       </section>
 
       <section id="paneel-notitie" hidden>
         <div class="pn-kop">
-          <h2>Notitie</h2>
+          <h2 data-t="paneel.notitie">Notitie</h2>
           <span class="pn-stand" id="notitie-stand"></span>
         </div>
         <textarea id="notitie" spellcheck="false"
-                  placeholder="Een gedachte, een adres, iets van straks. Bewaart zichzelf."></textarea>
+                  data-t-plek="paneel.notitiePlek"></textarea>
       </section>
 
       <section id="paneel-apps" hidden>
         <div class="pn-kop">
-          <h2>Apps</h2>
-          <span class="pn-stand">In deze browser</span>
+          <h2 data-t="paneel.apps">Apps</h2>
+          <span class="pn-stand" data-t="paneel.appsHier">In deze browser</span>
         </div>
         <div id="apps-raster"></div>
         <p class="pn-uitleg" id="apps-uitleg"></p>
@@ -64,11 +62,11 @@
 
     <aside id="sidebar">
       <div id="tl">
-        <button class="dot sluit" id="win-close" type="button" aria-label="Sluiten"></button>
-        <button class="dot min" id="win-min" type="button" aria-label="Minimaliseren"></button>
-        <button class="dot max" id="win-max" type="button" aria-label="Maximaliseren"></button>
+        <button class="dot sluit" id="win-close" type="button" data-t-aria="zij.sluiten"></button>
+        <button class="dot min" id="win-min" type="button" data-t-aria="zij.minimaliseren"></button>
+        <button class="dot max" id="win-max" type="button" data-t-aria="zij.maximaliseren"></button>
         <div class="rek"></div>
-        <button class="ib" id="hide-sidebar" type="button" title="Zijbalk verbergen" aria-label="Zijbalk verbergen">
+        <button class="ib" id="hide-sidebar" type="button" data-t-titel="zij.verbergen" data-t-aria="zij.verbergen">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <rect x="2.5" y="3" width="11" height="10" rx="2.5" />
             <path d="M6.5 3v10" />
@@ -77,20 +75,20 @@
       </div>
 
       <div id="controls">
-        <button class="ib" id="back" type="button" title="Terug" aria-label="Terug">
+        <button class="ib" id="back" type="button" data-t-titel="zij.terug" data-t-aria="zij.terug">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 3 5.5 8l5 5" /></svg>
         </button>
-        <button class="ib" id="forward" type="button" title="Vooruit" aria-label="Vooruit">
+        <button class="ib" id="forward" type="button" data-t-titel="zij.vooruit" data-t-aria="zij.vooruit">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3 10.5 8l-5 5" /></svg>
         </button>
-        <button class="ib" id="reload" type="button" title="Opnieuw laden" aria-label="Opnieuw laden">
+        <button class="ib" id="reload" type="button" data-t-titel="zij.herladen" data-t-aria="zij.herladen">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M13 8a5 5 0 1 1-1.6-3.7" />
             <path d="M13 3v2.5h-2.5" />
           </svg>
         </button>
         <div class="rek"></div>
-        <button class="ib" id="open-settings" type="button" title="Instellingen" aria-label="Instellingen">
+        <button class="ib" id="open-settings" type="button" data-t-titel="zij.instellingen" data-t-aria="zij.instellingen">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <circle cx="8" cy="8" r="2.4" />
             <path d="M8 3v1.2M8 11.8V13M3 8h1.2M11.8 8H13M4.6 4.6l.9.9M10.5 10.5l.9.9M11.4 4.6l-.9.9M5.5 10.5l-.9.9" />
@@ -103,7 +101,7 @@
            waar het stond. De rijen eronder zijn de plekken van de app zelf. -->
       <section id="app" aria-label="Tougather">
         <button id="werkbank" type="button" aria-pressed="false" aria-expanded="false"
-                aria-controls="app-plekken" title="Tougather openen">
+                aria-controls="app-plekken" data-t-titel="zij.tougatherOpenen">
           <span class="wb-ic">
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <rect x="2.2" y="2.6" width="5" height="5" rx="1.4" />
@@ -120,12 +118,12 @@
 
       <!-- Geen invoerveld maar een knop: klikken opent de commandobalk. Daar
            typ je één keer, en die kan meer dan alleen een adres. -->
-      <button id="url" type="button" title="Zoek of voer een adres in">
+      <button id="url" type="button" data-t-titel="zij.adres">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <circle cx="7.2" cy="7.2" r="4.4" />
           <path d="m10.6 10.6 3 3" />
         </svg>
-        <span class="dom leeg">Zoek of voer een adres in</span>
+        <span class="dom leeg" data-t="zij.adres">Zoek of voer een adres in</span>
         <kbd>Ctrl K</kbd>
       </button>
 
@@ -140,15 +138,15 @@
           <path d="m10.6 10.6 3 3" />
         </svg>
         <input id="zoekveld" type="text" spellcheck="false" autocomplete="off"
-               placeholder="Zoeken op deze pagina" aria-label="Zoeken op deze pagina" />
+               data-t-plek="zoek.plek" data-t-aria="zoek.plek" />
         <span id="zoektelling" aria-live="polite"></span>
-        <button class="ib" id="zoek-vorige" type="button" title="Vorige (Shift Enter)" aria-label="Vorige treffer">
+        <button class="ib" id="zoek-vorige" type="button" data-t-titel="zoek.vorige" data-t-aria="zoek.vorigeKort">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 10.5 8 5.5l5 5" /></svg>
         </button>
-        <button class="ib" id="zoek-volgende" type="button" title="Volgende (Enter)" aria-label="Volgende treffer">
+        <button class="ib" id="zoek-volgende" type="button" data-t-titel="zoek.volgende" data-t-aria="zoek.volgendeKort">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5.5 8 10.5l5-5" /></svg>
         </button>
-        <button class="ib" id="zoek-dicht" type="button" title="Sluiten (Esc)" aria-label="Zoeken sluiten">
+        <button class="ib" id="zoek-dicht" type="button" data-t-titel="zoek.sluiten" data-t-aria="zoek.sluitenKort">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
         </button>
       </div>
@@ -162,15 +160,15 @@
              kost elke dag ruimte voor een zeldzaam nut. Ctrl+Shift+J. -->
         <div id="downloads" hidden>
           <div class="sec">
-            <span>Downloads</span>
+            <span data-t="dl.kop">Downloads</span>
             <span class="line"></span>
-            <button id="dl-wis" class="sec-tekstknop" type="button">Lijst wissen</button>
+            <button id="dl-wis" class="sec-tekstknop" type="button" data-t="dl.wissen">Lijst wissen</button>
           </div>
           <ol id="dl-lijst"></ol>
         </div>
 
         <div class="sec">
-          <span>Tabbladen</span>
+          <span data-t="zij.tabbladen">Tabbladen</span>
           <span class="line"></span>
           <span id="tabcount"></span>
         </div>
@@ -179,35 +177,35 @@
 
         <button id="new-tab" type="button">
           <span class="fi"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg></span>
-          <span class="t">Nieuw tabblad</span>
+          <span class="t" data-t="zij.nieuwTabblad">Nieuw tabblad</span>
           <kbd>Ctrl T</kbd>
         </button>
       </div>
 
       <div id="bottom">
         <ol id="workspace-list"></ol>
-        <button class="ib" id="new-workspace" type="button" title="Nieuwe workspace" aria-label="Nieuwe workspace">
+        <button class="ib" id="new-workspace" type="button" data-t-titel="ws.nieuw" data-t-aria="ws.nieuw">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
         </button>
 
         <!-- Het overzicht. In de strip zelf past alleen een letter per
              workspace; hier staan naam, aantal tabbladen, hernoemen en sluiten
              bij elkaar. -->
-        <div id="ws-pop" role="dialog" aria-label="Workspaces" hidden>
-          <h4>Workspaces</h4>
+        <div id="ws-pop" role="dialog" data-t-aria="ws.kop" hidden>
+          <h4 data-t="ws.kop">Workspaces</h4>
           <ul id="ws-pop-list"></ul>
-          <p class="pop-veeg" id="ws-veeg">Of veeg met de linkermuisknop naar links of rechts.</p>
+          <p class="pop-veeg" id="ws-veeg" data-t="ws.veeg"></p>
           <button id="ws-pop-new" type="button">
             <span class="fi"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg></span>
-            <span class="t">Nieuwe workspace</span>
+            <span class="t" data-t="ws.nieuw">Nieuwe workspace</span>
           </button>
           <!-- Het uiterlijk van de workspace waar je nu in zit. Niet van alle
                tegelijk: een kiezer die niet zegt waar hij over gaat verandert
                steeds iets anders dan je dacht. -->
           <div id="ws-uiterlijk">
-            <h4>Achtergrond van <span id="ws-uiterlijk-naam"></span></h4>
-            <div id="paletkiezer" role="radiogroup" aria-label="Palet"></div>
-            <div id="bewegingkiezer" role="radiogroup" aria-label="Beweging"></div>
+            <h4><span data-t="ws.achtergrond">Achtergrond van</span> <span id="ws-uiterlijk-naam"></span></h4>
+            <div id="paletkiezer" role="radiogroup" data-t-aria="ws.palet"></div>
+            <div id="bewegingkiezer" role="radiogroup" data-t-aria="ws.beweging"></div>
           </div>
 
           <button id="ws-pop-weg" type="button">
@@ -217,7 +215,7 @@
                 <path d="M3 6.4h10M6.2 3.4v3" />
               </svg>
             </span>
-            <span class="t">Deze workspace wegleggen</span>
+            <span class="t" data-t="ws.wegleggen">Deze workspace wegleggen</span>
           </button>
           <button id="ws-pop-prive" type="button">
             <span class="fi">
@@ -226,15 +224,12 @@
                 <rect x="3.4" y="7.2" width="9.2" height="6" rx="1.8" />
               </svg>
             </span>
-            <span class="t">Privéworkspace</span>
+            <span class="t" data-t="ws.prive">Privéworkspace</span>
           </button>
-          <p class="pop-uitleg">
-            Wat je in een privéworkspace doet blijft niet op deze computer staan.
-            Je werkgever, je provider en de site zelf zien het nog wel.
-          </p>
+          <p class="pop-uitleg" data-t="ws.priveUitleg"></p>
 
           <div id="ws-pop-sessies" hidden>
-            <h4>Weggelegd</h4>
+            <h4 data-t="ws.weggelegd">Weggelegd</h4>
             <ul id="sessielijst"></ul>
           </div>
         </div>
@@ -247,7 +242,7 @@
          rechte snee in te maken. -->
     <div id="paginavlak" aria-hidden="true"></div>
 
-    <button id="show-sidebar" type="button" title="Zijbalk tonen" aria-label="Zijbalk tonen" hidden>
+    <button id="show-sidebar" type="button" data-t-titel="zij.tonen" data-t-aria="zij.tonen" hidden>
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <rect x="2.5" y="3" width="11" height="10" rx="2.5" />
         <path d="M6.5 3v10" />
@@ -263,22 +258,35 @@
         <ul id="vraag-regels"></ul>
         <p id="vraag-waarschuwing"></p>
         <div id="vraag-knoppen">
-          <button id="vraag-nee" type="button">Niet doen</button>
-          <button id="vraag-ja" type="button">Eén keer toestaan</button>
+          <button id="vraag-nee" type="button" data-t="vraag.nee">Niet doen</button>
+          <button id="vraag-ja" type="button" data-t="vraag.ja">Eén keer toestaan</button>
         </div>
         <p id="vraag-klok"></p>
       </div>
     </div>
 
+    <!-- Het eerste begin. Eén vraag, en die vraag gaat over de taal van dit
+         scherm zelf — dus hij staat er meteen in beide talen bij en je ziet
+         het antwoord terwijl je kiest. Verder vraagt deze browser bij het
+         starten niets: alles wat hierna komt kan ook later, bij Instellingen. -->
+    <div id="welkom" hidden>
+      <div id="welkom-kaart" role="dialog" aria-modal="true" aria-labelledby="welkom-kop">
+        <h1 id="welkom-kop" data-t="welkom.kop">Welkom bij Tougather</h1>
+        <p data-t="welkom.regel"></p>
+        <div id="welkom-talen" role="radiogroup" data-t-aria="inst.taal"></div>
+        <button id="welkom-ga" type="button" data-t="welkom.ga">Aan de slag</button>
+      </div>
+    </div>
+
     <div id="palette" hidden>
-      <div id="palette-card" role="dialog" aria-modal="true" aria-label="Commandobalk">
+      <div id="palette-card" role="dialog" aria-modal="true" data-t-aria="cmd.label">
         <div class="cmdtop">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <circle cx="7.2" cy="7.2" r="4.4" />
             <path d="m10.6 10.6 3 3" />
           </svg>
           <input id="palette-input" type="text" spellcheck="false" autocomplete="off"
-                 placeholder="Ga naar, zoek, of spring naar een tabblad" />
+                 data-t-plek="cmd.plek" />
           <kbd>Esc</kbd>
         </div>
         <ul id="palette-results"></ul>
@@ -286,174 +294,157 @@
     </div>
 
     <div id="settings" hidden>
-      <div id="settings-card" role="dialog" aria-modal="true" aria-label="Instellingen">
+      <div id="settings-card" role="dialog" aria-modal="true" data-t-aria="inst.kop">
         <header>
-          <h1>Instellingen</h1>
-          <button id="settings-close" type="button" aria-label="Sluiten">
+          <h1 data-t="inst.kop">Instellingen</h1>
+          <button id="settings-close" type="button" data-t-aria="zij.sluiten">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" /></svg>
           </button>
         </header>
 
         <div id="settings-body">
           <section>
-            <h2>Uiterlijk</h2>
+            <h2 data-t="inst.uiterlijk">Uiterlijk</h2>
+            <!-- De taal van de browser zelf. Websites en Tougather kiezen
+                 hun eigen; dit gaat over het chroom. -->
             <div class="regel">
-              <label for="pref-thema">Thema</label>
+              <label for="pref-taal" data-t="inst.taal">Taal</label>
+              <select id="pref-taal" data-pref="taal">
+                <option value="systeem" data-t="inst.taalSysteem">Volg het systeem</option>
+                <option value="nl" data-t="inst.taalNl">Nederlands</option>
+                <option value="en" data-t="inst.taalEn">Engels</option>
+              </select>
+            </div>
+            <p class="uitleg" data-t="inst.taalUitleg"></p>
+
+            <div class="regel">
+              <label for="pref-thema" data-t="inst.thema">Thema</label>
               <select id="pref-thema" data-pref="thema">
-                <option value="systeem">Volg het systeem</option>
-                <option value="licht">Licht</option>
-                <option value="donker">Donker</option>
+                <option value="systeem" data-t="inst.themaSysteem">Volg het systeem</option>
+                <option value="licht" data-t="inst.themaLicht">Licht</option>
+                <option value="donker" data-t="inst.themaDonker">Donker</option>
               </select>
             </div>
             <div class="regel">
-              <label for="pref-mesh">Bewegende achtergrond</label>
+              <label for="pref-mesh" data-t="inst.mesh">Bewegende achtergrond</label>
               <input type="checkbox" id="pref-mesh" data-pref="mesh" />
             </div>
             <div class="regel">
-              <label for="pref-toonSneltoetsen">Sneltoetsen tonen in de zijbalk</label>
+              <label for="pref-toonSneltoetsen" data-t="inst.sneltoetsenTonen">Sneltoetsen tonen in de zijbalk</label>
               <input type="checkbox" id="pref-toonSneltoetsen" data-pref="toonSneltoetsen" />
             </div>
             <div class="regel">
-              <label for="pref-appStijl">Tougather meekleuren met de browser</label>
+              <label for="pref-appStijl" data-t="inst.appStijl">Tougather meekleuren met de browser</label>
               <input type="checkbox" id="pref-appStijl" data-pref="appStijl" />
             </div>
-            <p class="uitleg">
-              Overschrijft alleen de kleuren en rondingen van de app, niet zijn opbouw.
-              Uit laat hem er precies zo uitzien als op het web.
-            </p>
+            <p class="uitleg" data-t="inst.appStijlUitleg"></p>
           </section>
 
           <section>
-            <h2>Zoeken</h2>
+            <h2 data-t="inst.zoeken">Zoeken</h2>
             <div class="regel">
-              <label for="pref-zoekmachine">Zoekmachine</label>
+              <label for="pref-zoekmachine" data-t="inst.zoekmachine">Zoekmachine</label>
               <select id="pref-zoekmachine" data-pref="zoekmachine"></select>
             </div>
-            <p class="uitleg">Geldt voor de commandobalk en het zoekveld op een nieuw tabblad.</p>
+            <p class="uitleg" data-t="inst.zoekmachineUitleg"></p>
           </section>
 
           <section>
-            <h2>Starten</h2>
+            <h2 data-t="inst.starten">Starten</h2>
             <div class="regel">
-              <label for="pref-startpagina">Bij het openen</label>
+              <label for="pref-startpagina" data-t="inst.bijOpenen">Bij het openen</label>
               <select id="pref-startpagina" data-pref="startpagina">
-                <option value="nieuw">Een leeg tabblad</option>
-                <option value="vorige">Waar ik gebleven was</option>
+                <option value="nieuw" data-t="inst.startLeeg">Een leeg tabblad</option>
+                <option value="vorige" data-t="inst.startVorige">Waar ik gebleven was</option>
               </select>
             </div>
             <p class="uitleg" id="uitleg-start"></p>
           </section>
 
           <section id="account">
-            <h2>Account</h2>
+            <h2 data-t="inst.account">Account</h2>
             <p class="uitleg" id="uitleg-account"></p>
             <div class="regel">
               <label for="account-knop">Tougather</label>
-              <button type="button" id="account-knop">Aanmelden</button>
+              <button type="button" id="account-knop" data-t="inst.aanmelden">Aanmelden</button>
             </div>
-            <p class="uitleg">
-              Aanmelden met Google gebeurt in een gewoon tabblad. Daardoor sta je
-              daarna ook in deze browser bij Google ingelogd. Wat daarvoor in
-              Supabase aan moet staat in docs/ACCOUNTS.md.
-            </p>
+            <p class="uitleg" data-t="inst.accountUitleg"></p>
           </section>
 
           <section>
-            <h2>Assistenten</h2>
+            <h2 data-t="inst.assistenten">Assistenten</h2>
             <div class="regel">
-              <label for="pref-assistentNaam">Naam</label>
+              <label for="pref-assistentNaam" data-t="inst.naam">Naam</label>
               <input type="text" id="pref-assistentNaam" data-pref="assistentNaam" maxlength="24" />
             </div>
-            <p class="uitleg">Zo heet hij in de zijbalk en in de balk bovenin.</p>
+            <p class="uitleg" data-t="inst.naamUitleg"></p>
             <p class="uitleg" id="uitleg-agent"></p>
 
             <!-- De tweede rug. De eerste is de agent die al op deze computer
                  staat; dit is er voor wie er geen heeft. In beide gevallen
                  gaat er niets langs onze server. -->
             <div class="regel">
-              <label for="pref-assistentBron">Denkt met</label>
+              <label for="pref-assistentBron" data-t="inst.denktMet">Denkt met</label>
               <select id="pref-assistentBron" data-pref="assistentBron">
-                <option value="auto">De agent, anders mijn sleutel</option>
-                <option value="agent">Alleen de agent</option>
-                <option value="api">Alleen mijn API-sleutel</option>
+                <option value="auto" data-t="inst.bronAuto">De agent, anders mijn sleutel</option>
+                <option value="agent" data-t="inst.bronAgent">Alleen de agent</option>
+                <option value="api" data-t="inst.bronApi">Alleen mijn API-sleutel</option>
               </select>
             </div>
 
             <div class="regel">
-              <label for="sleutel-veld">API-sleutel</label>
+              <label for="sleutel-veld" data-t="inst.sleutel">API-sleutel</label>
               <input type="password" id="sleutel-veld" spellcheck="false" autocomplete="off"
                      placeholder="sk-ant-…" aria-describedby="uitleg-sleutel" />
             </div>
             <div class="regel knoprij">
-              <button id="sleutel-bewaar" type="button">Bewaren</button>
-              <button id="sleutel-wis" type="button">Weghalen</button>
+              <button id="sleutel-bewaar" type="button" data-t="inst.bewaren">Bewaren</button>
+              <button id="sleutel-wis" type="button" data-t="inst.weghalen">Weghalen</button>
             </div>
             <p class="uitleg" id="uitleg-sleutel"></p>
-            <p class="uitleg">
-              "De agent" is Claude Code op deze computer, op jouw abonnement. Een
-              sleutel is de tweede weg: die aanroep gaat van hier rechtstreeks naar
-              de API. Geen van beide komt langs onze server.
-            </p>
+            <p class="uitleg" data-t="inst.bronUitleg"></p>
 
             <div class="regel">
-              <label for="pref-assistentModel">Model</label>
+              <label for="pref-assistentModel" data-t="inst.model">Model</label>
               <input type="text" id="pref-assistentModel" data-pref="assistentModel"
                      spellcheck="false" autocomplete="off" placeholder="claude-sonnet-5" />
             </div>
-            <p class="uitleg">
-              Alleen voor de API-sleutel. Leeg betekent claude-sonnet-5. De agent op
-              deze computer kiest zijn model zelf.
-            </p>
+            <p class="uitleg" data-t="inst.modelUitleg"></p>
           </section>
 
           <!-- Wat er allemaal kan zonder muis. De rijen komen uit dezelfde
                lijst die de toetsen afhandelt, zodat hier nooit een toets
                opgesomd staat die niets meer doet. -->
           <section id="toetsen">
-            <h2>Sneltoetsen</h2>
+            <h2 data-t="inst.sneltoetsen">Sneltoetsen</h2>
             <ul id="toetsenlijst"></ul>
           </section>
 
           <section id="mcp">
-            <h2>Verbinding met een AI-client</h2>
-            <p class="uitleg">
-              Hiermee kan een client als Claude Desktop of Claude Code deze browser
-              bedienen via het Model Context Protocol, met jouw abonnement en dus
-              zonder kosten per opdracht.
-            </p>
+            <h2 data-t="inst.mcp">Verbinding met een AI-client</h2>
+            <p class="uitleg" data-t="inst.mcpUitleg"></p>
 
             <div class="regel">
-              <label for="mcp-aan">Verbinding openzetten</label>
+              <label for="mcp-aan" data-t="inst.mcpAan">Verbinding openzetten</label>
               <input type="checkbox" id="mcp-aan" />
             </div>
 
             <div class="regel uit">
-              <label>Status</label>
+              <label data-t="inst.mcpStatus">Status</label>
               <span class="stand" id="mcp-stand">Dicht</span>
             </div>
 
-            <p class="uitleg">
-              De client krijgt een eigen, lege workspace. Die heeft geen koekjes en
-              geen logins, en verdwijnt zodra je de verbinding sluit. Hij kan
-              pagina's openen, lezen en sluiten — verder niets. Klikken, typen,
-              formulieren versturen en downloaden kan hij niet, en bij jouw eigen
-              workspaces komt hij niet.
-            </p>
+            <p class="uitleg" data-t="inst.mcpWerkruimte"></p>
 
             <div id="mcp-open" hidden>
-              <p class="uitleg">Zet dit in het configuratiebestand van je client:</p>
+              <p class="uitleg" data-t="inst.mcpConfig"></p>
               <pre id="mcp-config"></pre>
-              <button id="mcp-kopieer" type="button">Kopieer</button>
-              <p class="uitleg">
-                De sleutel staat er met opzet niet in. Die maakt de browser elke keer
-                opnieuw aan en zet hem in een apart bestand, dat verdwijnt zodra je de
-                verbinding sluit. Een oude configuratie kan dus nooit een deur openen
-                die jij hebt dichtgedaan.
-              </p>
+              <button id="mcp-kopieer" type="button" data-t="inst.mcpKopieer">Kopieer</button>
+              <p class="uitleg" data-t="inst.mcpSleutelUitleg"></p>
 
               <div class="regel">
-                <label>Wat de client doet</label>
-                <button id="mcp-noodstop" type="button" class="gevaarlijk">Noodstop</button>
+                <label data-t="inst.mcpWatDoet">Wat de client doet</label>
+                <button id="mcp-noodstop" type="button" class="gevaarlijk" data-t="inst.mcpNoodstop">Noodstop</button>
               </div>
               <ol id="mcp-log"></ol>
             </div>
@@ -462,6 +453,7 @@
       </div>
     </div>
 
+    <script src="taal.js"></script>
     <script src="search.js"></script>
     <script src="glyph.js"></script>
     <script src="app.js"></script>

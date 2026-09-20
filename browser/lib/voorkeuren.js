@@ -40,6 +40,11 @@ const STANDAARD = {
   // als die er staat, en anders je eigen API-sleutel. De sleutel zelf staat
   // hier niet: zie lib/sleutel.js voor waarom niet.
   assistentBron: 'auto', // auto | agent | api
+  // De taal van de browser zelf; websites en de app kiezen hun eigen. Zie
+  // renderer/taal.js. 'systeem' betekent: kijk naar de taal van het systeem.
+  taal: 'systeem', // systeem | nl | en
+  // Of het eerste scherm al is geweest. Eén vraag, één keer.
+  welkomGedaan: false,
   assistentModel: '',
 };
 

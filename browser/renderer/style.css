@@ -2385,6 +2385,90 @@ body.geen-sneltoetsen kbd {
   accent-color: var(--accent);
 }
 
+/* Het eerste begin --------------------------------------------------------
+   Dezelfde kaart als de commandobalk, want het is dezelfde soort
+   onderbreking: het scherm wacht even op één antwoord. */
+
+#welkom {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: rgba(30, 20, 50, 0.24);
+}
+
+#welkom[hidden] {
+  display: none;
+}
+
+#welkom-kaart {
+  width: min(460px, 88%);
+  padding: 30px 32px 26px;
+  border-radius: var(--radius-card);
+  text-align: center;
+  color: var(--ink);
+  background-color: var(--kaart);
+  backdrop-filter: blur(28px) saturate(1.3);
+  box-shadow: var(--schaduw-kaart), var(--kaart-rand);
+  animation: kaart-in var(--duur-wissel) var(--soepel);
+}
+
+#welkom-kaart h1 {
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+#welkom-kaart p {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+#welkom-talen {
+  display: flex;
+  gap: 10px;
+  margin: 22px 0 20px;
+}
+
+.welkom-taal {
+  flex: 1;
+  height: 42px;
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--ink);
+  background: rgba(34, 31, 42, 0.06);
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: var(--overgang-vlak);
+}
+
+.welkom-taal:hover {
+  background: rgba(34, 31, 42, 0.1);
+}
+
+/* Aangevinkt is een rand en niet alleen een vlak: een tint alleen is op deze
+   achtergrond geen betrouwbaar verschil. */
+.welkom-taal[aria-checked="true"] {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+#welkom-ga {
+  width: 100%;
+  height: 42px;
+  border-radius: 12px;
+  font-size: 14px;
+  color: #1b1526;
+  background: var(--accent);
+  transition: var(--overgang-vlak);
+}
+
+#welkom-ga:hover {
+  filter: brightness(1.06);
+}
+
 /* Sneltoetsen ----------------------------------------------------------- */
 
 #toetsenlijst {

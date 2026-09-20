@@ -412,6 +412,28 @@
             <p class="uitleg" data-t="inst.modelUitleg"></p>
           </section>
 
+          <!-- Bijwerken. Kijken en zeggen, verder niets: zolang deze
+               browser niet ondertekend is, is een programma dat zichzelf
+               vervangt precies het gedrag waar een handtekening voor
+               bestaat. Zie lib/bijwerken.js. -->
+          <section id="versie">
+            <h2 data-t="inst.versie">Versie</h2>
+            <p class="uitleg" id="uitleg-versie"></p>
+            <div class="regel">
+              <label for="pref-updateKijken" data-t="inst.updateKijken">Kijken of er een nieuwere versie is</label>
+              <input type="checkbox" id="pref-updateKijken" data-pref="updateKijken" />
+            </div>
+            <div class="regel knoprij">
+              <!-- Een knop en geen link: dit is een browser, dus de
+                   uitgavepagina hoort in een tabblad en niet in een tweede
+                   venster dat Electron er zelf omheen zet. -->
+              <button id="update-halen" type="button" data-t="inst.updateHalen" hidden>Ophalen</button>
+              <button id="update-nu" type="button" data-t="inst.updateNu">Nu kijken</button>
+            </div>
+            <p class="uitleg" id="uitleg-update"></p>
+            <p class="uitleg" data-t="inst.updateUitleg"></p>
+          </section>
+
           <!-- Wat er allemaal kan zonder muis. De rijen komen uit dezelfde
                lijst die de toetsen afhandelt, zodat hier nooit een toets
                opgesomd staat die niets meer doet. -->

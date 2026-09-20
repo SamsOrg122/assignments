@@ -18,6 +18,7 @@ const { downloads } = require('./lib/downloads.js');
 const { geschiedenis } = require('./lib/geschiedenis.js');
 const { ApiOpdracht, STANDAARD_MODEL } = require('./lib/api.js');
 const sleutel = require('./lib/sleutel.js');
+const bijwerken = require('./lib/bijwerken.js');
 const { hangMenu } = require('./lib/menu.js');
 const { sneltoetsLijst, bindSneltoetsen } = require('./lib/sneltoetsen.js');
 // Dezelfde woordenlijst als de zijbalk. Het hoofdproces schrijft ook op het
@@ -70,6 +71,14 @@ const NEWTAB = pathToFileURL(path.join(__dirname, 'renderer', 'newtab.html')).hr
  * en die prijs is hier lager dan een deur.
  */
 const nieuwTabURL = () => `${NEWTAB}#taal=${taalNu()}`;
+
+// Hoe vaak de browser uit zichzelf kijkt of er een nieuwere versie is. Zes
+// uur: vaak genoeg om binnen een dag te weten dat je achterloopt, zeldzaam
+// genoeg om geen gewoonte te zijn.
+const UPDATE_RUST_MS = 6 * 60 * 60 * 1000;
+
+// En hoe lang na het starten. Eerst browsen, dan pas huishouden.
+const UPDATE_START_MS = 20000;
 
 // De brug wordt gestart door een programma buiten ons: de agent, of Claude
 // Desktop. In een geïnstalleerde versie staat alles in app.asar, en daar kan een
@@ -253,6 +262,8 @@ class BrowserWindowController {
     this.zoekTerm = '';
     // Op welk tabblad de gids iets aanwijst, of null. Er is er hoogstens één.
     this.gewezenTab = null;
+    // Wat er van het kijken naar een nieuwere versie kwam, of null.
+    this.updateStand = null;
     // De reeks die loopt: { tabId, van, stap, open }. `open` betekent dat de
     // gebruiker op Volgende heeft gedrukt en de volgende stap dus al
     // toestemming heeft. Zie gidsStapOordeel.
@@ -850,6 +861,8 @@ class BrowserWindowController {
       balkApps: BALK_APPS,
       // Dezelfde lijst die de toetsen afhandelt; zie SNELTOETSEN.
       sneltoetsen: sneltoetsLijst(isMac),
+      versie: app.getVersion(),
+      update: this.updateStand ?? null,
       buurId: this.buurId,
       paletten: PALETTEN,
       bewegingen: BEWEGINGEN,
@@ -2482,6 +2495,43 @@ class BrowserWindowController {
     this.pushState();
   }
 
+  /* ── Bijwerken ──────────────────────────────────────────────────────
+   *
+   * Kijken, zeggen, en verder niets. Er wordt niets binnengehaald en niets
+   * vervangen; waarom dat zo is staat in lib/bijwerken.js.
+   *
+   * Hoogstens één keer per zes uur vanzelf, en over dezelfde versie zeggen we
+   * het één keer. Dat is het verschil tussen een mededeling en een zeur.
+   */
+  async kijkUpdate(opties = {}) {
+    const zelf = opties.metDeHand !== true;
+    const alles = voorkeuren.alles();
+    if (zelf && !alles.updateKijken) return { status: 'uit' };
+
+    const nu = Date.now();
+    if (zelf && nu - (alles.updateLaatst || 0) < UPDATE_RUST_MS) {
+      return this.updateStand ?? { status: 'onbekend' };
+    }
+    voorkeuren.zet('updateLaatst', nu);
+
+    const uit = await bijwerken.kijk({ huidig: app.getVersion() });
+    this.updateStand = uit;
+    this.pushState();
+
+    // Eén keer per versie een regel in de balk, en alleen als de browser
+    // vanzelf keek: wie zelf op "nu kijken" drukt staat al te kijken.
+    if (zelf && uit.status === 'nieuw' && uit.versie !== alles.updateGezien) {
+      voorkeuren.zet('updateGezien', uit.versie);
+      this.sendIsland({
+        modus: 'actie',
+        vraag: false,
+        regel: t('bar.updateNieuw', { versie: uit.versie }),
+        bezig: false,
+      });
+    }
+    return uit;
+  }
+
   /** Opnieuw kijken of er inmiddels een agent staat, en of hij is aangemeld. */
   zoekAgentOpnieuw() {
     this.agentGevonden = zoekAgent();
@@ -2882,6 +2932,10 @@ ipcMain.handle('sleutel:zet', (e, waarde) => {
   return { ...uit, ...sleutel.heeft() };
 });
 ipcMain.handle('sleutel:stand', () => sleutel.heeft());
+
+// Zelf kijken of er een nieuwere versie is. Dit negeert de rustperiode, want
+// wie erop drukt wil nu een antwoord.
+ipcMain.handle('update:kijk', (e) => controllerFor(e)?.kijkUpdate({ metDeHand: true }));
 ipcMain.handle('sleutel:wis', (e) => {
   sleutel.wis();
   controllerFor(e)?.pushState();
@@ -3050,6 +3104,13 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) new BrowserWindowController();
   });
+
+  // Pas als er gebrowst kan worden. Eén venster kijkt; de uitkomst is van het
+  // programma en niet van een raam.
+  setTimeout(() => {
+    const eerste = [...new Set(windows.values())][0];
+    eerste?.kijkUpdate().catch(() => {});
+  }, UPDATE_START_MS).unref?.();
 });
 
 // Een uitgestelde schrijfactie mag niet met de app mee verdwijnen.

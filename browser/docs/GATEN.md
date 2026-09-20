@@ -15,13 +15,14 @@ bijgewerkt omdat aan `CLAUDE.md` niet geraakt wordt in deze sessies.
 | Zoeken op de pagina (Ctrl+F) | `main.js`, `renderer/app.js` | `test/zoeken.js`, 12 |
 | Downloads met voortgang | `lib/downloads.js` | `test/downloads.js`, 21 |
 | Geschiedenis (Ctrl+H) | `lib/geschiedenis.js` | `test/geschiedenis.js`, 30 |
-| De gids: vraag over deze pagina (Ctrl+Shift+G) | `lib/gids/`, `main.js` | `test/gids.js` 55, `test/hersens.js` 38 |
+| De gids: vraag over deze pagina (Ctrl+Shift+G) | `lib/gids/`, `main.js` | `test/gids.js` 75, `test/hersens.js` 45 |
 | De gids legt iets uit in stappen | `lib/gids/reeks.js`, `wijs_stap` | idem |
 | De gids praat terug in een wolkje bij je aanwijzer, en je kunt doorvragen | `lib/gids/in-pagina.js` | idem |
 | Eigen API-sleutel als tweede rug | `lib/api.js`, `lib/sleutel.js` | `test/api.js`, 34 |
 | Meerdere vensters (Ctrl+N), en herstel per venster | `main.js`, `lib/herstel.js` | `test/vensters.js` 29, `test/vensters-echt.js` 9 |
 | Alle sneltoetsen op één plek, en in beeld | `lib/sneltoetsen.js` | `test/toetsen.js`, 28 |
 | Nederlands en Engels, en een eerste scherm dat het vraagt | `renderer/taal.js` | `test/taal.js` 26, `test/taal-echt.js` 20 |
+| Zeggen dat er een nieuwere versie is | `lib/bijwerken.js` | `test/bijwerken.js`, 33 |
 
 ## Wat meerdere vensters nog niet doen
 
@@ -41,8 +42,17 @@ starten komt elk venster terug zoals het stond. Wat er niet is:
   Dat is geen avond werk en ook geen week; het is een eigen project. Er staat
   liever niets dan een halve ondersteuning waar je pas achter komt als je
   blocker stilletjes niets doet.
-- **Ondertekenen en bijwerken.** Geen certificaat, geen updater. Voor een
-  browser op het open web is dat het eerste werk.
+- **Ondertekenen.** Geen certificaat, dus Windows en macOS waarschuwen bij de
+  eerste start — en, belangrijker, er valt niets na te kijken aan wat je
+  binnenhaalt. Dit is het enige punt op deze lijst dat geld kost en niet
+  vanuit een sessie te doen is. Wat er precies nodig is en waar het ingesteld
+  wordt staat in `docs/UITBRENGEN.md`; de bouwstraat geeft de geheimen al
+  door, dus zodra ze er staan is elke volgende build ondertekend.
+- **Echt bijwerken.** Hij zégt nu dat er een nieuwere versie is, maar haalt
+  niets binnen en vervangt niets. Dat is met opzet zolang er geen handtekening
+  is: een programma dat zichzelf ongecontroleerd vervangt is precies waar een
+  handtekening voor bestaat. `electron-updater` kan erop volgen, en dan gaat
+  ook de regel om die `latest-*.yml` nu weggooit.
 - **DRM-video.** Widevine zit er niet in; dat is een licentiekwestie.
 - **Wachtwoordbeheer en synchronisatie.** Met opzet niet, voorlopig.
 - **De gids, fase 4.** Terugval op beeld begint met een meting die een
@@ -67,6 +77,7 @@ npm run test:zoeken
 npm run test:downloads
 npm run test:geschiedenis
 npm run test:api
+npm run test:bijwerken       # zonder Electron en zonder netwerk
 npm run test:hersens         # zonder Electron
 npm run test:toetsen         # zonder Electron
 npm run test:taal            # zonder Electron

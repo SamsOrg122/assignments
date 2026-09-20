@@ -231,6 +231,23 @@ const WOORDEN = {
     'inst.sleutelInGebruik': 'Hij wordt nu gebruikt.',
     'inst.sleutelAgentVoor': 'De agent op deze computer gaat voor.',
 
+    /* ── Bijwerken ────────────────────────────────────────────────────── */
+    'inst.versie': 'Versie',
+    'inst.versieNu': 'Je draait {versie}',
+    'inst.updateKijken': 'Kijken of er een nieuwere versie is',
+    'inst.updateUitleg': 'Eén aanvraag aan api.github.com, hoogstens een paar keer per dag. '
+      + 'GitHub ziet je IP-adres en welke versie je draait — niet welke pagina\u2019s je open '
+      + 'hebt, en er gaat niets langs onze server. Hij haalt niets binnen en vervangt niets: '
+      + 'downloaden doe je zelf.',
+    'inst.updateNu': 'Nu kijken',
+    'inst.updateBezig': 'Kijken…',
+    'inst.updateBij': 'Dit is de nieuwste versie.',
+    'inst.updateNieuw': 'Er is een nieuwere versie: {versie}.',
+    'inst.updateHalen': 'Ophalen',
+    'inst.updateOnbekend': 'Kon het niet nakijken. Misschien is er geen verbinding.',
+    'inst.updateUit': 'Er wordt niet gekeken. Zet het hierboven aan, of kijk zelf op de site.',
+    'bar.updateNieuw': 'Er is een nieuwere versie van deze browser: {versie}',
+
     'inst.sneltoetsen': 'Sneltoetsen',
 
     'inst.mcp': 'Verbinding met een AI-client',
@@ -557,6 +574,22 @@ const WOORDEN = {
     'inst.sleutelBewaard': 'Saved, {waar}.',
     'inst.sleutelInGebruik': 'It is being used now.',
     'inst.sleutelAgentVoor': 'The agent on this computer comes first.',
+
+    'inst.versie': 'Version',
+    'inst.versieNu': 'You are running {versie}',
+    'inst.updateKijken': 'Check whether a newer version exists',
+    'inst.updateUitleg': 'One request to api.github.com, at most a few times a day. GitHub sees '
+      + 'your IP address and which version you run — not which pages you have open, and nothing '
+      + 'passes a server of ours. It downloads nothing and replaces nothing: fetching it is up '
+      + 'to you.',
+    'inst.updateNu': 'Check now',
+    'inst.updateBezig': 'Checking…',
+    'inst.updateBij': 'This is the newest version.',
+    'inst.updateNieuw': 'There is a newer version: {versie}.',
+    'inst.updateHalen': 'Get it',
+    'inst.updateOnbekend': 'Could not check. There may be no connection.',
+    'inst.updateUit': 'Nothing is being checked. Switch it on above, or look on the site yourself.',
+    'bar.updateNieuw': 'There is a newer version of this browser: {versie}',
 
     'inst.sneltoetsen': 'Keyboard shortcuts',
 

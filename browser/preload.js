@@ -97,6 +97,10 @@ contextBridge.exposeInMainWorld('browser', {
   sleutelStand: () => ipcRenderer.invoke('sleutel:stand'),
   wisSleutel: () => ipcRenderer.invoke('sleutel:wis'),
 
+  // Kijken of er een nieuwere versie is. Haalt niets binnen; zie
+  // lib/bijwerken.js voor waarom niet.
+  kijkUpdate: () => ipcRenderer.invoke('update:kijk'),
+
   voorkeuren: () => ipcRenderer.invoke('pref:get'),
   zetVoorkeur: (sleutel, waarde) => ipcRenderer.invoke('pref:set', sleutel, waarde),
   onVoorkeuren: (fn) => ipcRenderer.on('pref:changed', (_e, v) => fn(v)),

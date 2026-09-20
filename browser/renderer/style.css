@@ -2367,6 +2367,10 @@ body.geen-sneltoetsen kbd {
   transition: var(--overgang-vlak);
 }
 
+.regel.knoprij button[hidden] {
+  display: none;
+}
+
 .regel.knoprij button:hover {
   color: var(--ink);
   background-color: rgba(34, 31, 42, 0.12);

@@ -181,10 +181,12 @@ export default function AboutPage() {
             <strong className="font-medium text-fg">No signing and no
             updater.</strong>{" "}
             Windows shows a warning on first run, macOS asks you to confirm in
-            System Settings, and a new version means downloading it again. It
-            runs Electron {ELECTRON_MAJOR} with Chromium {CHROMIUM_MAJOR} —
-            current when the build was cut, and with no updater that gap opens
-            by itself from the day you install it.
+            System Settings, and a new version means downloading it again — the
+            browser tells you when there is one, but it replaces nothing by
+            itself, because while it is unsigned nobody could check what came
+            down. It runs Electron {ELECTRON_MAJOR} with Chromium{" "}
+            {CHROMIUM_MAJOR} — current when the build was cut, and that gap
+            opens by itself from the day you install it.
           </>,
           <>
             <strong className="font-medium text-fg">No extensions, no

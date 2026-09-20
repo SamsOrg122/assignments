@@ -192,9 +192,24 @@ jobs:
       # commit built a Windows installer on one run and died fetching an NSIS
       # binary on the next. Retrying a release build by hand is fine; having a
       # release fail for a reason that has nothing to do with the code is not.
+      # Signing, when there is something to sign with.
+      #
+      # electron-builder picks these up on its own and skips signing when they
+      # are empty, so this block is a no-op until somebody adds the secrets —
+      # and the moment they do, every build from here on is signed without a
+      # line of this file changing. That ordering matters: the browser tells
+      # you when a newer version exists but never replaces itself, because
+      # without a signature nobody can check that what came down is what we
+      # put up. See browser/docs/UITBRENGEN.md.
       - name: Pack
         working-directory: browser
         shell: bash
+        env:
+          CSC_LINK: ${{ matrix.os == 'windows-latest' && secrets.WINDOWS_CERT || secrets.MAC_CERT }}
+          CSC_KEY_PASSWORD: ${{ matrix.os == 'windows-latest' && secrets.WINDOWS_CERT_PASSWORD || secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           for attempt in 1 2 3; do
             if npm run ${{ matrix.script }} -- ${{ matrix.arch }}; then exit 0; fi

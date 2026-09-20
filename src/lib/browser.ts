@@ -174,12 +174,12 @@ export const BROWSER_CAVEATS: Array<{ title: string; detail: string }> = [
   {
     title: "It does not update itself",
     detail:
-      "There is no updater in this build, so a new version means downloading it again. For a browser on the open web that is the first thing on the list to fix.",
+      "It tells you when a newer version exists — one request to GitHub, a few times a day, switchable off in Settings — but it downloads nothing and replaces nothing. That is deliberate while it is unsigned: a program that replaces itself unchecked is exactly what a signature exists to prevent. Getting the new one is a download, like the first one.",
   },
   {
     title: "Nothing here updates itself, including the engine",
     detail:
-      `It runs on Electron ${ELECTRON_MAJOR}, which carries Chromium ${CHROMIUM_MAJOR} — current when this build was cut, and a browser on the open web is only as safe as its last engine. With no updater, that gap opens by itself from the day you install it. Downloading a new version is how it closes.`,
+      `It runs on Electron ${ELECTRON_MAJOR}, which carries Chromium ${CHROMIUM_MAJOR} — current when this build was cut, and a browser on the open web is only as safe as its last engine. Nothing here replaces itself, so that gap opens by itself from the day you install it. The browser will say when a newer version is out; downloading it is how the gap closes.`,
   },
   {
     title: "No Netflix, Spotify or other DRM video",

@@ -45,6 +45,14 @@ const STANDAARD = {
   taal: 'systeem', // systeem | nl | en
   // Of het eerste scherm al is geweest. Eén vraag, één keer.
   welkomGedaan: false,
+  // Kijken of er een nieuwere versie is. Standaard aan, want een browser op
+  // het open web die niet weet dat hij oud is, is een browser die oud blijft.
+  // Wat het de deur uit stuurt staat in lib/bijwerken.js en op het scherm.
+  updateKijken: true,
+  // Wanneer er voor het laatst gekeken is, en over welke versie we al iets
+  // gezegd hebben. Dat laatste is wat een mededeling van een zeur scheidt.
+  updateLaatst: 0,
+  updateGezien: '',
   assistentModel: '',
 };
 

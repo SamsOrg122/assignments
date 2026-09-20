@@ -29,6 +29,16 @@ let laatsteStaat = {
 };
 let prefs = {};
 
+/*
+ * De taal meteen invullen, met die van het systeem.
+ *
+ * Niet pas als de voorkeuren binnen zijn: elk stuk vaste tekst dat alleen een
+ * `data-t` heeft en geen woorden ertussen zou tot dat moment leeg staan — en
+ * als dat ophalen ooit mislukt, blijft het leeg. Zodra de voorkeuren er zijn
+ * wordt het alsnog de taal die jij koos; dat is één regel later.
+ */
+zetTaal(navigator.language);
+
 // --- mesh --------------------------------------------------------------
 
 // Tien vlekken, elk met eigen plaats, maat en tempo in style.css. Hun kleur komt
@@ -381,6 +391,7 @@ function tekenAlles() {
   tekenMcp();
   tekenAccount();
   tekenAgent();
+  tekenVersie();
   tekenToetsen();
   tekenApprij();
   tekenPaneel();
@@ -1801,6 +1812,7 @@ function toonVoorkeuren(nieuw) {
   document.getElementById('uitleg-start').textContent =
     prefs.startpagina === 'vorige' ? t('inst.startUitleg') : '';
   tekenAccount();
+  tekenVersie();
   tekenFavorieten();
 }
 
@@ -1892,6 +1904,47 @@ function tekenToetsen() {
     return li;
   }));
 }
+
+/**
+ * Welke versie je draait, en of er een nieuwere is.
+ *
+ * Alle vier de uitkomsten krijgen hun eigen zin. "Kon het niet nakijken" is
+ * er daar één van: stilte zou hier betekenen dat je denkt dat je bij bent
+ * terwijl er niets gekeken is.
+ */
+function tekenVersie() {
+  const el = document.getElementById('uitleg-versie');
+  const stand = document.getElementById('uitleg-update');
+  const halen = document.getElementById('update-halen');
+  if (!el || !stand || !halen) return;
+
+  el.textContent = laatsteStaat.versie
+    ? t('inst.versieNu', { versie: laatsteStaat.versie })
+    : '';
+
+  const u = laatsteStaat.update;
+  halen.hidden = !(u && u.status === 'nieuw' && u.url);
+  halen.onclick = u && u.url ? () => { sluitInstellingen(); browser.newTab(u.url); } : null;
+
+  if (!prefs.updateKijken && !u) stand.textContent = t('inst.updateUit');
+  else if (!u) stand.textContent = '';
+  else if (u.status === 'nieuw') stand.textContent = t('inst.updateNieuw', { versie: u.versie });
+  else if (u.status === 'bij') stand.textContent = t('inst.updateBij');
+  else if (u.status === 'uit') stand.textContent = t('inst.updateUit');
+  else stand.textContent = t('inst.updateOnbekend');
+}
+
+document.getElementById('update-nu').onclick = async (e) => {
+  const knop = e.currentTarget;
+  knop.disabled = true;
+  knop.textContent = t('inst.updateBezig');
+  try {
+    await browser.kijkUpdate();
+  } finally {
+    knop.disabled = false;
+    knop.textContent = t('inst.updateNu');
+  }
+};
 
 function tekenAccount() {
   const a = laatsteStaat.account;

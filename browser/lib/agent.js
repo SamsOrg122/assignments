@@ -194,6 +194,11 @@ const GIDS_HOUDING = [
   'zinnen. Die tekst komt naast de aanwijzer op het scherm van de gebruiker te',
   'staan, dus schrijf hem alsof je naast iemand zit.',
   'Wijs precies één ding aan. Weet je het niet, zeg dat dan en wijs niets aan.',
+  'Kost het antwoord meerdere handelingen achter elkaar, gebruik dan wijs_stap',
+  'in plaats van wijs_aan: die wijst met "2 van 4" erbij en geeft pas antwoord',
+  'als de gebruiker op Volgende drukt. Roep hem gewoon achter elkaar aan.',
+  'Staat er "gestopt" of "verder": false in het antwoord, dan is de uitleg',
+  'voorbij — begin niet aan de volgende stap en dring niet aan.',
   'Antwoord kort, en in de taal waarin de vraag gesteld is.',
 ].join(' ');
 
@@ -202,7 +207,9 @@ const GIDS_HOUDING = [
  * geen pagina openen, geen klik, geen toetsaanslag, en ook niet de tekst van
  * de pagina — de indeling is genoeg om iets aan te kunnen wijzen.
  */
-const GIDS_GEREEDSCHAP = ['jouw_paginas', 'bekijk_jouw_pagina', 'wijs_aan', 'wijs_niet_meer'];
+const GIDS_GEREEDSCHAP = [
+  'jouw_paginas', 'bekijk_jouw_pagina', 'wijs_aan', 'wijs_stap', 'wijs_niet_meer',
+];
 
 /**
  * De aanroep, helemaal uitgeschreven.

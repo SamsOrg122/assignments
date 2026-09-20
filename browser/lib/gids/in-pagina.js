@@ -632,6 +632,22 @@
     }
     .punt { position: absolute; width: 22px; height: 22px;
             filter: drop-shadow(0 3px 8px rgba(10,6,20,.5)) }
+    /* De voet van een reeks: welke stap dit is, en hoe je verder komt.
+       pointer-events staat hier wél aan — op de knoppen en nergens anders.
+       De laag eromheen blijft doorlatend, want een overlay die elke klik op
+       elke website opslokt is een overlay die de website kapotmaakt. */
+    .voet { display: flex; align-items: center; gap: 10px; margin-top: 8px }
+    .telling { font-size: 11.5px; opacity: .72; font-variant-numeric: tabular-nums }
+    .rek { flex: 1 }
+    .knop {
+      pointer-events: auto; cursor: pointer;
+      font: inherit; font-size: 12px; color: #fff;
+      border: 0; border-radius: 8px; padding: 5px 11px;
+      background: rgba(255,255,255,.16);
+    }
+    .knop:hover { background: rgba(255,255,255,.28) }
+    .knop.door { background: #b48cf0; color: #1b1526 }
+    .knop.door:hover { background: #c4a2f6 }
     @media (prefers-reduced-motion: reduce) { .ring { transition: none } }
   `;
 
@@ -672,13 +688,49 @@
     pad.setAttribute('stroke-linejoin', 'round');
     punt.append(pad);
 
+    // De voet hangt ín de uitleg, zodat hij met de ballon meebeweegt en niet
+    // apart geplaatst hoeft te worden.
+    const voet = document.createElement('div');
+    voet.className = 'voet';
+    const telling = document.createElement('span');
+    telling.className = 'telling';
+    const rek = document.createElement('span');
+    rek.className = 'rek';
+    const stopKnop = document.createElement('button');
+    stopKnop.className = 'knop';
+    stopKnop.type = 'button';
+    stopKnop.textContent = 'Stoppen';
+    const doorKnop = document.createElement('button');
+    doorKnop.className = 'knop door';
+    doorKnop.type = 'button';
+    doorKnop.textContent = 'Volgende';
+    voet.append(telling, rek, stopKnop, doorKnop);
+    voet.style.setProperty('display', 'none');
+    uitleg.append(voet);
+
     wortel.append(ring, uitleg, punt);
     schaduw.append(wortel);
     // Op `documentElement` en niet op `body`: een pagina mag zijn body
     // vervangen, en dan is de overlay weg zonder dat iemand het merkt.
     document.documentElement.append(gastheer);
 
-    laag = { gastheer, ring, uitleg, punt, ref: null, aan: null };
+    laag = {
+      gastheer, ring, uitleg, punt, voet, telling, stopKnop, doorKnop,
+      ref: null, aan: null,
+      // Wat de gebruiker op de voet antwoordde, en wie daarop wacht.
+      antwoord: null,
+      meld: null,
+    };
+
+    const geef = (wat) => {
+      laag.antwoord = wat;
+      const wie = laag.meld;
+      laag.meld = null;
+      if (wie) wie(wat);
+    };
+    doorKnop.addEventListener('click', (e) => { e.stopPropagation(); geef('volgende'); });
+    stopKnop.addEventListener('click', (e) => { e.stopPropagation(); geef('gestopt'); });
+
     return laag;
   }
 
@@ -720,16 +772,38 @@
    * — en `verouderd` zodat duidelijk is of er sinds de snapshot iets aan de
    * pagina veranderd is.
    */
-  function wijs(ref, tekst) {
+  function wijs(ref, tekst, opties) {
     const p = pak(ref);
     if (p.status !== 'ok') return { status: p.status, verouderd };
 
     const l = bouwLaag();
     l.ref = ref;
-    // `textContent`, nooit `innerHTML`: deze zin komt van een model en een
+
+    // Een reeks of niet. `van` is hoeveel stappen er zijn; één stap is geen
+    // reeks en krijgt dus geen voet, want dan is er niets om op te drukken.
+    const stap = Math.max(1, Math.floor(Number(opties && opties.stap) || 1));
+    const van = Math.max(1, Math.floor(Number(opties && opties.van) || 1));
+    const reeks = van > 1 && stap <= van;
+
+    // De uitleg opnieuw zetten zonder de voet weg te gooien: die is een kind
+    // van dezelfde ballon en heeft luisteraars die moeten blijven staan.
+    // `textContent` en nooit `innerHTML`: deze zin komt van een model en een
     // model is een bron als elke andere.
-    l.uitleg.textContent = String(tekst || '').slice(0, MAX_UITLEG);
-    l.uitleg.style.setProperty('display', l.uitleg.textContent ? 'block' : 'none');
+    const zin = String(tekst || '').slice(0, MAX_UITLEG);
+    for (const kind of [...l.uitleg.childNodes]) {
+      if (kind !== l.voet) kind.remove();
+    }
+    if (zin) l.uitleg.insertBefore(document.createTextNode(zin), l.voet);
+    l.uitleg.style.setProperty('display', zin || reeks ? 'block' : 'none');
+
+    // Een nieuwe stap laat een wachter van de vorige niet achter.
+    if (l.meld) { const wie = l.meld; l.meld = null; wie('gestopt'); }
+    l.antwoord = null;
+    l.voet.style.setProperty('display', reeks ? 'flex' : 'none');
+    if (reeks) {
+      l.telling.textContent = stap + ' van ' + van;
+      l.doorKnop.textContent = stap >= van ? 'Klaar' : 'Volgende';
+    }
 
     const rustig = window.matchMedia
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -778,9 +852,41 @@
     return { status: 'ok', verouderd, rect: [r.left, r.top, r.width, r.height].map(Math.round) };
   }
 
+  /**
+   * Wachten tot de gebruiker op de voet drukt.
+   *
+   * Dit is wat een reeks een reeks maakt: de volgende stap komt er pas als
+   * iemand erom vraagt. Het is ook de toestemming voor die stap — daarom
+   * staat in main.js dat een stap na de eerste alleen mag als hier
+   * 'volgende' uit kwam.
+   *
+   * Eigen klok, net als bij wachtOpKlik: een Promise die nooit oplost blijft
+   * ook na wegnavigeren openstaan.
+   */
+  function wachtOpStap(msMax = 120000) {
+    if (!laag || !laag.ref) return Promise.resolve({ status: 'niets gewezen' });
+    if (laag.antwoord) return Promise.resolve({ status: laag.antwoord });
+
+    return new Promise((klaar) => {
+      let klok = null;
+      const af = (status) => {
+        clearTimeout(klok);
+        if (laag && laag.meld === melden) laag.meld = null;
+        klaar({ status });
+      };
+      const melden = (wat) => af(wat);
+      laag.meld = melden;
+      klok = setTimeout(() => af('te laat'), msMax);
+    });
+  }
+
   /** Weghalen, en niets achterlaten. */
   function verberg() {
     if (!laag) return { status: 'ok' };
+    // Wie op een volgende stap wachtte krijgt nu zijn antwoord. Anders blijft
+    // die Promise tot zijn klok afloopt hangen aan een laag die er niet meer
+    // is, en dat is precies het lek waar de kop van brug.js over gaat.
+    if (laag.meld) { const wie = laag.meld; laag.meld = null; wie('gestopt'); }
     if (laag.aan) laag.aan();
     laag.gastheer.remove();
     laag = null;
@@ -795,12 +901,25 @@
     scrollNaar,
     wachtOpKlik,
     wijs,
+    wachtOpStap,
     verberg,
     stand: () => ({
       snapshotId,
       verouderd,
       knopen: register.size,
       wijst: Boolean(laag && laag.ref),
+      // Wat er op de voet is geantwoord, of null. Zo kan de kant die het
+      // vroeg zien of de gebruiker al verder wilde zonder erop te wachten.
+      antwoord: (laag && laag.antwoord) || null,
+      // Waar de knop Volgende staat, in venstercoördinaten, of null als er
+      // geen reeks loopt. Het is de enige plek in deze hele laag die een klik
+      // opvangt, dus het is ook de enige plek waarvan de buitenkant mag weten
+      // waar hij ligt — om ernaar te wijzen, en om hem te kunnen testen.
+      knop: (() => {
+        if (!laag || laag.voet.style.display === 'none') return null;
+        const r = laag.doorKnop.getBoundingClientRect();
+        return r.width ? [r.left, r.top, r.width, r.height].map(Math.round) : null;
+      })(),
     }),
   };
 

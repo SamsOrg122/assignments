@@ -204,7 +204,7 @@ class Paginabrug {
    * De ring blijft daarna zelf meebewegen; dit is het enige moment waarop
    * deze kant iets over positie hoeft te weten.
    */
-  async wijs(ref, tekst) {
+  async wijs(ref, tekst, opties) {
     const plek = await this.zoek(ref);
     if (plek.status !== 'ok') return plek;
 
@@ -212,7 +212,31 @@ class Paginabrug {
       await this.roep('scrollNaar', [ref]);
       await this.wachtTotInBeeld(ref);
     }
-    return this.roep('wijs', [ref, String(tekst || '')]);
+    return this.roep('wijs', [ref, String(tekst || ''), opties ?? null]);
+  }
+
+  /**
+   * Eén stap van een reeks: wijzen, en dan wachten tot de gebruiker verder
+   * wil. Het antwoord is 'volgende', 'gestopt', 'te laat' of 'genavigeerd'.
+   *
+   * Die laatste twee komen van hier en niet uit de pagina: een reeks kan een
+   * kwartier open blijven staan en in die tijd kan er van alles gebeuren met
+   * het tabblad.
+   */
+  async wijsStap(ref, tekst, stap, van) {
+    const uit = await this.wijs(ref, tekst, { stap, van });
+    if (uit.status !== 'ok') return uit;
+    // De laatste stap heeft geen 'volgende' nodig: wie 'Klaar' leest, drukt
+    // erop om de aanwijzing weg te halen, en dat mag ook Escape zijn.
+    const antwoord = await this.wacht('wachtOpStap');
+    // Tussen het wijzen en het wachten zit één rondje naar de pagina en
+    // terug. Wordt de aanwijzing er precies dán afgehaald, dan vindt het
+    // wachten geen laag meer en zegt de pagina 'niets gewezen'. Voor wie dit
+    // vroeg is dat hetzelfde als stoppen — hij wees, en het is weg — dus het
+    // heet hier ook zo. Anders zou een reeks twee woorden hebben voor
+    // dezelfde uitkomst, afhankelijk van een milliseconde.
+    const status = antwoord.status === 'niets gewezen' ? 'gestopt' : antwoord.status;
+    return { ...uit, antwoord: status };
   }
 
   /**

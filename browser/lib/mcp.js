@@ -149,6 +149,29 @@ const GEREEDSCHAP = [
     },
   },
   {
+    naam: 'wijs_stap',
+    vraagt: true,
+    zegt: 'Eén stap van een uitleg in meerdere stappen. Wijst iets aan met "3 '
+      + 'van 5" erbij en een knop, en geeft pas antwoord als de gebruiker op '
+      + 'Volgende of op Stoppen heeft gedrukt — dus roep hem gewoon achter '
+      + 'elkaar aan voor stap 1, 2, 3. Het antwoord zegt wat er gedrukt is; '
+      + 'bij "gestopt" is de uitleg voorbij en begin je niet aan de volgende. '
+      + 'Alleen stap 1 vraagt toestemming: op Volgende drukken ís de '
+      + 'toestemming voor de stap erna. Hij wacht hoogstens twee minuten; '
+      + 'daarna komt er "te laat" terug en is de uitleg ook voorbij.',
+    invoer: {
+      type: 'object',
+      properties: {
+        id: { type: 'number', description: 'Het id uit jouw_paginas.' },
+        ref: { type: 'string', description: 'De ref uit de snapshot, bijvoorbeeld e12.' },
+        tekst: { type: 'string', description: 'Eén korte zin bij deze stap. Hoogstens 160 tekens.' },
+        stap: { type: 'number', description: 'De hoeveelste stap dit is, vanaf 1.' },
+        van: { type: 'number', description: 'Hoeveel stappen er in totaal zijn.' },
+      },
+      required: ['id', 'ref', 'stap', 'van'],
+    },
+  },
+  {
     naam: 'wijs_niet_meer',
     zegt: 'Haalt de ring en de zin weer weg. Vraagt niets, want er gaat alleen '
       + 'iets af het scherm.',
@@ -393,7 +416,8 @@ class McpDeur {
     // Hier begint jouw kant. Alles hieronder vraagt het eerst — behalve wat we
     // hoe dan ook weigeren. Een vraagscherm over een privétabblad zou de titel
     // ervan tonen, en dat is precies de inhoud die daar niet uit hoort.
-    if (naam === 'lees_jouw_pagina' || naam === 'bekijk_jouw_pagina' || naam === 'wijs_aan') {
+    if (naam === 'lees_jouw_pagina' || naam === 'bekijk_jouw_pagina'
+        || naam === 'wijs_aan' || naam === 'wijs_stap') {
       const bezwaar = ctrl.priveBezwaar(arg.id);
       if (bezwaar) {
         this.meld({ soort: 'geweigerd', naam, tekst: `Geweigerd: ${bezwaar}` });
@@ -409,10 +433,32 @@ class McpDeur {
       }
     }
 
-    const vraag = await ctrl.mcpVraagToestemming(naam, arg);
-    if (!vraag.goed) {
-      this.meld({ soort: 'geweigerd', naam, tekst: `Niet gedaan: ${vraag.reden}` });
-      throw new Error(`Niet toegestaan: ${vraag.reden}`);
+    /*
+     * Vragen — behalve als er al geantwoord is met een knop.
+     *
+     * Een uitleg in vijf stappen zou anders vijf keer hetzelfde vragen. Dat
+     * is niet strenger maar juist slapper: vijf vragen achter elkaar leert
+     * mensen doorklikken. De eerste stap vraagt; daarna is de knop Volgende
+     * het antwoord, en die staat op je eigen scherm en wordt door jou
+     * ingedrukt. Stoppen breekt de reeks af en dan vraagt stap 1 opnieuw.
+     * De boekhouding staat in main.js, bij gidsStapOordeel.
+     */
+    let vragen = true;
+    if (naam === 'wijs_stap') {
+      const oordeel = ctrl.gidsStapOordeel(arg.id, arg.stap, arg.van);
+      if (oordeel.bezwaar) {
+        this.meld({ soort: 'geweigerd', naam, tekst: `Geweigerd: ${oordeel.bezwaar}` });
+        throw new Error(oordeel.bezwaar);
+      }
+      vragen = oordeel.vragen;
+    }
+
+    if (vragen) {
+      const vraag = await ctrl.mcpVraagToestemming(naam, arg);
+      if (!vraag.goed) {
+        this.meld({ soort: 'geweigerd', naam, tekst: `Niet gedaan: ${vraag.reden}` });
+        throw new Error(`Niet toegestaan: ${vraag.reden}`);
+      }
     }
     this.meld({ soort: 'toegestaan', naam, tekst: `Toegestaan: ${beschrijf(naam, arg)}` });
 
@@ -421,6 +467,7 @@ class McpDeur {
     if (naam === 'typ') return ctrl.mcpTyp(arg.id, arg.veld, arg.tekst);
     if (naam === 'bekijk_jouw_pagina') return ctrl.mcpBekijkJouwPagina(arg.id);
     if (naam === 'wijs_aan') return ctrl.mcpWijsAan(arg.id, arg.ref, arg.tekst);
+    if (naam === 'wijs_stap') return ctrl.mcpWijsStap(arg.id, arg.ref, arg.tekst, arg.stap, arg.van);
     throw new Error(`Onbekend gereedschap: ${naam}`);
   }
 }
@@ -436,6 +483,7 @@ function beschrijf(naam, arg) {
   if (naam === 'lees_jouw_pagina') return `Wil jouw pagina ${arg.id} lezen`;
   if (naam === 'bekijk_jouw_pagina') return `Wil de indeling van jouw pagina ${arg.id} zien`;
   if (naam === 'wijs_aan') return `Wil iets aanwijzen op jouw pagina ${arg.id}`;
+  if (naam === 'wijs_stap') return `Wil je pagina ${arg.id} uitleggen in ${arg.van} stappen`;
   if (naam === 'wijs_niet_meer') return `Haalt de aanwijzing van pagina ${arg.id}`;
   if (naam === 'klik') return `Wil klikken op "${arg.tekst}" in pagina ${arg.id}`;
   if (naam === 'typ') {

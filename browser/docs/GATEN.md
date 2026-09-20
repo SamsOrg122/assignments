@@ -15,7 +15,8 @@ bijgewerkt omdat aan `CLAUDE.md` niet geraakt wordt in deze sessies.
 | Zoeken op de pagina (Ctrl+F) | `main.js`, `renderer/app.js` | `test/zoeken.js`, 12 |
 | Downloads met voortgang | `lib/downloads.js` | `test/downloads.js`, 21 |
 | Geschiedenis (Ctrl+H) | `lib/geschiedenis.js` | `test/geschiedenis.js`, 30 |
-| De gids: vraag over deze pagina (Ctrl+Shift+G) | `lib/gids/`, `main.js` | `test/gids.js` 45, `test/hersens.js` 25 |
+| De gids: vraag over deze pagina (Ctrl+Shift+G) | `lib/gids/`, `main.js` | `test/gids.js` 55, `test/hersens.js` 38 |
+| De gids legt iets uit in stappen | `lib/gids/reeks.js`, `wijs_stap` | idem |
 | Eigen API-sleutel als tweede rug | `lib/api.js`, `lib/sleutel.js` | `test/api.js`, 34 |
 | Meerdere vensters (Ctrl+N), en herstel per venster | `main.js`, `lib/herstel.js` | `test/vensters.js` 29, `test/vensters-echt.js` 9 |
 
@@ -41,10 +42,10 @@ starten komt elk venster terug zoals het stond. Wat er niet is:
   browser op het open web is dat het eerste werk.
 - **DRM-video.** Widevine zit er niet in; dat is een licentiekwestie.
 - **Wachtwoordbeheer en synchronisatie.** Met opzet niet, voorlopig.
-- **De gids, fase 4 en 5.** Terugval op beeld begint met een meting die een
-  aangemelde agent nodig heeft (geeft Claude Code beeld uit een MCP-resultaat
-  door aan het model?), en meerdere stappen achter elkaar vraagt iets dat de
-  stand vasthoudt tussen twee aanroepen. Zie `docs/gids/ARCHITECTUUR.md`.
+- **De gids, fase 4.** Terugval op beeld begint met een meting die een
+  aangemelde agent nodig heeft: geeft Claude Code beeld uit een MCP-resultaat
+  door aan het model? Zolang dat niet gemeten is, is het een plan en geen
+  oplossing. Zie `docs/gids/ARCHITECTUUR.md`.
 - **De browser is alleen MCP-server.** Dat de assistent via de browser bij
   ánder gereedschap kan, is niet gebouwd.
 - **De zijbalk is Nederlands.** `renderer/` en `main.js` kennen geen i18n,

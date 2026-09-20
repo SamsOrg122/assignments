@@ -16,7 +16,7 @@ wordt per fase bijgewerkt.
 | 1 | De overlay in de pagina: ring, uitleg, punt — en de deur ernaartoe | af |
 | 3 | De hersens: sneltoets, model, gereedschap | af |
 | 4 | Terugval op beeld | nog niet |
-| 5 | Meerdere stappen | nog niet |
+| 5 | Meerdere stappen | af |
 
 ## Wat fase 1 werd
 
@@ -111,6 +111,41 @@ doet hetzelfde, want dan zat de overlay in de oude pagina.
 
 `test/hersens.js` legt het vast, en draait zonder Electron: het gaat over de
 vorm van een aanroep en over een grendel.
+
+## Wat fase 5 werd
+
+`wijs_stap(id, ref, tekst, stap, van)`. Hij wijst iets aan met "2 van 4"
+eronder, een knop **Volgende** en een knop **Stoppen**, en hij geeft pas
+antwoord als er op een van de twee gedrukt is. Daarmee is de lus van de
+assistent vanzelf de lus van de gebruiker: drie stappen zijn drie aanroepen
+achter elkaar, en er hoeft tussen twee aanroepen niets bewaard te worden
+behalve de vraag of er doorgedrukt is.
+
+**De voet is de enige plek in de hele overlay die een klik opvangt.** Overal
+elders staat `pointer-events: none`, want een laag die elke klik op elke
+website opslokt maakt die website onbruikbaar (meting 1 gaat daarover). De
+uitzondering is precies zo groot als de twee knoppen, en `test/gids.js` meet
+dat: terwijl een reeks openstaat levert `elementFromPoint` op het doel nog
+steeds de knop van de pagina op.
+
+**Alleen stap 1 vraagt toestemming.** Dat lijkt losser en is het niet: de
+knop Volgende staat op jouw scherm, wordt door jou ingedrukt, per stap, met
+Stoppen ernaast. Vijf keer dezelfde vraag zou strenger lijken en slapper
+zijn — vijf vragen achter elkaar leert mensen doorklikken. De regel die
+bepaalt wanneer een stap zonder vraag mag staat in `lib/gids/reeks.js`, als
+gewone functie zonder venster en zonder pagina, en `test/hersens.js` probeert
+hem uit: een stap op een ander tabblad, een stap die er een overslaat, een
+reeks die ineens langer wordt, en een stap waarvoor niemand op Volgende heeft
+gedrukt worden allemaal geweigerd.
+
+Wachten heeft een dak: twee minuten. Daarna komt er `te laat` terug en is de
+uitleg voorbij. Dat is geen keuze maar een noodzaak — een Promise in een
+pagina blijft na wegnavigeren openstaan (zie de kop van `brug.js`).
+
+En `stand()` geeft sindsdien de plek van de knop Volgende terug. Dat is de
+enige plek van deze laag die een klik opvangt, dus het is ook de enige plek
+waarvan de buitenkant mag weten waar hij ligt — om ernaar te kunnen wijzen,
+en om hem te kunnen testen met een echte muisgebeurtenis.
 
 ## De zeven metingen
 
@@ -304,18 +339,20 @@ npm run test:hersens   # gewoon node
 ```
 
 `test:gids` draait Electron met echte fixtures achter een echte server met
-echte CSP-koppen. 45 asserties: shadow roots, frames van dezelfde en van een
+echte CSP-koppen. 55 asserties: shadow roots, frames van dezelfde en van een
 andere herkomst, onder de vouw, bedekt, een ref die verouderd is, wachten op
 een klik, navigeren met iets dat openstaat, onzichtbaarheid voor de pagina, de
-tijd op tweeduizend knopen, de overlay zelf, en alle redactieregels hierboven.
+tijd op tweeduizend knopen, de overlay zelf, een uitleg in stappen met een
+echte muisklik op de knop Volgende, en alle redactieregels hierboven.
 
 Er staat geen nagebouwde DOM in. Shadow roots, frames, rects en
 `elementFromPoint` zijn precies de vier dingen waarover een nabootsing het eens
 is met zichzelf en oneens met Chromium.
 
-`test:hersens` heeft geen Electron nodig: 25 asserties over de vorm van de
+`test:hersens` heeft geen Electron nodig: 38 asserties over de vorm van de
 aanroep die een gidsronde start, over wat er niet in zijn lijst gereedschap
-staat, en over de grendel op de deur.
+staat, over de regel die bepaalt wanneer een volgende stap zonder vraag mag,
+en over de grendel op de deur.
 
 Op een machine die als root draait heeft Electron `--no-sandbox` nodig, en een
 venster dat niet vooraan staat tekent geen frames:
@@ -328,10 +365,9 @@ xvfb-run -a npx electron --no-sandbox --disable-backgrounding-occluded-windows t
 
 1. **Fase 4** begint met meting 3, niet met code: geeft Claude Code beeld uit
    een MCP-resultaat door aan het model? Zolang dat niet gemeten is, is een
-   terugval op een schermafdruk een plan en geen oplossing.
-2. **Fase 5, meerdere stappen.** Nu wijst hij één ding aan. "Laat zien hoe ik
-   dit instel" is een reeks van drie, met een volgende-knop ertussen, en dat
-   vraagt iets dat de stand vasthoudt tussen twee aanroepen door.
+   terugval op een schermafdruk een plan en geen oplossing. Daar is een
+   aangemelde agent voor nodig, dus dat is werk voor een machine die er een
+   heeft.
 
 En twee dingen die eerst ergens anders moeten landen: de sneltoets hoort in
 `lib/sneltoetsen.js` (ROUTEKAART §1.3) en de chrome-laag in de stapelvolgorde

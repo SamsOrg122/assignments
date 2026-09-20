@@ -279,6 +279,78 @@ app.whenReady().then(async () => {
   zegtIs('wijzen naar iets onder de vouw brengt het in beeld', naWijzen.plaats, 'viewport');
   await brug.verberg();
 
+  // ── 14. Uitleg in stappen ────────────────────────────────────────────
+  //
+  // De voet is het enige stukje van deze overlay dat een klik opvangt, en dat
+  // is een uitzondering op de regel waar sectie 13 over gaat. Juist daarom
+  // moet hier vastliggen dat de uitzondering precies zo groot is als de knop,
+  // en dat een reeks nergens blijft hangen.
+  console.log('\nUitleg in stappen');
+
+  /** Wachten tot de overlay er echt staat; wijzen scrollt eerst. */
+  const totErGewezenWordt = async (msMax = 4000) => {
+    const tot = Date.now() + msMax;
+    for (;;) {
+      const st = await brug.stand();
+      if (st.wijst) return st;
+      if (Date.now() > tot) return st;
+      await new Promise((k) => setTimeout(k, 80));
+    }
+  };
+
+  const refStap = refVan(s8.tekst, 'Opstellen');
+
+  // Stap 1 van 3, en dan drukt "de gebruiker" op Volgende — met een echte
+  // muisgebeurtenis op de plek waar de knop staat. Een ingespoten klik komt
+  // wél bij de DOM aan (zie CLAUDE.md), en dat is precies de weg die een
+  // hand ook neemt.
+  const stapBezig = brug.wijsStap(refStap, 'Hier begin je.', 1, 3);
+  const staat = await totErGewezenWordt();
+  zegt('de eerste stap staat op het scherm', staat.wijst === true);
+  zegt('en er is nog niets geantwoord', staat.antwoord === null);
+  zegt('de knop Volgende heeft een plek', Array.isArray(staat.knop));
+
+  // Buiten de knop blijft de laag doorlatend. Dat is de hele belofte van een
+  // overlay ín de pagina, en een reeks mag hem niet breken.
+  const raakTijdensReeks = await wc.executeJavaScriptInIsolatedWorld(1000, [{
+    code: '(() => { const r = document.getElementById("opstellen").getBoundingClientRect();'
+      + ' const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);'
+      + ' return el && (el.id === "opstellen" || el.closest("#opstellen") !== null); })()',
+  }]);
+  zegt('de pagina blijft klikbaar naast de knop', raakTijdensReeks === true);
+
+  if (Array.isArray(staat.knop)) {
+    const [kx, ky, kb, kh] = staat.knop;
+    const x = Math.round(kx + kb / 2);
+    const y = Math.round(ky + kh / 2);
+    for (const type of ['mouseDown', 'mouseUp']) {
+      wc.sendInputEvent({ type, x, y, button: 'left', clickCount: 1 });
+    }
+  }
+  const stap1 = await stapBezig;
+  zegtIs('drukken op Volgende geeft de stap antwoord', stap1.antwoord, 'volgende');
+  zegtIs('en zegt dat er een volgende mag komen', stap1.verder, undefined);
+
+  // De laatste stap heet Klaar en geeft geen "volgende" meer terug.
+  const laatsteBezig = brug.wijsStap(refStap, 'En dit was het.', 3, 3);
+  const staat3 = await totErGewezenWordt();
+  zegt('de laatste stap staat er ook', staat3.wijst === true);
+
+  // Ditmaal niet drukken maar wegnemen: een reeks die verdwijnt hoort niet
+  // stil te blijven wachten tot zijn klok afloopt.
+  await brug.roep('verberg');
+  const laatste = await laatsteBezig;
+  zegtIs('een reeks die wordt weggehaald meldt dat meteen', laatste.antwoord, 'gestopt');
+  const naAfbreken = await brug.stand();
+  zegt('en laat niets achter', naAfbreken.wijst === false);
+
+  // Eén stap van één is geen reeks: dan valt er niets te vervolgen en hoort
+  // er ook geen knop te staan.
+  await brug.wijs(refStap, 'Eén ding.', { stap: 1, van: 1 });
+  const alleen = await brug.stand();
+  zegt('één van één krijgt geen knop', alleen.wijst === true && alleen.knop === null);
+  await brug.verberg();
+
   // ── Klaar ────────────────────────────────────────────────────────────
   stop();
   console.log(`\n${goed} goed, ${stuk.length} stuk`);

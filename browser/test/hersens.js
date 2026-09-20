@@ -61,10 +61,11 @@ const gids = bouwArgumenten({
 });
 zegtIs('krijgt de gidshouding mee', na(gids, '--append-system-prompt'), GIDS_HOUDING);
 zegt('en dat is een andere dan de gewone', GIDS_HOUDING !== HOUDING);
-zegtIs('met precies vier stukken gereedschap', alleNa(gids, '--allowedTools'), [
+zegtIs('met precies het gereedschap van de gids', alleNa(gids, '--allowedTools'), [
   'mcp__tougather__jouw_paginas',
   'mcp__tougather__bekijk_jouw_pagina',
   'mcp__tougather__wijs_aan',
+  'mcp__tougather__wijs_stap',
   'mcp__tougather__wijs_niet_meer',
 ]);
 
@@ -82,6 +83,36 @@ zegt('dat hij niet klikt', h.includes('klikt niet'));
 zegt('dat hij niet typt', h.includes('typt niet'));
 zegt('dat hij nergens heen navigeert', h.includes('navigeert'));
 zegt('en dat hij één ding aanwijst', h.includes('precies één ding'));
+zegt('en wanneer hij stappen gebruikt', h.includes('wijs_stap'));
+zegt('en dat gestopt ook echt stoppen betekent', h.includes('dring niet aan'));
+
+console.log('\nWanneer een volgende stap zonder vraag mag');
+// De regel waar de belofte "geen altijd toestaan" op staat of valt. Een reeks
+// die loopt: stap 1 van 3 is gewezen en de gebruiker heeft op Volgende gedrukt.
+const { oordeel } = require('../lib/gids/reeks.js');
+const loopt = { tabId: 7, van: 3, stap: 1, open: true };
+const wacht = { tabId: 7, van: 3, stap: 1, open: false };
+
+zegtIs('stap 1 vraagt altijd', oordeel(null, { tabId: 7, stap: 1, van: 3 }), { vragen: true });
+zegtIs('ook als er al een reeks loopt', oordeel(loopt, { tabId: 7, stap: 1, van: 3 }), { vragen: true });
+zegtIs('stap 2 na een druk op Volgende vraagt niet',
+  oordeel(loopt, { tabId: 7, stap: 2, van: 3 }), { vragen: false });
+
+const bezwaar = (r, v) => oordeel(r, v).bezwaar ?? null;
+zegt('stap 2 zonder dat er gedrukt is mag niet',
+  Boolean(bezwaar(wacht, { tabId: 7, stap: 2, van: 3 })));
+zegt('stap 2 zonder reeks mag niet',
+  Boolean(bezwaar(null, { tabId: 7, stap: 2, van: 3 })));
+zegt('stap 2 op een ánder tabblad mag niet',
+  Boolean(bezwaar(loopt, { tabId: 8, stap: 2, van: 3 })));
+zegt('stap 3 slaat er een over en mag niet',
+  Boolean(bezwaar(loopt, { tabId: 7, stap: 3, van: 3 })));
+zegt('een reeks die ineens langer wordt mag niet',
+  Boolean(bezwaar(loopt, { tabId: 7, stap: 2, van: 9 })));
+zegt('stap 0 bestaat niet', Boolean(bezwaar(loopt, { tabId: 7, stap: 0, van: 3 })));
+zegt('stap 4 van 3 ook niet', Boolean(bezwaar(loopt, { tabId: 7, stap: 4, van: 3 })));
+zegt('en een pagina die geen getal is ook niet',
+  Boolean(bezwaar(loopt, { tabId: 'zeven', stap: 1, van: 3 })));
 
 console.log('\nDe grendel op de deur');
 // Een houding is een instructie; dit is het slot. Zonder Electron: de deur

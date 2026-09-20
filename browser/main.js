@@ -7,6 +7,7 @@ const { pathToFileURL } = require('node:url');
 const { naarZoekURL, STANDAARD_ZOEKMACHINE } = require('./renderer/search.js');
 const { beoordeelURL, grendelSessie, grendelNavigatie } = require('./lib/grendel.js');
 const { brugVoor } = require('./lib/gids/brug.js');
+const { oordeel: reeksOordeel } = require('./lib/gids/reeks.js');
 const voorkeuren = require('./lib/voorkeuren.js');
 const { volgDeBrowser } = require('./lib/app-stijl.js');
 const { meldSchemaAan, bedienApp, appURL } = require('./lib/app-schema.js');
@@ -326,6 +327,10 @@ class BrowserWindowController {
     this.zoekTerm = '';
     // Op welk tabblad de gids iets aanwijst, of null. Er is er hoogstens één.
     this.gewezenTab = null;
+    // De reeks die loopt: { tabId, van, stap, open }. `open` betekent dat de
+    // gebruiker op Volgende heeft gedrukt en de volgende stap dus al
+    // toestemming heeft. Zie gidsStapOordeel.
+    this.gidsReeks = null;
     // Eén aanmelding tegelijk, en alleen uit het tabblad dat wij ervoor openden.
     // Of wij de MCP-deur zelf openden voor deze opdracht, en hem dus ook
     // weer dicht horen te doen.
@@ -1032,6 +1037,7 @@ class BrowserWindowController {
       geschiedenis.bezoek(doel, wc.getTitle(), vanMij);
       // De overlay zat in de oude pagina en is dus al weg; alleen wij wisten
       // dat nog niet.
+      if (this.gidsReeks && this.gidsReeks.tabId === id) this.gidsReeks = null;
       if (this.gewezenTab === id) { this.gewezenTab = null; this.pushState(); }
     });
     wc.on('did-navigate-in-page', (_e, doel, hoofdframe) => {
@@ -1746,6 +1752,31 @@ class BrowserWindowController {
       });
     }
 
+    /*
+     * De reeks vraagt één keer, aan het begin, over het geheel.
+     *
+     * Daarna is de knop Volgende het antwoord. Dat is geen "altijd toestaan":
+     * er staat een knop op jouw scherm die jij indrukt, per stap, met Stoppen
+     * ernaast. Vijf keer dezelfde vraag zou strenger lijken en slapper zijn —
+     * vijf vragen achter elkaar leert mensen doorklikken.
+     */
+    if (naam === 'wijs_stap') {
+      const gevonden = this.zoekJouwTab(arg.id);
+      if (!gevonden) return Promise.resolve({ goed: false, reden: 'die pagina bestaat niet' });
+      return this.toestemming.vraag({
+        wat: naam,
+        kop: 'De AI-client wil je iets stap voor stap laten zien',
+        regels: [
+          `Pagina: ${gevonden.titel}`,
+          `In ${Math.floor(Number(arg.van)) || 1} stappen`,
+          `Begint met: "${String(arg.tekst ?? '').slice(0, 80)}"`,
+        ],
+        waarschuwing: 'Elke stap zet een ring om iets heen met een zin erbij, en '
+          + 'wacht tot jij op Volgende drukt. Stoppen kan bij elke stap. Er wordt '
+          + 'niet geklikt, niets getypt, en er gaat niets van de pagina naar de client.',
+      });
+    }
+
     if (naam === 'typ') {
       const view = this.mcpWerkruimte().tabs.get(Number(arg.id));
       return this.toestemming.vraag({
@@ -1899,8 +1930,63 @@ class BrowserWindowController {
     return { id: Number(id), ref: String(ref), gewezen: true, rect: uit.rect };
   }
 
+  /**
+   * Mag deze stap, en moet er iets gevraagd worden?
+   *
+   * De regel zelf staat in lib/gids/reeks.js — daar is hij een gewone functie
+   * die zonder venster en zonder pagina uit te proberen is, en dat hoort bij
+   * het soort regel dat hij is.
+   */
+  gidsStapOordeel(id, stap, van) {
+    return reeksOordeel(this.gidsReeks, { tabId: Number(id), stap, van });
+  }
+
+  /**
+   * Eén stap van een uitleg in meerdere stappen.
+   *
+   * Hij geeft pas antwoord als er op de voet is gedrukt. Dat is met opzet: zo
+   * is de lus van de assistent vanzelf de lus van de gebruiker, en hoeft er
+   * niets bewaard te worden tussen twee aanroepen door behalve de vraag of er
+   * doorgedrukt is.
+   */
+  async mcpWijsStap(id, ref, tekst, stap, van) {
+    const { brug } = this.gidsBrugVoor(id);
+    const n = Math.floor(Number(stap));
+    const totaal = Math.floor(Number(van));
+
+    this.gidsReeks = { tabId: Number(id), van: totaal, stap: n, open: false };
+    const uit = await brug.wijsStap(String(ref ?? ''), String(tekst ?? ''), n, totaal);
+    if (uit.status !== 'ok') {
+      this.gidsReeks = null;
+      throw new Error(`Kon daar niet naar wijzen: ${uit.status}`);
+    }
+
+    if (this.gewezenTab !== null && this.gewezenTab !== Number(id)) {
+      this.wijsNietMeer(this.gewezenTab);
+    }
+    this.gewezenTab = Number(id);
+
+    // Alleen 'volgende' opent de deur naar de stap hierna. Bij alles anders
+    // is de uitleg voorbij: gestopt, weggenavigeerd, of te lang blijven staan.
+    const door = uit.antwoord === 'volgende' && n < totaal;
+    this.gidsReeks = door ? { tabId: Number(id), van: totaal, stap: n, open: true } : null;
+    if (!door && uit.antwoord !== 'volgende') this.wijsNietMeer(Number(id));
+    else this.pushState();
+
+    return {
+      id: Number(id),
+      ref: String(ref),
+      stap: n,
+      van: totaal,
+      antwoord: uit.antwoord,
+      // Zwart op wit voor de assistent, zodat er geen interpretatie nodig is.
+      verder: door,
+    };
+  }
+
   async mcpWijsNietMeer(id) {
     const { brug } = this.gidsBrugVoor(id);
+    if (this.gidsReeks && this.gidsReeks.tabId === Number(id)) this.gidsReeks = null;
     await brug.verberg();
     if (this.gewezenTab === Number(id)) {
       this.gewezenTab = null;
@@ -1915,6 +2001,8 @@ class BrowserWindowController {
    */
   wijsNietMeer(id = this.gewezenTab) {
     if (id === null) return false;
+    // Een reeks die niet meer op het scherm staat, loopt niet meer.
+    if (this.gidsReeks && this.gidsReeks.tabId === Number(id)) this.gidsReeks = null;
     try {
       const { brug } = this.gidsBrugVoor(id);
       brug.verberg().catch(() => {});
